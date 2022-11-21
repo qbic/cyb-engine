@@ -36,3 +36,6 @@
 /Game/bin-int
 /build
 /tools/premake
+*.vcxproj
+*.filters
+*.sln

@@ -1,0 +1,1561 @@
+// NOTE: Prefer using the wrapped functions in the gui namespace over ImGui directly,
+//       functions in the gui namespace records all values and allows for undo/redo.
+#include <stack>
+#include <numeric>
+#include "core/logger.h"
+#include "core/timer.h"
+#include "core/profiler.h"
+#include "core/helper.h"
+#include "core/Mathlib.h"
+#include "Graphics/Renderer.h"
+#include "Graphics/ModelImport.h"
+#include "Systems/EventSystem.h"
+#include "editor/editor.h"
+#include "editor/imgui-backend.h"
+#include "imgui.h"
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "imgui_internal.h"
+#include "backends/imgui_impl_win32.h"
+#include "imgui_stdlib.h"
+#include "ImGuizmo.h"
+#include "editor/imgui-widgets.h"
+#include "editor/terrain-generator.h"
+
+//------------------------------------------------------------------------------
+// Custom ImGui code
+//------------------------------------------------------------------------------
+
+namespace ImGui
+{
+    static auto vector_getter = [](void* vec, int idx, const char** out_text)
+    {
+        auto& vector = *static_cast<std::vector<std::string>*>(vec);
+        if (idx < 0 || idx >= static_cast<int>(vector.size())) 
+            return false;
+        *out_text = vector.at(idx).c_str();
+        return true;
+    };
+
+    bool Combo(const char* label, int* currIndex, std::vector<std::string>& values)
+    {
+        if (values.empty())
+            return false;
+        return Combo(label, currIndex, vector_getter,
+            static_cast<void*>(&values), (int)values.size());
+    }
+
+    bool ListBox(const char* label, int* currIndex, std::vector<std::string_view>& values)
+    {
+        static auto getter_function = [](void* vec, int idx, const char** out_text)
+        {
+            auto& vector = *static_cast<std::vector<std::string_view>*>(vec);
+            if (idx < 0 || idx >= static_cast<int>(vector.size())) 
+                return false; 
+            *out_text = vector.at(idx).data();
+            return true;
+        };
+
+        if (values.empty()) 
+            return false; 
+
+        return ListBox(label, currIndex, getter_function, static_cast<void*>(&values), (int)values.size());
+    }
+
+    void FilledBar(const char* label, float v, float v_min, float v_max)
+    {
+        ImGuiWindow* window = GetCurrentWindow();
+        if (window->SkipItems)
+            return;
+
+        ImGuiContext& g = *GImGui;
+        const ImGuiStyle& style = g.Style;
+        const ImGuiID id = window->GetID(label);
+        const float w = CalcItemWidth();
+
+        const ImVec2 label_size = CalcTextSize(label, NULL, true);
+        const ImRect frame_bb(window->DC.CursorPos, window->DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y * 2.0f));
+        const ImRect total_bb(frame_bb.Min, frame_bb.Max);
+        ItemSize(total_bb, style.FramePadding.y);
+        if (!ItemAdd(total_bb, id))
+            return;
+
+        std::string text = fmt::format("{0}: {1:.3f}ms", label, v);
+
+        // Render
+        RenderFrame(frame_bb.Min, frame_bb.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
+        float fraction = (v - v_min)/(v_max - v_min);
+        const ImVec2 fill_br = ImVec2(ImLerp(frame_bb.Min.x, frame_bb.Max.x, fraction), frame_bb.Max.y);
+        RenderRectFilledRangeH(window->DrawList, frame_bb, GetColorU32(ImGuiCol_PlotHistogram), 0.0f, fraction, style.FrameRounding);
+
+        // Default displaying the fraction as percentage string, but user can override it
+        RenderText(ImVec2(frame_bb.Min.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), text.c_str());
+    }
+
+}   // namespace ImGui
+
+namespace cyb::editor 
+{
+    // Pre-defined filters for open/save dialoge window
+    // Using string literals solves the issue of using '\0' in std::string and 
+    // keep the flixabilaty of creating long filter strings with simple +overloading
+    using namespace std::string_literals;
+    const std::string FILE_FILTER_ALL = "All Files (*.*)\0*.*\0"s;
+    const std::string FILE_FILTER_SCENE = "CybEngine Binary Scene Files (*.cbs)\0*.cbs\0"s;
+    const std::string FILE_FILTER_GLTF = "GLTF Files (*.gltf; *.glb)\0*.gltf;*.glb\0"s;
+    const std::string FILE_FILTER_IMPORT_MODEL = FILE_FILTER_GLTF + FILE_FILTER_SCENE + FILE_FILTER_ALL;
+
+    const size_t PROFILER_FRAME_COUNT = 80;
+
+    bool initialized = false;
+    bool vsync_enabled = true;      // FIXME: initial value has to be synced with SwapChainDesc::vsync
+    Resource import_icon;
+    Resource delete_icon;
+    Resource light_icon;
+    Resource editor_icon_select;
+    Resource translate_icon;
+    Resource rotate_icon;
+    Resource scale_icon;
+    ImGuizmo::OPERATION guizmo_operation = ImGuizmo::BOUNDS;
+    bool guizmo_world_mode = true;
+    std::vector<float> g_frameTimes;
+    bool g_freezeFrameTimeHistogram = false;
+    SceneGraphView scenegraph_view;
+
+    // History undo/redo
+    enum class HistoryOpType
+    {
+        TRANSFORM,
+        DRAG_FLOAT,
+        DRAG_INT,
+        SLIDER_FLOAT,
+        SLIDER_INT,
+        ENTITY_CHANGE,
+        INT32_CHANGE,
+        NONE
+    };
+    std::vector<serializer::Archive> history;
+    int history_pos = -1;
+
+    serializer::Archive& AdvanceHistory()
+    {
+        history_pos++;
+
+        while (static_cast<int>(history.size()) > history_pos)
+        {
+            history.pop_back();
+        }
+
+        history.emplace_back();
+        return history.back();
+    }
+
+    void ConsumeHistoryOp(bool undo)
+    {
+        if ((undo && history_pos >= 0) || (!undo && history_pos < (int)history.size() - 1))
+        {
+            if (!undo)
+                history_pos++;
+
+            scene::Scene& scene = scene::GetScene();
+            serializer::Archive& archive = history[history_pos];
+            archive.SetAccessModeAndResetPos(serializer::Archive::Access::Read);
+
+            int temp;
+            archive >> temp;
+            HistoryOpType op = (HistoryOpType)temp;
+
+            switch (op)
+            {
+            case HistoryOpType::TRANSFORM: 
+            {
+                XMFLOAT4X4 delta;
+                ecs::Entity entity;
+
+                archive >> delta;
+                archive >> entity;
+                XMMATRIX W = XMLoadFloat4x4(&delta);
+                if (undo)
+                {
+                    W = XMMatrixInverse(nullptr, W);
+                }
+                scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
+                if (transform != nullptr)
+                {
+                    transform->MatrixTransform(W);
+                }
+            } break;
+            case HistoryOpType::SLIDER_FLOAT:
+            case HistoryOpType::DRAG_FLOAT:
+            {
+                float delta;
+                uintptr_t ptr_addr;
+                archive >> delta;
+                archive >> ptr_addr;
+                if (undo)
+                {
+                    delta = -delta;
+                }
+                float* value_ptr = (float*)ptr_addr;
+                *value_ptr -= delta;
+            } break;
+            case HistoryOpType::SLIDER_INT:
+            case HistoryOpType::DRAG_INT:
+            {
+                int32_t delta;
+                uintptr_t ptr_addr;
+                archive >> delta;
+                archive >> ptr_addr;
+                if (undo)
+                {
+                    delta = -delta;
+                }
+                uint32_t* value_ptr = (uint32_t*)ptr_addr;
+                *value_ptr -= delta;
+            } break;
+            case HistoryOpType::ENTITY_CHANGE:
+            {
+                ecs::Entity new_value;
+                ecs::Entity old_value;
+                uintptr_t ptr_addr;
+                archive >> new_value;
+                archive >> old_value;
+                archive >> ptr_addr;
+
+                ecs::Entity value = undo ? old_value : new_value;
+                ecs::Entity* value_ptr = (uint32_t*)ptr_addr;
+                *value_ptr = value;
+
+            } break;
+            case HistoryOpType::INT32_CHANGE:
+            {
+                int32_t new_value;
+                int32_t old_value;
+                uintptr_t ptr_addr;
+                archive >> new_value;
+                archive >> old_value;
+                archive >> ptr_addr;
+
+                int32_t value = undo ? old_value : new_value;
+                int32_t* value_ptr = (int32_t*)ptr_addr;
+                *value_ptr = value;
+
+            } break;
+            default: break;
+            }
+
+            if (undo)
+            {
+                history_pos--;
+            }
+        }
+    }
+
+    namespace gui
+    {
+        const float DEFAULT_COLUMN_WIDTH = 100.0f;
+        std::stack<float> column_width_stack;
+
+        void PushColumnWidth(float width)
+        {
+            column_width_stack.push(width);
+        }
+
+        void PopColumnWidth()
+        {
+            column_width_stack.pop();
+        }
+
+        float ColumnWidth()
+        {
+            if (!column_width_stack.empty())
+                return column_width_stack.top();
+
+            return DEFAULT_COLUMN_WIDTH;
+        }
+
+        static void BeginElement(const std::string& label)
+        {
+            ImGui::PushID(label.c_str());
+
+            ImGui::BeginTable(label.c_str(), 2);
+            ImGui::TableSetupColumn("one", ImGuiTableColumnFlags_WidthFixed, ColumnWidth());
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(label.c_str());
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-1);
+        }
+
+        static void EndElement()
+        {
+            ImGui::EndTable();
+            ImGui::PopID();
+        }
+
+        static void InputText(
+            const std::string& label,
+            std::string& value)
+        {
+            BeginElement(label);
+            ImGui::InputText("##INPUT_TEXT", &value);
+            EndElement();
+        }
+
+        bool CheckBox(const std::string& label, bool& value)
+        {
+            BeginElement(label);
+            bool value_changed = ImGui::Checkbox("##FLAG", &value);
+            EndElement();
+
+            return value_changed;
+        }
+
+        static bool CheckboxFlags(
+            const std::string& label,
+            uint32_t& flags,
+            uint32_t flags_value)
+        {
+            BeginElement(label);
+            bool value_changed = ImGui::CheckboxFlags("##FLAG", &flags, flags_value);
+            EndElement();
+
+            return value_changed;
+        }
+
+        // Helper function to draw a float slider with label on left side.
+        // The label column width is specifiled by column_width.
+        bool DragFloat(
+            const std::string& label,
+            float& value,
+            float v_speed,
+            float v_min,
+            float v_max,
+            const char* format
+        )
+        {
+            static float old_value = 0.0f;
+
+            BeginElement(label);
+            bool value_changed = ImGui::DragFloat("##X", &value, v_speed, v_min, v_max, format);
+            if (ImGui::IsItemActivated())
+                old_value = value;
+
+            if (ImGui::IsItemDeactivatedAfterEdit())
+            {
+                serializer::Archive& ar = AdvanceHistory();
+                ar << (int)HistoryOpType::DRAG_FLOAT;
+                ar << old_value - value;
+                ar << (uintptr_t)&value;
+            }
+            EndElement();
+
+            return value_changed;
+        }
+
+        bool DragInt(
+            const std::string& label,
+            uint32_t& value,
+            float v_speed,
+            uint32_t v_min,
+            uint32_t v_max,
+            const char* format
+        )
+        {
+            static uint32_t old_value = 0;
+
+            BeginElement(label);
+            bool value_changed = ImGui::DragInt("##X", (int *)&value, v_speed, v_min, v_max, format);
+            if (ImGui::IsItemActivated())
+                old_value = value;
+
+            if (ImGui::IsItemDeactivatedAfterEdit())
+            {
+                serializer::Archive& ar = AdvanceHistory();
+                ar << (int)HistoryOpType::DRAG_INT;
+                ar << old_value - value;
+                ar << (uintptr_t)&value;
+            }
+            EndElement();
+
+            return value_changed;
+        }
+
+        bool SliderFloat(const std::string& label, float& value, float v_min, float v_max)
+        {
+            static float old_value = 0.0f;
+
+            BeginElement(label);
+            bool value_changed = ImGui::SliderFloat("##X", &value, v_min, v_max, "%.2f");
+            if (ImGui::IsItemActivated())
+                old_value = value;
+
+            if (ImGui::IsItemDeactivatedAfterEdit())
+            {
+                serializer::Archive& ar = AdvanceHistory();
+                ar << (int)HistoryOpType::SLIDER_FLOAT;
+                ar << old_value - value;
+                ar << (uintptr_t)&value;
+            }
+            EndElement();
+
+            return value_changed;
+        }
+
+        bool SliderInt(const std::string& label, uint32_t& value, uint32_t v_min, uint32_t v_max, const char* format)
+        {
+            static uint32_t old_value = 0;
+
+            BeginElement(label);
+            bool value_changed = ImGui::SliderInt("##X", (int *)&value, v_min, v_max, format);
+            if (ImGui::IsItemActivated())
+                old_value = value;
+
+            if (ImGui::IsItemDeactivatedAfterEdit())
+            {
+                serializer::Archive& ar = AdvanceHistory();
+                ar << (int)HistoryOpType::SLIDER_INT;
+                ar << old_value - value;
+                ar << (uintptr_t)&value;
+            }
+            EndElement();
+
+            return value_changed;
+        }
+
+        static bool Float3Edit(
+            const std::string& label,
+            XMFLOAT3& values,
+            float reset_value = 0.0f)
+        {
+            bool value_changed = false;
+
+            BeginElement(label);
+
+            ImGui::PushMultiItemsWidths(4, ImGui::CalcItemWidth());
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0, 0 });
+
+            const float line_height = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+            const ImVec2 button_size = { line_height + 3.0f, line_height };
+
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.8f, 0.1f, 0.15f, 1.0f });
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.9f, 0.2f, 0.2f, 1.0f });
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.8f, 0.1f, 0.15f, 1.0f });
+            if (ImGui::Button("X", button_size))
+            {
+                values.x = reset_value;
+                value_changed = true;
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Reset X to %.2f", reset_value);
+            ImGui::PopStyleColor(3);
+            ImGui::SameLine();
+            value_changed |= ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f");
+
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f });
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.3f, 0.8f, 0.3f, 1.0f });
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f });
+            if (ImGui::Button("Y", button_size))
+            {
+                values.y = reset_value;
+                value_changed = true;
+            }
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Reset Y to %.2f", reset_value);
+            }
+            ImGui::PopStyleColor(3);
+            ImGui::SameLine();
+            ImGui::SameLine();
+            value_changed |= ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f");
+
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.25f, 0.8f, 1.0f });
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.2f, 0.35f, 0.9f, 1.0f });
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.25f, 0.8f, 1.0f });
+            if (ImGui::Button("Z", button_size))
+            {
+                values.z = reset_value;
+                value_changed = true;
+            }
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Reset Z to %.2f", reset_value);
+            }
+            ImGui::PopStyleColor(3);
+            ImGui::SameLine();
+            value_changed |= ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
+
+            ImGui::PopItemWidth();
+            ImGui::PopStyleVar();
+            EndElement();
+            return value_changed;
+        }
+
+        // Helper function to draw a Color control with label on left side.
+        // The label column width is specifiled by column_width.
+        void ColorEdit3(
+            const std::string& label,
+            XMFLOAT3& value)
+        {
+            BeginElement(label);
+            ImGui::ColorEdit3("##COLOR3", &value.x, ImGuiColorEditFlags_Float);
+            EndElement();
+        }
+
+        void ColorEdit4(
+            const std::string& label,
+            XMFLOAT4& value)
+        {
+            BeginElement(label);
+            ImGui::ColorEdit4("##COLOR4", &value.x, ImGuiColorEditFlags_Float);
+            EndElement();
+        }
+    }
+
+
+    //------------------------------------------------------------------------------
+    // Component inspectors
+    //------------------------------------------------------------------------------
+
+    void InspectNameComponent(scene::NameComponent* name_component)
+    {
+        ImGui::InputText("Name", &name_component->name);
+    }
+
+    void InspectTransformComponent(scene::TransformComponent* transform)
+    {
+        if (gui::Float3Edit("Translation", transform->translation_local))
+        {
+            transform->SetDirty(true);
+        }
+
+        //if (gui::Vec3Control("Rotation", transform->rotation_local.xyz))
+        //{
+        //    transform->SetDirty(true);
+        //}
+
+        if (gui::Float3Edit("Scale", transform->scale_local, 1.0f))
+        {
+            transform->SetDirty(true);
+        }
+    }
+
+    void InspectHierarchyComponent(scene::HierarchyComponent* hierarchy)
+    {
+        scene::Scene& scene = scene::GetScene();
+        scene::NameComponent* name = scene.names.GetComponent(hierarchy->parentID);
+        if (name) 
+        {
+            ImGui::Text("Parent: %s", name->name.c_str());
+        } 
+        else 
+        {
+            ImGui::Text("Parent: (no name) entityID=%u", hierarchy->parentID);
+        }
+    }
+
+    void InspectMeshComponent(scene::MeshComponent* mesh)
+    {
+        scene::Scene& scene = scene::GetScene();
+
+        // Mesh info
+        ImGui::Text("Vertex positions: %u", mesh->vertex_positions.size());
+        ImGui::Text("Vertex normals: %u", mesh->vertex_normals.size());
+        ImGui::Text("Vertex colors: %u", mesh->vertex_colors.size());
+        ImGui::Text("Index count: %u", mesh->indices.size());
+
+        ImGui::Spacing();
+        ImGui::TextUnformatted("Mesh Subset Info:");
+        ImGui::BeginTable("Subset Info", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchProp);
+        ImGui::TableSetupColumn("Subset");
+        ImGui::TableSetupColumn("Offset");
+        ImGui::TableSetupColumn("IndexCount");
+        ImGui::TableSetupColumn("Material");
+        ImGui::TableHeadersRow();
+        ImGui::TableNextColumn();
+        for (uint32_t i = 0; i < mesh->subsets.size(); ++i)
+        {
+            const auto& subset = mesh->subsets[i];
+            const std::string& material_name = scene.names.GetComponent(subset.materialID)->name;
+
+            ImGui::Text("%d", i); ImGui::TableNextColumn();
+            ImGui::Text("%u", subset.indexOffset); ImGui::TableNextColumn();
+            ImGui::Text("%u", subset.indexCount); ImGui::TableNextColumn();
+            ImGui::Text("%s", material_name.c_str()); ImGui::TableNextColumn();
+        }
+
+        ImGui::EndTable();
+
+        if (ImGui::Button("Compute Normals"))
+            mesh->ComputeNormals();
+    }
+
+    void InspectMaterialComponent(scene::MaterialComponent* material)
+    {
+        static const std::unordered_map<scene::MaterialComponent::SHADERTYPE, std::string> shadertype_names =
+        {
+            { scene::MaterialComponent::SHADERTYPE_BRDF,    "Flat BRDF" },
+            { scene::MaterialComponent::SHADERTYPE_UNLIT,   "Flat Unlit" },
+            { scene::MaterialComponent::SHADERTYPE_TERRAIN, "Geometry Clipmapping Terrain" }
+        };
+
+        gui::ComboBox("Shader Type", material->shader_type, shadertype_names);
+        gui::ColorEdit4("BaseColor", material->baseColor);
+        gui::SliderFloat("Roughness", material->roughness, 0.0f, 1.0f);
+        gui::SliderFloat("Metalness", material->metalness, 0.0f, 1.0f);
+    }
+
+    struct NameSortableEntityData
+    {
+        ecs::Entity id;
+        std::string_view name;
+
+        bool operator<(const NameSortableEntityData& a)
+        {
+            return name < a.name;
+        }
+    };
+
+    template <typename T>
+    void SelectEntityPopup(
+        ecs::ComponentManager<T>& components,
+        ecs::ComponentManager<scene::NameComponent>& names,
+        ecs::Entity& current_entity)
+    {
+        static ImGuiTextFilter filter;
+
+        assert(components.Size() < INT32_MAX);
+        if (ImGui::ListBoxHeader("", (int)components.Size(), 10))
+        {
+            std::vector<NameSortableEntityData> sorted_entities;
+            for (size_t i = 0; i < components.Size(); ++i)
+            {
+                auto& back = sorted_entities.emplace_back();
+                back.id = components.GetEntity(i);
+                back.name = names.GetComponent(back.id)->name;
+            }
+
+            std::sort(sorted_entities.begin(), sorted_entities.end());
+            for (auto& entity : sorted_entities)
+            {
+                if (filter.PassFilter(entity.name.data()))
+                {
+                    const std::string label = fmt::format("{}##{}", entity.name, entity.id); // ImGui needs a uniqe label for each materal
+                    if (ImGui::Selectable(label.c_str(), current_entity == entity.id))
+                    {
+                        if (current_entity != entity.id)
+                        {
+                            serializer::Archive& ar = AdvanceHistory();
+                            ar << (int)HistoryOpType::ENTITY_CHANGE;
+                            ar << entity.id;        // new
+                            ar << current_entity;   // old
+                            ar << (uintptr_t)&current_entity;
+
+                            current_entity = entity.id;
+                        }
+
+                        filter.Clear();
+                        ImGui::CloseCurrentPopup();
+                    }
+                }
+            }
+            ImGui::ListBoxFooter();
+        }
+
+        ImGui::Text("Search:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(-1);
+        filter.Draw("");
+    }
+
+    ecs::Entity SelectMaterialFromMesh(scene::MeshComponent* mesh)
+    {
+        scene::Scene& scene = scene::GetScene();
+
+        std::vector<std::string_view> names;
+        for (const auto& subset : mesh->subsets)
+        {
+            std::string_view name = scene.names.GetComponent(subset.materialID)->name.c_str();
+            names.push_back(name);
+        }
+
+        static int selected_item = 0;
+        selected_item = std::min(selected_item, (int)mesh->subsets.size() - 1);
+
+        gui::BeginElement("Select Material");
+        ImGui::ListBox("##MeshMaterials", &selected_item, names);
+        gui::EndElement();
+        ecs::Entity selected_material_id = mesh->subsets[selected_item].materialID;
+
+        // Edit material name / select material
+        scene::NameComponent* name = scene.names.GetComponent(selected_material_id);
+        ImGui::InputText("##Material_Name", &name->name);
+        ImGui::SameLine();
+        if (ImGui::Button("Change##Material"))
+            ImGui::OpenPopup("MaterialSelectPopup");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Link another material to the mesh");
+
+        if (ImGui::BeginPopup("MaterialSelectPopup"))
+        {
+            SelectEntityPopup(scene.materials, scene.names, mesh->subsets[selected_item].materialID);
+            ImGui::EndPopup();
+        }
+
+        return selected_material_id;
+    }
+
+    void InspectAABBComponent(AxisAlignedBox* aabb)
+    {
+        const XMFLOAT3& min = aabb->GetMin();
+        const XMFLOAT3& max = aabb->GetMax();
+        ImGui::Text("Min: [%.2f, %.2f, %.2f]", min.x, min.y, min.z);
+        ImGui::Text("Max: [%.2f, %.2f, %.2f]", max.x, max.y, max.z);
+        ImGui::Text("Width: %.2fm", max.x - min.x);
+        ImGui::Text("Height: %.2fm", max.y - min.y);
+        ImGui::Text("Depth: %.2fm", max.z - min.z);
+    }
+
+    void InspectObjectComponent(scene::ObjectComponent* object)
+    {
+        scene::Scene& scene = scene::GetScene();
+
+        // Edit mesh name / select mesh
+        scene::NameComponent* name = scene.names.GetComponent(object->meshID);
+        ImGui::InputText("##Mesh_Name", &name->name);
+        ImGui::SameLine();
+        if (ImGui::Button("Change##Mesh"))
+            ImGui::OpenPopup("MeshSelectPopup");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Link another mesh to the object");
+
+        if (ImGui::BeginPopup("MeshSelectPopup"))
+        {
+            SelectEntityPopup(scene.meshes, scene.names, object->meshID);
+            ImGui::EndPopup();
+        }
+
+        ImGui::Separator();
+        ImGui::CheckboxFlags("Renderable (unimplemented)", (unsigned int*)&object->flags, scene::ObjectComponent::RENDERABLE);
+        ImGui::CheckboxFlags("Cast shadow (unimplemented)", (unsigned int*)&object->flags, scene::ObjectComponent::CAST_SHADOW);
+    }
+
+    bool InspectCameraComponent(scene::CameraComponent& camera)
+    {
+        bool change = ImGui::SliderFloat("Z Near Plane", &camera.zNearPlane, 0.001f, 10.0f);
+        change |= ImGui::SliderFloat("Z Far Plane", &camera.zFarPlane, 10.0f, 1000.0f);
+        change |= ImGui::SliderFloat("FOV", &camera.fov, 0.0f, 3.0f);
+        change |= gui::Float3Edit("Position", camera.pos);
+        change |= gui::Float3Edit("Target", camera.target);
+        change |= gui::Float3Edit("Up", camera.up);
+        return change;
+    }
+
+    void InspectLightComponent(scene::LightComponent* light)
+    {
+        static const std::unordered_map<scene::LightType, std::string> lightTypeNames =
+        {
+            { scene::LightType::DIRECTIONAL, "Directional" },
+            { scene::LightType::POINT,       "Point"       }
+        };
+
+        scene::LightType light_type = light->GetType();
+        if (gui::ComboBox("Type", light_type, lightTypeNames))
+            light->SetType(light_type);
+
+        gui::ColorEdit3("Color", light->color);
+        gui::DragFloat("Energy", light->energy, 0.02f);
+        gui::DragFloat("Range", light->range, 1.2f, 0.0f, FLT_MAX);
+        gui::CheckboxFlags("Affects scene", light->flags, scene::LightComponent::AFFECTS_SCENE);
+        gui::CheckboxFlags("Cast shadows", light->flags, scene::LightComponent::CAST_SHADOW);
+    }
+
+    void InspectWeatherComponent(scene::WeatherComponent* weather)
+    {
+        ImGui::ColorEdit3("Horizon Color", &weather->horizon.x);
+        ImGui::ColorEdit3("Zenith Color", &weather->zenith.x);
+        ImGui::DragFloat("Fog Begin", &weather->fogStart);
+        ImGui::DragFloat("Fog End", &weather->fogEnd);
+        ImGui::DragFloat("Fog Height", &weather->fogHeight);
+    }
+
+    //------------------------------------------------------------------------------
+    // Scene Graph
+    //------------------------------------------------------------------------------
+
+    void SceneGraphView::AddNode(Node* parent, ecs::Entity entity, const std::string_view& name)
+    {
+        const scene::Scene& scene = scene::GetScene();
+
+        const scene::HierarchyComponent* hierarchy = scene.hierarchy.GetComponent(entity);
+        if (hierarchy != nullptr)
+        {
+            ecs::Entity parent_id = hierarchy->parentID;
+            const std::string_view parent_name = scene.names.GetComponent(parent_id)->name;
+            AddNode(parent, parent_id, parent_name);
+        }
+
+        if (added_entities.count(entity) != 0)
+            return;
+        parent->children.emplace_back(parent, entity, name);
+        added_entities.insert(entity);
+
+        // Generate a list of all child nodes
+        for (size_t i = 0; i < scene.hierarchy.Size(); ++i)
+        {
+            if (scene.hierarchy[i].parentID == entity)
+            {
+                const ecs::Entity child_entity = scene.hierarchy.GetEntity(i);
+                const std::string_view child_name = scene.names.GetComponent(child_entity)->name;
+                AddNode(&parent->children.back(), child_entity, child_name);
+            }
+        }
+    }
+
+    void SceneGraphView::GenerateView()
+    {
+        root.children.clear();
+        added_entities.clear();
+
+        const scene::Scene& scene = scene::GetScene();
+
+        // First weather...
+        {
+            if (scene.weathers.Size() > 0)
+            {
+                ecs::Entity entity = scene.weathers.GetEntity(0);
+                const char* name = "Weather";
+                AddNode(&root, entity, name);
+            }
+        }
+
+        // ... then groups...
+        for (size_t i = 0; i < scene.groups.Size(); ++i)
+        {
+            ecs::Entity entity = scene.groups.GetEntity(i);
+            const std::string& name = scene.names.GetComponent(entity)->name;
+            AddNode(&root, entity, name);
+        }
+
+        // ... then objects...
+        for (size_t i = 0; i < scene.objects.Size(); ++i)
+        {
+            ecs::Entity entity = scene.objects.GetEntity(i);
+            const std::string& name = scene.names.GetComponent(entity)->name;
+            AddNode(&root, entity, name);
+        }
+
+        // ... then all other entities containing transform components
+        for (size_t i = 0; i < scene.transforms.Size(); ++i)
+        {
+            ecs::Entity entity = scene.transforms.GetEntity(i);
+            const std::string& name = scene.names.GetComponent(entity)->name;
+            AddNode(&root, entity, name);
+        }
+    }
+
+    void SceneGraphView::DrawNode(const Node* node)
+    {
+        ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+        node_flags |= (node->children.empty()) ? ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen : 0;
+        node_flags |= (node->entity == selected_entity) ? ImGuiTreeNodeFlags_Selected : 0;
+
+        bool is_open = ImGui::TreeNodeEx(node->name.data(), node_flags, node->name.data());
+        if (ImGui::IsItemClicked())
+            selected_entity = node->entity;
+
+        const char* drag_and_drop_id = "SGV_TreeNode";
+        if (ImGui::BeginDragDropSource())
+        {
+            ImGui::SetDragDropPayload(drag_and_drop_id, &node->entity, sizeof(node->entity));
+            ImGui::Text("Move to parent");
+            ImGui::EndDragDropSource();
+        }
+        if (ImGui::BeginDragDropTarget())
+        {
+            const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(drag_and_drop_id);
+            if (payload)
+            {
+                assert(payload->DataSize == sizeof(ecs::Entity));
+                ecs::Entity dragged_entity = *((ecs::Entity*)payload->Data);
+                scene::GetScene().ComponentAttach(dragged_entity, node->entity);
+            }
+        }
+
+        if (is_open)
+        {
+            if (ImGui::IsItemClicked())
+                selected_entity = node->entity;
+
+            if (!node->children.empty())
+            {
+                for (const auto& child : node->children)
+                    DrawNode(&child);
+
+                ImGui::TreePop();
+            }
+        }
+    }
+
+    void SceneGraphView::Draw()
+    {
+        for (const auto& x : root.children)
+            DrawNode(&x);
+    }
+
+    // Helper function to draw a collapsing header for entity components
+    template <typename T>
+    inline void InspectComponent(
+        const char* label,
+        ecs::ComponentManager<T>& components,
+        const std::function<void(T*)> inspector,
+        const ecs::Entity entity,
+        const bool default_open,
+        const std::function<void(T*)> post_draw = [](T* bogus) {bogus; })
+    {
+        T* component = components.GetComponent(entity);
+        if (component)
+        {
+            ImGuiTreeNodeFlags flags = default_open ? ImGuiTreeNodeFlags_DefaultOpen : 0;
+            if (ImGui::CollapsingHeader(label, flags))
+            {
+                ImGui::Indent();
+                inspector(component);
+                ImGui::Unindent();
+            }
+
+            post_draw(component);
+        }
+    }
+
+    void EditEntityComponents(ecs::Entity entityID)
+    {
+        scene::Scene& scene = scene::GetScene();
+
+        if (entityID != ecs::INVALID_ENTITY)
+        {
+            InspectComponent<scene::NameComponent>("Name##edit_entity_name", scene.names, InspectNameComponent, entityID, true);
+            InspectComponent<scene::ObjectComponent>("Object", scene.objects, InspectObjectComponent, entityID, false, [&](scene::ObjectComponent* object) {
+                InspectComponent<scene::MeshComponent>("Mesh *", scene.meshes, InspectMeshComponent, object->meshID, false, [&](scene::MeshComponent* mesh) {
+                    if (ImGui::CollapsingHeader("Materials *"))
+                    {
+                        ImGui::Indent();
+                        ecs::Entity material_id = SelectMaterialFromMesh(mesh);
+                        scene::MaterialComponent* material = scene.materials.GetComponent(material_id);
+                        ImGui::Separator();
+                        InspectMaterialComponent(material);
+                        ImGui::Unindent();
+                    }
+                    });
+                });
+
+            InspectComponent<scene::MeshComponent>("Mesh", scene.meshes, InspectMeshComponent, entityID, false);
+            InspectComponent<scene::MaterialComponent>("Material", scene.materials, InspectMaterialComponent, entityID, false);
+            InspectComponent<scene::LightComponent>("Light", scene.lights, InspectLightComponent, entityID, true);
+            InspectComponent<scene::TransformComponent>("Transform", scene.transforms, InspectTransformComponent, entityID, true);
+            InspectComponent<AxisAlignedBox>("AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
+            InspectComponent<AxisAlignedBox>("AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
+            InspectComponent<scene::HierarchyComponent>("Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, true);
+            InspectComponent<scene::WeatherComponent>("Weather", scene.weathers, InspectWeatherComponent, entityID, true);
+        }
+    }
+
+    //------------------------------------------------------------------------------
+
+    void GuiTool::PreDraw()
+    {
+        ImGui::Begin(GetWindowTitle(), &show_window, ImGuiWindowFlags_HorizontalScrollbar);
+    }
+
+    void GuiTool::PostDraw()
+    {
+        ImGui::End();
+    }
+
+    class Tool_Profiler : public GuiTool
+    {
+    public:
+        using GuiTool::GuiTool;
+        virtual void Draw() override
+        {
+            ImGui::SetNextItemWidth(-1);
+
+            const float totalFrameTime = std::accumulate(g_frameTimes.begin(), g_frameTimes.end(), 0.0f);
+            std::string avgFrameTime = std::string("avg. time: ") + std::to_string(totalFrameTime / PROFILER_FRAME_COUNT);
+            ImGui::PlotHistogram("##FrameTimes", &g_frameTimes[0], (uint32_t)g_frameTimes.size(), 0, avgFrameTime.c_str(), 0.0f, 0.02f, ImVec2(0, 80.0f));
+            ImGui::Checkbox("Freeze histogram", &g_freezeFrameTimeHistogram);
+            ImGui::Text("Frame counter: %u", renderer::GetDevice()->GetFrameCount());
+            ImGui::Text("Avarage FPS (Over %d frames): %.1f", PROFILER_FRAME_COUNT, PROFILER_FRAME_COUNT / totalFrameTime);
+
+            graphics::GraphicsDevice::MemoryUsage vram = renderer::GetDevice()->GetMemoryUsage();
+            ImGui::Text("VRAM usage: %dMB / %dMB", vram.usage / 1024 / 1024, vram.budget / 1024 / 1024);
+
+            // Display profiler entries sorted by their cpu time
+            const auto& profiler_entries = profiler::GetData();
+            float max_time = 10.0f;
+            std::vector<std::pair<std::string_view, float>> sorted_entries;
+            sorted_entries.reserve(profiler_entries.size());
+            for (auto& it : profiler_entries)
+            {
+                max_time = std::max(max_time, it.second.time);
+                sorted_entries.emplace_back(std::pair< std::string_view, float>(it.second.name, it.second.time));
+            }
+
+            std::sort(sorted_entries.begin(), sorted_entries.end(), [=](std::pair<std::string_view, float>& a, std::pair<std::string_view, float>& b)
+                {
+                    return a.second > b.second;
+                });
+
+            for (auto& it : sorted_entries)
+            {
+                ImGui::SetNextItemWidth(-1);
+                ImGui::FilledBar(it.first.data(), it.second, 0, max_time);
+            }
+        }
+    };
+
+    //------------------------------------------------------------------------------
+
+    class Tool_LogDisplay : public GuiTool
+    {
+    public:
+        using GuiTool::GuiTool;
+        virtual void Draw() override
+        {
+            std::string backlog_text = logger::GetText();
+            ImGui::TextUnformatted((char*)backlog_text.c_str(), (char*)backlog_text.c_str() + backlog_text.size());
+
+            if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+                ImGui::SetScrollHereY(1.0f);
+        }
+    };
+
+    //------------------------------------------------------------------------------
+
+    class Tool_ContentBrowser : public GuiTool
+    {
+    public:
+        using GuiTool::GuiTool;
+        virtual void Draw() override
+        {
+            const scene::Scene& scene = scene::GetScene();
+
+            ImGui::Text("Meshes:");
+            for (size_t i = 0; i < scene.meshes.Size(); ++i)
+            {
+                const ecs::Entity entityID = scene.meshes.GetEntity(i);
+                const std::string& name = scene.names.GetComponent(entityID)->name;
+
+                ImGui::Text("%s\n", name.c_str());
+            }
+
+            ImGui::Separator();
+
+            ImGui::Text("Materials:");
+            for (size_t i = 0; i < scene.materials.Size(); ++i)
+            {
+                const ecs::Entity entityID = scene.materials.GetEntity(i);
+                const std::string& name = scene.names.GetComponent(entityID)->name;
+
+                ImGui::Text("%s [%u]\n", name.c_str(), entityID);
+            }
+        }
+    };
+
+    //------------------------------------------------------------------------------
+
+    // Generate a terrain mesh on the currently selected entity.
+    // Params are stored in global terrain_generator_params.
+    //
+    // TODO: This tool feels abit wonky, having to select the entity in the
+    // scene browser, and using global TerrainParameters...
+    class Tool_TerrainGeneration : public GuiTool
+    {
+    public:
+        TerrainGenerator generator;
+
+        using GuiTool::GuiTool;
+        virtual void Draw() override
+        {
+            generator.DrawGui(scenegraph_view.SelectedEntity());
+        }
+    };
+
+    //------------------------------------------------------------------------------
+
+    std::vector<std::unique_ptr<GuiTool>> tools;
+
+    void AttachToolToMenu(std::unique_ptr<GuiTool>&& tool)
+    {
+        tools.push_back(std::move(tool));
+    }
+
+    void DrawTools()
+    {
+        for (auto& x : tools)
+        {
+            if (!x->IsShown())
+                continue;
+
+            x->PreDraw();
+            x->Draw();
+            x->PostDraw();
+        }
+    }
+
+    //------------------------------------------------------------------------------
+
+    ecs::Entity CreateDirectionalLight()
+    {
+        scene::Scene& scene = scene::GetScene();
+        return scene.CreateLight(
+            "Light_Directional_NEW", 
+            XMFLOAT3(0.0f, 70.0f, 0.0f),
+            XMFLOAT3(1.0f, 1.0f, 1.0f),
+            1.0f, 100.0f, 
+            scene::LightType::DIRECTIONAL);
+    }
+
+    ecs::Entity CreatePointLight()
+    {
+        scene::Scene& scene = scene::GetScene();
+        ecs::Entity entity = scene.CreateLight(
+            "Light_Point_NEW", 
+            XMFLOAT3(0.0f, 20.0f, 0.0f), 
+            XMFLOAT3(1.0f, 1.0f, 1.0f),
+            1.0f, 100.0f, 
+            scene::LightType::POINT);
+        scenegraph_view.SelectEntity(entity);
+        return entity;
+    }
+
+    // Clears the current scene and loads in a new from a selected file.
+    // TODO: Add a dialog to prompt user about unsaved progress
+    void OpenDialog_Open()
+    {
+        helper::FileDialog(helper::FileOp::OPEN, FILE_FILTER_SCENE, [](std::string filename) {
+            eventsystem::Subscribe_Once(eventsystem::EVENT_THREAD_SAFE_POINT, [=](uint64_t) {
+                scene::GetScene().Clear();
+                scene::LoadModel(filename);
+                });
+            });
+    }
+
+    // Import a new model to the scene, once the loading is complete
+    // it will be automaticly selected in the scene graph view.
+    void OpenDialog_ImportModel(const std::string filter)
+    {
+        helper::FileDialog(helper::FileOp::OPEN, filter, [](std::string filename) {
+            eventsystem::Subscribe_Once(eventsystem::EVENT_THREAD_SAFE_POINT, [=](uint64_t) {
+                std::string extension = helper::ToUpper(helper::GetExtensionFromFileName(filename));
+                if (extension.compare("CBS") == 0)
+                {
+                    scene::LoadModel(filename);
+                }
+                else if (extension.compare("GLB") == 0 || extension.compare("GLTF") == 0)
+                {
+                    ecs::Entity entity = renderer::ImportModel_GLTF(filename, scene::GetScene());
+                    SetSceneGraphViewSelection(entity);
+                }
+                });
+            });
+    }
+
+    void OpenDialog_SaveAs()
+    {
+        helper::FileDialog(helper::FileOp::SAVE, FILE_FILTER_SCENE, [](std::string filename) {
+            if (helper::GetExtensionFromFileName(filename) != "cbs")
+            {
+                filename += ".cbs";
+            }
+
+            serializer::Archive ar;
+            Timer timer;
+            timer.Record();
+            scene::GetScene().Serialize(ar);
+            ar.SaveFile(filename);
+            CYB_TRACE("Serialized and saved (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+            });
+    }
+
+    void SetSceneGraphViewSelection(ecs::Entity entity)
+    {
+        scenegraph_view.SelectEntity(entity);
+    }
+
+    static void DeleteSelectedEntity()
+    {
+        eventsystem::Subscribe_Once(eventsystem::EVENT_THREAD_SAFE_POINT, [=](uint64_t)
+            {
+                scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity());
+                scenegraph_view.SelectEntity(ecs::INVALID_ENTITY);
+            });
+    }
+
+    //------------------------------------------------------------------------------
+    // Editor main window
+    //------------------------------------------------------------------------------
+
+    void DrawMenuBar()
+    {
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("New"))
+                    eventsystem::Subscribe_Once(eventsystem::EVENT_THREAD_SAFE_POINT, [=](uint64_t) 
+                        {
+                            scene::GetScene().Clear(); 
+                        });
+                if (ImGui::MenuItem("Open"))
+                    OpenDialog_Open();
+                if (ImGui::MenuItem("Save As..."))
+                    OpenDialog_SaveAs();
+
+                ImGui::Separator();
+
+                if (ImGui::BeginMenu("Import"))
+                {
+                    if (ImGui::MenuItem("Model (.gltf/.glb/.cbs)"))
+                        OpenDialog_ImportModel(FILE_FILTER_IMPORT_MODEL);
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::Separator();
+                ImGui::MenuItem("Exit (!!)", "ALT+F4");
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Edit"))
+            {
+                if (ImGui::MenuItem("Undo", "CTRL+Z"))
+                    ConsumeHistoryOp(true);
+                if (ImGui::MenuItem("Redo", "CTRL+Y"))
+                    ConsumeHistoryOp(false);
+
+                ImGui::Separator();
+
+                if (ImGui::BeginMenu("Add"))
+                {
+                    if (ImGui::MenuItem("Directional Light"))
+                        CreateDirectionalLight();
+                    if (ImGui::MenuItem("Point Light"))
+                        CreatePointLight();
+                    ImGui::EndMenu();
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Detach from parent"))
+                    scene::GetScene().ComponentDetach(scenegraph_view.SelectedEntity());
+                if (ImGui::MenuItem("Delete", "Del"))
+                    DeleteSelectedEntity();
+                ImGui::MenuItem("Duplicate (!!)", "CTRL+D");
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Reload Shaders"))
+                    renderer::ReloadShaders();
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Debug"))
+            {
+                bool debug_object_aabb = renderer::GetDebugObjectAABB();
+                if (ImGui::Checkbox("Draw Object AABB", &debug_object_aabb))
+                    renderer::SetDebugObjectAABB(debug_object_aabb);
+                bool debug_lightsources = renderer::GetDebugLightsources();
+                if (ImGui::Checkbox("Draw Lightsources", &debug_lightsources))
+                    renderer::SetDebugLightsources(debug_lightsources);
+                bool debug_lightsources_abb = renderer::GetDebugLightsourcesAABB();
+                if (ImGui::Checkbox("Draw Lightsources AABB", &debug_lightsources_abb))
+                    renderer::SetDebugLightsourcesAABB(debug_lightsources_abb);
+
+                if (ImGui::Checkbox("Enable VSync", &vsync_enabled))
+                    eventsystem::FireEvent(eventsystem::EVENT_SET_VSYNC, vsync_enabled ? 1ull : 0ull);
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Tools"))
+            {
+                for (auto& x : tools)
+                {
+                    bool show_window = x->IsShown();
+                    if (ImGui::MenuItem(x->GetWindowTitle(), NULL, &show_window))
+                        x->ShowWindow(show_window);
+                }
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenuBar();
+        }
+    }
+
+    static bool DrawIconButton(
+        const graphics::Texture& texture, 
+        const std::string& tooltip, 
+        bool is_selected = false,
+        ImVec2 size = ImVec2(24, 24))
+    {
+        if (is_selected)
+        {
+            ImVec4 color = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+            ImGui::PushStyleColor(ImGuiCol_Button, color);
+        }
+        bool clicked = ImGui::ImageButton((ImTextureID)&texture, size);
+        if (is_selected)
+        {
+            ImGui::PopStyleColor(1);
+        }
+
+        if (ImGui::IsItemHovered()) 
+        {
+            ImGui::SetTooltip(tooltip.c_str());
+        }
+
+        return clicked;
+    }
+
+    void DrawIconBar()
+    {
+        if (DrawIconButton(import_icon.GetTexture(), "Import a 3D model to the scene"))
+            OpenDialog_ImportModel(FILE_FILTER_IMPORT_MODEL);
+
+        ImGui::SameLine();
+        if (DrawIconButton(light_icon.GetTexture(), "Add a pointlight to the scene"))
+            CreatePointLight();
+
+        ImGui::SameLine();
+        if (DrawIconButton(delete_icon.GetTexture(), "Delete the selected entity"))
+        {
+            DeleteSelectedEntity();
+        }
+
+        ImGui::SameLine();
+        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+
+        ImGui::SameLine();
+        if (DrawIconButton(editor_icon_select.GetTexture(), "Select entity", guizmo_operation == ImGuizmo::BOUNDS))
+            guizmo_operation = ImGuizmo::BOUNDS;
+
+        ImGui::SameLine();
+        if (DrawIconButton(translate_icon.GetTexture(), "Move the selected entity", guizmo_operation == ImGuizmo::TRANSLATE))
+            guizmo_operation = ImGuizmo::TRANSLATE;
+
+        ImGui::SameLine();
+        if (DrawIconButton(rotate_icon.GetTexture(), "Rotate the selected entity", guizmo_operation == ImGuizmo::ROTATE))
+            guizmo_operation = ImGuizmo::ROTATE;
+
+        ImGui::SameLine();
+        if (DrawIconButton(scale_icon.GetTexture(), "Scale the selected entity", guizmo_operation == ImGuizmo::SCALEU))
+            guizmo_operation = ImGuizmo::SCALEU;
+
+        //ImGui::SameLine();
+        //ImGui::Checkbox("World mode transform", &guizmo_world_mode);
+
+        //ImGui::SameLine();
+        //ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+    }
+
+    void DrawSceneEditor()
+    {
+        if (ImGui::BeginTable("Entity/Component edit", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders))
+        {
+            // Entity select frame
+            ImGui::TableNextColumn();
+            ImGui::Spacing();
+            ImGui::BeginChild("SceneGraphView");
+            scenegraph_view.GenerateView();
+            scenegraph_view.Draw();
+            ImGui::EndChild();
+
+            // Inspect components frame
+            ImGui::TableNextColumn();
+            ImGui::Spacing();
+            ImGui::BeginChild("EntityComponentChild");
+            EditEntityComponents(scenegraph_view.SelectedEntity());
+            ImGui::EndChild();
+
+            ImGui::EndTable();
+        }
+    }
+
+    static void DrawGizmo()
+    {
+        scene::Scene& scene = scene::GetScene();
+        const scene::CameraComponent& camera = scene::GetCamera();
+
+        const ecs::Entity entity = scenegraph_view.SelectedEntity();
+        scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
+        if (transform) 
+        {
+            XMFLOAT4X4& world_matrix = transform->world;
+
+            const ImGuiIO& io = ImGui::GetIO();
+            ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+            ImGuizmo::SetOrthographic(true);
+            const ImGuizmo::MODE mode = guizmo_world_mode ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+            ImGuizmo::Manipulate(
+                &camera.view._11,
+                &camera.projection._11,
+                guizmo_operation,
+                mode,
+                &world_matrix._11);
+
+            if (ImGuizmo::IsUsing())
+            {
+                transform->ApplyTransform();
+
+                // Transform to local space if parented
+                const scene::HierarchyComponent* hierarchy = scene.hierarchy.GetComponent(entity);
+                if (hierarchy)
+                {
+                    const scene::TransformComponent* parent_transform = scene.transforms.GetComponent(hierarchy->parentID);
+                    if (parent_transform != nullptr)
+                    {
+                        transform->MatrixTransform(XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent_transform->world)));
+                    }
+                }
+            }
+
+            if (ImGuizmo::FinishedDragging())
+            {
+                XMFLOAT4X4 drag_matrix;
+                ImGuizmo::GetFinishedDragMatrix(&drag_matrix._11);
+
+                serializer::Archive& ar = AdvanceHistory();
+                ar << (int)HistoryOpType::TRANSFORM;
+                ar << drag_matrix;
+                ar << entity;
+            }
+        }
+    }
+
+    static Ray GetPickRay(float cursorX, float cursorY)
+    {
+        const scene::CameraComponent& camera = scene::GetCamera();
+        ImGuiIO& io = ImGui::GetIO();
+
+        float screenW = io.DisplaySize.x;
+        float screenH = io.DisplaySize.y;
+
+        XMMATRIX V = XMLoadFloat4x4(&camera.view);
+        XMMATRIX P = XMLoadFloat4x4(&camera.projection);
+        XMMATRIX W = XMMatrixIdentity();
+        XMVECTOR lineStart = XMVector3Unproject(XMVectorSet(cursorX, cursorY, 1, 1), 0, 0, screenW, screenH, 0.0f, 1.0f, P, V, W);
+        XMVECTOR lineEnd = XMVector3Unproject(XMVectorSet(cursorX, cursorY, 0, 1), 0, 0, screenW, screenH, 0.0f, 1.0f, P, V, W);
+        XMVECTOR rayDirection = XMVector3Normalize(XMVectorSubtract(lineEnd, lineStart));
+        return Ray(lineStart, rayDirection);
+    }
+
+    //------------------------------------------------------------------------------
+    // PUBLIC API
+    //------------------------------------------------------------------------------
+
+    void PushFrameTime(const float t)
+    {
+        if (!g_freezeFrameTimeHistogram)
+        {
+            g_frameTimes.push_back(t);
+            while (g_frameTimes.size() > PROFILER_FRAME_COUNT)
+                g_frameTimes.erase(g_frameTimes.begin());
+        }
+    }
+
+    void Initialize()
+    {
+        // Attach built-in tools
+        AttachToolToMenu(std::make_unique<Tool_TerrainGeneration>("Terrain Generator"));
+        AttachToolToMenu(std::make_unique<Tool_ContentBrowser>("Scene Content Browser"));
+        AttachToolToMenu(std::make_unique<Tool_Profiler>("Profiler"));
+        AttachToolToMenu(std::make_unique<Tool_LogDisplay>("Backlog"));
+
+        // Icons rendered by ImGui need's to be flipped manually at loadtime
+        import_icon = resourcemanager::Load("assets/import.png", resourcemanager::IMPORT_FLIP_IMAGE);
+        delete_icon = resourcemanager::Load("assets/delete.png", resourcemanager::IMPORT_FLIP_IMAGE);
+        light_icon = resourcemanager::Load("assets/add.png", resourcemanager::IMPORT_FLIP_IMAGE);
+        editor_icon_select = resourcemanager::Load("assets/select.png", resourcemanager::IMPORT_FLIP_IMAGE);
+        translate_icon = resourcemanager::Load("assets/move.png", resourcemanager::IMPORT_FLIP_IMAGE);
+        rotate_icon = resourcemanager::Load("assets/rotate.png",  resourcemanager::IMPORT_FLIP_IMAGE);
+        scale_icon = resourcemanager::Load("assets/resize.png", resourcemanager::IMPORT_FLIP_IMAGE);
+
+        initialized = true;
+    }
+
+    void Update()
+    {
+        CYB_PROFILE_FUNCTION();
+        if (!initialized)
+            return;
+
+        ImGuizmo::BeginFrame();
+
+        ImGui::Begin("CybEngine Editor", 0, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoResize);
+        DrawMenuBar();
+        DrawIconBar();
+        ImGui::End();
+
+        ImGui::Begin("Scene hierarchy", 0);
+        scenegraph_view.GenerateView();
+        scenegraph_view.Draw();
+        ImGui::End();
+        
+        ImGui::Begin("Components", 0);
+        EditEntityComponents(scenegraph_view.SelectedEntity());
+        ImGui::End();
+
+        DrawGizmo();
+
+        // Pick on left mouse click
+        if (guizmo_operation == ImGuizmo::BOUNDS)
+        {
+            ImGuiIO& io = ImGui::GetIO();
+            bool mouse_in_3dview = !io.WantCaptureMouse && !ImGuizmo::IsOver();
+            if (mouse_in_3dview && io.MouseClicked[0])
+            {
+                const scene::Scene& scene = scene::GetScene();
+                Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);
+                scene::PickResult pick_result = scene::Pick(scene, pick_ray);
+
+                // Enable mouse picking on lightsources if they are being drawn
+                if (renderer::GetDebugLightsources())
+                {
+                    for (size_t i = 0; i < scene.lights.Size(); ++i)
+                    {
+                        ecs::Entity entity = scene.lights.GetEntity(i);
+                        const scene::TransformComponent& transform = *scene.transforms.GetComponent(entity);
+
+                        XMVECTOR disV = XMVector3LinePointDistance(XMLoadFloat3(&pick_ray.m_origin), XMLoadFloat3(&pick_ray.m_origin) + XMLoadFloat3(&pick_ray.m_direction), transform.GetPositionV());
+                        float dis = XMVectorGetX(disV);
+                        if (dis > 0.01f && dis < math::Distance(transform.GetPosition(), pick_ray.m_origin) * 0.05f && dis < pick_result.distance)
+                        {
+                            pick_result = scene::PickResult();
+                            pick_result.entity = entity;
+                            pick_result.distance = dis;
+                        }
+                    }
+                }
+
+                if (pick_result.entity != ecs::INVALID_ENTITY)
+                    scenegraph_view.SelectEntity(pick_result.entity);
+            }
+        }
+
+        DrawTools();
+    }
+
+    bool WantInput()
+    {
+        if (ImGui::GetCurrentContext() != nullptr)
+        {
+            ImGuiIO& io = ImGui::GetIO();
+            return io.WantCaptureMouse || io.WantCaptureKeyboard;
+        }
+
+        return false;
+    }
+}

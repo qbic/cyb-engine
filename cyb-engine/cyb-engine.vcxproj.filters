@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="source">
+      <UniqueIdentifier>{76FF3A1C-62A1-65F2-4B5C-7946379DEC42}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\core">
+      <UniqueIdentifier>{AEC9BDBA-1A7F-36B0-A373-30870F282DB4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\editor">
+      <UniqueIdentifier>{0C903565-7850-B19B-418B-FA18AD0AF677}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\graphics">
+      <UniqueIdentifier>{96281784-02B4-8448-0BC5-073D77CFE048}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\graphics\API">
+      <UniqueIdentifier>{7F682096-EBC9-FDA3-7437-4456E0973463}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\hli">
+      <UniqueIdentifier>{025915B8-EE10-5705-5718-306143EFF1F5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\input">
+      <UniqueIdentifier>{1500E312-0163-72B7-AAE8-AA6D962A3E3A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\systems">
+      <UniqueIdentifier>{9D034873-89D1-3B79-7265-AC9F5ED217DE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="third_party">
+      <UniqueIdentifier>{0FB18DF1-7B66-06E7-045B-00BE700FFDEA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="third_party\fmt">
+      <UniqueIdentifier>{C5262974-31B2-9638-3AC3-192DA6CDF238}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="source\core\BaseTypes.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\EnumFlags.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\Helper.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\Intersect.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\Mathlib.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\Noise.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\Platform.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\Profiler.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\Random.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\RingBuffer.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\Spinlock.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\Timer.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\logger.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\serializer.h">
+      <Filter>source\core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\cyb-engine.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\editor\editor.h">
+      <Filter>source\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="source\editor\imgui-backend.h">
+      <Filter>source\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="source\editor\imgui-widgets.h">
+      <Filter>source\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="source\editor\terrain-generator.h">
+      <Filter>source\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="source\graphics\API\GraphicsDevice_Vulkan.h">
+      <Filter>source\graphics\API</Filter>
+    </ClInclude>
+    <ClInclude Include="source\graphics\GraphicsDevice.h">
+      <Filter>source\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="source\graphics\ModelImport.h">
+      <Filter>source\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="source\graphics\Renderer.h">
+      <Filter>source\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="source\graphics\ShaderCompiler.h">
+      <Filter>source\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="source\hli\application.h">
+      <Filter>source\hli</Filter>
+    </ClInclude>
+    <ClInclude Include="source\hli\render-path-2d.h">
+      <Filter>source\hli</Filter>
+    </ClInclude>
+    <ClInclude Include="source\hli\render-path-3d.h">
+      <Filter>source\hli</Filter>
+    </ClInclude>
+    <ClInclude Include="source\hli\render-path.h">
+      <Filter>source\hli</Filter>
+    </ClInclude>
+    <ClInclude Include="source\input\Input.h">
+      <Filter>source\input</Filter>
+    </ClInclude>
+    <ClInclude Include="source\systems\ECS.h">
+      <Filter>source\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="source\systems\EventSystem.h">
+      <Filter>source\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="source\systems\JobSystem.h">
+      <Filter>source\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="source\systems\ResourceManager.h">
+      <Filter>source\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="source\systems\Scene.h">
+      <Filter>source\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\ImGuizmo.h">
+      <Filter>third_party</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\args.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\chrono.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\color.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\compile.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\core.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\format-inl.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\format.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\locale.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\os.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\ostream.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\printf.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\ranges.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\fmt\xchar.h">
+      <Filter>third_party\fmt</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\spirv_reflect.h">
+      <Filter>third_party</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\stb_image.h">
+      <Filter>third_party</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\stb_rect_pack.h">
+      <Filter>third_party</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\stb_truetype.h">
+      <Filter>third_party</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\tiny_gltf.h">
+      <Filter>third_party</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\vk_mem_alloc.h">
+      <Filter>third_party</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\volk.h">
+      <Filter>third_party</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\core\Helper.cpp">
+      <Filter>source\core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\core\Intersect.cpp">
+      <Filter>source\core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\core\Noise.cpp">
+      <Filter>source\core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\core\Platform_Win32.cpp">
+      <Filter>source\core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\core\Profiler.cpp">
+      <Filter>source\core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\core\logger.cpp">
+      <Filter>source\core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\core\serializer.cpp">
+      <Filter>source\core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\editor\editor.cpp">
+      <Filter>source\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="source\editor\imgui-backend.cpp">
+      <Filter>source\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="source\editor\terrain-generator.cpp">
+      <Filter>source\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graphics\API\GraphicsDevice_Vulkan.cpp">
+      <Filter>source\graphics\API</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graphics\ModelImport_3DS.cpp">
+      <Filter>source\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graphics\ModelImport_GLTF.cpp">
+      <Filter>source\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graphics\Renderer.cpp">
+      <Filter>source\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graphics\ShaderCompiler.cpp">
+      <Filter>source\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="source\hli\application.cpp">
+      <Filter>source\hli</Filter>
+    </ClCompile>
+    <ClCompile Include="source\hli\render-path-2d.cpp">
+      <Filter>source\hli</Filter>
+    </ClCompile>
+    <ClCompile Include="source\hli\render-path-3d.cpp">
+      <Filter>source\hli</Filter>
+    </ClCompile>
+    <ClCompile Include="source\input\Input_Win32.cpp">
+      <Filter>source\input</Filter>
+    </ClCompile>
+    <ClCompile Include="source\systems\EventSystem.cpp">
+      <Filter>source\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="source\systems\JobSystem.cpp">
+      <Filter>source\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="source\systems\ResourceManager.cpp">
+      <Filter>source\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="source\systems\Scene.cpp">
+      <Filter>source\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\ImGuizmo.cpp">
+      <Filter>third_party</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\spirv_reflect.c">
+      <Filter>third_party</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\volk.c">
+      <Filter>third_party</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

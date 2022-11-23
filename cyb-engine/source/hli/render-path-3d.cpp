@@ -16,8 +16,8 @@ namespace cyb::hli
         // Render targets:
         {
             TextureDesc desc;
-            desc.format = Format::R8G8B8A8_UNORM;
-            desc.bind_flags = BindFlag::SHADER_RESOURCE | BindFlag::RENDER_TARGET;
+            desc.format = Format::kR8G8B8A8_Unorm;
+            desc.bindFlags = BindFlags::kShaderResourceBit | BindFlags::kRenderTargetBit;
             desc.width = internal_resolution.x;
             desc.height = internal_resolution.y;
             device->CreateTexture(&desc, nullptr, &renderTarget_Main);
@@ -29,9 +29,9 @@ namespace cyb::hli
         // Depth stencil buffer:
         {
             TextureDesc desc;
-            desc.format = Format::D32_FLOAT_S8_UINT;
-            desc.bind_flags = BindFlag::SHADER_RESOURCE | BindFlag::DEPTH_STENCIL;
-            desc.layout = ResourceState::DEPTHSTENCIL_READONLY;
+            desc.format = Format::kD32_Float_S8_Uint;
+            desc.bindFlags = BindFlags::kShaderResourceBit | BindFlags::kDepthStencilBit;
+            desc.layout = ResourceState::kDepthStencil_ReadOnlyBit;
             desc.width = internal_resolution.x;
             desc.height = internal_resolution.y;
             device->CreateTexture(&desc, nullptr, &depthBuffer_Main);
@@ -44,15 +44,15 @@ namespace cyb::hli
             desc.attachments.push_back(
                 RenderPassAttachment::RenderTarget(
                     &renderTarget_Main,
-                    RenderPassAttachment::LoadOp::DONTCARE));
+                    RenderPassAttachment::LoadOp::kDontCare));
             desc.attachments.push_back(
                 RenderPassAttachment::DepthStencil(
                     &depthBuffer_Main,
-                    RenderPassAttachment::LoadOp::CLEAR,
-                    RenderPassAttachment::StoreOp::STORE,
-                    ResourceState::DEPTHSTENCIL_READONLY,
-                    ResourceState::DEPTHSTENCIL,
-                    ResourceState::DEPTHSTENCIL_READONLY));
+                    RenderPassAttachment::LoadOp::kClear,
+                    RenderPassAttachment::StoreOp::kStore,
+                    ResourceState::kDepthStencil_ReadOnlyBit,
+                    ResourceState::kDepthStencilBit,
+                    ResourceState::kDepthStencil_ReadOnlyBit));
 
             device->CreateRenderPass(&desc, &renderPass_Main);
         }

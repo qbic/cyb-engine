@@ -46,10 +46,10 @@ namespace cyb::renderer
     {
         if (node_index < 0)
         {
-            return ecs::INVALID_ENTITY;
+            return ecs::kInvalidEntity;
         }
         const auto& node = state.gltfModel.nodes[node_index];
-        ecs::Entity entity = ecs::INVALID_ENTITY;
+        ecs::Entity entity = ecs::kInvalidEntity;
 
         if (node.mesh >= 0)
         {
@@ -68,7 +68,7 @@ namespace cyb::renderer
             }
         }
 
-        if (entity == ecs::INVALID_ENTITY)
+        if (entity == ecs::kInvalidEntity)
         {
             entity = ecs::CreateEntity();
             state.scene->transforms.Create(entity);
@@ -89,7 +89,7 @@ namespace cyb::renderer
             transform->translation_local = XMFLOAT3((float)node.translation[0], (float)node.translation[1], (float)node.translation[2]);
         }
 
-        if (parent != ecs::INVALID_ENTITY)
+        if (parent != ecs::kInvalidEntity)
         {
             state.scene->ComponentAttach(entity, parent);
         }
@@ -121,7 +121,7 @@ namespace cyb::renderer
         if (!ret)
         {
             CYB_ERROR("ImportModel_GLTF failed to load file (filename={0}): {1}", filename, errorMsg);
-            return ecs::INVALID_ENTITY;
+            return ecs::kInvalidEntity;
         }
 
         if (!warningMsg.empty())
@@ -133,7 +133,7 @@ namespace cyb::renderer
         if (state.gltfModel.materials.empty())
         {
             CYB_ERROR("ImportModel_GLTF failed to load (filename={0}): No materials", filename);
-            return ecs::INVALID_ENTITY;
+            return ecs::kInvalidEntity;
         }
 
         // Create materials
@@ -285,11 +285,11 @@ namespace cyb::renderer
         }
 
         // Create transform hierarchy, assign objects, meshes, armatures, cameras:
-        ecs::Entity rootEntity = ecs::INVALID_ENTITY;
+        ecs::Entity rootEntity = ecs::kInvalidEntity;
         const tinygltf::Scene& glftScene = state.gltfModel.scenes[state.gltfModel.defaultScene];
         for (size_t i = 0; i < glftScene.nodes.size(); i++)
         {
-            rootEntity = LoadNode(state, mesh_offset, glftScene.nodes[i], ecs::INVALID_ENTITY);
+            rootEntity = LoadNode(state, mesh_offset, glftScene.nodes[i], ecs::kInvalidEntity);
         }
 
         CYB_TRACE("Imported model (filename={0}) in {1:.2f} milliseconds", filename, timer.ElapsedMilliseconds());

@@ -1,5 +1,5 @@
+#include "core/intersect.h"
 #include <algorithm>
-#include "Core/Intersect.h"
 
 namespace cyb
 {

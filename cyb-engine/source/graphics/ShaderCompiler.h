@@ -6,7 +6,7 @@ namespace cyb::graphics
 {
     enum class ShaderCompilerFlags
     {
-        NONE = 0,
+        kNone = 0,
         DISABLE_OPTIMAZATION = 1 << 0,
         GENERATE_DEBUG_INFO = 1 << 1
     };
@@ -27,9 +27,9 @@ namespace cyb::graphics
 
     struct ShaderCompilerInput
     {
-        ShaderCompilerFlags flags = ShaderCompilerFlags::NONE;
-        ShaderFormat format = ShaderFormat::NONE;
-        ShaderStage stage = ShaderStage::COUNT;
+        ShaderCompilerFlags flags = ShaderCompilerFlags::kNone;
+        ShaderFormat format = ShaderFormat::kNone;
+        ShaderStage stage = ShaderStage::_kCount;
         std::string name = "shader_src";
         const uint8_t* shadersource = nullptr;
         size_t shadersize = 0;

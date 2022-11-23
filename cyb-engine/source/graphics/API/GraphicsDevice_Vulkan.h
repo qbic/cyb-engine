@@ -1,5 +1,4 @@
 #pragma once
-
 #include "Core/Spinlock.h"
 #include "Graphics/GraphicsDevice.h"
 
@@ -93,7 +92,7 @@ namespace cyb::graphics
         };
         mutable std::mutex init_locker;
         mutable bool init_submits = false;
-        struct FrameResources frame_resources[BUFFERCOUNT];
+        struct FrameResources frame_resources[kBufferCount];
         const FrameResources& GetFrameResources() const { return frame_resources[GetBufferIndex()]; }
         FrameResources& GetFrameResources() { return frame_resources[GetBufferIndex()]; }
 
@@ -106,7 +105,7 @@ namespace cyb::graphics
             std::vector<VkDescriptorBufferInfo> buffer_infos;
             std::vector<VkDescriptorImageInfo> image_infos;
 
-            uint32_t uniform_buffer_dynamic_offsets[DESCRIPTORBINDER_CBV_COUNT] = {};
+            uint32_t uniform_buffer_dynamic_offsets[kDescriptorBinderCBVCount] = {};
 
             VkDescriptorSet descriptorset_graphics = VK_NULL_HANDLE;
             VkDescriptorSet descriptorset_compute = VK_NULL_HANDLE;
@@ -139,15 +138,15 @@ namespace cyb::graphics
 
         struct CommandList_Vulkan
         {
-            VkCommandPool commandpools[BUFFERCOUNT] = {};
-            VkCommandBuffer commandbuffers[BUFFERCOUNT] = {};
+            VkCommandPool commandpools[kBufferCount] = {};
+            VkCommandBuffer commandbuffers[kBufferCount] = {};
             uint32_t buffer_index = 0;
 
             uint32_t id = 0;
 
             DescriptorBinder binder;
-            DescriptorBinderPool binder_pools[BUFFERCOUNT];
-            GPULinearAllocator frame_allocators[BUFFERCOUNT];
+            DescriptorBinderPool binder_pools[kBufferCount];
+            GPULinearAllocator frame_allocators[kBufferCount];
 
             size_t prev_pipeline_hash = 0;
             std::vector<SwapChain> prev_swapchains;
@@ -213,7 +212,7 @@ namespace cyb::graphics
     public:
         GraphicsDevice_Vulkan();
         virtual ~GraphicsDevice_Vulkan();
-        GraphicsDeviceAPI GetDeviceAPI() const override { return GraphicsDeviceAPI::Vulkan; }
+        GraphicsDeviceAPI GetDeviceAPI() const override { return GraphicsDeviceAPI::kVulkan; }
 
         bool CreateSwapChain(const SwapChainDesc* desc, platform::Window* window, SwapChain* swapchain) const override;
         bool CreateBuffer(const GPUBufferDesc* desc, const void* init_data, GPUBuffer* buffer) const override;

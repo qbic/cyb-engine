@@ -1,19 +1,18 @@
 #pragma once
-
-#include <unordered_map>
-#include <atomic>
 #include "Core/Random.h"
 #include "core/serializer.h"
 #include "Systems/JobSystem.h"
+#include <unordered_map>
+#include <atomic>
 
 namespace cyb::ecs 
 {
     using Entity = uint32_t;
-    static const Entity INVALID_ENTITY = 0;
+    enum { kInvalidEntity = 0 };
 
     inline Entity CreateEntity() 
     {
-        static std::atomic<Entity> next = INVALID_ENTITY + 1;
+        static std::atomic<Entity> next = kInvalidEntity + 1;
         return next.fetch_add(1);
     }
 
@@ -35,7 +34,7 @@ namespace cyb::ecs
             uint32_t mem;
             ar >> mem;
 
-            if (mem == INVALID_ENTITY)
+            if (mem == kInvalidEntity)
             {
                 entity = (Entity)mem;
                 return;
@@ -141,7 +140,7 @@ namespace cyb::ecs
             // ecs::INVALID_ENTITY is not allowed!
             // Only one of this component type per entity is allowed!
             // Entity count must always be the same as the number of coponents!
-            assert(entity != INVALID_ENTITY);
+            assert(entity != kInvalidEntity);
             assert(lookup.find(entity) == lookup.end());
             assert(entities.size() == components.size());
             assert(lookup.size() == components.size());

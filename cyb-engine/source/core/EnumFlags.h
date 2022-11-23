@@ -8,7 +8,7 @@
 #define CYB_ENABLE_BITMASK_OPERATORS(type)                  \
     template<>                                              \
     struct EnableBitmaskOperators<type> {                   \
-    static const bool enable = true;                        \
+        static const bool enable = true;                    \
     }
 
 template<typename E>

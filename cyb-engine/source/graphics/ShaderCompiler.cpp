@@ -14,9 +14,9 @@ namespace cyb::graphics
     {
         switch (stage)
         {
-        case ShaderStage::VS: return shaderc_glsl_vertex_shader;
-        case ShaderStage::FS: return shaderc_glsl_fragment_shader;
-        case ShaderStage::GS: return shaderc_glsl_geometry_shader;
+        case ShaderStage::kVS: return shaderc_glsl_vertex_shader;
+        case ShaderStage::kFS: return shaderc_glsl_fragment_shader;
+        case ShaderStage::kGS: return shaderc_glsl_geometry_shader;
         default: break;
         }
 
@@ -97,8 +97,8 @@ namespace cyb::graphics
     bool CompileShader(const ShaderCompilerInput* input, ShaderCompilerOutput* output)
     {
         assert(input != nullptr);
-        assert(input->format != ShaderFormat::NONE);
-        assert(input->stage != ShaderStage::COUNT);
+        assert(input->format != ShaderFormat::kNone);
+        assert(input->stage != ShaderStage::_kCount);
         assert(output != nullptr);
 
         Timer timer;

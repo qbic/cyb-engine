@@ -36,9 +36,7 @@ namespace cyb::editor::gui
                 }
 
                 if (isSelected)
-                {
                     ImGui::SetItemDefaultFocus();
-                }
             }
 
             ImGui::EndCombo();
@@ -54,8 +52,8 @@ struct ImGradientMark
     float position;     // [0..1]
 };
 
-static const float GRADIENT_BAR_EDITOR_HEIGHT = 40;
-static const float GRADIENT_MARK_DELETE_DIFFY = 40;
+enum { kGradientBarEditorHeight = 40 };
+enum { kGradientMarkDeleteDiffy = 40 };
 
 struct ImGradient
 {
@@ -71,17 +69,13 @@ struct ImGradient
     ImGradient(std::initializer_list<ImGradientMark> il)
     {
         for (const auto& x : il)
-        {
             AddMark(x.position, x.color);
-        }
     }
 
     ~ImGradient()
     {
         for (ImGradientMark* mark : markList)
-        {
             delete mark;
-        }
     }
 
     ImColor GetColorAt(float position) const
@@ -100,15 +94,11 @@ struct ImGradient
             }
 
             if (mark->position > position)
-            {
                 break;
-            }
         }
 
         if (lower == nullptr)
-        {
             return ImColor(0);
-        }
 
         return lower->color;
     }
@@ -150,9 +140,7 @@ struct ImGradient
     {
         Clear();
         for (const auto& mark : a.markList)
-        {
             AddMark(mark->position, mark->color);
-        }
 
         return *this;
     }
@@ -340,11 +328,11 @@ namespace ImGui
         ImVec2 bar_pos = ImGui::GetCursorScreenPos();
         bar_pos.x += 10;
         float maxWidth = ImGui::GetContentRegionAvail().x - 20;
-        float barBottom = bar_pos.y + GRADIENT_BAR_EDITOR_HEIGHT;
+        float barBottom = bar_pos.y + kGradientBarEditorHeight;
         ImGradientMark*& draggingMark = gradient->draggingMark;
         ImGradientMark*& selectedMark = gradient->selectedMark;
 
-        ImGui::InvisibleButton("gradient_editor_bar", ImVec2(maxWidth, GRADIENT_BAR_EDITOR_HEIGHT));
+        ImGui::InvisibleButton("gradient_editor_bar", ImVec2(maxWidth, kGradientBarEditorHeight));
         if (ImGui::IsItemHovered())
         {
             ImGui::BeginTooltip();
@@ -362,13 +350,11 @@ namespace ImGui
             g.ColorPickerRef = selectedMark->color;
         }
 
-        modified |= DrawGradientBar(gradient, bar_pos, maxWidth, GRADIENT_BAR_EDITOR_HEIGHT);
-        modified |= DrawGradientMarks(gradient, bar_pos, maxWidth, GRADIENT_BAR_EDITOR_HEIGHT);
+        modified |= DrawGradientBar(gradient, bar_pos, maxWidth, kGradientBarEditorHeight);
+        modified |= DrawGradientMarks(gradient, bar_pos, maxWidth, kGradientBarEditorHeight);
 
         if (!ImGui::IsMouseDown(0) && gradient->draggingMark)
-        {
             gradient->draggingMark = nullptr;
-        }
 
         if (ImGui::IsMouseDragging(0) && gradient->draggingMark)
         {
@@ -386,7 +372,7 @@ namespace ImGui
 
             float diffY = ImGui::GetIO().MousePos.y - barBottom;
 
-            if (diffY >= GRADIENT_MARK_DELETE_DIFFY)
+            if (diffY >= kGradientMarkDeleteDiffy)
             {
                 gradient->RemoveMark(draggingMark);
                 draggingMark = nullptr;
@@ -396,14 +382,10 @@ namespace ImGui
         }
 
         if (!selectedMark && gradient->markList.size() > 0)
-        {
             selectedMark = gradient->markList.front();
-        }
 
         if (selectedMark)
-        {
             modified |= ImGui::ColorPicker4("color", &selectedMark->color.Value.x, ImGuiColorEditFlags_NoAlpha, &g.ColorPickerRef.x);
-        }
 
         return modified;
     }
@@ -415,9 +397,7 @@ namespace ImGui
 
         ImGuiWindow* window = GetCurrentWindow();
         if (window->SkipItems)
-        {
             return false;
-        }
 
         ImGuiContext& g = *GImGui;
         const ImGuiStyle& style = g.Style;
@@ -430,18 +410,14 @@ namespace ImGui
         const ImRect totalBB(frameBB.Min, frameBB.Max + ImVec2(labelSize.x > 0.0f ? style.ItemInnerSpacing.x + labelSize.x : 0.0f, 0.0f));
         ItemSize(totalBB, style.FramePadding.y);
         if (!ItemAdd(totalBB, id))
-        {
             return false;
-        }
 
         const float frameHeight = frameBB.Max.y - frameBB.Min.y;
         bool pressed = ButtonBehavior(frameBB, id, nullptr, nullptr);
         modified |= DrawGradientBar(gradient, frameBB.Min, frameBB.GetWidth(), frameHeight);
 
         if (pressed)
-        {
             OpenPopup("grad_edit");
-        }
 
         if (BeginPopup("grad_edit"))
         {
@@ -450,9 +426,7 @@ namespace ImGui
         }        
 
         if (labelSize.x > 0.0f)
-        {
             RenderText(ImVec2(frameBB.Max.x + style.ItemInnerSpacing.x, frameBB.Min.y + style.FramePadding.y), label);
-        }
 
         PopID();
         return modified;

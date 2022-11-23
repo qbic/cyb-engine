@@ -171,13 +171,13 @@ namespace cyb::resourcemanager
             graphics::TextureDesc desc;
             desc.width = width;
             desc.height = height;
-            desc.format = graphics::Format::R8G8B8A8_UNORM;
-            desc.bind_flags = graphics::BindFlag::SHADER_RESOURCE;
-            desc.mip_levels = 1;     // Generate full mip chain at runtime
+            desc.format = graphics::Format::kR8G8B8A8_Unorm;
+            desc.bindFlags = graphics::BindFlags::kShaderResourceBit;
+            desc.mipLevels = 1;     // Generate full mip chain at runtime
 
             graphics::SubresourceData subresource_data;
             subresource_data.mem = raw_image;
-            subresource_data.row_pitch = width * channels;
+            subresource_data.rowPitch = width * channels;
             
             renderer::GetDevice()->CreateTexture(&desc, &subresource_data, &resource->texture);
             stbi_image_free(raw_image);

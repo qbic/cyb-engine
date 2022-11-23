@@ -1,5 +1,5 @@
 #pragma once
-#include "Core/Platform.h"
+#include "core/platform.h"
 #include "core/logger.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -73,14 +73,10 @@ namespace cyb::platform
 		DWORD style = WS_POPUP | WS_OVERLAPPED | WS_SYSMENU | WS_BORDER | WS_CAPTION;
 		DWORD exStyle = WS_EX_APPWINDOW;
 
-		if (desc.flags & WindowCreateDescription::ALLOW_MINIMIZE)
-		{
+		if (desc.flags & WindowCreateDescription::kAllowMinimize)
 			style |= WS_MINIMIZEBOX;
-		}
-		if (desc.flags & WindowCreateDescription::ALLOW_MAXIMIZE)
-		{
+		if (desc.flags & WindowCreateDescription::kAllowMaximize)
 			style |= WS_MAXIMIZEBOX;
-		}
 
 		// Adjust window size and positions to take into account window border
 		RECT windowRect = { 0, 0, (LONG)desc.size.x, (LONG)desc.size.y };
@@ -154,9 +150,7 @@ namespace cyb::platform
 		Window_Win32* window = (Window_Win32*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
 		if (window)
-		{
 			return window->WndProc(hwnd, msg, wParam, lParam);
-		}
 
 		switch (msg)
 		{

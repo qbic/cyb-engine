@@ -25,10 +25,10 @@ namespace cyb::platform
 
 	struct WindowCreateDescription
 	{
-		enum Flags
+		enum
 		{
-			ALLOW_MINIMIZE = (1 << 0),
-			ALLOW_MAXIMIZE = (1 << 1)
+			kAllowMinimize = (1 << 0),
+			kAllowMaximize = (1 << 1)
 		};
 
 		std::wstring title;

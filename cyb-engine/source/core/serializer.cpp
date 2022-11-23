@@ -1,7 +1,7 @@
-#include <fstream>
 #include "core/logger.h"
 #include "core/serializer.h"
 #include "Core/Helper.h"
+#include <fstream>
 
 namespace cyb::serializer
 {
@@ -11,25 +11,25 @@ namespace cyb::serializer
     }
 
     Archive::Archive(const std::string& filename) :
-        m_mode(Access::Read)
+        m_mode(Access::kRead)
     {
         if (helper::FileRead(filename, m_data))
         {
             m_dataPtr = m_data.data();
             (*this) >> m_version;
-            if (m_version < ARCHIVE_LEAST_SUPPORTED_VERSION)
+            if (m_version < kLeastUupportedVersion)
             {
-                CYB_ERROR("Unsupported version file={} version={} least_supported_version={}", filename, m_version, ARCHIVE_LEAST_SUPPORTED_VERSION);
+                CYB_ERROR("Unsupported version file={} version={} least_supported_version={}", filename, m_version, kLeastUupportedVersion);
             }
         }
     }
 
     void Archive::CreateEmpty()
     {
-        m_version = ARCHIVE_VERSION;
-        m_data.resize(ARCHIVE_INIT_SIZE);
+        m_version = kArchiveVersion;
+        m_data.resize(kArchiveInitSize);
         m_dataPtr = m_data.data();
-        SetAccessModeAndResetPos(Access::Write);
+        SetAccessModeAndResetPos(kWrite);
     }
 
     void Archive::SetAccessModeAndResetPos(Access mode)
@@ -38,13 +38,9 @@ namespace cyb::serializer
         m_pos = 0;
 
         if (IsReadMode())
-        {
             (*this) >> m_version;
-        }
         else
-        {
             (*this) << m_version;
-        }
     }
 
     bool Archive::IsOpen() const

@@ -136,8 +136,8 @@ namespace cyb::scene
         {
             graphics::GPUBufferDesc desc;
             desc.size = uint32_t(sizeof(uint32_t) * indices.size());
-            desc.usage = graphics::MemoryAccess::DEFAULT;
-            desc.bind_flags = graphics::BindFlag::INDEX_BUFFER;
+            desc.usage = graphics::MemoryAccess::kDefault;
+            desc.bindFlags = graphics::BindFlags::kIndexBufferBit;
 
             bool result = device->CreateBuffer(&desc, indices.data(), &index_buffer);
             assert(result == true);
@@ -161,9 +161,9 @@ namespace cyb::scene
             }
 
             graphics::GPUBufferDesc desc;
-            desc.usage = graphics::MemoryAccess::DEFAULT;
+            desc.usage = graphics::MemoryAccess::kDefault;
             desc.size = uint32_t(sizeof(Vertex_Pos) * _vertices.size());
-            desc.bind_flags = graphics::BindFlag::VERTEX_BUFFER;
+            desc.bindFlags = graphics::BindFlags::kVertexBufferBit;
             bool result = device->CreateBuffer(&desc, _vertices.data(), &vertex_buffer_pos);
             assert(result == true);
         }
@@ -172,9 +172,9 @@ namespace cyb::scene
         if (!vertex_colors.empty())
         {
             graphics::GPUBufferDesc desc;
-            desc.usage = graphics::MemoryAccess::DEFAULT;
+            desc.usage = graphics::MemoryAccess::kDefault;
             desc.size = uint32_t(sizeof(uint32_t) * vertex_colors.size());
-            desc.bind_flags = graphics::BindFlag::VERTEX_BUFFER;
+            desc.bindFlags = graphics::BindFlags::kVertexBufferBit;
             bool result = device->CreateBuffer(&desc, vertex_colors.data(), &vertex_buffer_col);
             assert(result == true);
         }
@@ -428,7 +428,7 @@ namespace cyb::scene
     {
         // Skip directional lights as they affects the whole scene and 
         // doesen't really have a AABB.
-        if (type == LightType::DIRECTIONAL) 
+        if (type == LightType::kDirectional) 
         {
             return;
         }
@@ -589,7 +589,7 @@ namespace cyb::scene
             }
         }
 
-        return ecs::INVALID_ENTITY;
+        return ecs::kInvalidEntity;
     }
 
     void Scene::ComponentAttach(ecs::Entity entity, ecs::Entity parent)
@@ -749,7 +749,7 @@ namespace cyb::scene
 
                     aabb = AxisAlignedBox();
 
-                    if (object.meshID != ecs::INVALID_ENTITY)
+                    if (object.meshID != ecs::kInvalidEntity)
                     {
                         const ecs::Entity entity = objects.GetEntity(i);
                         const MeshComponent* mesh = meshes.GetComponent(object.meshID);
@@ -835,7 +835,7 @@ namespace cyb::scene
                 continue;
 
             const ObjectComponent& object = scene.objects[i];
-            if (object.meshID == ecs::INVALID_ENTITY)
+            if (object.meshID == ecs::kInvalidEntity)
                 continue;
 
             const ecs::Entity entity = scene.aabb_objects.GetEntity(i);
@@ -930,7 +930,7 @@ namespace cyb::scene
         {
             ar >> x.flags;
             if (ar.GetVersion() >= 4)
-                ar >> (uint32_t&)x.shader_type;
+                ar >> (uint32_t&)x.shaderType;
             ar >> x.baseColor;
             ar >> x.roughness;
             ar >> x.metalness;
@@ -939,7 +939,7 @@ namespace cyb::scene
         {
             ar << x.flags;
             if (ar.GetVersion() >= 4)
-                ar << (uint32_t&)x.shader_type;
+                ar << (uint32_t&)x.shaderType;
             ar << x.baseColor;
             ar << x.roughness;
             ar << x.metalness;

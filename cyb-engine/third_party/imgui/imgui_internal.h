@@ -1451,7 +1451,7 @@ struct ImGuiOldColumns
     bool                IsFirstFrame;
     bool                IsBeingResized;
     int                 Current;
-    int                 Count;
+    int                 _kCount;
     float               OffMinX, OffMaxX;       // Offsets from HostWorkRect.Min.x
     float               LineMinY, LineMaxY;
     float               HostCursorPosY;         // Backup of CursorPos at the time of BeginColumns()

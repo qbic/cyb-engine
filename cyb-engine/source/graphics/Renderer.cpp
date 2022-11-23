@@ -17,7 +17,7 @@ namespace cyb::renderer
     RasterizerState rasterizers[RSTYPE_COUNT];
     DepthStencilState depth_stencils[DSSTYPE_COUNT];
 
-    PipelineState pso_object[MaterialComponent::SHADERTYPE_COUNT];
+    PipelineState pso_object[MaterialComponent::kShadertype_Count];
     PipelineState pso_image;
     PipelineState pso_sky;
 
@@ -69,12 +69,12 @@ namespace cyb::renderer
         jobsystem::Execute(ctx, []() {
             auto device = GetDevice();
             GPUBufferDesc desc;
-            desc.bind_flags = BindFlag::CONSTANT_BUFFER;
+            desc.bindFlags = BindFlags::kConstantBufferBit;
 
             //
             // DEFAULT usage buffers (long lifetime, slow update, fast read)
             //
-            desc.usage = MemoryAccess::DEFAULT;
+            desc.usage = MemoryAccess::kDefault;
             desc.size = sizeof(FrameCB);
             desc.stride = 0;
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_FRAME]);
@@ -88,7 +88,7 @@ namespace cyb::renderer
             //
             // DYNAMIC usage buffers (short lifetime, fast update, slow read)
             //
-            desc.usage = MemoryAccess::DEFAULT;
+            desc.usage = MemoryAccess::kDefault;
             desc.size = sizeof(MaterialCB);
             desc.stride = 0;
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_MATERIAL]);
@@ -125,7 +125,7 @@ namespace cyb::renderer
         if (extension != "spv")
         {
             ShaderCompilerInput input = {};
-            input.format = ShaderFormat::GLSL;
+            input.format = ShaderFormat::kGLSL;
             input.name = fullPath;
             input.shadersource = (uint8_t*)fileData.data();
             input.shadersize = fileData.size();
@@ -159,48 +159,48 @@ namespace cyb::renderer
         GraphicsDevice* device = GetDevice();
 
         // Point filtering states
-        desc.filter = TextureFilter::POINT;
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::WRAP;
+        desc.filter = TextureFilter::kPoint;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kWrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_WRAP]);
 
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::MIRROR;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kMirror;
         device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_MIRROR]);
 
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::CLAMP;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kClamp;
         device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_CLAMP]);
 
         // BiLinear filtering states
-        desc.filter = TextureFilter::BILINEAR;
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::WRAP;
+        desc.filter = TextureFilter::kBilinear;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kWrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_WRAP]);
 
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::MIRROR;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kMirror;
         device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_MIRROR]);
 
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::CLAMP;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kClamp;
         device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_CLAMP]);
 
         // TriLinearfiltering states
-        desc.filter = TextureFilter::TRILINEAR;
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::WRAP;
+        desc.filter = TextureFilter::kTrilinear;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kWrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_WRAP]);
 
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::MIRROR;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kMirror;
         device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_MIRROR]);
 
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::CLAMP;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kClamp;
         device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_CLAMP]);
 
         // Anisotropic filtering states
-        desc.filter = TextureFilter::ANISOTROPIC_LINEAR;
+        desc.filter = TextureFilter::kAnisotropic;
         desc.maxAnisotropy = 16;
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::WRAP;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kWrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_WRAP]);
 
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::MIRROR;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kMirror;
         device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_MIRROR]);
 
-        desc.address_u = desc.address_v = desc.address_w = TextureAddressMode::CLAMP;
+        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::kClamp;
         device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_CLAMP]);
     }
 
@@ -217,35 +217,35 @@ namespace cyb::renderer
         jobsystem::Execute(ctx, []() {
             input_layouts[VLTYPE_FLAT_SHADING] =
             {
-                { "in_position", 0, scene::MeshComponent::Vertex_Pos::FORMAT },
-                { "in_color",    1, scene::MeshComponent::Vertex_Col::FORMAT }
+                { "in_position", 0, scene::MeshComponent::Vertex_Pos::kFormat },
+                { "in_color",    1, scene::MeshComponent::Vertex_Col::kFormat }
             };
-            LoadShader(ShaderStage::VS, shaders[VSTYPE_FLAT_SHADING], "flat_shader.vert");
+            LoadShader(ShaderStage::kVS, shaders[VSTYPE_FLAT_SHADING], "flat_shader.vert");
             });
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::VS, shaders[VSTYPE_IMAGE], "image.vert"); });
+        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::kVS, shaders[VSTYPE_IMAGE], "image.vert"); });
         jobsystem::Execute(ctx, []() {
             input_layouts[VLTYPE_SKY] =
             {
-                { "in_pos",   0, scene::MeshComponent::Vertex_Pos::FORMAT }
+                { "in_pos",   0, scene::MeshComponent::Vertex_Pos::kFormat }
             };
-            LoadShader(ShaderStage::VS, shaders[VSTYPE_SKY], "sky.vert");
+            LoadShader(ShaderStage::kVS, shaders[VSTYPE_SKY], "sky.vert");
             });
         jobsystem::Execute(ctx, []() {
             input_layouts[VLTYPE_DEBUG_LINE] =
             {
-                { "in_position", 0, Format::R32G32B32A32_FLOAT },
-                { "in_color",    0, Format::R32G32B32A32_FLOAT }
+                { "in_position", 0, Format::kR32G32B32A32_Float },
+                { "in_color",    0, Format::kR32G32B32A32_Float }
             };
-            LoadShader(ShaderStage::VS, shaders[VSTYPE_DEBUG_LINE], "debug_line.vert");
+            LoadShader(ShaderStage::kVS, shaders[VSTYPE_DEBUG_LINE], "debug_line.vert");
             });
 
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
+        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::kGS, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
+        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::kGS, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
 
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::FS, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::FS, shaders[FSTYPE_IMAGE], "image.frag"); });
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::FS, shaders[FSTYPE_SKY], "sky.frag"); });
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::FS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
+        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::kFS, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
+        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::kFS, shaders[FSTYPE_IMAGE], "image.frag"); });
+        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::kFS, shaders[FSTYPE_SKY], "sky.frag"); });
+        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::kFS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
 
         //CYB_TRACE("Loaded shaders in {0:.2f}ms", timer.ElapsedMilliseconds());
     }
@@ -256,56 +256,56 @@ namespace cyb::renderer
 
         {
             DepthStencilState dsd;
-            dsd.depth_enable = true;
-            dsd.depth_write_mask = DepthWriteMask::ALL;
-            dsd.depth_func = ComparisonFunc::GREATER;
+            dsd.depthEnable = true;
+            dsd.depthWriteMask = DepthWriteMask::kAll;
+            dsd.depthFunc = ComparisonFunc::kGreater;
 
-            dsd.stencil_enable = true;
-            dsd.stencil_read_mask = 0;
-            dsd.stencil_write_mask = 0xFF;
-            dsd.front_face.stencil_func = ComparisonFunc::ALWAYS;
-            dsd.front_face.stencil_pass_op = StencilOp::REPLACE;
-            dsd.front_face.stencil_fail_op = StencilOp::KEEP;
-            dsd.front_face.stencil_depth_fail_op = StencilOp::KEEP;
-            dsd.back_face.stencil_func = ComparisonFunc::ALWAYS;
-            dsd.back_face.stencil_pass_op = StencilOp::REPLACE;
-            dsd.back_face.stencil_fail_op = StencilOp::KEEP;
-            dsd.back_face.stencil_depth_fail_op = StencilOp::KEEP;
+            dsd.stencilEnable = true;
+            dsd.stencilReadMask = 0;
+            dsd.stencilWriteMask = 0xFF;
+            dsd.frontFace.stencilFunc = ComparisonFunc::kAllways;
+            dsd.frontFace.stencilPassOp = StencilOp::kReplace;
+            dsd.frontFace.stencilFailOp = StencilOp::kKeep;
+            dsd.frontFace.stencilDepthFailOp = StencilOp::kKeep;
+            dsd.backFace.stencilFunc = ComparisonFunc::kAllways;
+            dsd.backFace.stencilPassOp = StencilOp::kReplace;
+            dsd.backFace.stencilFailOp = StencilOp::kKeep;
+            dsd.backFace.stencilDepthFailOp = StencilOp::kKeep;
             depth_stencils[DSSTYPE_DEFAULT] = dsd;
 
-            dsd.depth_func = ComparisonFunc::GREATER_EQUAL;
+            dsd.depthFunc = ComparisonFunc::kGreaterEqual;
             depth_stencils[DSSTYPE_SKY] = dsd;
         }
         {
             RasterizerState rs;
-            rs.fill_mode = FillMode::SOLID;
-            rs.cull_mode = CullMode::BACK;
-            rs.front_face = FrontFace::CCW;
+            rs.fillMode = FillMode::kSolid;
+            rs.cullMode = CullMode::kBack;
+            rs.frontFace = FrontFace::kCCW;
             rasterizers[RSTYPE_FRONT] = rs;
 
-            rs.fill_mode = FillMode::SOLID;
-            rs.cull_mode = CullMode::FRONT;
-            rs.front_face = FrontFace::CCW;
+            rs.fillMode = FillMode::kSolid;
+            rs.cullMode = CullMode::kFront;
+            rs.frontFace = FrontFace::kCCW;
             rasterizers[RSTYPE_BACK] = rs;
 
-            rs.fill_mode = FillMode::SOLID;
-            rs.cull_mode = CullMode::NONE;
-            rs.front_face = FrontFace::CCW;
+            rs.fillMode = FillMode::kSolid;
+            rs.cullMode = CullMode::kNone;
+            rs.frontFace = FrontFace::kCCW;
             rasterizers[RSTYPE_DOUBLESIDED] = rs;
 
-            rs.fill_mode = FillMode::WIREFRAME;
-            rs.cull_mode = CullMode::BACK;
-            rs.front_face = FrontFace::CCW;
+            rs.fillMode = FillMode::kWhireframe;
+            rs.cullMode = CullMode::kBack;
+            rs.frontFace = FrontFace::kCCW;
             rasterizers[RSTYPE_WIRE] = rs;
 
-            rs.fill_mode = FillMode::WIREFRAME;
-            rs.cull_mode = CullMode::NONE;
-            rs.front_face = FrontFace::CCW;
+            rs.fillMode = FillMode::kWhireframe;
+            rs.cullMode = CullMode::kNone;
+            rs.frontFace = FrontFace::kCCW;
             rasterizers[RSTYPE_WIRE_DOUBLESIDED] = rs;
 
-            rs.fill_mode = FillMode::SOLID;
-            rs.cull_mode = CullMode::NONE;
-            rs.front_face = FrontFace::CW;
+            rs.fillMode = FillMode::kSolid;
+            rs.cullMode = CullMode::kNone;
+            rs.frontFace = FrontFace::kCW;
             rasterizers[RSTYPE_IMAGE] = rs;
         }
 
@@ -318,8 +318,8 @@ namespace cyb::renderer
             desc.rs = &rasterizers[RSTYPE_FRONT];
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
-            desc.pt = PrimitiveTopology::TRIANGLE_LIST;
-            device->CreatePipelineState(&desc, &pso_object[MaterialComponent::SHADERTYPE_BRDF]);
+            desc.pt = PrimitiveTopology::kTriangleList;
+            device->CreatePipelineState(&desc, &pso_object[MaterialComponent::kShadertype_BDRF]);
         }
         {
             // PSO_FLAT_UNLIT
@@ -330,8 +330,8 @@ namespace cyb::renderer
             desc.rs = &rasterizers[RSTYPE_FRONT];
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
-            desc.pt = PrimitiveTopology::TRIANGLE_LIST;
-            device->CreatePipelineState(&desc, &pso_object[MaterialComponent::SHADERTYPE_UNLIT]);
+            desc.pt = PrimitiveTopology::kTriangleList;
+            device->CreatePipelineState(&desc, &pso_object[MaterialComponent::kShadertype_Unlit]);
         }
         {
             // PSO_IMAGE
@@ -340,7 +340,7 @@ namespace cyb::renderer
             desc.fs = GetShader(FSTYPE_IMAGE);
             desc.rs = &rasterizers[RSTYPE_IMAGE];
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
-            desc.pt = PrimitiveTopology::TRIANGLE_STRIP;
+            desc.pt = PrimitiveTopology::kTriangleStrip;
             device->CreatePipelineState(&desc, &pso_image);
         }
         {
@@ -350,7 +350,7 @@ namespace cyb::renderer
             desc.fs = GetShader(FSTYPE_SKY);
             desc.rs = &rasterizers[RSTYPE_IMAGE];
             desc.dss = &depth_stencils[DSSTYPE_SKY];
-            desc.pt = PrimitiveTopology::TRIANGLE_STRIP;
+            desc.pt = PrimitiveTopology::kTriangleStrip;
             device->CreatePipelineState(&desc, &pso_sky);
         }
         {
@@ -361,7 +361,7 @@ namespace cyb::renderer
             desc.rs = &rasterizers[RSTYPE_WIRE_DOUBLESIDED];
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_DEBUG_LINE];
-            desc.pt = PrimitiveTopology::LINE_LIST;
+            desc.pt = PrimitiveTopology::kLineList;
             device->CreatePipelineState(&desc, &pso_debug[DEBUGRENDERING_CUBE]);
         }
     }
@@ -503,7 +503,7 @@ namespace cyb::renderer
         {
             const ObjectComponent& object = view.scene->objects[instanceIndex];
 
-            if (object.meshID != ecs::INVALID_ENTITY)
+            if (object.meshID != ecs::kInvalidEntity)
             {
                 const MeshComponent* mesh = view.scene->meshes.GetComponent(object.meshID);
 
@@ -522,7 +522,7 @@ namespace cyb::renderer
                     };
 
                     device->BindVertexBuffers(vertex_buffers, 2, strides, nullptr, cmd);
-                    device->BindIndexBuffer(&mesh->index_buffer, IndexBufferFormat::UINT32, 0, cmd);
+                    device->BindIndexBuffer(&mesh->index_buffer, IndexBufferFormat::kUint32, 0, cmd);
                 }
                 else
                 {
@@ -550,7 +550,7 @@ namespace cyb::renderer
                         device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
                     }
 
-                    PipelineState* pso = &pso_object[material->shader_type];
+                    PipelineState* pso = &pso_object[material->shaderType];
                     device->BindPipelineState(pso, cmd);
                     device->DrawIndexed(subset.indexCount, subset.indexOffset, 0, cmd);
                 }
@@ -612,9 +612,9 @@ namespace cyb::renderer
             };
 
             GPUBufferDesc vertexbuffer_desc;
-            vertexbuffer_desc.usage = MemoryAccess::DEFAULT;
+            vertexbuffer_desc.usage = MemoryAccess::kDefault;
             vertexbuffer_desc.size = sizeof(verts);
-            vertexbuffer_desc.bind_flags = BindFlag::VERTEX_BUFFER;
+            vertexbuffer_desc.bindFlags = BindFlags::kVertexBufferBit;
             device->CreateBuffer(&vertexbuffer_desc, &verts, &wirecube_vb);
 
             const uint16_t indices[] =
@@ -624,9 +624,9 @@ namespace cyb::renderer
             };
 
             GPUBufferDesc indexbuffer_desc;
-            indexbuffer_desc.usage = MemoryAccess::DEFAULT;
+            indexbuffer_desc.usage = MemoryAccess::kDefault;
             indexbuffer_desc.size = sizeof(indices);
-            indexbuffer_desc.bind_flags = BindFlag::INDEX_BUFFER;
+            indexbuffer_desc.bindFlags = BindFlags::kIndexBufferBit;
             device->CreateBuffer(&indexbuffer_desc, &indices, &wirecube_ib);
         }
 
@@ -643,7 +643,7 @@ namespace cyb::renderer
                 sizeof(XMFLOAT4) + sizeof(XMFLOAT4),
             };
             device->BindVertexBuffers(vbs, _countof(vbs), strides, nullptr, cmd);
-            device->BindIndexBuffer(&wirecube_ib, IndexBufferFormat::UINT16, 0, cmd);
+            device->BindIndexBuffer(&wirecube_ib, IndexBufferFormat::kUint16, 0, cmd);
 
             MaterialCB material_cb;
             material_cb.base_color = XMFLOAT4(1.0f, 0.933f, 0.6f, 1.0f);
@@ -684,10 +684,10 @@ namespace cyb::renderer
                 device->BindSampler(&samplerStates[SSLOT_ANISO_CLAMP], 0, cmd);
                 switch (light->GetType())
                 {
-                case scene::LightType::DIRECTIONAL:
+                case scene::LightType::kDirectional:
                     renderer::DrawImage(&builtin_textures[BUILTIN_TEXTURE_DIRLIGHT].GetTexture(), params, cmd);
                     break;
-                case scene::LightType::POINT:
+                case scene::LightType::kPoint:
                     renderer::DrawImage(&builtin_textures[BUILTIN_TEXTURE_POINTLIGHT].GetTexture(), params, cmd);
                     break;
                 default:
@@ -712,7 +712,7 @@ namespace cyb::renderer
                 sizeof(XMFLOAT4) + sizeof(XMFLOAT4),
             };
             device->BindVertexBuffers(vbs, _countof(vbs), strides, nullptr, cmd);
-            device->BindIndexBuffer(&wirecube_ib, IndexBufferFormat::UINT16, 0, cmd);
+            device->BindIndexBuffer(&wirecube_ib, IndexBufferFormat::kUint16, 0, cmd);
 
             MaterialCB material_cb;
             material_cb.base_color = XMFLOAT4(0.666f, 0.874f, 0.933f, 1.0f);
@@ -723,7 +723,7 @@ namespace cyb::renderer
             {
                 ecs::Entity entity = scene.aabb_lights.GetEntity(i);
                 const LightComponent* light = scene.lights.GetComponent(entity);
-                if (light->type == LightType::POINT)
+                if (light->type == LightType::kPoint)
                 {
                     const AxisAlignedBox& aabb = scene.aabb_lights[i];
                     MiscCB misc_cb;

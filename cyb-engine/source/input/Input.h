@@ -8,7 +8,7 @@ namespace cyb::input
     {
         enum Button
         {
-            NONE = 0,
+            kNone = 0,
 
             // Mouse buttons
             MB_LEFT,

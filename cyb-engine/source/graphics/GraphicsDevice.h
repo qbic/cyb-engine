@@ -8,11 +8,9 @@
     swap chain
  ************************************************************************************/
 #pragma once
-
-#include "Core/Platform.h"
-#include "Core/Mathlib.h"
-#include "Core/EnumFlags.h"
-
+#include "core/platform.h"
+#include "core/Mathlib.h"
+#include "core/EnumFlags.h"
 #include <vector>
 
 namespace cyb::graphics
@@ -20,213 +18,213 @@ namespace cyb::graphics
     struct Texture;
     struct Shader;
 
-    enum class BindFlag
+    enum class BindFlags
     {
-        NONE = 0,
-        VERTEX_BUFFER = (1 << 0),
-        INDEX_BUFFER = (1 << 1),
-        CONSTANT_BUFFER = (1 << 2),
-        RENDER_TARGET = (1 << 3),
-        DEPTH_STENCIL = (1 << 4),
-        SHADER_RESOURCE = (1 << 5)
+        kNone                   = 0,
+        kVertexBufferBit        = (1 << 0),
+        kIndexBufferBit         = (1 << 1),
+        kConstantBufferBit      = (1 << 2),
+        kRenderTargetBit        = (1 << 3),
+        kDepthStencilBit        = (1 << 4),
+        kShaderResourceBit      = (1 << 5)
     };
-    CYB_ENABLE_BITMASK_OPERATORS(BindFlag);
+    CYB_ENABLE_BITMASK_OPERATORS(BindFlags);
 
     enum class ResourceMiscFlag
     {
-        NONE = 0,
-        BUFFER_RAW = (1 << 0),
-        BUFFER_STRUCTURED = (1 << 1),
+        kNone                   = 0,
+        kBufferRawBit           = (1 << 0),
+        kBufferStructuredBit    = (1 << 1),
     };
     CYB_ENABLE_BITMASK_OPERATORS(ResourceMiscFlag);
     
     enum class MemoryAccess
     {
-        DEFAULT,                    // CPU no access, GPU read/write
-        UPLOAD,                     // CPU write, GPU read
-        READBACK                    // CPU read, GPU write
+        kDefault,                   // CPU no access, GPU read/write
+        kUpload,                    // CPU write, GPU read
+        kReadback                   // CPU read, GPU write
     };
 
-    enum class TextureFilter
-    {
-        POINT,
-        BILINEAR,
-        TRILINEAR,
-        ANISOTROPIC_LINEAR
+    enum class TextureFilter 
+    { 
+        kPoint,
+        kBilinear,
+        kTrilinear,
+        kAnisotropic
     };
 
-    enum class TextureAddressMode
+    enum class TextureAddressMode 
     {
-        CLAMP,
-        WRAP,
-        MIRROR,
-        BORDER
+        kClamp,
+        kWrap,
+        kMirror,
+        kBorder
     };
 
     enum class Format
     {
-        UNKNOWN,
-        R32G32B32A32_FLOAT,         // four-component, 128-bit floating-point format with 32-bit channels
-        R8G8B8A8_UINT,              // four-component, 32-bit unsigned-integer format with 8-bit channels
-        R8G8B8A8_UNORM,             // four-component, 32-bit unsigned-normalized integer format with 8-bit channels
-        R16G16_FLOAT,               // two-component, 32-bit floating-point format with 16-bit channels 
-        R32G32_FLOAT,               // two-component, 64-bit floating-point format with 32-bit channels
-        R8_UNORM,                   // single-component, 8-bit unsigned-normalized integer swizzeled to { r, r, r, 1 }
-        R32_FLOAT,                  // single-component, 32-bit floating-point format swizzeled to { r, r, r, 1 }
-        R16_FLOAT,                  // single-component, 16-bit floating-point format swizzeled to { r, r, r, 1 }
-        D32_FLOAT,                  // single-component, 32-bit floating-point format for depth
-        D32_FLOAT_S8_UINT,	        // depth (32-bit) + stencil (8-bit)
-        B8G8R8A8_UNORM,
-        R32G32B32_FLOAT
+        kUnknown,
+        kR32G32B32A32_Float,        // Four-component, 128-bit floating-point format with 32-bit channels
+        kR8G8B8A8_Uint,             // Four-component, 32-bit unsigned-integer format with 8-bit channels
+        kR8G8B8A8_Unorm,            // Four-component, 32-bit unsigned-normalized integer format with 8-bit channels
+        kR16G16_Float,              // Two-component, 32-bit floating-point format with 16-bit channels 
+        kR32G32_Float,              // Two-component, 64-bit floating-point format with 32-bit channels
+        kR8_Unorm,                  // Single-component, 8-bit unsigned-normalized integer swizzeled to { r, r, r, 1 }
+        kR32_Float,                 // Single-component, 32-bit floating-point format swizzeled to { r, r, r, 1 }
+        kR16_Float,                 // Single-component, 16-bit floating-point format swizzeled to { r, r, r, 1 }
+        kD32_Float,                 // Single-component, 32-bit floating-point format for depth
+        kD32_Float_S8_Uint,	        // Depth (32-bit) + stencil (8-bit)
+        kB8G8R8A8_Unorm,
+        kR32G32B32_Float
     };
 
-    enum class IndexBufferFormat
+    enum class IndexBufferFormat 
     {
-        UINT16,
-        UINT32,
+        kUint16,
+        kUint32
     };
 
     enum class SubresourceType
     {
-        SRV,                        // Shader resource view
-        RTV,                        // Render target view
-        DSV                         // Depth stencil view
+        kSRV,                       // Shader resource view
+        kRTV,                       // Render target view
+        kDSV                        // Depth stencil view
     };
 
-    enum class FillMode
+    enum class FillMode 
     {
-        WIREFRAME,
-        SOLID
+        kWhireframe,
+        kSolid
     };
 
     enum class CullMode
     {
-        NONE,
-        FRONT,
-        BACK
+        kNone,
+        kFront,
+        kBack
     };
 
     enum class FrontFace
     {
-        CCW,                        // Counter Clockwise
-        CW                          // Clockwise
+        kCCW,
+        kCW
     };
 
-    enum class PrimitiveTopology
-    {
-        TRIANGLE_LIST,
-        TRIANGLE_STRIP,
-        POINT_LIST,
-        LINE_LIST,
-        LINE_STRIP
+    enum class PrimitiveTopology 
+    { 
+        kTriangleList,
+        kTriangleStrip,
+        kPointList,
+        kLineList,
+        kLineStrip
     };
 
     enum class ComparisonFunc
     {
-        NEVER,
-        LESS,
-        EQUAL,
-        LESS_EQUAL,
-        GREATER,
-        NOT_EQUAL,
-        GREATER_EQUAL,
-        ALWAYS,
+        kNever,
+        kEqual,
+        kNotEqual,
+        kLess,
+        kLessEqual,
+        kGreater,
+        kGreaterEqual,
+        kAllways
     };
 
     enum class DepthWriteMask
     {
-        ZERO,	// Disables depth write
-        ALL,	// Enables depth write
+        kZero,	                    // Disables depth write
+        kAll,	                    // Enables depth write
     };
 
     enum class StencilOp
     {
-        KEEP,
-        ZERO,
-        REPLACE,
-        INCR_SAT,
-        DECR_SAT,
-        INVERT,
-        INCR,
-        DECR,
+        kKeep,
+        kZero,
+        kReplace,
+        kIncrementClamp,
+        kDecrementClamp,
+        kInvert,
+        kIncrement,
+        kDecrement,
     };
 
     enum class ShaderStage
     {
-        VS,                         // Vertex shader
-        FS,                         // Fragment shader
-        GS,                         // Geometry shader
-        COUNT
+        kVS,                         // Vertex shader
+        kFS,                         // Fragment shader
+        kGS,                         // Geometry shader
+        _kCount
     };
 
     enum class ShaderFormat
     {
-        NONE,
-        SPIRV,
-        GLSL
+        kNone,
+        kSpirV,
+        kGLSL
     };
 
     enum class QueueType
     {
-        GRAPHICS,
-        COMPUTE,
-        Count,
+        kGraphics,
+        kCompute,
+        _kCount
     };
 
     enum class ResourceState
     {
         // Common resource states:
-        UNDEFINED = 0,						// invalid state (don't preserve contents)
-        SHADER_RESOURCE = 1 << 0,			// shader resource, read only
-        SHADER_RESOURCE_COMPUTE = 1 << 1,	// shader resource, read only, non-pixel shader
-        UNORDERED_ACCESS = 1 << 2,			// shader resource, write enabled
-        COPY_SRC = 1 << 3,					// copy from
-        COPY_DST = 1 << 4,					// copy to
+        kUndefined = 0,                     // Invalid state (doesen't preserve contents)
+        kShaderResourceBit = 1 << 0,        // Shader resource, read only
+        kShaderResourceComputeBit = 1 << 1, // Shader resource, read only, non-pixel shader
+        kUnorderedAccessBit = 1 << 2,       // Shader resource, write enabled
+        kCopySrcBit = 1 << 3,               // Copy from
+        kCopyDstBit = 1 << 4,               // Copy to
 
         // Texture specific resource states:
-        RENDERTARGET = 1 << 5,				// render target, write enabled
-        DEPTHSTENCIL = 1 << 6,				// depth stencil, write enabled
-        DEPTHSTENCIL_READONLY = 1 << 7,		// depth stencil, read only
+        kRenderTargetBit = 1 << 5,	        // Render target, write enabled
+        kDepthStencilBit = 1 << 6,	        // Depth stencil, write enabled
+        kDepthStencil_ReadOnlyBit = 1 << 7, // Depth stencil, read only
 
         // GPUBuffer specific resource states:
-        VERTEX_BUFFER = 1 << 9,				// vertex buffer, read only
-        INDEX_BUFFER = 1 << 10,				// index buffer, read only
-        CONSTANT_BUFFER = 1 << 11,			// constant buffer, read only
-        INDIRECT_ARGUMENT = 1 << 12,		// argument buffer to DrawIndirect() or DispatchIndirect()
-        RAYTRACING_ACCELERATION_STRUCTURE = 1 << 13, // acceleration structure storage or scratch
-        PREDICATION = 1 << 14				// storage for predication comparison value
+        kVertexBufferBit = 1 << 9,          // Vertex buffer, read only
+        kIndexBufferBit = 1 << 10,          // Index buffer, read only
+        kConstantBufferBit = 1 << 11,       // Constant buffer, read only
+        kIndirectArgumentBit = 1 << 12,     // Argument buffer to DrawIndirect() or DispatchIndirect()
+        kRaytracingAccelerationStructureBit = 1 << 13, // Acceleration structure storage or scratch
+        kPredictionBit = 1 << 14            // Storage for predication comparison value
     };
     CYB_ENABLE_BITMASK_OPERATORS(ResourceState);
 
     struct GPUBufferDesc
     {
         uint64_t size = 0;
-        MemoryAccess usage = MemoryAccess::DEFAULT;
-        BindFlag bind_flags = BindFlag::NONE;
-        ResourceMiscFlag misc_flags = ResourceMiscFlag::NONE;
-        uint32_t stride = 0;        // Needed for struct buffer types
+        MemoryAccess usage = MemoryAccess::kDefault;
+        BindFlags bindFlags = BindFlags::kNone;
+        ResourceMiscFlag miscFlags = ResourceMiscFlag::kNone;
+        uint32_t stride = 0;                // Needed for struct buffer types
     };
 
     struct Viewport
     {
-        float x = 0;                // Top-Left
-        float y = 0;                // Top-Left
+        float x = 0;                        // Top-Left
+        float y = 0;                        // Top-Left
         float width = 0;
         float height = 0;
-        float min_depth = 0;
-        float max_depth = 1;
+        float minDepth = 0;
+        float maxDepth = 1;
     };
 
     struct VertexInputLayout
     {
-        static const uint32_t APPEND_ALIGNED_ELEMENT = ~0u; // automatically figure out AlignedByteOffset depending on Format
+        enum : uint32_t { kAppendAlignedElement = ~0u }; // automatically figure out AlignedByteOffset depending on Format
 
         struct Element
         {
             std::string inputName;
             uint32_t inputSlot = 0;
-            Format format = Format::UNKNOWN;
-            uint32_t aligned_byte_offset = APPEND_ALIGNED_ELEMENT;
+            Format format = Format::kUnknown;
+            uint32_t alignedByteOffset = kAppendAlignedElement;
         };
 
         std::vector<Element> elements;
@@ -240,10 +238,10 @@ namespace cyb::graphics
 
     struct SamplerDesc
     {
-        TextureFilter filter = TextureFilter::POINT;
-        TextureAddressMode address_u = TextureAddressMode::WRAP;
-        TextureAddressMode address_v = TextureAddressMode::WRAP;
-        TextureAddressMode address_w = TextureAddressMode::WRAP;
+        TextureFilter filter = TextureFilter::kPoint;
+        TextureAddressMode addressU = TextureAddressMode::kWrap;
+        TextureAddressMode addressV = TextureAddressMode::kWrap;
+        TextureAddressMode addressW = TextureAddressMode::kWrap;
         float lodBias = 0.0f;
         float maxAnisotropy = 16.0f;
         XMFLOAT4 borderColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -255,89 +253,89 @@ namespace cyb::graphics
     {
         enum class Type
         {
-            TEXTURE_1D,         // UNTESTED
-            TEXTURE_2D,
-            TEXTURE_3D          // NOT IMPLEMENTED
+            kTexture1D,         // UNTESTED
+            kTexture2D,
+            kTexture3D          // NOT IMPLEMENTED
         };
 
-        Type type = Type::TEXTURE_2D;
+        Type type = Type::kTexture2D;
         uint32_t width = 0;
         uint32_t height = 0;
-        uint32_t array_size = 1;
-        Format format = Format::UNKNOWN;
-        uint32_t mip_levels = 1;
-        BindFlag bind_flags = BindFlag::NONE;
-        ResourceState layout = ResourceState::SHADER_RESOURCE;
+        uint32_t arraySize = 1;
+        Format format = Format::kUnknown;
+        uint32_t mipLevels = 1;
+        BindFlags bindFlags = BindFlags::kNone;
+        ResourceState layout = ResourceState::kShaderResourceBit;
     };
 
     struct RasterizerState
     {
-        FillMode fill_mode = FillMode::SOLID;
-        CullMode cull_mode = CullMode::NONE;
-        FrontFace front_face = FrontFace::CCW;
-        float line_width = 1.0f;
+        FillMode fillMode = FillMode::kSolid;
+        CullMode cullMode = CullMode::kNone;
+        FrontFace frontFace = FrontFace::kCCW;
+        float lineWidth = 1.0f;
     };
 
     struct DepthStencilState
     {
         struct DepthStencilOp
         {
-            StencilOp stencil_fail_op = StencilOp::KEEP;
-            StencilOp stencil_depth_fail_op = StencilOp::KEEP;
-            StencilOp stencil_pass_op = StencilOp::KEEP;
-            ComparisonFunc stencil_func = ComparisonFunc::NEVER;
+            StencilOp stencilFailOp = StencilOp::kKeep;
+            StencilOp stencilDepthFailOp = StencilOp::kKeep;
+            StencilOp stencilPassOp = StencilOp::kKeep;
+            ComparisonFunc stencilFunc = ComparisonFunc::kNever;
         };
 
-        bool depth_enable = false;
-        DepthWriteMask depth_write_mask = DepthWriteMask::ZERO;
-        ComparisonFunc depth_func = ComparisonFunc::NEVER;
-        bool stencil_enable = false;
-        uint8_t stencil_read_mask = 0xff;
-        uint8_t stencil_write_mask = 0xff;
-        DepthStencilOp front_face;
-        DepthStencilOp back_face;
-        bool depth_bounds_test_enable = false;
+        bool depthEnable = false;
+        DepthWriteMask depthWriteMask = DepthWriteMask::kZero;
+        ComparisonFunc depthFunc = ComparisonFunc::kNever;
+        bool stencilEnable = false;
+        uint8_t stencilReadMask = 0xff;
+        uint8_t stencilWriteMask = 0xff;
+        DepthStencilOp frontFace;
+        DepthStencilOp backFace;
+        bool depthBoundsTestEnable = false;
     };
 
     struct RenderPassAttachment
     {
         enum class Type
         {
-            RENDERTARGET,
-            DEPTH_STENCIL
+            kRenderTarget,
+            kDepthStencil
         };
 
         enum class LoadOp
         {
-            LOAD,
-            CLEAR,
-            DONTCARE
+            kLoad,
+            kClear,
+            kDontCare
         };
         
         enum class StoreOp
         {
-            STORE,
-            DONTCARE
+            kStore,
+            kDontCare
         };
 
-        Type type = Type::RENDERTARGET;
-        LoadOp loadOp = LoadOp::LOAD;
-        StoreOp storeOp = StoreOp::STORE;
-        ResourceState initialLayout = ResourceState::UNDEFINED;	    // layout before the render pass
-        ResourceState subpassLayout = ResourceState::UNDEFINED;	    // layout within the render pass
-        ResourceState finalLayout = ResourceState::UNDEFINED;		// layout after the render pass
+        Type type = Type::kRenderTarget;
+        LoadOp loadOp = LoadOp::kLoad;
+        StoreOp storeOp = StoreOp::kStore;
+        ResourceState initialLayout = ResourceState::kUndefined;	    // layout before the render pass
+        ResourceState subpassLayout = ResourceState::kUndefined;	    // layout within the render pass
+        ResourceState finalLayout = ResourceState::kUndefined;		// layout after the render pass
         const Texture* texture = nullptr;
 
         static RenderPassAttachment RenderTarget(
             const Texture* resource = nullptr,
-            LoadOp load_op = LoadOp::LOAD,
-            StoreOp store_op = StoreOp::STORE,
-            ResourceState initial_layout = ResourceState::SHADER_RESOURCE,
-            ResourceState subpass_layout = ResourceState::RENDERTARGET,
-            ResourceState final_layout = ResourceState::SHADER_RESOURCE)
+            LoadOp load_op = LoadOp::kLoad,
+            StoreOp store_op = StoreOp::kStore,
+            ResourceState initial_layout = ResourceState::kShaderResourceBit,
+            ResourceState subpass_layout = ResourceState::kRenderTargetBit,
+            ResourceState final_layout = ResourceState::kShaderResourceBit)
         {
             RenderPassAttachment attachment;
-            attachment.type = Type::RENDERTARGET;
+            attachment.type = Type::kRenderTarget;
             attachment.texture = resource;
             attachment.loadOp = load_op;
             attachment.storeOp = store_op;
@@ -349,14 +347,14 @@ namespace cyb::graphics
 
         static RenderPassAttachment DepthStencil(
             const Texture* resource = nullptr,
-            LoadOp load_op = LoadOp::LOAD,
-            StoreOp store_op = StoreOp::STORE,
-            ResourceState initial_layout = ResourceState::DEPTHSTENCIL,
-            ResourceState subpass_layout = ResourceState::DEPTHSTENCIL,
-            ResourceState final_layout = ResourceState::DEPTHSTENCIL)
+            LoadOp load_op = LoadOp::kLoad,
+            StoreOp store_op = StoreOp::kStore,
+            ResourceState initial_layout = ResourceState::kDepthStencilBit,
+            ResourceState subpass_layout = ResourceState::kDepthStencilBit,
+            ResourceState final_layout = ResourceState::kDepthStencilBit)
         {
             RenderPassAttachment attachment;
-            attachment.type = Type::DEPTH_STENCIL;
+            attachment.type = Type::kDepthStencil;
             attachment.texture = resource;
             attachment.loadOp = load_op;
             attachment.storeOp = store_op;
@@ -378,10 +376,10 @@ namespace cyb::graphics
         uint32_t width = 0;
         uint32_t height = 0;
         uint32_t bufferCount = 2;
-        Format format = Format::B8G8R8A8_UNORM;
+        Format format = Format::kB8G8R8A8_Unorm;
         bool fullscreen = false;
         bool vsync = true;
-        float clear_color[4] = { .4f, .4f, .4f, 1 };
+        float clearColor[4] = { .4f, .4f, .4f, 1.0f };
     };
 
     struct FramebufferDesc
@@ -401,14 +399,14 @@ namespace cyb::graphics
         const RasterizerState* rs = nullptr;
         const DepthStencilState* dss = nullptr;
         const VertexInputLayout* il = nullptr;
-        PrimitiveTopology pt = PrimitiveTopology::TRIANGLE_LIST;
+        PrimitiveTopology pt = PrimitiveTopology::kTriangleList;
     };
 
     struct SubresourceData
     {
-        const void* mem = nullptr;	    // pointer to the beginning of the subresource data (pointer to beginning of resource + subresource offset)
-        uint32_t row_pitch = 0;			// bytes between two rows of a texture (2D and 3D textures)
-        uint32_t slice_pitch = 0;		// bytes between two depth slices of a texture (3D textures only)
+        const void* mem = nullptr;	    // Pointer to the beginning of the subresource data (pointer to beginning of resource + subresource offset)
+        uint32_t rowPitch = 0;			// Bytes between two rows of a texture (2D and 3D textures)
+        uint32_t slicePitch = 0;		// Bytes between two depth slices of a texture (3D textures only)
     };
 
     struct Rect
@@ -433,17 +431,17 @@ namespace cyb::graphics
     {
         enum class Type
         {
-            BUFFER,
-            TEXTURE,
-            UNKNOWN
+            kUnknown,
+            kBuffer,
+            kTexture
         };
 
-        Type type = Type::UNKNOWN;
-        void* mapped_data = nullptr;
-        uint32_t mapped_rowpitch = 0;
+        Type type = Type::kUnknown;
+        void* mappedData = nullptr;
+        uint32_t mappedRowPitch = 0;
 
-        constexpr bool IsTexture() const { return type == Type::TEXTURE; }
-        constexpr bool IsBuffer() const { return type == Type::BUFFER; }
+        constexpr bool IsTexture() const { return type == Type::kTexture; }
+        constexpr bool IsBuffer() const { return type == Type::kBuffer; }
     };
 
     struct GPUBuffer : public GPUResource
@@ -460,7 +458,7 @@ namespace cyb::graphics
 
     struct Shader final : public RenderDeviceChild
     {
-        ShaderStage stage = ShaderStage::VS;
+        ShaderStage stage = ShaderStage::kVS;
         std::string code;
     };
 
@@ -494,7 +492,7 @@ namespace cyb::graphics
     // Render device base class / interface
     //------------------------------------------------------------------------------
 
-    const uint32_t MAX_TEXTURE_UNITS = 4;
+    enum { kMaxTextureUnits = 4 };
 
     struct FrameStats
     {
@@ -504,15 +502,15 @@ namespace cyb::graphics
 
     struct DeviceContextState
     {
-        const Texture* currentTexture[MAX_TEXTURE_UNITS] = { 0 };
-        const Sampler* currentSamplerState[MAX_TEXTURE_UNITS] = { 0 };
+        const Texture* currentTexture[kMaxTextureUnits] = { 0 };
+        const Sampler* currentSamplerState[kMaxTextureUnits] = { 0 };
         const PipelineState* currentPipelineState = nullptr;
     };
 
     enum class GraphicsDeviceAPI
     {
-        OpenGL,
-        Vulkan
+        kOpenGL,
+        kVulkan
     };
 
     struct CommandList
@@ -521,16 +519,17 @@ namespace cyb::graphics
         constexpr bool IsValid() const { return internal_state != nullptr; }
     };
 
-    static constexpr uint32_t DESCRIPTORBINDER_CBV_COUNT = 14;
-    static constexpr uint32_t DESCRIPTORBINDER_SRV_COUNT = 16;
-    static constexpr uint32_t DESCRIPTORBINDER_SAMPLER_COUNT = 16;
+    enum { kDescriptorBinderCBVCount = 14 };
+    enum { kDescriptorBinderSRVCount = 14 };
+    enum { kDescriptorBinderSamplerCount = 14 };
+
     struct DescriptorBindingTable
     {
-        GPUBuffer CBV[DESCRIPTORBINDER_CBV_COUNT];
-        uint64_t CBV_offset[DESCRIPTORBINDER_CBV_COUNT] = {};
-        GPUResource SRV[DESCRIPTORBINDER_SRV_COUNT];
-        int SRV_index[DESCRIPTORBINDER_SRV_COUNT] = {};
-        Sampler SAM[DESCRIPTORBINDER_SAMPLER_COUNT];
+        GPUBuffer CBV[kDescriptorBinderCBVCount];
+        uint64_t CBV_offset[kDescriptorBinderCBVCount] = {};
+        GPUResource kSRV[kDescriptorBinderSRVCount];
+        int SRV_index[kDescriptorBinderSRVCount] = {};
+        Sampler SAM[kDescriptorBinderSamplerCount];
     };
 
     constexpr uint32_t AlignTo(uint32_t value, uint32_t alignment)
@@ -545,7 +544,7 @@ namespace cyb::graphics
     class GraphicsDevice
     {
     protected:
-        static const uint32_t BUFFERCOUNT = 2;
+        enum { kBufferCount = 2 };
         uint64_t frameCount = 0;
         bool validationModeEnabled = true;
 
@@ -566,7 +565,7 @@ namespace cyb::graphics
         virtual void SetName(GPUResource* resource, const char* name) {}
 
         constexpr uint64_t GetFrameCount() const { return frameCount; }
-        constexpr uint32_t GetBufferIndex() const { return GetFrameCount() % BUFFERCOUNT; }
+        constexpr uint32_t GetBufferIndex() const { return GetFrameCount() % kBufferCount; }
 
         // Returns the minimum required alignment for buffer offsets when creating subresources
         virtual uint64_t GetMinOffsetAlignment(const GPUBufferDesc* desc) const = 0;
@@ -580,7 +579,7 @@ namespace cyb::graphics
         // Returns video memory statistics for the current application
         virtual MemoryUsage GetMemoryUsage() const = 0;
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Command List functions are below:
         //	- These are used to record rendering commands to a CommandList
         //	- To get a CommandList that can be recorded into, call BeginCommandList()
@@ -645,9 +644,9 @@ namespace cyb::graphics
             if (dataSize > free_space)
             {
                 GPUBufferDesc desc;
-                desc.usage = MemoryAccess::UPLOAD;
-                desc.bind_flags = BindFlag::CONSTANT_BUFFER | BindFlag::VERTEX_BUFFER | BindFlag::INDEX_BUFFER | BindFlag::SHADER_RESOURCE;
-                desc.misc_flags = ResourceMiscFlag::BUFFER_RAW;
+                desc.usage = MemoryAccess::kUpload;
+                desc.bindFlags = BindFlags::kConstantBufferBit | BindFlags::kVertexBufferBit | BindFlags::kIndexBufferBit | BindFlags::kShaderResourceBit;
+                desc.miscFlags = ResourceMiscFlag::kBufferRawBit;
                 allocator.alignment = GetMinOffsetAlignment(&desc);
                 desc.size = AlignTo((allocator.buffer.desc.size + dataSize) * 2, allocator.alignment);
                 CreateBuffer(&desc, nullptr, &allocator.buffer);
@@ -657,7 +656,7 @@ namespace cyb::graphics
 
             allocation.buffer = allocator.buffer;
             allocation.offset = allocator.offset;
-            allocation.data = (void*)((size_t)allocator.buffer.mapped_data + allocator.offset);
+            allocation.data = (void*)((size_t)allocator.buffer.mappedData + allocator.offset);
 
             allocator.offset += AlignTo(dataSize, allocator.alignment);
 
@@ -697,27 +696,27 @@ namespace cyb::graphics
     {
         switch (format)
         {
-        case Format::R32G32B32A32_FLOAT:
+        case Format::kR32G32B32A32_Float:
             return 16u;
 
-        case Format::R32G32B32_FLOAT:
+        case Format::kR32G32B32_Float:
             return 12u;
 
-        case Format::R32G32_FLOAT:
+        case Format::kR32G32_Float:
             return 8u;
 
-        case Format::R8G8B8A8_UINT:
-        case Format::R8G8B8A8_UNORM:
-        case Format::R16G16_FLOAT:
-        case Format::R32_FLOAT:
-        case Format::D32_FLOAT:
-        case Format::B8G8R8A8_UNORM:
+        case Format::kR8G8B8A8_Uint:
+        case Format::kR8G8B8A8_Unorm:
+        case Format::kR16G16_Float:
+        case Format::kR32_Float:
+        case Format::kD32_Float:
+        case Format::kB8G8R8A8_Unorm:
             return 4u;
 
-        case Format::R16_FLOAT:
+        case Format::kR16_Float:
             return 2u;
 
-        case Format::R8_UNORM:
+        case Format::kR8_Unorm:
             return 1u;
 
         default:

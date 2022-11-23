@@ -12,10 +12,16 @@
 
 namespace cyb::logger 
 {
-	constexpr uint32_t LOGLEVEL_TRACE = 0;
-	constexpr uint32_t LOGLEVEL_INFO = 1;
-	constexpr uint32_t LOGLEVEL_WARNING = 2;
-	constexpr uint32_t LOGLEVEL_ERROR = 3;
+	namespace LogLevel
+	{
+		enum : uint16_t
+		{
+			kTrace,
+			kInfo,
+			kWarning,
+			kError
+		};
+	}
 
 	class LogOutputModule
 	{
@@ -28,30 +34,31 @@ namespace cyb::logger
 
 	std::string GetText();
 
-	void Post(uint32_t loglevel, const std::string& input);
+	// Post a message to all registered output modules
+	void Post(uint16_t loglevel, const std::string& input);
 
 	template <typename ...T>
 	void PostTrace(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LOGLEVEL_TRACE, fmt::format(fmt, std::forward<T>(args)...));
+		Post(LogLevel::kTrace, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostInfo(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LOGLEVEL_INFO, fmt::format(fmt, std::forward<T>(args)...));
+		Post(LogLevel::kInfo, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostWarning(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LOGLEVEL_WARNING, fmt::format(fmt, std::forward<T>(args)...));
+		Post(LogLevel::kWarning, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostError(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LOGLEVEL_ERROR, fmt::format(fmt, std::forward<T>(args)...));
+		Post(LogLevel::kError, fmt::format(fmt, std::forward<T>(args)...));
 	}
 }
 

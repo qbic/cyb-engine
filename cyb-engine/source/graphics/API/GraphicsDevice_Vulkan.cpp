@@ -15,19 +15,19 @@ namespace cyb::graphics::vulkan_internal
     {
         switch (value)
         {
-        case Format::UNKNOWN:                   return VK_FORMAT_UNDEFINED;
-        case Format::R32G32B32A32_FLOAT:        return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case Format::R32G32_FLOAT:              return VK_FORMAT_R32G32_SFLOAT;
-        case Format::R8G8B8A8_UNORM:            return VK_FORMAT_R8G8B8A8_UNORM;
-        case Format::R8G8B8A8_UINT:             return VK_FORMAT_R8G8B8A8_UINT;
-        case Format::R16G16_FLOAT:              return VK_FORMAT_R16G16_SFLOAT;
-        case Format::D32_FLOAT:                 return VK_FORMAT_D32_SFLOAT;
-        case Format::D32_FLOAT_S8_UINT:         return VK_FORMAT_D32_SFLOAT_S8_UINT;
-        case Format::R32_FLOAT:                 return VK_FORMAT_R32_SFLOAT;
-        case Format::R16_FLOAT:                 return VK_FORMAT_R16_SFLOAT;
-        case Format::R8_UNORM:                  return VK_FORMAT_R8_UNORM;
-        case Format::B8G8R8A8_UNORM:            return VK_FORMAT_B8G8R8A8_UNORM;
-        case Format::R32G32B32_FLOAT:           return VK_FORMAT_R32G32B32_SFLOAT;
+        case Format::kUnknown:                   return VK_FORMAT_UNDEFINED;
+        case Format::kR32G32B32A32_Float:        return VK_FORMAT_R32G32B32A32_SFLOAT;
+        case Format::kR32G32_Float:              return VK_FORMAT_R32G32_SFLOAT;
+        case Format::kR8G8B8A8_Unorm:            return VK_FORMAT_R8G8B8A8_UNORM;
+        case Format::kR8G8B8A8_Uint:             return VK_FORMAT_R8G8B8A8_UINT;
+        case Format::kR16G16_Float:              return VK_FORMAT_R16G16_SFLOAT;
+        case Format::kD32_Float:                 return VK_FORMAT_D32_SFLOAT;
+        case Format::kD32_Float_S8_Uint:         return VK_FORMAT_D32_SFLOAT_S8_UINT;
+        case Format::kR32_Float:                 return VK_FORMAT_R32_SFLOAT;
+        case Format::kR16_Float:                 return VK_FORMAT_R16_SFLOAT;
+        case Format::kR8_Unorm:                  return VK_FORMAT_R8_UNORM;
+        case Format::kB8G8R8A8_Unorm:            return VK_FORMAT_B8G8R8A8_UNORM;
+        case Format::kR32G32B32_Float:           return VK_FORMAT_R32G32B32_SFLOAT;
         }
 
         assert(0);
@@ -38,24 +38,15 @@ namespace cyb::graphics::vulkan_internal
     {
         switch (value)
         {
-        case ComparisonFunc::NEVER:
-            return VK_COMPARE_OP_NEVER;
-        case ComparisonFunc::LESS:
-            return VK_COMPARE_OP_LESS;
-        case ComparisonFunc::EQUAL:
-            return VK_COMPARE_OP_EQUAL;
-        case ComparisonFunc::LESS_EQUAL:
-            return VK_COMPARE_OP_LESS_OR_EQUAL;
-        case ComparisonFunc::GREATER:
-            return VK_COMPARE_OP_GREATER;
-        case ComparisonFunc::NOT_EQUAL:
-            return VK_COMPARE_OP_NOT_EQUAL;
-        case ComparisonFunc::GREATER_EQUAL:
-            return VK_COMPARE_OP_GREATER_OR_EQUAL;
-        case ComparisonFunc::ALWAYS:
-            return VK_COMPARE_OP_ALWAYS;
-        default:
-            return VK_COMPARE_OP_NEVER;
+        case ComparisonFunc::kNever:            return VK_COMPARE_OP_NEVER;
+        case ComparisonFunc::kLess:             return VK_COMPARE_OP_LESS;
+        case ComparisonFunc::kEqual:            return VK_COMPARE_OP_EQUAL;
+        case ComparisonFunc::kLessEqual:        return VK_COMPARE_OP_LESS_OR_EQUAL;
+        case ComparisonFunc::kGreater:          return VK_COMPARE_OP_GREATER;
+        case ComparisonFunc::kNotEqual:         return VK_COMPARE_OP_NOT_EQUAL;
+        case ComparisonFunc::kGreaterEqual:     return VK_COMPARE_OP_GREATER_OR_EQUAL;
+        case ComparisonFunc::kAllways:          return VK_COMPARE_OP_ALWAYS;
+        default:                                return VK_COMPARE_OP_NEVER;
         }
     }
 
@@ -63,43 +54,25 @@ namespace cyb::graphics::vulkan_internal
     {
         switch (value)
         {
-        case StencilOp::KEEP:
-            return VK_STENCIL_OP_KEEP;
-            break;
-        case StencilOp::ZERO:
-            return VK_STENCIL_OP_ZERO;
-            break;
-        case StencilOp::REPLACE:
-            return VK_STENCIL_OP_REPLACE;
-            break;
-        case StencilOp::INCR_SAT:
-            return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
-            break;
-        case StencilOp::DECR_SAT:
-            return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
-            break;
-        case StencilOp::INVERT:
-            return VK_STENCIL_OP_INVERT;
-            break;
-        case StencilOp::INCR:
-            return VK_STENCIL_OP_INCREMENT_AND_WRAP;
-            break;
-        case StencilOp::DECR:
-            return VK_STENCIL_OP_DECREMENT_AND_WRAP;
-            break;
-        default:
-            break;
+        case StencilOp::kKeep:                  return VK_STENCIL_OP_KEEP;
+        case StencilOp::kZero:                  return VK_STENCIL_OP_ZERO;
+        case StencilOp::kReplace:               return VK_STENCIL_OP_REPLACE;
+        case StencilOp::kIncrementClamp:        return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+        case StencilOp::kDecrementClamp:        return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+        case StencilOp::kInvert:                return VK_STENCIL_OP_INVERT;
+        case StencilOp::kIncrement:             return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+        case StencilOp::kDecrement:             return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+        default:                                return VK_STENCIL_OP_KEEP;
         }
-        return VK_STENCIL_OP_KEEP;
     }
 
     constexpr VkAttachmentLoadOp _ConvertLoadOp(RenderPassAttachment::LoadOp loadOp)
     {
         switch (loadOp)
         {
-        case RenderPassAttachment::LoadOp::LOAD: return VK_ATTACHMENT_LOAD_OP_LOAD;
-        case RenderPassAttachment::LoadOp::CLEAR: return VK_ATTACHMENT_LOAD_OP_CLEAR;
-        case RenderPassAttachment::LoadOp::DONTCARE: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        case RenderPassAttachment::LoadOp::kLoad: return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case RenderPassAttachment::LoadOp::kClear: return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case RenderPassAttachment::LoadOp::kDontCare: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         }
 
         assert(0);
@@ -110,8 +83,8 @@ namespace cyb::graphics::vulkan_internal
     {
         switch (storeOp)
         {
-        case RenderPassAttachment::StoreOp::STORE: return VK_ATTACHMENT_STORE_OP_STORE;
-        case RenderPassAttachment::StoreOp::DONTCARE: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        case RenderPassAttachment::StoreOp::kStore: return VK_ATTACHMENT_STORE_OP_STORE;
+        case RenderPassAttachment::StoreOp::kDontCare: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
         }
 
         assert(0);
@@ -122,15 +95,15 @@ namespace cyb::graphics::vulkan_internal
     {
         switch (value)
         {
-        case ResourceState::UNDEFINED:          return VK_IMAGE_LAYOUT_UNDEFINED;
-        case ResourceState::RENDERTARGET:       return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        case ResourceState::DEPTHSTENCIL:       return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        case ResourceState::DEPTHSTENCIL_READONLY: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-        case ResourceState::SHADER_RESOURCE:
-        case ResourceState::SHADER_RESOURCE_COMPUTE: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        case ResourceState::UNORDERED_ACCESS:   return VK_IMAGE_LAYOUT_GENERAL;
-        case ResourceState::COPY_SRC:           return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        case ResourceState::COPY_DST:           return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        case ResourceState::kUndefined:          return VK_IMAGE_LAYOUT_UNDEFINED;
+        case ResourceState::kRenderTargetBit:       return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        case ResourceState::kDepthStencilBit:       return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        case ResourceState::kDepthStencil_ReadOnlyBit: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        case ResourceState::kShaderResourceBit:
+        case ResourceState::kShaderResourceComputeBit: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        case ResourceState::kUnorderedAccessBit:   return VK_IMAGE_LAYOUT_GENERAL;
+        case ResourceState::kCopySrcBit:           return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        case ResourceState::kCopyDstBit:           return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         }
 
         assert(0);
@@ -141,43 +114,43 @@ namespace cyb::graphics::vulkan_internal
     {
         VkAccessFlags flags = 0;
 
-        if (HasFlag(value, ResourceState::SHADER_RESOURCE))
+        if (HasFlag(value, ResourceState::kShaderResourceBit))
             flags |= VK_ACCESS_SHADER_READ_BIT;
-        if (HasFlag(value, ResourceState::SHADER_RESOURCE_COMPUTE))
+        if (HasFlag(value, ResourceState::kShaderResourceComputeBit))
             flags |= VK_ACCESS_SHADER_READ_BIT;
-        if (HasFlag(value, ResourceState::UNORDERED_ACCESS))
+        if (HasFlag(value, ResourceState::kUnorderedAccessBit))
         {
             flags |= VK_ACCESS_SHADER_READ_BIT;
             flags |= VK_ACCESS_SHADER_WRITE_BIT;
         }
-        if (HasFlag(value, ResourceState::COPY_SRC))
+        if (HasFlag(value, ResourceState::kCopySrcBit))
             flags |= VK_ACCESS_TRANSFER_READ_BIT;
-        if (HasFlag(value, ResourceState::COPY_DST))
+        if (HasFlag(value, ResourceState::kCopyDstBit))
             flags |= VK_ACCESS_TRANSFER_WRITE_BIT;
 
-        if (HasFlag(value, ResourceState::RENDERTARGET))
+        if (HasFlag(value, ResourceState::kRenderTargetBit))
         {
             flags |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
             flags |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         }
-        if (HasFlag(value, ResourceState::DEPTHSTENCIL))
+        if (HasFlag(value, ResourceState::kDepthStencilBit))
         {
             flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
             flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
         }
-        if (HasFlag(value, ResourceState::DEPTHSTENCIL_READONLY))
+        if (HasFlag(value, ResourceState::kDepthStencil_ReadOnlyBit))
             flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 
-        if (HasFlag(value, ResourceState::VERTEX_BUFFER))
+        if (HasFlag(value, ResourceState::kVertexBufferBit))
             flags |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-        if (HasFlag(value, ResourceState::INDEX_BUFFER))
+        if (HasFlag(value, ResourceState::kIndexBufferBit))
             flags |= VK_ACCESS_INDEX_READ_BIT;
-        if (HasFlag(value, ResourceState::CONSTANT_BUFFER))
+        if (HasFlag(value, ResourceState::kConstantBufferBit))
             flags |= VK_ACCESS_UNIFORM_READ_BIT;
-        if (HasFlag(value, ResourceState::INDIRECT_ARGUMENT))
+        if (HasFlag(value, ResourceState::kIndirectArgumentBit))
             flags |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
 
-        if (HasFlag(value, ResourceState::PREDICATION))
+        if (HasFlag(value, ResourceState::kPredictionBit))
             flags |= VK_ACCESS_CONDITIONAL_RENDERING_READ_BIT_EXT;
 
         return flags;
@@ -235,7 +208,7 @@ namespace cyb::graphics::vulkan_internal
         VkPipelineShaderStageCreateInfo stage_info = {};
 
         std::vector<VkDescriptorSetLayoutBinding> layout_bindings;
-        VkDeviceSize uniform_buffer_sizes[DESCRIPTORBINDER_CBV_COUNT] = {};
+        VkDeviceSize uniform_buffer_sizes[kDescriptorBinderCBVCount] = {};
         std::vector<uint32_t> uniform_buffer_dynamic_slots;
         std::vector<VkImageViewType> imageview_types;
 
@@ -271,12 +244,12 @@ namespace cyb::graphics::vulkan_internal
         
         std::vector<VkDescriptorSetLayoutBinding> layout_bindings;
         std::vector<VkImageViewType> imageview_types;
-        VkDeviceSize uniform_buffer_sizes[DESCRIPTORBINDER_CBV_COUNT] = {};
+        VkDeviceSize uniform_buffer_sizes[kDescriptorBinderCBVCount] = {};
         std::vector<uint32_t> uniform_buffer_dynamic_slots;
         size_t binding_hash = 0;
 
         VkGraphicsPipelineCreateInfo pipelineInfo = {};
-        VkPipelineShaderStageCreateInfo shaderStages[static_cast<size_t>(ShaderStage::COUNT)] = {};
+        VkPipelineShaderStageCreateInfo shaderStages[static_cast<size_t>(ShaderStage::_kCount)] = {};
         VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
         VkPipelineRasterizationStateCreateInfo rasterizer = {};
         VkPipelineRasterizationDepthClipStateCreateInfoEXT depthclip = {};
@@ -744,7 +717,7 @@ namespace cyb::graphics
         {
             GPUBufferDesc uploaddesc;
             uploaddesc.size = math::GetNextPowerOfTwo(staging_size);
-            uploaddesc.usage = MemoryAccess::UPLOAD;
+            uploaddesc.usage = MemoryAccess::kUpload;
             bool upload_success = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadbuffer);
             assert(upload_success);
         }
@@ -920,7 +893,7 @@ namespace cyb::graphics
                         image_infos.emplace_back();
                         write.pImageInfo = &image_infos.back();
                         const uint32_t binding_location = unrolled_binding;
-                        const GPUResource& resource = table.SRV[unrolled_binding];
+                        const GPUResource& resource = table.kSRV[unrolled_binding];
                         auto texture_internal = ToInternal((const Texture*)&resource);
                         const Sampler& sampler = table.SAM[unrolled_binding];
                         auto sampler_internal = ToInternal((const Sampler*)&sampler);
@@ -1000,15 +973,15 @@ namespace cyb::graphics
         VkDescriptorPoolSize pool_size = {};
 
         pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        pool_size.descriptorCount = DESCRIPTORBINDER_CBV_COUNT * pool_max_size;
+        pool_size.descriptorCount = kDescriptorBinderCBVCount * pool_max_size;
         pool_sizes.push_back(pool_size);
 
         pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-        pool_size.descriptorCount = DESCRIPTORBINDER_CBV_COUNT * pool_max_size;
+        pool_size.descriptorCount = kDescriptorBinderCBVCount * pool_max_size;
         pool_sizes.push_back(pool_size);
 
         pool_size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        pool_size.descriptorCount = DESCRIPTORBINDER_SRV_COUNT * pool_max_size;
+        pool_size.descriptorCount = kDescriptorBinderSRVCount * pool_max_size;
         pool_sizes.push_back(pool_size);
 
         VkDescriptorPoolCreateInfo create_info = {};
@@ -1120,8 +1093,8 @@ namespace cyb::graphics
                     attr.format = _ConvertFormat(x.format);
                     attr.location = i;
 
-                    attr.offset = x.aligned_byte_offset;
-                    if (attr.offset == VertexInputLayout::APPEND_ALIGNED_ELEMENT)
+                    attr.offset = x.alignedByteOffset;
+                    if (attr.offset == VertexInputLayout::kAppendAlignedElement)
                     {
                         // need to manually resolve this from the format spec.
                         attr.offset = offset;
@@ -1494,7 +1467,7 @@ namespace cyb::graphics
 
         // Create frame resources:
         {
-            for (uint32_t i = 0; i < BUFFERCOUNT; ++i)
+            for (uint32_t i = 0; i < kBufferCount; ++i)
             {
                 // Create fences:
                 VkFenceCreateInfo fence_info = {};
@@ -1595,7 +1568,7 @@ namespace cyb::graphics
 
         for (auto& commandlist : commandlists)
         {
-            for (uint32_t buffer_index = 0; buffer_index < BUFFERCOUNT; ++buffer_index)
+            for (uint32_t buffer_index = 0; buffer_index < kBufferCount; ++buffer_index)
             {
                 vkDestroyCommandPool(device, commandlist->commandpools[buffer_index], nullptr);
             }
@@ -1660,9 +1633,9 @@ namespace cyb::graphics
         auto internal_state = std::make_shared<Buffer_Vulkan>();
         internal_state->allocationhandler = allocationhandler;
         buffer->internal_state = internal_state;
-        buffer->type = GPUResource::Type::BUFFER;
-        buffer->mapped_data = nullptr;
-        buffer->mapped_rowpitch = 0;
+        buffer->type = GPUResource::Type::kBuffer;
+        buffer->mappedData = nullptr;
+        buffer->mappedRowPitch = 0;
         buffer->desc = *desc;
 
         VkBufferCreateInfo buffer_info = {};
@@ -1670,15 +1643,15 @@ namespace cyb::graphics
         buffer_info.size = buffer->desc.size;
         buffer_info.usage = 0;
 
-        if (HasFlag(buffer->desc.bind_flags, BindFlag::VERTEX_BUFFER))
+        if (HasFlag(buffer->desc.bindFlags, BindFlags::kVertexBufferBit))
             buffer_info.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        if (HasFlag(buffer->desc.bind_flags, BindFlag::INDEX_BUFFER))
+        if (HasFlag(buffer->desc.bindFlags, BindFlags::kIndexBufferBit))
             buffer_info.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        if (HasFlag(buffer->desc.bind_flags, BindFlag::CONSTANT_BUFFER))
+        if (HasFlag(buffer->desc.bindFlags, BindFlags::kConstantBufferBit))
             buffer_info.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-        if (HasFlag(buffer->desc.misc_flags, ResourceMiscFlag::BUFFER_RAW))
+        if (HasFlag(buffer->desc.miscFlags, ResourceMiscFlag::kBufferRawBit))
             buffer_info.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        if (HasFlag(buffer->desc.misc_flags, ResourceMiscFlag::BUFFER_STRUCTURED))
+        if (HasFlag(buffer->desc.miscFlags, ResourceMiscFlag::kBufferStructuredBit))
             buffer_info.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
         buffer_info.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -1688,11 +1661,11 @@ namespace cyb::graphics
 
         VmaAllocationCreateInfo alloc_info = {};
         alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-        if (desc->usage == MemoryAccess::READBACK) 
+        if (desc->usage == MemoryAccess::kReadback) 
         {
             alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
         }
-        else if (desc->usage == MemoryAccess::UPLOAD)
+        else if (desc->usage == MemoryAccess::kUpload)
         {
             alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
         }
@@ -1700,10 +1673,10 @@ namespace cyb::graphics
         VkResult res = vmaCreateBuffer(allocationhandler->allocator, &buffer_info, &alloc_info, &internal_state->resource, &internal_state->allocation, nullptr);
         assert(res == VK_SUCCESS);
 
-        if (desc->usage == MemoryAccess::READBACK || desc->usage == MemoryAccess::UPLOAD)
+        if (desc->usage == MemoryAccess::kReadback || desc->usage == MemoryAccess::kUpload)
         {
-            buffer->mapped_data = internal_state->allocation->GetMappedData();
-            buffer->mapped_rowpitch = static_cast<uint32_t>(desc->size);
+            buffer->mappedData = internal_state->allocation->GetMappedData();
+            buffer->mappedRowPitch = static_cast<uint32_t>(desc->size);
         }
 
         // Issue data copy on request:
@@ -1711,7 +1684,7 @@ namespace cyb::graphics
         {
             auto cmd = copy_allocator.Allocate(desc->size);
 
-            std::memcpy(cmd.uploadbuffer.mapped_data, init_data, buffer->desc.size);
+            std::memcpy(cmd.uploadbuffer.mappedData, init_data, buffer->desc.size);
 
             VkBufferMemoryBarrier barrier = {};
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -1748,11 +1721,11 @@ namespace cyb::graphics
 
             std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
 
-            if (HasFlag(buffer->desc.bind_flags, BindFlag::CONSTANT_BUFFER))
+            if (HasFlag(buffer->desc.bindFlags, BindFlags::kConstantBufferBit))
                 barrier.dstAccessMask |= VK_ACCESS_UNIFORM_READ_BIT;
-            if (HasFlag(buffer->desc.bind_flags, BindFlag::VERTEX_BUFFER))
+            if (HasFlag(buffer->desc.bindFlags, BindFlags::kVertexBufferBit))
                 barrier.dstAccessMask |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-            if (HasFlag(buffer->desc.bind_flags, BindFlag::INDEX_BUFFER))
+            if (HasFlag(buffer->desc.bindFlags, BindFlags::kIndexBufferBit))
                 barrier.dstAccessMask |= VK_ACCESS_INDEX_READ_BIT;
 
             vkCmdPipelineBarrier(
@@ -1813,7 +1786,7 @@ namespace cyb::graphics
         {
             auto internal_state = ToInternal(index_buffer);
             CommandList_Vulkan& commandlist = GetCommandList(cmd);
-            vkCmdBindIndexBuffer(commandlist.GetCommandBuffer(), internal_state->resource, offset, format == IndexBufferFormat::UINT16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+            vkCmdBindIndexBuffer(commandlist.GetCommandBuffer(), internal_state->resource, offset, format == IndexBufferFormat::kUint16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
         }
     }
 
@@ -1826,11 +1799,11 @@ namespace cyb::graphics
     void GraphicsDevice_Vulkan::BindResource(const GPUResource* resource, int slot, CommandList cmd)
     {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        assert(slot < DESCRIPTORBINDER_SRV_COUNT);
+        assert(slot < kDescriptorBinderSRVCount);
         auto& binder = commandlist.binder;
-        if (binder.table.SRV[slot].internal_state != resource->internal_state)
+        if (binder.table.kSRV[slot].internal_state != resource->internal_state)
         {
-            binder.table.SRV[slot] = *resource;
+            binder.table.kSRV[slot] = *resource;
             binder.dirty |= DescriptorBinder::DIRTY_DESCRIPTOR;
         }
     }
@@ -1838,7 +1811,7 @@ namespace cyb::graphics
     void GraphicsDevice_Vulkan::BindSampler(const Sampler* sampler, uint32_t slot, CommandList cmd)
     {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        assert(slot < DESCRIPTORBINDER_SAMPLER_COUNT);
+        assert(slot < kDescriptorBinderSamplerCount);
         auto& binder = commandlist.binder;
         if (binder.table.SAM[slot].internal_state != sampler->internal_state)
         {
@@ -1850,7 +1823,7 @@ namespace cyb::graphics
     void GraphicsDevice_Vulkan::BindConstantBuffer(const GPUBuffer* buffer, uint32_t slot, CommandList cmd, uint64_t offset)
     {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        assert(slot < DESCRIPTORBINDER_CBV_COUNT);
+        assert(slot < kDescriptorBinderCBVCount);
         auto& binder = commandlist.binder;
 
         if (binder.table.CBV[slot].internal_state != buffer->internal_state)
@@ -1903,11 +1876,11 @@ namespace cyb::graphics
 
         switch (type)
         {
-        case SubresourceType::SRV:
+        case SubresourceType::kSRV:
         {
             switch (format)
             {
-            case Format::D32_FLOAT_S8_UINT:
+            case Format::kD32_Float_S8_Uint:
                 view_info.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
                 view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
                 break;
@@ -1920,14 +1893,14 @@ namespace cyb::graphics
             assert(internal_state->srv.image_view == VK_NULL_HANDLE);
             internal_state->srv = subresource;
         } break;
-        case SubresourceType::RTV:
+        case SubresourceType::kRTV:
         {
             assert(internal_state->rtv == VK_NULL_HANDLE);
             view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             VkResult res = vkCreateImageView(device, &view_info, nullptr, &internal_state->rtv);
             assert(res == VK_SUCCESS);
         } break;
-        case SubresourceType::DSV:
+        case SubresourceType::kDSV:
         {
             assert(internal_state->dsv == VK_NULL_HANDLE);
             view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -1944,11 +1917,11 @@ namespace cyb::graphics
     bool GraphicsDevice_Vulkan::CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const
     {
         assert(texture != nullptr);
-        assert(desc->format != Format::UNKNOWN);
+        assert(desc->format != Format::kUnknown);
         auto internal_state = std::make_shared<Texture_Vulkan>();
         internal_state->allocationhandler = allocationhandler;
         texture->internal_state = internal_state;
-        texture->type = GPUResource::Type::TEXTURE;
+        texture->type = GPUResource::Type::kTexture;
         texture->desc = *desc;
 
         VkImageCreateInfo image_info = {};
@@ -1965,11 +1938,11 @@ namespace cyb::graphics
         image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         image_info.usage = 0;
 
-        if (HasFlag(texture->desc.bind_flags, BindFlag::SHADER_RESOURCE))
+        if (HasFlag(texture->desc.bindFlags, BindFlags::kShaderResourceBit))
             image_info.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
-        if (HasFlag(texture->desc.bind_flags, BindFlag::RENDER_TARGET))
+        if (HasFlag(texture->desc.bindFlags, BindFlags::kRenderTargetBit))
             image_info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        if (HasFlag(texture->desc.bind_flags, BindFlag::DEPTH_STENCIL))
+        if (HasFlag(texture->desc.bindFlags, BindFlags::kDepthStencilBit))
             image_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
         image_info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -1977,13 +1950,13 @@ namespace cyb::graphics
 
         switch (texture->desc.type)
         {
-        case TextureDesc::Type::TEXTURE_1D:
+        case TextureDesc::Type::kTexture1D:
             image_info.imageType = VK_IMAGE_TYPE_1D;
             break;
-        case TextureDesc::Type::TEXTURE_2D:
+        case TextureDesc::Type::kTexture2D:
             image_info.imageType = VK_IMAGE_TYPE_2D;
             break;
-        case TextureDesc::Type::TEXTURE_3D:
+        case TextureDesc::Type::kTexture3D:
             image_info.imageType = VK_IMAGE_TYPE_3D;
             break;
         default:
@@ -2011,12 +1984,12 @@ namespace cyb::graphics
 
             VkDeviceSize copy_offset = 0;
             uint32_t init_data_index = 0;
-            for (uint32_t layer = 0; layer < desc->array_size; ++layer)
+            for (uint32_t layer = 0; layer < desc->arraySize; ++layer)
             {
                 uint32_t width = image_info.extent.width;
                 uint32_t height = image_info.extent.height;
                 uint32_t depth = image_info.extent.depth;
-                for (uint32_t mip = 0; mip < desc->mip_levels; ++mip)
+                for (uint32_t mip = 0; mip < desc->mipLevels; ++mip)
                 {
                     const SubresourceData& subresourceData = init_data[init_data_index++];
                     const uint32_t block_size = 1; // GetFormatBlockSize(desc->format);
@@ -2024,11 +1997,11 @@ namespace cyb::graphics
                     const uint32_t num_blocks_y = height / block_size;
                     const uint32_t dst_rowpitch = num_blocks_x * GetFormatStride(desc->format);
                     const uint32_t dst_slicepitch = dst_rowpitch * num_blocks_y;
-                    const uint32_t src_rowpitch = subresourceData.row_pitch;
-                    const uint32_t src_slicepitch = subresourceData.slice_pitch;
+                    const uint32_t src_rowpitch = subresourceData.rowPitch;
+                    const uint32_t src_slicepitch = subresourceData.slicePitch;
                     for (uint32_t z = 0; z < depth; ++z)
                     {
-                        uint8_t* dst_slice = (uint8_t*)cmd.uploadbuffer.mapped_data + copy_offset + dst_slicepitch * z;
+                        uint8_t* dst_slice = (uint8_t*)cmd.uploadbuffer.mappedData + copy_offset + dst_slicepitch * z;
                         uint8_t* src_slice = (uint8_t*)subresourceData.mem + src_slicepitch * z;
                         for (uint32_t y = 0; y < num_blocks_y; ++y)
                         {
@@ -2130,7 +2103,7 @@ namespace cyb::graphics
             barrier.newLayout = _ConvertImageLayout(texture->desc.layout);
             barrier.srcAccessMask = 0;
             barrier.dstAccessMask = _ParseResourceState(texture->desc.layout);
-            if (HasFlag(texture->desc.bind_flags, BindFlag::DEPTH_STENCIL))
+            if (HasFlag(texture->desc.bindFlags, BindFlags::kDepthStencilBit))
             {
                 barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
                 barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -2161,12 +2134,12 @@ namespace cyb::graphics
             init_locker.unlock();
         }
 
-        if (HasFlag(texture->desc.bind_flags, BindFlag::SHADER_RESOURCE))
-            CreateSubresource(texture, SubresourceType::SRV);
-        if (HasFlag(texture->desc.bind_flags, BindFlag::RENDER_TARGET))
-            CreateSubresource(texture, SubresourceType::RTV);
-        if (HasFlag(texture->desc.bind_flags, BindFlag::DEPTH_STENCIL))
-            CreateSubresource(texture, SubresourceType::DSV);
+        if (HasFlag(texture->desc.bindFlags, BindFlags::kShaderResourceBit))
+            CreateSubresource(texture, SubresourceType::kSRV);
+        if (HasFlag(texture->desc.bindFlags, BindFlags::kRenderTargetBit))
+            CreateSubresource(texture, SubresourceType::kRTV);
+        if (HasFlag(texture->desc.bindFlags, BindFlags::kDepthStencilBit))
+            CreateSubresource(texture, SubresourceType::kDSV);
 
         return R_SUCCESS;
     }
@@ -2190,7 +2163,7 @@ namespace cyb::graphics
     uint64_t GraphicsDevice_Vulkan::GetMinOffsetAlignment(const GPUBufferDesc* desc) const
     {
         uint64_t alignment = 1u;
-        if (HasFlag(desc->bind_flags, BindFlag::CONSTANT_BUFFER))
+        if (HasFlag(desc->bindFlags, BindFlags::kConstantBufferBit))
             alignment = std::max(alignment, properties2.properties.limits.minUniformBufferOffsetAlignment);
         else
             alignment = std::max(alignment, properties2.properties.limits.minTexelBufferOffsetAlignment);
@@ -2220,13 +2193,13 @@ namespace cyb::graphics
         internal_state->stage_info.pName = "main";
         switch (stage)
         {
-        case ShaderStage::VS:
+        case ShaderStage::kVS:
             internal_state->stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
             break;
-        case ShaderStage::GS:
+        case ShaderStage::kGS:
             internal_state->stage_info.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
             break;
-        case ShaderStage::FS:
+        case ShaderStage::kFS:
             internal_state->stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
             break;
         default:
@@ -2300,28 +2273,28 @@ namespace cyb::graphics
 
         switch (desc->filter)
         {
-        case TextureFilter::POINT:
+        case TextureFilter::kPoint:
             sampler_info.minFilter = VK_FILTER_NEAREST;
             sampler_info.magFilter = VK_FILTER_NEAREST;
             sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
             sampler_info.anisotropyEnable = VK_FALSE;
             sampler_info.compareEnable = VK_FALSE;
             break;
-        case TextureFilter::BILINEAR:
+        case TextureFilter::kBilinear:
             sampler_info.minFilter = VK_FILTER_LINEAR;
             sampler_info.magFilter = VK_FILTER_LINEAR;
             sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
             sampler_info.anisotropyEnable = VK_FALSE;
             sampler_info.compareEnable = VK_FALSE;
             break;
-        case TextureFilter::TRILINEAR:
+        case TextureFilter::kTrilinear:
             sampler_info.minFilter = VK_FILTER_LINEAR;
             sampler_info.magFilter = VK_FILTER_LINEAR;
             sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
             sampler_info.anisotropyEnable = VK_FALSE;
             sampler_info.compareEnable = VK_FALSE;
             break;
-        case TextureFilter::ANISOTROPIC_LINEAR:
+        case TextureFilter::kAnisotropic:
             sampler_info.minFilter = VK_FILTER_LINEAR;
             sampler_info.magFilter = VK_FILTER_LINEAR;
             sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
@@ -2481,31 +2454,31 @@ namespace cyb::graphics
         depthstencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
         if (pso->desc.dss != nullptr)
         {
-            depthstencil.depthTestEnable = pso->desc.dss->depth_enable ? VK_TRUE : VK_FALSE;
-            depthstencil.depthWriteEnable = pso->desc.dss->depth_write_mask == DepthWriteMask::ZERO ? VK_FALSE : VK_TRUE;
-            depthstencil.depthCompareOp = _ConvertComparisonFunc(pso->desc.dss->depth_func);
+            depthstencil.depthTestEnable = pso->desc.dss->depthEnable ? VK_TRUE : VK_FALSE;
+            depthstencil.depthWriteEnable = pso->desc.dss->depthWriteMask == DepthWriteMask::kZero ? VK_FALSE : VK_TRUE;
+            depthstencil.depthCompareOp = _ConvertComparisonFunc(pso->desc.dss->depthFunc);
 
-            depthstencil.stencilTestEnable = pso->desc.dss->stencil_enable ? VK_TRUE : VK_FALSE;
+            depthstencil.stencilTestEnable = pso->desc.dss->stencilEnable ? VK_TRUE : VK_FALSE;
 
-            depthstencil.front.compareMask = pso->desc.dss->stencil_read_mask;
-            depthstencil.front.writeMask = pso->desc.dss->stencil_write_mask;
+            depthstencil.front.compareMask = pso->desc.dss->stencilReadMask;
+            depthstencil.front.writeMask = pso->desc.dss->stencilWriteMask;
             depthstencil.front.reference = 0; // runtime supplied
-            depthstencil.front.compareOp = _ConvertComparisonFunc(pso->desc.dss->front_face.stencil_func);
-            depthstencil.front.passOp = _ConvertStencilOp(pso->desc.dss->front_face.stencil_pass_op);
-            depthstencil.front.failOp = _ConvertStencilOp(pso->desc.dss->front_face.stencil_fail_op);
-            depthstencil.front.depthFailOp = _ConvertStencilOp(pso->desc.dss->front_face.stencil_depth_fail_op);
+            depthstencil.front.compareOp = _ConvertComparisonFunc(pso->desc.dss->frontFace.stencilFunc);
+            depthstencil.front.passOp = _ConvertStencilOp(pso->desc.dss->frontFace.stencilPassOp);
+            depthstencil.front.failOp = _ConvertStencilOp(pso->desc.dss->frontFace.stencilFailOp);
+            depthstencil.front.depthFailOp = _ConvertStencilOp(pso->desc.dss->frontFace.stencilDepthFailOp);
 
-            depthstencil.back.compareMask = pso->desc.dss->stencil_read_mask;
-            depthstencil.back.writeMask = pso->desc.dss->stencil_write_mask;
+            depthstencil.back.compareMask = pso->desc.dss->stencilReadMask;
+            depthstencil.back.writeMask = pso->desc.dss->stencilWriteMask;
             depthstencil.back.reference = 0; // runtime supplied
-            depthstencil.back.compareOp = _ConvertComparisonFunc(pso->desc.dss->back_face.stencil_func);
-            depthstencil.back.passOp = _ConvertStencilOp(pso->desc.dss->back_face.stencil_pass_op);
-            depthstencil.back.failOp = _ConvertStencilOp(pso->desc.dss->back_face.stencil_fail_op);
-            depthstencil.back.depthFailOp = _ConvertStencilOp(pso->desc.dss->back_face.stencil_depth_fail_op);
+            depthstencil.back.compareOp = _ConvertComparisonFunc(pso->desc.dss->backFace.stencilFunc);
+            depthstencil.back.passOp = _ConvertStencilOp(pso->desc.dss->backFace.stencilPassOp);
+            depthstencil.back.failOp = _ConvertStencilOp(pso->desc.dss->backFace.stencilFailOp);
+            depthstencil.back.depthFailOp = _ConvertStencilOp(pso->desc.dss->backFace.stencilDepthFailOp);
 
             if (0 /*CheckCapability(GraphicsDeviceCapability::DEPTH_BOUNDS_TEST)*/)
             {
-                depthstencil.depthBoundsTestEnable = pso->desc.dss->depth_bounds_test_enable ? VK_TRUE : VK_FALSE;
+                depthstencil.depthBoundsTestEnable = pso->desc.dss->depthBoundsTestEnable ? VK_TRUE : VK_FALSE;
             }
             else
             {
@@ -2518,19 +2491,19 @@ namespace cyb::graphics
         input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         switch (pso->desc.pt)
         {
-        case PrimitiveTopology::POINT_LIST:
+        case PrimitiveTopology::kPointList:
             input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
             break;
-        case PrimitiveTopology::LINE_LIST:
+        case PrimitiveTopology::kLineList:
             input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
             break;
-        case PrimitiveTopology::LINE_STRIP:
+        case PrimitiveTopology::kLineStrip:
             input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
             break;
-        case PrimitiveTopology::TRIANGLE_STRIP:
+        case PrimitiveTopology::kTriangleStrip:
             input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
             break;
-        case PrimitiveTopology::TRIANGLE_LIST:
+        case PrimitiveTopology::kTriangleList:
             input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
             break;
         default:
@@ -2553,43 +2526,43 @@ namespace cyb::graphics
         {
             const RasterizerState& rs = *pso->desc.rs;
 
-            switch (rs.fill_mode)
+            switch (rs.fillMode)
             {
-            case FillMode::WIREFRAME:
+            case FillMode::kWhireframe:
                 rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
                 break;
-            case FillMode::SOLID:
+            case FillMode::kSolid:
             default:
                 rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
                 break;
             }
 
-            switch (rs.cull_mode)
+            switch (rs.cullMode)
             {
-            case CullMode::FRONT:
+            case CullMode::kFront:
                 rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
                 break;
-            case CullMode::BACK:
+            case CullMode::kBack:
                 rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
                 break;
-            case CullMode::NONE:
+            case CullMode::kNone:
             default:
                 rasterizer.cullMode = VK_CULL_MODE_NONE;
                 break;
             }
 
-            switch (rs.front_face)
+            switch (rs.frontFace)
             {
-            case FrontFace::CW:
+            case FrontFace::kCW:
                 rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
                 break;
-            case FrontFace::CCW:
+            case FrontFace::kCCW:
             default:
                 rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
                 break;
             }
 
-            rasterizer.lineWidth = rs.line_width;
+            rasterizer.lineWidth = rs.lineWidth;
         }
 
         // Add shaders:
@@ -2658,8 +2631,8 @@ namespace cyb::graphics
             vp[i].y = viewports[i].y + viewports[i].height;
             vp[i].width = viewports[i].width;
             vp[i].height = -viewports[i].height;
-            vp[i].minDepth = viewports[i].min_depth;
-            vp[i].maxDepth = viewports[i].max_depth;
+            vp[i].minDepth = viewports[i].minDepth;
+            vp[i].maxDepth = viewports[i].maxDepth;
         }
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         vkCmdSetViewport(commandlist.GetCommandBuffer(), 0, viewportCount, vp);
@@ -2705,8 +2678,8 @@ namespace cyb::graphics
         helper::HashCombine(renderpass->hash, desc->attachments.size());
         for (const auto& attachment : desc->attachments)
         {
-            if (attachment.type == RenderPassAttachment::Type::RENDERTARGET ||
-                attachment.type == RenderPassAttachment::Type::DEPTH_STENCIL)
+            if (attachment.type == RenderPassAttachment::Type::kRenderTarget ||
+                attachment.type == RenderPassAttachment::Type::kDepthStencil)
             {
                 helper::HashCombine(renderpass->hash, attachment.texture->desc.format);
             }
@@ -2739,7 +2712,7 @@ namespace cyb::graphics
 
             switch (attachment.type)
             {
-            case RenderPassAttachment::Type::RENDERTARGET:
+            case RenderPassAttachment::Type::kRenderTarget:
             {
                 attachments[validAttachmentCount] = textureInternalState->rtv;
                 colorAttachmentRefs[subpass.colorAttachmentCount].attachment = validAttachmentCount;
@@ -2747,7 +2720,7 @@ namespace cyb::graphics
                 subpass.colorAttachmentCount++;
                 subpass.pColorAttachments = colorAttachmentRefs;
             } break;
-            case RenderPassAttachment::Type::DEPTH_STENCIL:
+            case RenderPassAttachment::Type::kDepthStencil:
             {
                 attachments[validAttachmentCount] = textureInternalState->dsv;
                 depthAttachmentRef.attachment = validAttachmentCount;
@@ -2804,14 +2777,14 @@ namespace cyb::graphics
         int i = 0;
         for (auto& attachment : renderpass->desc.attachments)
         {
-            if (renderpass->desc.attachments[i].type == RenderPassAttachment::Type::RENDERTARGET)
+            if (renderpass->desc.attachments[i].type == RenderPassAttachment::Type::kRenderTarget)
             {
                 internal_state->clear_values[i].color.float32[0] = 0.0f;
                 internal_state->clear_values[i].color.float32[1] = 0.0f;
                 internal_state->clear_values[i].color.float32[2] = 0.0f;
                 internal_state->clear_values[i].color.float32[3] = 0.0f;
             }
-            else if (renderpass->desc.attachments[i].type == RenderPassAttachment::Type::DEPTH_STENCIL)
+            else if (renderpass->desc.attachments[i].type == RenderPassAttachment::Type::kDepthStencil)
             {
                 internal_state->clear_values[i].depthStencil.depth = 0.0f;
                 internal_state->clear_values[i].depthStencil.stencil = 0;
@@ -2845,7 +2818,7 @@ namespace cyb::graphics
         if (commandlist.GetCommandBuffer() == VK_NULL_HANDLE)
         {
             // Need to create one more command list:
-            for (uint32_t buffer_index = 0; buffer_index < BUFFERCOUNT; ++buffer_index)
+            for (uint32_t buffer_index = 0; buffer_index < kBufferCount; ++buffer_index)
             {
                 VkCommandPoolCreateInfo pool_info = {};
                 pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -3003,14 +2976,14 @@ namespace cyb::graphics
         {
             auto& frame = GetFrameResources();
 
-            if (frameCount >= BUFFERCOUNT) 
+            if (frameCount >= kBufferCount) 
             {
                 VkFence& fence = frame.fence;
                 vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
                 vkResetFences(device, 1, &fence);
             }
 
-            allocationhandler->Update(frameCount, BUFFERCOUNT);
+            allocationhandler->Update(frameCount, kBufferCount);
 
             // Restart transition command buffers:
             {
@@ -3046,10 +3019,10 @@ namespace cyb::graphics
             &internal_state->image_index);
 
         VkClearValue clearColor = {
-            swapchain->desc.clear_color[0],
-            swapchain->desc.clear_color[1],
-            swapchain->desc.clear_color[2],
-            swapchain->desc.clear_color[3],
+            swapchain->desc.clearColor[0],
+            swapchain->desc.clearColor[1],
+            swapchain->desc.clearColor[2],
+            swapchain->desc.clearColor[3],
         };
 
         VkRenderPassBeginInfo renderPassInfo = {};

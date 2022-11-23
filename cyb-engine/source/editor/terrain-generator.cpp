@@ -73,29 +73,29 @@ namespace cyb::editor
                     // Apply strtata:
                     switch (desc.strataFunc)
                     {
-                    case TerrainBitmapDesc::StrataFunc::SharpSub:
+                    case TerrainBitmapDesc::Strata::kSharpSub:
                     {
                         const float steps = -math::Abs(std::sin(value * desc.strata * math::M_PI) * (0.1f / desc.strata * math::M_PI));
                         value = (value * 0.5f + steps * 0.5f);
                     } break;
-                    case TerrainBitmapDesc::StrataFunc::SharpAdd:
+                    case TerrainBitmapDesc::Strata::kSharpAdd:
                     {
                         const float steps = math::Abs(std::sin(value * desc.strata * math::M_PI) * (0.1f / desc.strata * math::M_PI));
                         value = (value * 0.5f + steps * 0.5f);
 
                     } break;
-                    case TerrainBitmapDesc::StrataFunc::Quantize:
+                    case TerrainBitmapDesc::Strata::kQuantize:
                     {
                         const float strata = desc.strata * 2.0f;
                         value = int(value * strata) * 1.0f / strata;
                     } break;
-                    case TerrainBitmapDesc::StrataFunc::Smooth:
+                    case TerrainBitmapDesc::Strata::kSmooth:
                     {
                         const float strata = desc.strata * 2.0f;
                         const float steps = std::sin(value * strata * math::M_PI) * (0.1f / strata * math::M_PI);
                         value = value * 0.5f + steps * 0.5f;
                     } break;
-                    case TerrainBitmapDesc::StrataFunc::None:
+                    case TerrainBitmapDesc::Strata::kNone:
                     default:
                         break;
                     }
@@ -280,7 +280,7 @@ namespace cyb::editor
         cyb::scene::Scene* scene)
     {
         // Initialize new terrain object entities
-        if (terrain_object_id == ecs::INVALID_ENTITY)
+        if (terrain_object_id == ecs::kInvalidEntity)
         {
             // Create terrain material:
             terrain_material_id = scene->CreateMaterial("Terrain_Material");
@@ -314,8 +314,8 @@ namespace cyb::editor
     //  TerrainGenerator GUI
     //=============================================================
 
-    static ecs::Entity terrain_object_id = ecs::INVALID_ENTITY;
-    static ecs::Entity terrain_material_id = ecs::INVALID_ENTITY;
+    static ecs::Entity terrain_object_id = ecs::kInvalidEntity;
+    static ecs::Entity terrain_material_id = ecs::kInvalidEntity;
     static TerrainMeshDesc terrain_generator_params;
 
     void SetTerrainGenerationParams(const TerrainMeshDesc* params)
@@ -330,23 +330,23 @@ namespace cyb::editor
     }
 
     static const std::unordered_map<TerrainGenerator::Map, std::string> g_mapCombo = {
-        { TerrainGenerator::Map::Height,            "Height"    },
-        { TerrainGenerator::Map::Moisture,          "Moisture"  },
-        { TerrainGenerator::Map::Color,             "Color"     }
+        { TerrainGenerator::Map::Height,            "Height"   },
+        { TerrainGenerator::Map::Moisture,          "Moisture" },
+        { TerrainGenerator::Map::Color,             "Color"    }
     };
 
-    static const std::unordered_map<NoiseGenerator::Interp, std::string> g_interpCombo = {
-        { NoiseGenerator::Interp::Linear,           "Linear"    },
-        { NoiseGenerator::Interp::Hermite,          "Hermite"   },
-        { NoiseGenerator::Interp::Quintic,          "Quintic"   }
+    static const std::unordered_map<NoiseGenerator::Interpolation, std::string> g_interpCombo = {
+        { NoiseGenerator::Interpolation::kLinear,   "Linear"   },
+        { NoiseGenerator::Interpolation::kHermite,  "Hermite"  },
+        { NoiseGenerator::Interpolation::kQuintic,  "Quintic"  }
     };
 
-    static const std::unordered_map<TerrainBitmapDesc::StrataFunc, std::string> g_strataFuncCombo = {
-        { TerrainBitmapDesc::StrataFunc::None,      "None"      },
-        { TerrainBitmapDesc::StrataFunc::SharpSub,  "SharpSub"  },
-        { TerrainBitmapDesc::StrataFunc::SharpAdd,  "SharpAdd"  },
-        { TerrainBitmapDesc::StrataFunc::Quantize,  "Quantize"  },
-        { TerrainBitmapDesc::StrataFunc::Smooth,    "Smooth"    }
+    static const std::unordered_map<TerrainBitmapDesc::Strata, std::string> g_strataFuncCombo = {
+        { TerrainBitmapDesc::Strata::kNone,         "None"     },
+        { TerrainBitmapDesc::Strata::kSharpSub,     "SharpSub" },
+        { TerrainBitmapDesc::Strata::kSharpAdd,     "SharpAdd" },
+        { TerrainBitmapDesc::Strata::kQuantize,     "Quantize" },
+        { TerrainBitmapDesc::Strata::kSmooth,       "Smooth"   }
     };
 
     TerrainGenerator::TerrainGenerator()
@@ -418,7 +418,7 @@ namespace cyb::editor
                 {
                     UpdateBitmapsAndTextures();
                 }
-                if (bitmapDesc.strataFunc != TerrainBitmapDesc::StrataFunc::None)
+                if (bitmapDesc.strataFunc != TerrainBitmapDesc::Strata::kNone)
                 {
                     CYB_GUI_COMPONENT(ImGui::SliderFloat, "Amount", &bitmapDesc.strata, 1.0f, 15.0f);
                     CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();
@@ -471,8 +471,8 @@ namespace cyb::editor
 
         if (ImGui::Button("Random seed", ImVec2(-1, 0)))
         {
-            m_heightmapDesc.seed = random::GenerateInteger(std::numeric_limits<int>::max());
-            m_moisturemapDesc.seed = random::GenerateInteger(std::numeric_limits<int>::max());
+            m_heightmapDesc.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
+            m_moisturemapDesc.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
             UpdateBitmapsAndTextures();
         }
 
@@ -581,25 +581,25 @@ namespace cyb::editor
         graphics::TextureDesc texDesc;
         graphics::SubresourceData subresourceData;
 
-        texDesc.format = graphics::Format::R32_FLOAT;
+        texDesc.format = graphics::Format::kR32_Float;
         texDesc.width = m_meshDesc.mapResolution;
         texDesc.height = m_meshDesc.mapResolution;
-        texDesc.bind_flags = graphics::BindFlag::SHADER_RESOURCE;
+        texDesc.bindFlags = graphics::BindFlags::kShaderResourceBit;
 
         // Create heightmap texture:
         subresourceData.mem = m_heightmap.image.data();
-        subresourceData.row_pitch = texDesc.width * graphics::GetFormatStride(graphics::Format::R32_FLOAT);
+        subresourceData.rowPitch = texDesc.width * graphics::GetFormatStride(graphics::Format::kR32_Float);
         renderer::GetDevice()->CreateTexture(&texDesc, &subresourceData, &m_heightmapTex);
 
         // Create moisturemap texture:
         subresourceData.mem = m_moisturemap.image.data();
-        subresourceData.row_pitch = texDesc.width * graphics::GetFormatStride(graphics::Format::R32_FLOAT);
+        subresourceData.rowPitch = texDesc.width * graphics::GetFormatStride(graphics::Format::kR32_Float);
         renderer::GetDevice()->CreateTexture(&texDesc, &subresourceData, &m_moisturemapTex);
 
         // Create colormap texture:
-        texDesc.format = graphics::Format::R8G8B8A8_UNORM;
+        texDesc.format = graphics::Format::kR8G8B8A8_Unorm;
         subresourceData.mem = m_colormap.data();
-        subresourceData.row_pitch = texDesc.width * graphics::GetFormatStride(graphics::Format::R8G8B8A8_UNORM);
+        subresourceData.rowPitch = texDesc.width * graphics::GetFormatStride(graphics::Format::kR8G8B8A8_Unorm);
         renderer::GetDevice()->CreateTexture(&texDesc, &subresourceData, &m_colormapTex);
     }
 

@@ -47,22 +47,22 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	TextureDesc texture_desc;
 	texture_desc.width = width;
 	texture_desc.height = height;
-	texture_desc.mip_levels = 1;
-	texture_desc.array_size = 1;
-	texture_desc.format = Format::R8G8B8A8_UNORM;
-	texture_desc.bind_flags = BindFlag::SHADER_RESOURCE;
+	texture_desc.mipLevels = 1;
+	texture_desc.arraySize = 1;
+	texture_desc.format = Format::kR8G8B8A8_Unorm;
+	texture_desc.bindFlags = BindFlags::kShaderResourceBit;
 
 	SubresourceData texture_data;
 	texture_data.mem = pixels;
-	texture_data.row_pitch = width * GetFormatStride(texture_desc.format);
-	texture_data.slice_pitch = texture_data.row_pitch * height;
+	texture_data.rowPitch = width * GetFormatStride(texture_desc.format);
+	texture_data.slicePitch = texture_data.rowPitch * height;
 	GetDevice()->CreateTexture(&texture_desc, &texture_data, &font_texture);
 
 	SamplerDesc sampler_desc;
-	sampler_desc.address_u = TextureAddressMode::WRAP;
-	sampler_desc.address_v = TextureAddressMode::WRAP;
-	sampler_desc.address_w = TextureAddressMode::WRAP;
-	sampler_desc.filter = TextureFilter::POINT;
+	sampler_desc.addressU = TextureAddressMode::kWrap;
+	sampler_desc.addressV = TextureAddressMode::kWrap;
+	sampler_desc.addressW = TextureAddressMode::kWrap;
+	sampler_desc.filter = TextureFilter::kPoint;
 	GetDevice()->CreateSampler(&sampler_desc, &sampler);
 
 	// Store our identifier
@@ -70,9 +70,9 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 
 	imgui_input_layout.elements =
 	{
-		{ "in_position", 0, Format::R32G32_FLOAT,   (uint32_t)IM_OFFSETOF(ImDrawVert, pos) },
-		{ "in_uv",       0, Format::R32G32_FLOAT,   (uint32_t)IM_OFFSETOF(ImDrawVert, uv)  },
-		{ "in_color",    0, Format::R8G8B8A8_UNORM, (uint32_t)IM_OFFSETOF(ImDrawVert, col) }
+		{ "in_position", 0, Format::kR32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, pos) },
+		{ "in_uv",       0, Format::kR32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, uv)  },
+		{ "in_color",    0, Format::kR8G8B8A8_Unorm, (uint32_t)IM_OFFSETOF(ImDrawVert, col) }
 	};
 
 	// Create pipeline
@@ -82,7 +82,7 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	desc.il = &imgui_input_layout;
 	desc.dss = GetDepthStencilState(DSSTYPE_DEFAULT);
 	desc.rs = GetRasterizerState(RSTYPE_DOUBLESIDED);
-	desc.pt = PrimitiveTopology::TRIANGLE_LIST;
+	desc.pt = PrimitiveTopology::kTriangleList;
 	GetDevice()->CreatePipelineState(&desc, &imgui_pso);
 }
 
@@ -90,8 +90,8 @@ void ImGui_Impl_CybEngine_Init()
 {
 	// Compile shaders
 	{
-		LoadShader(ShaderStage::VS, imgui_vs, "imgui.vert");
-		LoadShader(ShaderStage::FS, imgui_fs, "imgui.frag");
+		LoadShader(ShaderStage::kVS, imgui_vs, "imgui.vert");
+		LoadShader(ShaderStage::kFS, imgui_fs, "imgui.frag");
 	}
 
 	// Setup Dear ImGui context
@@ -214,7 +214,7 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 	};
 
 	device->BindVertexBuffers(vbs, 1, strides, offsets, cmd);
-	device->BindIndexBuffer(&indexBufferAllocation.buffer, IndexBufferFormat::UINT16, indexBufferAllocation.offset, cmd);
+	device->BindIndexBuffer(&indexBufferAllocation.buffer, IndexBufferFormat::kUint16, indexBufferAllocation.offset, cmd);
 
 	Viewport viewport;
 	viewport.width = (float)framebufferWidth;

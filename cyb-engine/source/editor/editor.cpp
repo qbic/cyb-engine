@@ -1,7 +1,5 @@
 // NOTE: Prefer using the wrapped functions in the gui namespace over ImGui directly,
 //       functions in the gui namespace records all values and allows for undo/redo.
-#include <stack>
-#include <numeric>
 #include "core/logger.h"
 #include "core/timer.h"
 #include "core/profiler.h"
@@ -20,6 +18,8 @@
 #include "ImGuizmo.h"
 #include "editor/imgui-widgets.h"
 #include "editor/terrain-generator.h"
+#include <stack>
+#include <numeric>
 
 //------------------------------------------------------------------------------
 // Custom ImGui code
@@ -131,7 +131,7 @@ namespace cyb::editor
         SLIDER_INT,
         ENTITY_CHANGE,
         INT32_CHANGE,
-        NONE
+        kNone
     };
     std::vector<serializer::Archive> history;
     int history_pos = -1;
@@ -158,7 +158,7 @@ namespace cyb::editor
 
             scene::Scene& scene = scene::GetScene();
             serializer::Archive& archive = history[history_pos];
-            archive.SetAccessModeAndResetPos(serializer::Archive::Access::Read);
+            archive.SetAccessModeAndResetPos(serializer::Archive::kRead);
 
             int temp;
             archive >> temp;
@@ -592,14 +592,14 @@ namespace cyb::editor
 
     void InspectMaterialComponent(scene::MaterialComponent* material)
     {
-        static const std::unordered_map<scene::MaterialComponent::SHADERTYPE, std::string> shadertype_names =
+        static const std::unordered_map<scene::MaterialComponent::Shadertype, std::string> shadertype_names =
         {
-            { scene::MaterialComponent::SHADERTYPE_BRDF,    "Flat BRDF" },
-            { scene::MaterialComponent::SHADERTYPE_UNLIT,   "Flat Unlit" },
-            { scene::MaterialComponent::SHADERTYPE_TERRAIN, "Geometry Clipmapping Terrain" }
+            { scene::MaterialComponent::kShadertype_BDRF,    "Flat BRDF" },
+            { scene::MaterialComponent::kShadertype_Unlit,   "Flat Unlit" },
+            { scene::MaterialComponent::kShadertype_Terrain, "Geometry Clipmapping Terrain" }
         };
 
-        gui::ComboBox("Shader Type", material->shader_type, shadertype_names);
+        gui::ComboBox("Shader Type", material->shaderType, shadertype_names);
         gui::ColorEdit4("BaseColor", material->baseColor);
         gui::SliderFloat("Roughness", material->roughness, 0.0f, 1.0f);
         gui::SliderFloat("Metalness", material->metalness, 0.0f, 1.0f);
@@ -736,8 +736,8 @@ namespace cyb::editor
         }
 
         ImGui::Separator();
-        ImGui::CheckboxFlags("Renderable (unimplemented)", (unsigned int*)&object->flags, scene::ObjectComponent::RENDERABLE);
-        ImGui::CheckboxFlags("Cast shadow (unimplemented)", (unsigned int*)&object->flags, scene::ObjectComponent::CAST_SHADOW);
+        ImGui::CheckboxFlags("Renderable (unimplemented)", (unsigned int*)&object->flags, scene::ObjectComponent::kRenderableBit);
+        ImGui::CheckboxFlags("Cast shadow (unimplemented)", (unsigned int*)&object->flags, scene::ObjectComponent::kCastShadowBit);
     }
 
     bool InspectCameraComponent(scene::CameraComponent& camera)
@@ -755,8 +755,8 @@ namespace cyb::editor
     {
         static const std::unordered_map<scene::LightType, std::string> lightTypeNames =
         {
-            { scene::LightType::DIRECTIONAL, "Directional" },
-            { scene::LightType::POINT,       "Point"       }
+            { scene::LightType::kDirectional, "Directional" },
+            { scene::LightType::kPoint,       "Point"       }
         };
 
         scene::LightType light_type = light->GetType();
@@ -766,8 +766,8 @@ namespace cyb::editor
         gui::ColorEdit3("Color", light->color);
         gui::DragFloat("Energy", light->energy, 0.02f);
         gui::DragFloat("Range", light->range, 1.2f, 0.0f, FLT_MAX);
-        gui::CheckboxFlags("Affects scene", light->flags, scene::LightComponent::AFFECTS_SCENE);
-        gui::CheckboxFlags("Cast shadows", light->flags, scene::LightComponent::CAST_SHADOW);
+        gui::CheckboxFlags("Affects scene", light->flags, scene::LightComponent::kAffectsSceneBit);
+        gui::CheckboxFlags("Cast shadows", light->flags, scene::LightComponent::kCastShadowsBit);
     }
 
     void InspectWeatherComponent(scene::WeatherComponent* weather)
@@ -932,7 +932,7 @@ namespace cyb::editor
     {
         scene::Scene& scene = scene::GetScene();
 
-        if (entityID != ecs::INVALID_ENTITY)
+        if (entityID != ecs::kInvalidEntity)
         {
             InspectComponent<scene::NameComponent>("Name##edit_entity_name", scene.names, InspectNameComponent, entityID, true);
             InspectComponent<scene::ObjectComponent>("Object", scene.objects, InspectObjectComponent, entityID, false, [&](scene::ObjectComponent* object) {
@@ -1113,7 +1113,7 @@ namespace cyb::editor
             XMFLOAT3(0.0f, 70.0f, 0.0f),
             XMFLOAT3(1.0f, 1.0f, 1.0f),
             1.0f, 100.0f, 
-            scene::LightType::DIRECTIONAL);
+            scene::LightType::kDirectional);
     }
 
     ecs::Entity CreatePointLight()
@@ -1124,7 +1124,7 @@ namespace cyb::editor
             XMFLOAT3(0.0f, 20.0f, 0.0f), 
             XMFLOAT3(1.0f, 1.0f, 1.0f),
             1.0f, 100.0f, 
-            scene::LightType::POINT);
+            scene::LightType::kPoint);
         scenegraph_view.SelectEntity(entity);
         return entity;
     }
@@ -1188,7 +1188,7 @@ namespace cyb::editor
         eventsystem::Subscribe_Once(eventsystem::EVENT_THREAD_SAFE_POINT, [=](uint64_t)
             {
                 scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity());
-                scenegraph_view.SelectEntity(ecs::INVALID_ENTITY);
+                scenegraph_view.SelectEntity(ecs::kInvalidEntity);
             });
     }
 
@@ -1540,7 +1540,7 @@ namespace cyb::editor
                     }
                 }
 
-                if (pick_result.entity != ecs::INVALID_ENTITY)
+                if (pick_result.entity != ecs::kInvalidEntity)
                     scenegraph_view.SelectEntity(pick_result.entity);
             }
         }

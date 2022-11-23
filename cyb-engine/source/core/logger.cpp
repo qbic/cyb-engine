@@ -1,3 +1,6 @@
+#include "core/platform.h"
+#include "core/spinlock.h"
+#include "core/logger.h"
 #include <sstream>
 #include <deque>
 #include <list>
@@ -5,16 +8,13 @@
 #include <typeindex>
 #include <stdio.h>
 #include <stdarg.h>
-#include "core/platform.h"
-#include "core/spinlock.h"
-#include "core/logger.h"
 
 namespace cyb::logger
 {
     std::list<std::shared_ptr<LogOutputModule>> outputModules;
     std::deque<std::string> stream;
     SpinLock locker;
-    uint32_t logLevelThreshold = LOGLEVEL_TRACE;
+    uint32_t logLevelThreshold = LogLevel::kTrace;
 
     void RegisterOutputModule(std::shared_ptr<LogOutputModule> output, bool writeHistory)
     {
@@ -40,7 +40,7 @@ namespace cyb::logger
         }
     }
 
-    void Post(uint32_t loglevel, const std::string& input)
+    void Post(uint16_t loglevel, const std::string& input)
     {
         if (loglevel < logLevelThreshold)
             return;
@@ -50,10 +50,10 @@ namespace cyb::logger
         std::stringstream ss("");
         switch (loglevel)
         {
-        case LOGLEVEL_TRACE: ss << "[TRACE] "; break;
-        case LOGLEVEL_INFO: ss << "[INFO] "; break;
-        case LOGLEVEL_WARNING: ss << "[WARNING] "; break;
-        case LOGLEVEL_ERROR: ss << "[ERROR] "; break;
+        case LogLevel::kTrace: ss << "[TRACE] "; break;
+        case LogLevel::kInfo: ss << "[INFO] "; break;
+        case LogLevel::kWarning: ss << "[WARNING] "; break;
+        case LogLevel::kError: ss << "[ERROR] "; break;
         default: break;
         }
 
@@ -61,19 +61,17 @@ namespace cyb::logger
         stream.push_back(ss.str());
 
         for (auto& output : outputModules)
-        {
             output->Write(ss.str());
-        }
+
+        locker.unlock();
 
 #if CYB_ERRORS_ARE_FATAL
-        if (loglevel == LOGLEVEL_ERROR)
+        if (loglevel == LogLevel::kError)
         {
-            platform::MsgBox(fmt::format(fmt, std::forward<T>(args)...), "CybEngine Error");
+            platform::CreateMessageWindow(input, "CybEngine Error");
             platform::Exit(1);
         }
 #endif
-
-        locker.unlock();
     }
 
     std::string GetText()

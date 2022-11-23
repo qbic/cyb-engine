@@ -102,7 +102,7 @@ namespace cyb::renderer
         SSLOT_ANISO_CLAMP,
         SSLOT_COUNT
     };
-
+     
     struct ImageParams
     {
         bool fullscreen = false;

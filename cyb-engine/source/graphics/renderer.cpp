@@ -7,7 +7,7 @@
  
 using namespace cyb::graphics;
 using namespace cyb::scene;
-
+ 
 namespace cyb::renderer
 {
     Shader shaders[SHADERTYPE_COUNT];

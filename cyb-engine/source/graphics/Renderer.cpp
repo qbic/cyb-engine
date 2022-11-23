@@ -152,7 +152,7 @@ namespace cyb::renderer
         SamplerDesc desc;
         desc.lodBias = 0.1f;
         desc.maxAnisotropy = 1;
-        desc.borderColor = vec4(0, 0, 0, 0);
+        desc.borderColor = XMFLOAT4(0, 0, 0, 0);
         desc.minLOD = 0;
         desc.maxLOD = FLT_MAX;
 
@@ -432,7 +432,7 @@ namespace cyb::renderer
         const scene::WeatherComponent& weather = view.scene->active_weather;
         frameCB.horizon = weather.horizon;
         frameCB.zenith = weather.zenith;
-        frameCB.fog = vec3(weather.fogStart, weather.fogEnd, weather.fogHeight);
+        frameCB.fog = XMFLOAT3(weather.fogStart, weather.fogEnd, weather.fogHeight);
 
         // Add lightsources:
         frameCB.num_lights = 0;

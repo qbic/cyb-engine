@@ -2,13 +2,17 @@
 #define RENDER_SHADER_INTEROP2_H
 
 #ifdef __cplusplus
-// c++ Application-side types
+// c++ application-side types
 #include <DirectXMath.h>
 using namespace DirectX;
 
-using vec3 = XMFLOAT3;
-using vec4 = XMFLOAT4;
-using mat4 = XMFLOAT4X4;
+// Defining glsl builtin types instead of creating new types with typedef.
+// This enables us to undef them at the end of file and not having glsl's
+// builtin types clutter the global namespace.
+#define vec3 XMFLOAT3
+#define vec4 XMFLOAT4
+#define mat4 XMFLOAT4X4
+
 #define CB_GETBINDSLOT(name) __CBUFFERBINDSLOT__##name##__
 #define CBUFFER(name, slot) static const int CB_GETBINDSLOT(name) = slot; struct alignas(16) name
 #define CBUFFER_NAME(name) 
@@ -16,7 +20,7 @@ using mat4 = XMFLOAT4X4;
 #define CBPADDING_LINE(num, line) CBPADDING_LINE2(num, line)
 #define CBPADDING(num) CBPADDING_LINE(num, __LINE__)
 #else
-// glsl Shader-side types
+// glsl shader-side types
 #define CBUFFER(blockname, slot) layout(binding = slot) uniform blockname
 #define CBUFFER_NAME(name) name
 #define CBPADDING(num)
@@ -91,4 +95,10 @@ CBUFFER(MiscCB, CBSLOT_MISC)
     mat4 g_xTransform;                   // model * view * proj
 };
 
-#endif // RENDER_SHADER_INTEROP
+#ifdef __cplusplus
+#undef vec3 
+#undef vec4 
+#undef mat4 
+#endif // __cplusplus
+
+#endif // RENDER_SHADER_INTEROP2_H

@@ -9,7 +9,7 @@ namespace cyb::scene
     struct CameraComponent;
     struct Scene;
 }
-
+ 
 namespace cyb::renderer
 {
     enum CBTYPE

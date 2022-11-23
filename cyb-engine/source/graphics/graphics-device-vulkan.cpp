@@ -1,7 +1,7 @@
 #include "core/logger.h"
-#include "Core/Helper.h"
-#include "Core/Platform.h"
-#include "Graphics/API/GraphicsDevice_Vulkan.h"
+#include "core/helper.h"
+#include "core/platform.h"
+#include "graphics/graphics-device-vulkan.h"
 #include "volk.h"
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"

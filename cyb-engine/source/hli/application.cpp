@@ -1,5 +1,5 @@
 #include "core/Profiler.h"
-#include "graphics/API/GraphicsDevice_Vulkan.h"
+#include "graphics/graphics-device-vulkan.h"
 #include "graphics/Renderer.h"
 #include "systems/event-system.h"
 #include "systems/job-system.h"

@@ -10,7 +10,7 @@ using namespace cyb::scene;
 
 namespace cyb::renderer
 {
-    Shader shaders[SHADERTYPE_COUNT];
+    Shader shaders[SHADERTYPE_COUNT]; 
     GPUBuffer constantbuffers[CBTYPE_COUNT];
     Sampler samplerStates[SSLOT_COUNT] = {};
     VertexInputLayout input_layouts[VLTYPE_COUNT] = {};

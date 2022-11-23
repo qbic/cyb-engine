@@ -1,3 +1,7 @@
+#include "core/platform.h"
+#include "core/logger.h"
+#include "core/ring-buffer.h"
+#include "systems/job-system.h"
 #include <thread>
 #include <algorithm>
 #include <functional>
@@ -6,10 +10,6 @@
 #ifdef _WIN32
 #include <Windows.h>
 #endif
-#include "Core/Platform.h"
-#include "core/logger.h"
-#include "Core/RingBuffer.h"
-#include "Systems/JobSystem.h"
 
 namespace cyb::jobsystem
 {

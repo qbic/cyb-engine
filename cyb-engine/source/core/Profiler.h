@@ -1,7 +1,7 @@
 #pragma once
-#include <unordered_map>
-#include "Core/Timer.h"
+#include "core/timer.h"
 #include "core/logger.h"
+#include <unordered_map>
 
 // On/Off profiler switch
 #define CYB_ENABLE_PROFILER 1

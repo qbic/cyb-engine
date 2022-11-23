@@ -1,27 +1,27 @@
 #pragma once
-#include "Core/EnumFlags.h"
-#include "Graphics/GraphicsDevice.h"
+#include "core/enum-flags.h"
+#include "graphics/graphics-device.h"
 
 namespace cyb::graphics
 {
     enum class ShaderCompilerFlags
     {
-        kNone = 0,
-        DISABLE_OPTIMAZATION = 1 << 0,
-        GENERATE_DEBUG_INFO = 1 << 1
+        kNone                   = 0,
+        kNoOptimazationBit      = (1 << 0),
+        kGenerateDebugInfoBit   = (1 << 1)
     };
     CYB_ENABLE_BITMASK_OPERATORS(ShaderCompilerFlags);
 
     enum class ShaderValidationErrorCode
     {
-        NO_ERROR,
-        NOT_MULTIPLE_OF_4,
-        INVALID_MAGIC
+        kNoError,
+        kNotMultipleOf4,
+        kInvalidMagic
     };
 
     struct ShaderValidationResult
     {
-        ShaderValidationErrorCode code = ShaderValidationErrorCode::NO_ERROR;
+        ShaderValidationErrorCode code = ShaderValidationErrorCode::kNoError;
         std::string error_message;
     };
 

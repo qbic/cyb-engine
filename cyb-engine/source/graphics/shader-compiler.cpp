@@ -1,11 +1,10 @@
+#include "core/logger.h"
+#include "core/helper.h"
+#include "core/timer.h"
+#include "graphics/shader-compiler.h"
 #include <array>
 #include <sstream>
 #include <filesystem>
-#include "core/logger.h"
-#include "Core/Helper.h"
-#include "Core/Timer.h"
-#include "Graphics/ShaderCompiler.h"
-
 #include <shaderc/shaderc.hpp>
 
 namespace cyb::graphics
@@ -33,7 +32,7 @@ namespace cyb::graphics
 
         if ((size % 4) != 0)
         {
-            result.code = ShaderValidationErrorCode::NOT_MULTIPLE_OF_4;
+            result.code = ShaderValidationErrorCode::kNotMultipleOf4;
             result.error_message = "SPIR - V shader size not multiple of 4!";
             return result;
         }
@@ -41,7 +40,7 @@ namespace cyb::graphics
         const uint32_t magic = data[0];
         if (magic != SPV_MAGIC_NUMBER)
         {
-            result.code = ShaderValidationErrorCode::INVALID_MAGIC;
+            result.code = ShaderValidationErrorCode::kInvalidMagic;
             result.error_message = "Shader has invalid magic number!";
             return result;
         }
@@ -106,9 +105,9 @@ namespace cyb::graphics
 
         shaderc::CompileOptions options;
         options.SetIncluder(std::make_unique<CompileShaderIncluder>());
-        if (HasFlag(input->flags, ShaderCompilerFlags::GENERATE_DEBUG_INFO))
+        if (HasFlag(input->flags, ShaderCompilerFlags::kGenerateDebugInfoBit))
             options.SetGenerateDebugInfo();
-        if (!HasFlag(input->flags, ShaderCompilerFlags::DISABLE_OPTIMAZATION))
+        if (!HasFlag(input->flags, ShaderCompilerFlags::kNoOptimazationBit))
             options.SetOptimizationLevel(shaderc_optimization_level_size);
 
         shaderc::Compiler compiler;

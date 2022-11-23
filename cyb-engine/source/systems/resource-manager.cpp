@@ -1,8 +1,7 @@
 #include "core/logger.h"
-#include "Core/Helper.h"
-#include "Core/Timer.h"
-#include "Graphics/Renderer.h"
-
+#include "core/helper.h"
+#include "core/timer.h"
+#include "graphics/renderer.h"
 #define STB_RECT_PACK_IMPLEMENTATION
 #include "stb_rect_pack.h"
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -17,7 +16,6 @@
 #define STBI_NO_PNM
 #define STBI_FAILURE_USERMSG
 #include "stb_image.h"
-
 #include <unordered_map>
 #include <mutex>
 
@@ -79,7 +77,7 @@ namespace cyb::resourcemanager
 {
     std::mutex locker;
     std::unordered_map<std::string, std::weak_ptr<ResourceInternal>> resource_cache;
-    Mode mode = Mode::DISCARD_FILEDATA_AFTER_LOAD;
+    Mode mode = Mode::kDiscardFiledataAfterLoad;
 
     enum class DataType
     {
@@ -97,16 +95,16 @@ namespace cyb::resourcemanager
 
     Resource Load(
         const std::string& name,
-        uint32_t flags,
+        LoadFlags flags,
         const uint8_t* filedata,
         size_t filesize)
     {
         Timer timer;
         timer.Record();
 
-        if (mode == Mode::DISCARD_FILEDATA_AFTER_LOAD)
+        if (mode == Mode::kDiscardFiledataAfterLoad)
         {
-            flags &= ~Flags::IMPORT_RETAIN_FILEDATA;
+            flags &= ~LoadFlags::kRetainFiledataBit;
         }
 
         // Check if we have allready loaded resource or we need to create it
@@ -158,7 +156,7 @@ namespace cyb::resourcemanager
             const int channels = 4;
             int width, height, bpp;
 
-            bool flip_image = !(flags & IMPORT_FLIP_IMAGE);
+            bool flip_image = !HasFlag(flags, LoadFlags::kFlipImageBit);
             stbi_set_flip_vertically_on_load(flip_image);
             stbi_uc* raw_image = stbi_load_from_memory(filedata, (int)filesize, &width, &height, &bpp, channels);
             if (raw_image == nullptr)
@@ -184,7 +182,7 @@ namespace cyb::resourcemanager
         } break;
         };
 
-        if (!resource->data.empty() && (flags & IMPORT_RETAIN_FILEDATA) == 0)
+        if (!resource->data.empty() && !HasFlag(flags, LoadFlags::kRetainFiledataBit))
         {
             resource->data.clear();
         }

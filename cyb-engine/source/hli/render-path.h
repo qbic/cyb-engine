@@ -1,5 +1,5 @@
 #pragma once
-#include "Graphics/GraphicsDevice.h"
+#include "graphics/graphics-device.h"
 
 namespace cyb::hli
 {

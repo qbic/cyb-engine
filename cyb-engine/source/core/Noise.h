@@ -1,5 +1,5 @@
 #pragma once
-#include "Core/Mathlib.h"
+#include "core/mathlib.h"
 
 namespace cyb
 {

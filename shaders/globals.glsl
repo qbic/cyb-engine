@@ -1,6 +1,6 @@
 #ifndef _GLOBALS_GLSL
 #define _GLOBALS_GLSL
-#include "Shader_Interop2.h"
+#include "shader-interop.h"
 
 #define GAMMA(x)		(ApplySRGBCurve_Fast(x))
 #define DEGAMMA(x)		(RemoveSRGBCurve_Fast(x))
@@ -42,7 +42,7 @@ void CreateFullscreenTriangleUV(uint vertexID, out vec4 pos, out vec2 uv)
 	CreateFullscreenTriangle(vertexID, pos);
 
 	uv.x = (vertexID / 2) * 2.0;
-	uv.y = ((vertexID+1) % 2) * 2.0;	// FLIP Y
+	uv.y = ((vertexID+1) % 2) * 2.0;	// Flip Y
 }
 
 vec3 UnpackNormal(in uint value)

@@ -1,7 +1,7 @@
 #pragma once
-#include "Core/Random.h"
+#include "core/random.h"
 #include "core/serializer.h"
-#include "Systems/JobSystem.h"
+#include "systems/job-system.h"
 #include <unordered_map>
 #include <atomic>
 

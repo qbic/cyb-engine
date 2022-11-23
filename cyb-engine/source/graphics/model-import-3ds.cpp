@@ -1,8 +1,8 @@
-#include <fstream>
 #include "core/logger.h"
-#include "Core/Timer.h"
-#include "Systems/Scene.h"
-#include "Graphics/ModelImport.h"
+#include "core/timer.h"
+#include "systems/scene.h"
+#include "graphics/model-import.h"
+#include <fstream>
 
 //#define DEBUG_3DS_LOADER    1
 

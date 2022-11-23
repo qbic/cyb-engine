@@ -1,8 +1,8 @@
 #pragma once
+#include "core/mathlib.h"
 #include <mutex>
 #include <string>
 #include <assert.h>
-#include "Core/Mathlib.h"
 
 #if CYB_DEBUG_BUILD
 #ifdef _WIN32

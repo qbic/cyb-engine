@@ -1,10 +1,10 @@
 #pragma once
 #include "core/serializer.h"
-#include "Core/Intersect.h"
-#include "core/EnumFlags.h"
-#include "Systems/ECS.h"
-#include "Systems/JobSystem.h"
-#include "Graphics/Renderer.h"
+#include "core/intersect.h"
+#include "core/enum-flags.h"
+#include "systems/ecs.h"
+#include "systems/job-system.h"
+#include "graphics/renderer.h"
 
 namespace cyb::scene
 {

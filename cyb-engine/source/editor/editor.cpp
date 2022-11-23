@@ -5,9 +5,9 @@
 #include "core/profiler.h"
 #include "core/helper.h"
 #include "core/Mathlib.h"
-#include "Graphics/Renderer.h"
-#include "Graphics/ModelImport.h"
-#include "Systems/EventSystem.h"
+#include "graphics/renderer.h"
+#include "graphics/model-import.h"
+#include "systems/event-system.h"
 #include "editor/editor.h"
 #include "editor/imgui-backend.h"
 #include "imgui.h"
@@ -1134,7 +1134,7 @@ namespace cyb::editor
     void OpenDialog_Open()
     {
         helper::FileDialog(helper::FileOp::OPEN, FILE_FILTER_SCENE, [](std::string filename) {
-            eventsystem::Subscribe_Once(eventsystem::EVENT_THREAD_SAFE_POINT, [=](uint64_t) {
+            eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t) {
                 scene::GetScene().Clear();
                 scene::LoadModel(filename);
                 });
@@ -1146,7 +1146,7 @@ namespace cyb::editor
     void OpenDialog_ImportModel(const std::string filter)
     {
         helper::FileDialog(helper::FileOp::OPEN, filter, [](std::string filename) {
-            eventsystem::Subscribe_Once(eventsystem::EVENT_THREAD_SAFE_POINT, [=](uint64_t) {
+            eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t) {
                 std::string extension = helper::ToUpper(helper::GetExtensionFromFileName(filename));
                 if (extension.compare("CBS") == 0)
                 {
@@ -1185,7 +1185,7 @@ namespace cyb::editor
 
     static void DeleteSelectedEntity()
     {
-        eventsystem::Subscribe_Once(eventsystem::EVENT_THREAD_SAFE_POINT, [=](uint64_t)
+        eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t)
             {
                 scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity());
                 scenegraph_view.SelectEntity(ecs::kInvalidEntity);
@@ -1203,7 +1203,7 @@ namespace cyb::editor
             if (ImGui::BeginMenu("File"))
             {
                 if (ImGui::MenuItem("New"))
-                    eventsystem::Subscribe_Once(eventsystem::EVENT_THREAD_SAFE_POINT, [=](uint64_t) 
+                    eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t)
                         {
                             scene::GetScene().Clear(); 
                         });
@@ -1274,7 +1274,7 @@ namespace cyb::editor
                     renderer::SetDebugLightsourcesAABB(debug_lightsources_abb);
 
                 if (ImGui::Checkbox("Enable VSync", &vsync_enabled))
-                    eventsystem::FireEvent(eventsystem::EVENT_SET_VSYNC, vsync_enabled ? 1ull : 0ull);
+                    eventsystem::FireEvent(eventsystem::kEvent_SetVSync, vsync_enabled ? 1ull : 0ull);
 
                 ImGui::EndMenu();
             }
@@ -1475,13 +1475,13 @@ namespace cyb::editor
         AttachToolToMenu(std::make_unique<Tool_LogDisplay>("Backlog"));
 
         // Icons rendered by ImGui need's to be flipped manually at loadtime
-        import_icon = resourcemanager::Load("assets/import.png", resourcemanager::IMPORT_FLIP_IMAGE);
-        delete_icon = resourcemanager::Load("assets/delete.png", resourcemanager::IMPORT_FLIP_IMAGE);
-        light_icon = resourcemanager::Load("assets/add.png", resourcemanager::IMPORT_FLIP_IMAGE);
-        editor_icon_select = resourcemanager::Load("assets/select.png", resourcemanager::IMPORT_FLIP_IMAGE);
-        translate_icon = resourcemanager::Load("assets/move.png", resourcemanager::IMPORT_FLIP_IMAGE);
-        rotate_icon = resourcemanager::Load("assets/rotate.png",  resourcemanager::IMPORT_FLIP_IMAGE);
-        scale_icon = resourcemanager::Load("assets/resize.png", resourcemanager::IMPORT_FLIP_IMAGE);
+        import_icon = resourcemanager::Load("assets/import.png", resourcemanager::LoadFlags::kFlipImageBit);
+        delete_icon = resourcemanager::Load("assets/delete.png", resourcemanager::LoadFlags::kFlipImageBit);
+        light_icon = resourcemanager::Load("assets/add.png", resourcemanager::LoadFlags::kFlipImageBit);
+        editor_icon_select = resourcemanager::Load("assets/select.png", resourcemanager::LoadFlags::kFlipImageBit);
+        translate_icon = resourcemanager::Load("assets/move.png", resourcemanager::LoadFlags::kFlipImageBit);
+        rotate_icon = resourcemanager::Load("assets/rotate.png",  resourcemanager::LoadFlags::kFlipImageBit);
+        scale_icon = resourcemanager::Load("assets/resize.png", resourcemanager::LoadFlags::kFlipImageBit);
 
         initialized = true;
     }

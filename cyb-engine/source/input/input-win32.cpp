@@ -1,6 +1,6 @@
+#include "core/platform.h"
+#include "input/input.h"
 #include <Windows.h>
-#include "Core/Platform.h"
-#include "Input/Input.h"
 
 namespace cyb::input
 {

@@ -9,8 +9,8 @@
  ************************************************************************************/
 #pragma once
 #include "core/platform.h"
-#include "core/Mathlib.h"
-#include "core/EnumFlags.h"
+#include "core/mathlib.h"
+#include "core/enum-flags.h"
 #include <vector>
 
 namespace cyb::graphics

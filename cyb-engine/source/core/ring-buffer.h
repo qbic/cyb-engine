@@ -1,5 +1,5 @@
 #pragma once
-#include "spinlock.h"
+#include "core/spinlock.h"
 
 template <typename T, size_t capacity>
 class ThreadSafeRingBuffer

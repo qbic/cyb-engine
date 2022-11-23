@@ -1,5 +1,5 @@
 #include "core/platform.h"
-#include "graphics/GraphicsDevice.h"
+#include "graphics/graphics-device.h"
 #include "systems/scene.h"
 #include "hli/render-path-3d.h"
 #include "input/input.h"

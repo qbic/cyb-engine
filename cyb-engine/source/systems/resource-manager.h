@@ -1,8 +1,8 @@
 #pragma once
-
+#include "graphics/graphics-device.h"
 #include <unordered_map>
+#include "core/enum-flags.h"
 #include <memory>
-#include "Graphics/GraphicsDevice.h"
 
 namespace cyb
 {
@@ -24,15 +24,17 @@ namespace cyb::resourcemanager
 {
     enum class Mode
     {
-        DISCARD_FILEDATA_AFTER_LOAD,
-        ALLOW_RETAIN_FILEDATA
+        kDiscardFiledataAfterLoad,
+        kAllowRetainFiledata
     };
 
-    enum Flags
+    enum class LoadFlags
     {
-        IMPORT_FLIP_IMAGE = (1 << 1),       // Flip image vertically on load
-        IMPORT_RETAIN_FILEDATA = (1 << 2)   // File data will be kept for later reuse.
+        kNone               = 0,
+        kFlipImageBit       = (1 << 1),     // Flip image vertically on load
+        kRetainFiledataBit  = (1 << 2)      // File data will be kept for later reuse.
     };
+    CYB_ENABLE_BITMASK_OPERATORS(LoadFlags);
 
     // Load a resource:
     //  name : Filename of a resource
@@ -41,7 +43,7 @@ namespace cyb::resourcemanager
     //  filesize : Size of file data, if file was loaded manually (optional)
     Resource Load(
         const std::string& name, 
-        uint32_t flags = 0,
+        LoadFlags flags = LoadFlags::kNone,
         const uint8_t* filedata = nullptr, 
         size_t filesize = 0);
 

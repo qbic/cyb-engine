@@ -4,9 +4,9 @@
 
 namespace cyb::eventsystem
 {
-    static const int EVENT_RELOAD_SHADERS = -1;
-    static const int EVENT_THREAD_SAFE_POINT = -2;
-    static const int EVENT_SET_VSYNC = -3;
+    enum { kEvent_ReloadShaders = -1 };
+    enum { kEvent_ThreadSafePoint = -2 };
+    enum { kEvent_SetVSync = -3 };
 
     struct Handle
     {

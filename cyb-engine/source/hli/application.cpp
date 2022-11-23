@@ -1,9 +1,9 @@
-#include "Core/Profiler.h"
-#include "Graphics/API/GraphicsDevice_Vulkan.h"
-#include "Graphics/Renderer.h"
-#include "Systems/EventSystem.h"
-#include "Systems/JobSystem.h"
-#include "Input/Input.h"
+#include "core/Profiler.h"
+#include "graphics/API/GraphicsDevice_Vulkan.h"
+#include "graphics/Renderer.h"
+#include "systems/event-system.h"
+#include "systems/job-system.h"
+#include "input/input.h"
 #include "hli/application.h"
 
 using namespace cyb::graphics;
@@ -30,7 +30,7 @@ namespace cyb::hli
 		timer.Record();
 
 		// Wake up the events that need to be executed on the main thread, in thread safe manner:
-		eventsystem::FireEvent(eventsystem::EVENT_THREAD_SAFE_POINT, 0);
+		eventsystem::FireEvent(eventsystem::kEvent_ThreadSafePoint, 0);
 
 		// Update the game components
 		// TODO: Add a fixed-time update routine
@@ -67,7 +67,7 @@ namespace cyb::hli
 		desc.height = physical_window_size.y;
 		renderer::GetDevice()->CreateSwapChain(&desc, window.get(), &swapchain);
 
-		change_vsyc_event = eventsystem::Subscribe(eventsystem::EVENT_SET_VSYNC, [this](uint64_t userdata) {
+		change_vsyc_event = eventsystem::Subscribe(eventsystem::kEvent_SetVSync, [this](uint64_t userdata) {
 			SwapChainDesc desc = swapchain.desc;
 			desc.vsync = userdata != 0;
 			bool success = graphics_device->CreateSwapChain(&desc, nullptr, &swapchain);

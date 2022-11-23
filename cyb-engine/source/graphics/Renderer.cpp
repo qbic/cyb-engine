@@ -1,9 +1,9 @@
-#include "Core/Helper.h"
-#include "Core/Profiler.h"
-#include "Systems/Scene.h"
-#include "Graphics/Renderer.h"
-#include "Graphics/ShaderCompiler.h"
-#include "../../Shaders/Shader_Interop2.h"
+#include "core/helper.h"
+#include "core/profiler.h"
+#include "systems/scene.h"
+#include "graphics/renderer.h"
+#include "graphics/shader-compiler.h"
+#include "../../shaders/shader-interop.h"
 
 using namespace cyb::graphics;
 using namespace cyb::scene;
@@ -131,7 +131,7 @@ namespace cyb::renderer
             input.shadersize = fileData.size();
             input.stage = stage;
 #ifdef CYB_DEBUG_BUILD
-            input.flags |= ShaderCompilerFlags::GENERATE_DEBUG_INFO;
+            input.flags |= ShaderCompilerFlags::kGenerateDebugInfoBit;
 #endif
             
             ShaderCompilerOutput output;

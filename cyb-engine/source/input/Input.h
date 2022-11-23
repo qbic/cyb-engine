@@ -1,6 +1,5 @@
 #pragma once
-
-#include "Core/BaseTypes.h"
+#include "core/base-types.h"
 
 namespace cyb::input
 {

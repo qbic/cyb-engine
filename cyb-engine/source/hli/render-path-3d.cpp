@@ -16,8 +16,8 @@ namespace cyb::hli
         // Render targets:
         {
             TextureDesc desc;
-            desc.format = Format::kR8G8B8A8_Unorm;
-            desc.bindFlags = BindFlags::kShaderResourceBit | BindFlags::kRenderTargetBit;
+            desc.format = Format::R8G8B8A8_Unorm;
+            desc.bindFlags = BindFlags::ShaderResourceBit | BindFlags::RenderTargetBit;
             desc.width = internal_resolution.x;
             desc.height = internal_resolution.y;
             device->CreateTexture(&desc, nullptr, &renderTarget_Main);
@@ -29,9 +29,9 @@ namespace cyb::hli
         // Depth stencil buffer:
         {
             TextureDesc desc;
-            desc.format = Format::kD32_Float_S8_Uint;
-            desc.bindFlags = BindFlags::kShaderResourceBit | BindFlags::kDepthStencilBit;
-            desc.layout = ResourceState::kDepthStencil_ReadOnlyBit;
+            desc.format = Format::D32_Float_S8_Uint;
+            desc.bindFlags = BindFlags::ShaderResourceBit | BindFlags::DepthStencilBit;
+            desc.layout = ResourceState::DepthStencil_ReadOnlyBit;
             desc.width = internal_resolution.x;
             desc.height = internal_resolution.y;
             device->CreateTexture(&desc, nullptr, &depthBuffer_Main);
@@ -50,9 +50,9 @@ namespace cyb::hli
                     &depthBuffer_Main,
                     RenderPassAttachment::LoadOp::kClear,
                     RenderPassAttachment::StoreOp::kStore,
-                    ResourceState::kDepthStencil_ReadOnlyBit,
-                    ResourceState::kDepthStencilBit,
-                    ResourceState::kDepthStencil_ReadOnlyBit));
+                    ResourceState::DepthStencil_ReadOnlyBit,
+                    ResourceState::DepthStencilBit,
+                    ResourceState::DepthStencil_ReadOnlyBit));
 
             device->CreateRenderPass(&desc, &renderPass_Main);
         }

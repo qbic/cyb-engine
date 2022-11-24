@@ -10,9 +10,9 @@ namespace cyb
     public:
         enum class Interpolation
         {
-            kLinear,
-            kHermite,
-            kQuintic
+            Linear,
+            Hermite,
+            Quintic
         };
 
         NoiseGenerator(uint32_t seed = 1337);
@@ -39,7 +39,7 @@ namespace cyb
         uint32_t m_perm12[512];
         uint32_t m_seed = 1337;
         float m_frequency = 0.01f;
-        Interpolation m_interp = Interpolation::kQuintic;
+        Interpolation m_interp = Interpolation::Quintic;
         uint32_t m_octaves = 3;
         float m_lacunarity = 2.0f;
         float m_gain = 0.5f;

@@ -49,8 +49,8 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	texture_desc.height = height;
 	texture_desc.mipLevels = 1;
 	texture_desc.arraySize = 1;
-	texture_desc.format = Format::kR8G8B8A8_Unorm;
-	texture_desc.bindFlags = BindFlags::kShaderResourceBit;
+	texture_desc.format = Format::R8G8B8A8_Unorm;
+	texture_desc.bindFlags = BindFlags::ShaderResourceBit;
 
 	SubresourceData texture_data;
 	texture_data.mem = pixels;
@@ -59,9 +59,9 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	GetDevice()->CreateTexture(&texture_desc, &texture_data, &font_texture);
 
 	SamplerDesc sampler_desc;
-	sampler_desc.addressU = TextureAddressMode::kWrap;
-	sampler_desc.addressV = TextureAddressMode::kWrap;
-	sampler_desc.addressW = TextureAddressMode::kWrap;
+	sampler_desc.addressU = TextureAddressMode::Wrap;
+	sampler_desc.addressV = TextureAddressMode::Wrap;
+	sampler_desc.addressW = TextureAddressMode::Wrap;
 	sampler_desc.filter = TextureFilter::kPoint;
 	GetDevice()->CreateSampler(&sampler_desc, &sampler);
 
@@ -70,9 +70,9 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 
 	imgui_input_layout.elements =
 	{
-		{ "in_position", 0, Format::kR32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, pos) },
-		{ "in_uv",       0, Format::kR32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, uv)  },
-		{ "in_color",    0, Format::kR8G8B8A8_Unorm, (uint32_t)IM_OFFSETOF(ImDrawVert, col) }
+		{ "in_position", 0, Format::R32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, pos) },
+		{ "in_uv",       0, Format::R32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, uv)  },
+		{ "in_color",    0, Format::R8G8B8A8_Unorm, (uint32_t)IM_OFFSETOF(ImDrawVert, col) }
 	};
 
 	// Create pipeline
@@ -82,7 +82,7 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	desc.il = &imgui_input_layout;
 	desc.dss = GetDepthStencilState(DSSTYPE_DEFAULT);
 	desc.rs = GetRasterizerState(RSTYPE_DOUBLESIDED);
-	desc.pt = PrimitiveTopology::kTriangleList;
+	desc.pt = PrimitiveTopology::TriangleList;
 	GetDevice()->CreatePipelineState(&desc, &imgui_pso);
 }
 
@@ -90,8 +90,8 @@ void ImGui_Impl_CybEngine_Init()
 {
 	// Compile shaders
 	{
-		LoadShader(ShaderStage::kVS, imgui_vs, "imgui.vert");
-		LoadShader(ShaderStage::kFS, imgui_fs, "imgui.frag");
+		LoadShader(ShaderStage::VS, imgui_vs, "imgui.vert");
+		LoadShader(ShaderStage::FS, imgui_fs, "imgui.frag");
 	}
 
 	// Setup Dear ImGui context
@@ -214,7 +214,7 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 	};
 
 	device->BindVertexBuffers(vbs, 1, strides, offsets, cmd);
-	device->BindIndexBuffer(&indexBufferAllocation.buffer, IndexBufferFormat::kUint16, indexBufferAllocation.offset, cmd);
+	device->BindIndexBuffer(&indexBufferAllocation.buffer, IndexBufferFormat::Uint16, indexBufferAllocation.offset, cmd);
 
 	Viewport viewport;
 	viewport.width = (float)framebufferWidth;

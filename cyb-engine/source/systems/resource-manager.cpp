@@ -169,8 +169,8 @@ namespace cyb::resourcemanager
             graphics::TextureDesc desc;
             desc.width = width;
             desc.height = height;
-            desc.format = graphics::Format::kR8G8B8A8_Unorm;
-            desc.bindFlags = graphics::BindFlags::kShaderResourceBit;
+            desc.format = graphics::Format::R8G8B8A8_Unorm;
+            desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
             desc.mipLevels = 1;     // Generate full mip chain at runtime
 
             graphics::SubresourceData subresource_data;

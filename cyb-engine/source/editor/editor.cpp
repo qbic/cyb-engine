@@ -131,7 +131,7 @@ namespace cyb::editor
         SLIDER_INT,
         ENTITY_CHANGE,
         INT32_CHANGE,
-        kNone
+        None
     };
     std::vector<serializer::Archive> history;
     int history_pos = -1;
@@ -309,13 +309,14 @@ namespace cyb::editor
             return value_changed;
         }
 
+        template <class T>
         static bool CheckboxFlags(
             const std::string& label,
-            uint32_t& flags,
-            uint32_t flags_value)
+            T& flags,
+            T flags_value)
         {
             BeginElement(label);
-            bool value_changed = ImGui::CheckboxFlags("##FLAG", &flags, flags_value);
+            bool value_changed = ImGui::CheckboxFlags("##FLAG", (unsigned int*)&flags, (unsigned int)flags_value);
             EndElement();
 
             return value_changed;
@@ -594,9 +595,9 @@ namespace cyb::editor
     {
         static const std::unordered_map<scene::MaterialComponent::Shadertype, std::string> shadertype_names =
         {
-            { scene::MaterialComponent::kShadertype_BDRF,    "Flat BRDF" },
-            { scene::MaterialComponent::kShadertype_Unlit,   "Flat Unlit" },
-            { scene::MaterialComponent::kShadertype_Terrain, "Geometry Clipmapping Terrain" }
+            { scene::MaterialComponent::Shadertype_BDRF,    "Flat BRDF" },
+            { scene::MaterialComponent::Shadertype_Unlit,   "Flat Unlit" },
+            { scene::MaterialComponent::Shadertype_Terrain, "Terrain (NOT IMPLEMENTED)" }
         };
 
         gui::ComboBox("Shader Type", material->shaderType, shadertype_names);
@@ -736,8 +737,8 @@ namespace cyb::editor
         }
 
         ImGui::Separator();
-        ImGui::CheckboxFlags("Renderable (unimplemented)", (unsigned int*)&object->flags, scene::ObjectComponent::kRenderableBit);
-        ImGui::CheckboxFlags("Cast shadow (unimplemented)", (unsigned int*)&object->flags, scene::ObjectComponent::kCastShadowBit);
+        ImGui::CheckboxFlags("Renderable (unimplemented)", (unsigned int*)&object->flags, (unsigned int)scene::ObjectComponent::Flags::RenderableBit);
+        ImGui::CheckboxFlags("Cast shadow (unimplemented)", (unsigned int*)&object->flags, (unsigned int)scene::ObjectComponent::Flags::CastShadowBit);
     }
 
     bool InspectCameraComponent(scene::CameraComponent& camera)
@@ -755,8 +756,8 @@ namespace cyb::editor
     {
         static const std::unordered_map<scene::LightType, std::string> lightTypeNames =
         {
-            { scene::LightType::kDirectional, "Directional" },
-            { scene::LightType::kPoint,       "Point"       }
+            { scene::LightType::Directional, "Directional" },
+            { scene::LightType::Point,       "Point"       }
         };
 
         scene::LightType light_type = light->GetType();
@@ -766,8 +767,8 @@ namespace cyb::editor
         gui::ColorEdit3("Color", light->color);
         gui::DragFloat("Energy", light->energy, 0.02f);
         gui::DragFloat("Range", light->range, 1.2f, 0.0f, FLT_MAX);
-        gui::CheckboxFlags("Affects scene", light->flags, scene::LightComponent::kAffectsSceneBit);
-        gui::CheckboxFlags("Cast shadows", light->flags, scene::LightComponent::kCastShadowsBit);
+        gui::CheckboxFlags("Affects scene", light->flags, scene::LightComponent::Flags::AffectsSceneBit);
+        gui::CheckboxFlags("Cast shadows", light->flags, scene::LightComponent::Flags::CastShadowsBit);
     }
 
     void InspectWeatherComponent(scene::WeatherComponent* weather)
@@ -932,7 +933,7 @@ namespace cyb::editor
     {
         scene::Scene& scene = scene::GetScene();
 
-        if (entityID != ecs::kInvalidEntity)
+        if (entityID != ecs::InvalidEntity)
         {
             InspectComponent<scene::NameComponent>("Name##edit_entity_name", scene.names, InspectNameComponent, entityID, true);
             InspectComponent<scene::ObjectComponent>("Object", scene.objects, InspectObjectComponent, entityID, false, [&](scene::ObjectComponent* object) {
@@ -1113,7 +1114,7 @@ namespace cyb::editor
             XMFLOAT3(0.0f, 70.0f, 0.0f),
             XMFLOAT3(1.0f, 1.0f, 1.0f),
             1.0f, 100.0f, 
-            scene::LightType::kDirectional);
+            scene::LightType::Directional);
     }
 
     ecs::Entity CreatePointLight()
@@ -1124,7 +1125,7 @@ namespace cyb::editor
             XMFLOAT3(0.0f, 20.0f, 0.0f), 
             XMFLOAT3(1.0f, 1.0f, 1.0f),
             1.0f, 100.0f, 
-            scene::LightType::kPoint);
+            scene::LightType::Point);
         scenegraph_view.SelectEntity(entity);
         return entity;
     }
@@ -1188,7 +1189,7 @@ namespace cyb::editor
         eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t)
             {
                 scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity());
-                scenegraph_view.SelectEntity(ecs::kInvalidEntity);
+                scenegraph_view.SelectEntity(ecs::InvalidEntity);
             });
     }
 
@@ -1540,7 +1541,7 @@ namespace cyb::editor
                     }
                 }
 
-                if (pick_result.entity != ecs::kInvalidEntity)
+                if (pick_result.entity != ecs::InvalidEntity)
                     scenegraph_view.SelectEntity(pick_result.entity);
             }
         }

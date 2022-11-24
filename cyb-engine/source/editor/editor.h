@@ -45,14 +45,14 @@ namespace cyb::editor
             {
             }
              
-            ecs::Entity entity = ecs::kInvalidEntity;
+            ecs::Entity entity = ecs::InvalidEntity;
             const std::string_view name;
             Node* parent = nullptr;
             std::vector<Node> children;
         };
 
         Node root;
-        std::atomic<ecs::Entity> selected_entity = ecs::kInvalidEntity;
+        std::atomic<ecs::Entity> selected_entity = ecs::InvalidEntity;
         std::unordered_set<ecs::Entity> added_entities;
 
         void AddNode(Node* parent, ecs::Entity entity, const std::string_view& name);

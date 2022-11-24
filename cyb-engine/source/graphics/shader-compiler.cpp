@@ -13,9 +13,9 @@ namespace cyb::graphics
     {
         switch (stage)
         {
-        case ShaderStage::kVS: return shaderc_glsl_vertex_shader;
-        case ShaderStage::kFS: return shaderc_glsl_fragment_shader;
-        case ShaderStage::kGS: return shaderc_glsl_geometry_shader;
+        case ShaderStage::VS: return shaderc_glsl_vertex_shader;
+        case ShaderStage::FS: return shaderc_glsl_fragment_shader;
+        case ShaderStage::GS: return shaderc_glsl_geometry_shader;
         default: break;
         }
 
@@ -27,7 +27,7 @@ namespace cyb::graphics
     // Perform some minor SPIR-V shader validation
     ShaderValidationResult ValidateShaderSPIRV(const uint32_t* data, size_t size)
     {
-        const uint32_t SPV_MAGIC_NUMBER = 0x07230203;
+        constexpr uint32_t SpvMagicNumber = 0x07230203;
         ShaderValidationResult result = {};
 
         if ((size % 4) != 0)
@@ -38,7 +38,7 @@ namespace cyb::graphics
         }
 
         const uint32_t magic = data[0];
-        if (magic != SPV_MAGIC_NUMBER)
+        if (magic != SpvMagicNumber)
         {
             result.code = ShaderValidationErrorCode::kInvalidMagic;
             result.error_message = "Shader has invalid magic number!";
@@ -96,8 +96,8 @@ namespace cyb::graphics
     bool CompileShader(const ShaderCompilerInput* input, ShaderCompilerOutput* output)
     {
         assert(input != nullptr);
-        assert(input->format != ShaderFormat::kNone);
-        assert(input->stage != ShaderStage::_kCount);
+        assert(input->format != ShaderFormat::None);
+        assert(input->stage != ShaderStage::_Count);
         assert(output != nullptr);
 
         Timer timer;

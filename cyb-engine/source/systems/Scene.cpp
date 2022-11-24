@@ -3,6 +3,19 @@
 
 namespace cyb::scene
 {
+    void TransformComponent::SetDirty(bool value)
+    { 
+        if (value)
+            flags |= Flags::DirtyBit; 
+        else
+            flags &= ~Flags::DirtyBit;
+    }
+    
+    bool TransformComponent::IsDirty() const 
+    {
+        return HasFlag(flags, Flags::DirtyBit);
+    }
+
     XMFLOAT3 TransformComponent::GetPosition() const
     {
         return *((XMFLOAT3*)&world._41);
@@ -119,6 +132,19 @@ namespace cyb::scene
         XMStoreFloat4(&rotation_local, quat);
     }
 
+    void MaterialComponent::SetUseVertexColors(bool value)
+    {
+        if (value)
+            flags |= Flags::UseVertexColorsBit;
+        else
+            flags &= ~Flags::UseVertexColorsBit;
+    }
+
+    bool MaterialComponent::IsUsingVertexColors() const 
+    { 
+        return HasFlag(flags, Flags::UseVertexColorsBit);
+    }
+
     void MeshComponent::Clear()
     {
         vertex_positions.clear();
@@ -136,8 +162,8 @@ namespace cyb::scene
         {
             graphics::GPUBufferDesc desc;
             desc.size = uint32_t(sizeof(uint32_t) * indices.size());
-            desc.usage = graphics::MemoryAccess::kDefault;
-            desc.bindFlags = graphics::BindFlags::kIndexBufferBit;
+            desc.usage = graphics::MemoryAccess::Default;
+            desc.bindFlags = graphics::BindFlags::IndexBufferBit;
 
             bool result = device->CreateBuffer(&desc, indices.data(), &index_buffer);
             assert(result == true);
@@ -161,9 +187,9 @@ namespace cyb::scene
             }
 
             graphics::GPUBufferDesc desc;
-            desc.usage = graphics::MemoryAccess::kDefault;
+            desc.usage = graphics::MemoryAccess::Default;
             desc.size = uint32_t(sizeof(Vertex_Pos) * _vertices.size());
-            desc.bindFlags = graphics::BindFlags::kVertexBufferBit;
+            desc.bindFlags = graphics::BindFlags::VertexBufferBit;
             bool result = device->CreateBuffer(&desc, _vertices.data(), &vertex_buffer_pos);
             assert(result == true);
         }
@@ -172,9 +198,9 @@ namespace cyb::scene
         if (!vertex_colors.empty())
         {
             graphics::GPUBufferDesc desc;
-            desc.usage = graphics::MemoryAccess::kDefault;
+            desc.usage = graphics::MemoryAccess::Default;
             desc.size = uint32_t(sizeof(uint32_t) * vertex_colors.size());
-            desc.bindFlags = graphics::BindFlags::kVertexBufferBit;
+            desc.bindFlags = graphics::BindFlags::VertexBufferBit;
             bool result = device->CreateBuffer(&desc, vertex_colors.data(), &vertex_buffer_col);
             assert(result == true);
         }
@@ -424,11 +450,24 @@ namespace cyb::scene
         return norm;
     }
 
+    void LightComponent::SetffectingSceney(bool value)
+    {
+        if (value)
+            flags |= Flags::AffectsSceneBit;
+        else
+            flags &= ~Flags::AffectsSceneBit;
+    }
+
+    bool LightComponent::IsAffectingScene() const
+    {
+        return HasFlag(flags, Flags::AffectsSceneBit);
+    }
+
     void LightComponent::UpdateLight()
     {
         // Skip directional lights as they affects the whole scene and 
         // doesen't really have a AABB.
-        if (type == LightType::kDirectional) 
+        if (type == LightType::Directional) 
         {
             return;
         }
@@ -589,7 +628,7 @@ namespace cyb::scene
             }
         }
 
-        return ecs::kInvalidEntity;
+        return ecs::InvalidEntity;
     }
 
     void Scene::ComponentAttach(ecs::Entity entity, ecs::Entity parent)
@@ -749,7 +788,7 @@ namespace cyb::scene
 
                     aabb = AxisAlignedBox();
 
-                    if (object.meshID != ecs::kInvalidEntity)
+                    if (object.meshID != ecs::InvalidEntity)
                     {
                         const ecs::Entity entity = objects.GetEntity(i);
                         const MeshComponent* mesh = meshes.GetComponent(object.meshID);
@@ -835,7 +874,7 @@ namespace cyb::scene
                 continue;
 
             const ObjectComponent& object = scene.objects[i];
-            if (object.meshID == ecs::kInvalidEntity)
+            if (object.meshID == ecs::InvalidEntity)
                 continue;
 
             const ecs::Entity entity = scene.aabb_objects.GetEntity(i);
@@ -898,7 +937,7 @@ namespace cyb::scene
     {
         if (ar.IsReadMode())
         {
-            ar >> x.flags;
+            ar.UnsafeRead(x.flags);
             ar >> x.scale_local;
             ar >> x.rotation_local;
             ar >> x.translation_local;
@@ -908,7 +947,7 @@ namespace cyb::scene
         }
         else
         {
-            ar << x.flags;
+            ar << (uint32_t)x.flags;
             ar << x.scale_local;
             ar << x.rotation_local;
             ar << x.translation_local;
@@ -928,7 +967,7 @@ namespace cyb::scene
     {
         if (ar.IsReadMode())
         {
-            ar >> x.flags;
+            ar.UnsafeRead(x.flags);
             if (ar.GetVersion() >= 4)
                 ar >> (uint32_t&)x.shaderType;
             ar >> x.baseColor;
@@ -937,7 +976,7 @@ namespace cyb::scene
         }
         else
         {
-            ar << x.flags;
+            ar << (uint32_t)x.flags;
             if (ar.GetVersion() >= 4)
                 ar << (uint32_t&)x.shaderType;
             ar << x.baseColor;
@@ -988,12 +1027,12 @@ namespace cyb::scene
     {
         if (ar.IsReadMode())
         {
-            ar >> x.flags;
+            ar.UnsafeRead(x.flags);
             ecs::SerializeEntity(ar, x.meshID, serialize);
         }
         else
         {
-            ar << x.flags;
+            ar << (uint32_t)x.flags;
             ecs::SerializeEntity(ar, x.meshID, serialize);
         }
     }
@@ -1002,7 +1041,7 @@ namespace cyb::scene
     {
         if (ar.IsReadMode())
         {
-            ar >> x.flags;
+            ar >> (uint32_t&)x.flags;
             ar >> x.color;
             ar >> (uint32_t&)x.type;
             ar >> x.energy;
@@ -1010,7 +1049,7 @@ namespace cyb::scene
         }
         else
         {
-            ar << x.flags;
+            ar << (uint32_t)x.flags;
             ar << x.color;
             ar << (uint32_t&)x.type;
             ar << x.energy;

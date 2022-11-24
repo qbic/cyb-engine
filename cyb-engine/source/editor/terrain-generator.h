@@ -9,11 +9,11 @@ namespace cyb::editor
     {
         enum class Strata 
         {
-            kNone,
-            kSharpSub,
-            kSharpAdd,
-            kQuantize,
-            kSmooth
+            None,
+            SharpSub,
+            SharpAdd,
+            Quantize,
+            Smooth
         };
 
         uint32_t width = 512;
@@ -22,8 +22,8 @@ namespace cyb::editor
         uint32_t seed = 0;              // Noise function seed value
         float frequency = 5.5f;         // Noise function frequency
         uint32_t octaves = 6;           // Fractal Brownian Motion (FBM) octaves
-        NoiseGenerator::Interpolation interp = NoiseGenerator::Interpolation::kQuintic;
-        Strata strataFunc = Strata::kNone;
+        NoiseGenerator::Interpolation interp = NoiseGenerator::Interpolation::Quintic;
+        Strata strataFunc = Strata::None;
         float strata = 5.0f;            // Strata amount
     };
 
@@ -72,13 +72,6 @@ namespace cyb::editor
     void NormalizeTerrainBitmapValues(jobsystem::Context& ctx, TerrainBitmap& bitmap);
     void CreateTerrainColormap(jobsystem::Context& ctx, const TerrainBitmap& height, const TerrainBitmap& moisture, std::vector<uint32_t>& color);
     void CreateTerrainMesh(const TerrainMeshDesc& desc, TerrainMesh& terrain);
-
-    // <DEPRECATED>:
-    //void GenerateTerrainBitmap(const TerrainMeshDescription& params, TerrainMaps& map);
-    //void GenerateTerrain(
-    //    const TerrainMeshDescription* desc,
-    //    cyb::scene::Scene* scene);
-    // </DEPRECATED>
 
     //=============================================================
     //  TerrainGenerator GUI

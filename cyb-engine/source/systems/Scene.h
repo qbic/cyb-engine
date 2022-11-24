@@ -17,12 +17,13 @@ namespace cyb::scene
 
     struct TransformComponent
     {
-        enum
+        enum class Flags
         {
-            kDirtyBit = (1 << 0),
+            None     = 0,
+            DirtyBit = (1 << 0),
         };
 
-        uint32_t flags = kDirtyBit;
+        Flags flags = Flags::DirtyBit;
         XMFLOAT3 scale_local = XMFLOAT3(1, 1, 1);
         XMFLOAT4 rotation_local = XMFLOAT4(0, 0, 0, 1);     // quaternion rotation
         XMFLOAT3 translation_local = XMFLOAT3(0, 0, 0);
@@ -30,8 +31,8 @@ namespace cyb::scene
         // Non-serialized data
         XMFLOAT4X4 world = math::kIdentityMatrix;
 
-        inline void SetDirty(bool value = true) { if (value) { flags |= kDirtyBit; } else { flags &= ~kDirtyBit; } }
-        inline bool IsDirty() const { return flags & kDirtyBit; }
+        void SetDirty(bool value = true);
+        bool IsDirty() const;
 
         XMFLOAT3 GetPosition() const;
         XMFLOAT4 GetRotation() const;
@@ -53,6 +54,7 @@ namespace cyb::scene
         void Translate(const XMFLOAT3& value);
         void RotateRollPitchYaw(const XMFLOAT3& value);
     };
+    CYB_ENABLE_BITMASK_OPERATORS(TransformComponent::Flags);
 
     struct GroupComponent
     {
@@ -60,34 +62,36 @@ namespace cyb::scene
 
     struct HierarchyComponent
     {
-        ecs::Entity parentID = ecs::kInvalidEntity;
+        ecs::Entity parentID = ecs::InvalidEntity;
     };
 
     struct MaterialComponent
     {
-        enum
+        enum class Flags : uint32_t
         {
-            kDirtyBit = (1 << 0),
-            kUseVertexColorsBit = (1 << 1)
+            None                = 0,
+            DirtyBit            = (1 << 0),
+            UseVertexColorsBit  = (1 << 1)
         };
 
         enum Shadertype
         {
-            kShadertype_BDRF,
-            kShadertype_Unlit,
-            kShadertype_Terrain,
-            kShadertype_Count
+            Shadertype_BDRF,
+            Shadertype_Unlit,
+            Shadertype_Terrain,
+            Shadertype_Count
         };
 
-        uint32_t flags = 0;
-        Shadertype shaderType = kShadertype_BDRF;
+        Flags flags = Flags::None;
+        Shadertype shaderType = Shadertype_BDRF;
         XMFLOAT4 baseColor = XMFLOAT4(1, 1, 1, 1);
         float roughness = 0.2f;
         float metalness = 0.0f;
 
-        inline void SetUseVertexColors(bool value) { if (value) { flags |= kUseVertexColorsBit; } else { flags &= ~kUseVertexColorsBit; } }
-        inline bool IsUsingVertexColors() const { return flags & kUseVertexColorsBit; }
+        void SetUseVertexColors(bool value);
+        bool IsUsingVertexColors() const;
     };
+    CYB_ENABLE_BITMASK_OPERATORS(MaterialComponent::Flags);
 
     struct MeshComponent
     {
@@ -98,7 +102,7 @@ namespace cyb::scene
 
         struct MeshSubset
         {
-            ecs::Entity materialID = ecs::kInvalidEntity;
+            ecs::Entity materialID = ecs::InvalidEntity;
             uint32_t indexOffset = 0;
             uint32_t indexCount = 0;
         };
@@ -118,7 +122,7 @@ namespace cyb::scene
         // Internal format for vertex_buffer_pos
         struct Vertex_Pos
         {
-            static constexpr graphics::Format kFormat = graphics::Format::kR32G32B32A32_Float;
+            static constexpr graphics::Format kFormat = graphics::Format::R32G32B32A32_Float;
             XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
             uint32_t normal = 0;
 
@@ -130,57 +134,61 @@ namespace cyb::scene
         // Internal format for vertex_buffer_col
         struct Vertex_Col
         {
-            static constexpr graphics::Format kFormat = graphics::Format::kR8G8B8A8_Unorm;
+            static constexpr graphics::Format kFormat = graphics::Format::R8G8B8A8_Unorm;
             uint32_t color = 0;
         };
     };
 
     struct ObjectComponent
     {
-        enum
+        enum class Flags : uint32_t
         {
-            kRenderableBit = (1 << 0),
-            kCastShadowBit = (1 << 1)
+            None          = 0,
+            RenderableBit = (1 << 0),
+            CastShadowBit = (1 << 1),
+            DefaultFlags = RenderableBit | CastShadowBit
         };
 
-        uint32_t flags = kRenderableBit | kCastShadowBit;
-        ecs::Entity meshID = ecs::kInvalidEntity;
+        Flags flags = Flags::DefaultFlags;
+        ecs::Entity meshID = ecs::InvalidEntity;
 
         // Non-serialized data
         int32_t transformIndex = -1;        // Only valid for a single frame
     };
+    CYB_ENABLE_BITMASK_OPERATORS(ObjectComponent::Flags);
 
-    // NOTE: Theese need to be synced with the LIGHTSOURCE_TYPE_*  defines in Shader_Interop.h
+    // NOTE: Theese need to be synced with the LIGHTSOURCE_TYPE_* defines in shader_Interop.h
     enum class LightType
     {
-        kDirectional,
-        kPoint
+        Directional,
+        Point
     };
 
     struct LightComponent
     {
-        enum
+        enum class Flags : uint32_t
         {
-            kCastShadowsBit     = (1 << 0),
-            kAffectsSceneBit    = (1 << 1),
-            kDefaultFlags = kAffectsSceneBit
+            CastShadowsBit     = (1 << 0),
+            AffectsSceneBit    = (1 << 1),
+            DefaultFlags = AffectsSceneBit
         };
 
-        uint32_t flags = kDefaultFlags;
+        Flags flags = Flags::DefaultFlags;
         XMFLOAT3 color = XMFLOAT3(1.0f, 1.0f, 1.0f);
-        LightType type = LightType::kPoint;
+        LightType type = LightType::Point;
         float energy = 1.0f;
         float range = 10.0f;
 
         // Non-serialized data
         AxisAlignedBox aabb;
 
-        inline void SetffectingSceney(bool value) { if (value) { flags |= kAffectsSceneBit; } else { flags &= ~kAffectsSceneBit; } }
-        inline bool IsAffectingScene() const { return flags & kAffectsSceneBit; }
-        inline void SetType(LightType value) { type = value; }
-        inline LightType GetType() const { return type; }
+        void SetffectingSceney(bool value);
+        bool IsAffectingScene() const;
+        void SetType(LightType value) { type = value; }
+        LightType GetType() const { return type; }
         void UpdateLight();
     };
+    CYB_ENABLE_BITMASK_OPERATORS(LightComponent::Flags);
 
     struct WeatherComponent
     {
@@ -246,7 +254,7 @@ namespace cyb::scene
             const XMFLOAT3& color,
             float energy,
             float range,
-            LightType type = LightType::kPoint
+            LightType type = LightType::Point
         );
         ecs::Entity CreateCamera(
             const std::string& name,
@@ -291,7 +299,7 @@ namespace cyb::scene
 
     struct PickResult
     {
-        ecs::Entity entity = ecs::kInvalidEntity;
+        ecs::Entity entity = ecs::InvalidEntity;
         XMFLOAT3 position = XMFLOAT3(0, 0, 0);
         float distance = FLT_MAX;
     };

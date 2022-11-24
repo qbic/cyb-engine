@@ -76,15 +76,15 @@ namespace cyb
         float xs, ys;
         switch (m_interp)
         {
-        case Interpolation::kLinear:
+        case Interpolation::Linear:
             xs = x - (float)x0;
             ys = y - (float)y0;
             break;
-        case Interpolation::kHermite:
+        case Interpolation::Hermite:
             xs = math::InterpHermiteFunc(x - (float)x0);
             ys = math::InterpHermiteFunc(y - (float)y0);
             break;
-        case Interpolation::kQuintic:
+        case Interpolation::Quintic:
             xs = math::InterpQuinticFunc(x - (float)x0);
             ys = math::InterpQuinticFunc(y - (float)y0);
             break;

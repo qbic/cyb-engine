@@ -99,7 +99,6 @@ namespace cyb::serializer
             return *this;
         }
 
-    private:
         // UnsafeWrite is used internally for serialization of custom
         // data and should be used with coution, use operator << instead
         template <typename T>
@@ -130,6 +129,7 @@ namespace cyb::serializer
             m_pos += (size_t)(sizeof(data));
         }
 
+     private:
         uint64_t m_version = 0;
         Access m_mode = Access::kWrite;
         size_t m_pos = 0;

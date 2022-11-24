@@ -28,8 +28,8 @@ namespace cyb::graphics
     struct ShaderCompilerInput
     {
         ShaderCompilerFlags flags = ShaderCompilerFlags::kNone;
-        ShaderFormat format = ShaderFormat::kNone;
-        ShaderStage stage = ShaderStage::_kCount;
+        ShaderFormat format = ShaderFormat::None;
+        ShaderStage stage = ShaderStage::_Count;
         std::string name = "shader_src";
         const uint8_t* shadersource = nullptr;
         size_t shadersize = 0;

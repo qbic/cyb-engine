@@ -34,10 +34,10 @@ void GameRenderer::Load()
 
     scene->weathers.Create(ecs::CreateEntity());
 
-    scene->CreateLight("Sun00", XMFLOAT3(122.0f, 101.0f, 170.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 1.0f, 10000.0f, scene::LightType::kDirectional);
-    scene->CreateLight("Sun01", XMFLOAT3(-32.0f, -53.0f, -42.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.75f, 10000.0f, scene::LightType::kDirectional);
-    scene->CreateLight("Sun02", XMFLOAT3(-63.0f, 162.0f, -200.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.6f, 10000.0f, scene::LightType::kDirectional);
-    scene->CreateLight("Light_Point01", XMFLOAT3(0.0f, 20.0f, 0.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.6f, 100.0f, scene::LightType::kPoint);
+    scene->CreateLight("Sun00", XMFLOAT3(122.0f, 101.0f, 170.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 1.0f, 10000.0f, scene::LightType::Directional);
+    scene->CreateLight("Sun01", XMFLOAT3(-32.0f, -53.0f, -42.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.75f, 10000.0f, scene::LightType::Directional);
+    scene->CreateLight("Sun02", XMFLOAT3(-63.0f, 162.0f, -200.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.6f, 10000.0f, scene::LightType::Directional);
+    scene->CreateLight("Light_Point01", XMFLOAT3(0.0f, 20.0f, 0.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.6f, 100.0f, scene::LightType::Point);
 #endif
 
     ResizeBuffers();       /// !!!!!!!!

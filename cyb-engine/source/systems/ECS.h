@@ -8,11 +8,11 @@
 namespace cyb::ecs 
 {
     using Entity = uint32_t;
-    enum { kInvalidEntity = 0 };
+    static constexpr Entity InvalidEntity = 0;
 
     inline Entity CreateEntity() 
     {
-        static std::atomic<Entity> next = kInvalidEntity + 1;
+        static std::atomic<Entity> next = InvalidEntity + 1;
         return next.fetch_add(1);
     }
 
@@ -34,7 +34,7 @@ namespace cyb::ecs
             uint32_t mem;
             ar >> mem;
 
-            if (mem == kInvalidEntity)
+            if (mem == InvalidEntity)
             {
                 entity = (Entity)mem;
                 return;
@@ -140,7 +140,7 @@ namespace cyb::ecs
             // ecs::INVALID_ENTITY is not allowed!
             // Only one of this component type per entity is allowed!
             // Entity count must always be the same as the number of coponents!
-            assert(entity != kInvalidEntity);
+            assert(entity != InvalidEntity);
             assert(lookup.find(entity) == lookup.end());
             assert(entities.size() == components.size());
             assert(lookup.size() == components.size());

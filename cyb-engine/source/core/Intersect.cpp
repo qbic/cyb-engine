@@ -5,42 +5,34 @@ namespace cyb::math
 {
     AxisAlignedBox AxisAlignedBox::TransformBy(const XMMATRIX& mat) const
     {
-        XMFLOAT3 corners[8];
-        for (uint32_t i = 0; i < 8; ++i)
-        {
-            XMFLOAT3 C = GetCorner(i);
-            XMVECTOR P = XMVector3Transform(XMLoadFloat3(&C), mat);
-            XMStoreFloat3(&corners[i], P);
-        }
+        const XMVECTOR VMin = XMLoadFloat3(&min);
+        const XMVECTOR VMax = XMLoadFloat3(&max);
 
-        XMFLOAT3 min = corners[0];
-        XMFLOAT3 max = corners[6];
-        for (uint32_t i = 0; i < 8; ++i)
-        {
-            min = math::Min(min, corners[i]);
-            max = math::Max(max, corners[i]);
-        }
+        const XMVECTOR& m0 = mat.r[0];
+        const XMVECTOR& m1 = mat.r[1];
+        const XMVECTOR& m2 = mat.r[2];
+        const XMVECTOR& m3 = mat.r[3];
 
-        return AxisAlignedBox(min, max);
-    }
+        const XMVECTOR half = XMVectorReplicate(0.5f);
+        const XMVECTOR origin = XMVectorMultiply(XMVectorAdd(VMax, VMin), half);
+        const XMVECTOR extent = XMVectorMultiply(XMVectorSubtract(VMax, VMin), half);
 
-    XMFLOAT3 AxisAlignedBox::GetCorner(uint32_t i) const
-    {
-        switch (i)
-        {
-        case 0: return min;
-        case 1: return XMFLOAT3(min.x, max.y, min.z);
-        case 2: return XMFLOAT3(min.x, max.y, max.z);
-        case 3: return XMFLOAT3(min.x, min.y, max.z);
-        case 4: return XMFLOAT3(max.x, min.y, min.z);
-        case 5: return XMFLOAT3(max.x, max.y, min.z);
-        case 6: return max;
-        case 7: return XMFLOAT3(max.x, min.y, max.z);
-        default: break;
-        }
+        XMVECTOR newOrigin = XMVectorMultiply(XMVectorReplicate(XMVectorGetX(origin)), m0);
+        newOrigin = XMVectorMultiplyAdd(XMVectorReplicate(XMVectorGetY(origin)), m1, newOrigin);
+        newOrigin = XMVectorMultiplyAdd(XMVectorReplicate(XMVectorGetZ(origin)), m2, newOrigin);
+        newOrigin = XMVectorAdd(newOrigin, m3);
 
-        assert(0);
-        return XMFLOAT3(0.0f, 0.0f, 0.0f);
+        XMVECTOR newExtent = XMVectorAbs(XMVectorMultiply(XMVectorReplicate(XMVectorGetX(extent)), m0));
+        newExtent = XMVectorAdd(newExtent, XMVectorAbs(XMVectorMultiply(XMVectorReplicate(XMVectorGetY(extent)), m1)));
+        newExtent = XMVectorAdd(newExtent, XMVectorAbs(XMVectorMultiply(XMVectorReplicate(XMVectorGetZ(extent)), m2)));
+
+        const XMVECTOR newMin = XMVectorSubtract(newOrigin, newExtent);
+        const XMVECTOR newMax = XMVectorAdd(newOrigin, newExtent);
+
+        AxisAlignedBox newAABB;
+        XMStoreFloat3(&newAABB.min, newMin);
+        XMStoreFloat3(&newAABB.max, newMax);
+        return newAABB;
     }
 
     XMFLOAT3 AxisAlignedBox::GetCenter() const
@@ -69,11 +61,11 @@ namespace cyb::math
                (p.z <= max.z) && (p.z >= min.z);
     }
 
-    AxisAlignedBox AABBFromHalfWidth(const XMFLOAT3& center, const XMFLOAT3& halfwidth)
+    AxisAlignedBox AABBFromHalfWidth(const XMFLOAT3& origin, const XMFLOAT3& extent)
     {
         AxisAlignedBox newBox;
-        newBox.min = XMFLOAT3(center.x - halfwidth.x, center.y - halfwidth.y, center.z - halfwidth.z);
-        newBox.max = XMFLOAT3(center.x + halfwidth.x, center.y + halfwidth.y, center.z + halfwidth.z);
+        newBox.min = XMFLOAT3(origin.x - extent.x, origin.y - extent.y, origin.z - extent.z);
+        newBox.max = XMFLOAT3(origin.x + extent.x, origin.y + extent.y, origin.z + extent.z);
         return newBox;
     }
 

@@ -1,6 +1,12 @@
 #pragma once
 #include "Core/Mathlib.h"
 
+enum class ForceInit
+{
+    ForceInit,
+    ForceInitToZero
+};
+
 namespace cyb::math
 {
     struct AxisAlignedBox
@@ -8,7 +14,9 @@ namespace cyb::math
         XMFLOAT3 min;
         XMFLOAT3 max;
 
-        explicit AxisAlignedBox()
+        AxisAlignedBox() { }
+
+        explicit AxisAlignedBox(ForceInit)
         {
             min = max = math::ZeroFloat3;
         }
@@ -20,7 +28,6 @@ namespace cyb::math
         }
 
         AxisAlignedBox TransformBy(const XMMATRIX& mat) const;
-        XMFLOAT3 GetCorner(uint32_t i) const;
         XMFLOAT3 GetCenter() const;
         XMFLOAT3 GetHalfWidth() const;
         XMMATRIX GetAsBoxMatrix() const;
@@ -28,7 +35,7 @@ namespace cyb::math
     };
 
     // Utility function to construct a new AABB from position and half width.
-    AxisAlignedBox AABBFromHalfWidth(const XMFLOAT3& center, const XMFLOAT3& halfwidth);
+    AxisAlignedBox AABBFromHalfWidth(const XMFLOAT3& origin, const XMFLOAT3& extent);
 
     struct Ray
     {

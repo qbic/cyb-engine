@@ -796,7 +796,7 @@ namespace cyb::scene
                         object.transformIndex = (int32_t)transforms.GetIndex(entity);
                         const TransformComponent& transform = transforms[object.transformIndex];
 
-                        aabb = mesh->aabb.Transform(XMLoadFloat4x4(&transform.world));
+                        aabb = mesh->aabb.TransformBy(XMLoadFloat4x4(&transform.world));
                     }
                 }
             });
@@ -815,7 +815,7 @@ namespace cyb::scene
                     light.UpdateLight();
 
                     AxisAlignedBox& aabb = aabb_lights[i];
-                    aabb = light.aabb.Transform(XMLoadFloat4x4(&transform->world));
+                    aabb = light.aabb.TransformBy(XMLoadFloat4x4(&transform->world));
                 }
             });
     }
@@ -1107,8 +1107,8 @@ namespace cyb::scene
         }
         else
         {
-            ar << x.GetMin();
-            ar << x.GetMax();
+            ar << x.min;
+            ar << x.max;
         }
     }
 }

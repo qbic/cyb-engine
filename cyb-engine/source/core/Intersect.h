@@ -3,28 +3,29 @@
 
 namespace cyb
 {
-    class AxisAlignedBox
+    struct AxisAlignedBox
     {
-    public:
-        AxisAlignedBox(const XMFLOAT3& min = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX), const XMFLOAT3& max = XMFLOAT3(FLT_MIN, FLT_MIN, FLT_MIN)) :
-            m_min(min),
-            m_max(max)
+        XMFLOAT3 min;
+        XMFLOAT3 max;
+
+        explicit AxisAlignedBox()
+        {
+            min = max = math::ZeroFloat3;
+        }
+
+        AxisAlignedBox(const XMFLOAT3& inMin, const XMFLOAT3& inMax) :
+            min(inMin),
+            max(inMax)
         {
         }
 
-        void CreateFromHalfWidth(const XMFLOAT3& center, const XMFLOAT3& halfwidth);
-        AxisAlignedBox Transform(const XMMATRIX& mat) const;
-        constexpr XMFLOAT3 GetMin() const { return m_min; }
-        constexpr XMFLOAT3 GetMax() const { return m_max; }
+        void CreateFromHalfWidth(const XMFLOAT3& center, const XMFLOAT3& halfWidth);
+        AxisAlignedBox TransformBy(const XMMATRIX& mat) const;
         XMFLOAT3 GetCorner(uint32_t i) const;
         XMFLOAT3 GetCenter() const;
         XMFLOAT3 GetHalfWidth() const;
         XMMATRIX GetAsBoxMatrix() const;
-        bool IntersectPoint(const XMFLOAT3& p) const;
-
-    private:
-        XMFLOAT3 m_min;
-        XMFLOAT3 m_max;
+        bool IsInside(const XMFLOAT3& p) const;
     };
 
     struct Ray

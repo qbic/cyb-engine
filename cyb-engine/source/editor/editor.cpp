@@ -708,8 +708,8 @@ namespace cyb::editor
 
     void InspectAABBComponent(AxisAlignedBox* aabb)
     {
-        const XMFLOAT3& min = aabb->GetMin();
-        const XMFLOAT3& max = aabb->GetMax();
+        const XMFLOAT3& min = aabb->min;
+        const XMFLOAT3& max = aabb->max;
         ImGui::Text("Min: [%.2f, %.2f, %.2f]", min.x, min.y, min.z);
         ImGui::Text("Max: [%.2f, %.2f, %.2f]", max.x, max.y, max.z);
         ImGui::Text("Width: %.2fm", max.x - min.x);

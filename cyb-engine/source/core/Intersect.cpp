@@ -5,11 +5,11 @@ namespace cyb
 {
     void AxisAlignedBox::CreateFromHalfWidth(const XMFLOAT3& center, const XMFLOAT3& halfwidth)
     {
-        m_min = XMFLOAT3(center.x - halfwidth.x, center.y - halfwidth.y, center.z - halfwidth.z);
-        m_max = XMFLOAT3(center.x + halfwidth.x, center.y + halfwidth.y, center.z + halfwidth.z);
+        min = XMFLOAT3(center.x - halfwidth.x, center.y - halfwidth.y, center.z - halfwidth.z);
+        max = XMFLOAT3(center.x + halfwidth.x, center.y + halfwidth.y, center.z + halfwidth.z);
     }
 
-    AxisAlignedBox AxisAlignedBox::Transform(const XMMATRIX& mat) const
+    AxisAlignedBox AxisAlignedBox::TransformBy(const XMMATRIX& mat) const
     {
         XMFLOAT3 corners[8];
         for (uint32_t i = 0; i < 8; ++i)
@@ -34,14 +34,14 @@ namespace cyb
     {
         switch (i)
         {
-        case 0: return m_min;
-        case 1: return XMFLOAT3(m_min.x, m_max.y, m_min.z);
-        case 2: return XMFLOAT3(m_min.x, m_max.y, m_max.z);
-        case 3: return XMFLOAT3(m_min.x, m_min.y, m_max.z);
-        case 4: return XMFLOAT3(m_max.x, m_min.y, m_min.z);
-        case 5: return XMFLOAT3(m_max.x, m_max.y, m_min.z);
-        case 6: return m_max;
-        case 7: return XMFLOAT3(m_max.x, m_min.y, m_max.z);
+        case 0: return min;
+        case 1: return XMFLOAT3(min.x, max.y, min.z);
+        case 2: return XMFLOAT3(min.x, max.y, max.z);
+        case 3: return XMFLOAT3(min.x, min.y, max.z);
+        case 4: return XMFLOAT3(max.x, min.y, min.z);
+        case 5: return XMFLOAT3(max.x, max.y, min.z);
+        case 6: return max;
+        case 7: return XMFLOAT3(max.x, min.y, max.z);
         default: break;
         }
 
@@ -51,13 +51,13 @@ namespace cyb
 
     XMFLOAT3 AxisAlignedBox::GetCenter() const
     {
-        return XMFLOAT3((m_min.x + m_max.x) * 0.5f, (m_min.y + m_max.y) * 0.5f, (m_min.z + m_max.z) * 0.5f);
+        return XMFLOAT3((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f, (min.z + max.z) * 0.5f);
     }
 
     XMFLOAT3 AxisAlignedBox::GetHalfWidth() const
     {
         const XMFLOAT3 center = GetCenter();
-        return XMFLOAT3(abs(m_max.x - center.x), abs(m_max.y - center.y), abs(m_max.z - center.z));
+        return XMFLOAT3(abs(max.x - center.x), abs(max.y - center.y), abs(max.z - center.z));
     }
 
     XMMATRIX AxisAlignedBox::GetAsBoxMatrix() const
@@ -68,16 +68,11 @@ namespace cyb
         return XMMatrixScaling(S.x, S.y, S.z) * XMMatrixTranslation(P.x, P.y, P.z);
     }
 
-    bool AxisAlignedBox::IntersectPoint(const XMFLOAT3& p) const
+    bool AxisAlignedBox::IsInside(const XMFLOAT3& p) const
     {
-        bool intersects = (p.x <= m_max.x) ||
-            (p.x >= m_min.x) ||
-            (p.y <= m_max.y) ||
-            (p.y >= m_min.y) ||
-            (p.z <= m_max.z) ||
-            (p.z >= m_min.z);
-
-        return intersects;
+        return (p.x <= max.x) && (p.x >= min.x) && 
+               (p.y <= max.y) && (p.y >= min.y) && 
+               (p.z <= max.z) && (p.z >= min.z);
     }
 
     Ray::Ray(const XMVECTOR& origin, const XMVECTOR& direction)
@@ -89,11 +84,11 @@ namespace cyb
 
     bool Ray::IntersectBoundingBox(const AxisAlignedBox& aabb) const
     {
-        if (aabb.IntersectPoint(m_origin))
+        if (aabb.IsInside(m_origin))
             return true;
 
-        XMFLOAT3 min = aabb.GetMin();
-        XMFLOAT3 max = aabb.GetMax();
+        const XMFLOAT3& min = aabb.min;
+        const XMFLOAT3& max = aabb.max;
 
         float tx1 = (min.x - m_origin.x) * m_invDirection.x;
         float tx2 = (max.x - m_origin.x) * m_invDirection.x;
@@ -141,8 +136,8 @@ namespace cyb
 
     bool Frustum::IntersectBoundingBox(const AxisAlignedBox& aabb) const
     {
-        XMVECTOR min = XMLoadFloat3(&aabb.GetMin());
-        XMVECTOR max = XMLoadFloat3(&aabb.GetMax());
+        XMVECTOR min = XMLoadFloat3(&aabb.min);
+        XMVECTOR max = XMLoadFloat3(&aabb.max);
         XMVECTOR zero = XMVectorZero();
 
         for (size_t p = 0; p < 6; ++p)

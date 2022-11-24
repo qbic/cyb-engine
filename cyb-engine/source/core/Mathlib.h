@@ -11,6 +11,7 @@ using namespace DirectX::PackedVector;
 namespace cyb::math
 {
     constexpr XMFLOAT4X4 kIdentityMatrix = XMFLOAT4X4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+    constexpr XMFLOAT3 ZeroFloat3 = XMFLOAT3(0.0f, 0.0f, 0.0f);
     constexpr float M_PI = 3.14159265358979323846f;
     constexpr float M_2PI = 6.283185307f;
     constexpr float M_PIDIV2 = 1.570796327f;

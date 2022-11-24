@@ -1,14 +1,8 @@
 #include "core/intersect.h"
 #include <algorithm>
 
-namespace cyb
+namespace cyb::math
 {
-    void AxisAlignedBox::CreateFromHalfWidth(const XMFLOAT3& center, const XMFLOAT3& halfwidth)
-    {
-        min = XMFLOAT3(center.x - halfwidth.x, center.y - halfwidth.y, center.z - halfwidth.z);
-        max = XMFLOAT3(center.x + halfwidth.x, center.y + halfwidth.y, center.z + halfwidth.z);
-    }
-
     AxisAlignedBox AxisAlignedBox::TransformBy(const XMMATRIX& mat) const
     {
         XMFLOAT3 corners[8];
@@ -75,35 +69,43 @@ namespace cyb
                (p.z <= max.z) && (p.z >= min.z);
     }
 
-    Ray::Ray(const XMVECTOR& origin, const XMVECTOR& direction)
+    AxisAlignedBox AABBFromHalfWidth(const XMFLOAT3& center, const XMFLOAT3& halfwidth)
     {
-        XMStoreFloat3(&m_origin, origin);
-        XMStoreFloat3(&m_direction, direction);
-        XMStoreFloat3(&m_invDirection, XMVectorReciprocal(direction));
+        AxisAlignedBox newBox;
+        newBox.min = XMFLOAT3(center.x - halfwidth.x, center.y - halfwidth.y, center.z - halfwidth.z);
+        newBox.max = XMFLOAT3(center.x + halfwidth.x, center.y + halfwidth.y, center.z + halfwidth.z);
+        return newBox;
+    }
+
+    Ray::Ray(const XMVECTOR& inOrigin, const XMVECTOR& inDirection)
+    {
+        XMStoreFloat3(&origin, inOrigin);
+        XMStoreFloat3(&direction, inDirection);
+        XMStoreFloat3(&invDirection, XMVectorReciprocal(inDirection));
     }
 
     bool Ray::IntersectBoundingBox(const AxisAlignedBox& aabb) const
     {
-        if (aabb.IsInside(m_origin))
+        if (aabb.IsInside(origin))
             return true;
 
         const XMFLOAT3& min = aabb.min;
         const XMFLOAT3& max = aabb.max;
 
-        float tx1 = (min.x - m_origin.x) * m_invDirection.x;
-        float tx2 = (max.x - m_origin.x) * m_invDirection.x;
+        float tx1 = (min.x - origin.x) * invDirection.x;
+        float tx2 = (max.x - origin.x) * invDirection.x;
 
         float tmin = std::min(tx1, tx2);
         float tmax = std::max(tx1, tx2);
 
-        float ty1 = (min.y - m_origin.y) * m_invDirection.y;
-        float ty2 = (max.y - m_origin.y) * m_invDirection.y;
+        float ty1 = (min.y - origin.y) * invDirection.y;
+        float ty2 = (max.y - origin.y) * invDirection.y;
 
         tmin = std::max(tmin, std::min(ty1, ty2));
         tmax = std::min(tmax, std::max(ty1, ty2));
 
-        float tz1 = (min.z - m_origin.z) * m_invDirection.z;
-        float tz2 = (max.z - m_origin.z) * m_invDirection.z;
+        float tz1 = (min.z - origin.z) * invDirection.z;
+        float tz2 = (max.z - origin.z) * invDirection.z;
 
         tmin = std::max(tmin, std::min(tz1, tz2));
         tmax = std::min(tmax, std::max(tz1, tz2));
@@ -111,7 +113,7 @@ namespace cyb
         return tmax >= tmin;
     }
 
-    void Frustum::Create(const XMMATRIX& viewProjection)
+    Frustum::Frustum(const XMMATRIX& viewProjection)
     {
         const XMMATRIX mat = XMMatrixTranspose(viewProjection);
 

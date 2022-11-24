@@ -706,7 +706,7 @@ namespace cyb::editor
         return selected_material_id;
     }
 
-    void InspectAABBComponent(AxisAlignedBox* aabb)
+    void InspectAABBComponent(const math::AxisAlignedBox* aabb)
     {
         const XMFLOAT3& min = aabb->min;
         const XMFLOAT3& max = aabb->max;
@@ -954,8 +954,8 @@ namespace cyb::editor
             InspectComponent<scene::MaterialComponent>("Material", scene.materials, InspectMaterialComponent, entityID, false);
             InspectComponent<scene::LightComponent>("Light", scene.lights, InspectLightComponent, entityID, true);
             InspectComponent<scene::TransformComponent>("Transform", scene.transforms, InspectTransformComponent, entityID, true);
-            InspectComponent<AxisAlignedBox>("AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
-            InspectComponent<AxisAlignedBox>("AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
+            InspectComponent<math::AxisAlignedBox>("AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
+            InspectComponent<math::AxisAlignedBox>("AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
             InspectComponent<scene::HierarchyComponent>("Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, true);
             InspectComponent<scene::WeatherComponent>("Weather", scene.weathers, InspectWeatherComponent, entityID, true);
         }
@@ -1436,7 +1436,7 @@ namespace cyb::editor
         }
     }
 
-    static Ray GetPickRay(float cursorX, float cursorY)
+    static math::Ray GetPickRay(float cursorX, float cursorY)
     {
         const scene::CameraComponent& camera = scene::GetCamera();
         ImGuiIO& io = ImGui::GetIO();
@@ -1450,7 +1450,7 @@ namespace cyb::editor
         XMVECTOR lineStart = XMVector3Unproject(XMVectorSet(cursorX, cursorY, 1, 1), 0, 0, screenW, screenH, 0.0f, 1.0f, P, V, W);
         XMVECTOR lineEnd = XMVector3Unproject(XMVectorSet(cursorX, cursorY, 0, 1), 0, 0, screenW, screenH, 0.0f, 1.0f, P, V, W);
         XMVECTOR rayDirection = XMVector3Normalize(XMVectorSubtract(lineEnd, lineStart));
-        return Ray(lineStart, rayDirection);
+        return math::Ray(lineStart, rayDirection);
     }
 
     //------------------------------------------------------------------------------
@@ -1519,7 +1519,7 @@ namespace cyb::editor
             if (mouse_in_3dview && io.MouseClicked[0])
             {
                 const scene::Scene& scene = scene::GetScene();
-                Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);
+                math::Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);
                 scene::PickResult pick_result = scene::Pick(scene, pick_ray);
 
                 // Enable mouse picking on lightsources if they are being drawn
@@ -1530,9 +1530,9 @@ namespace cyb::editor
                         ecs::Entity entity = scene.lights.GetEntity(i);
                         const scene::TransformComponent& transform = *scene.transforms.GetComponent(entity);
 
-                        XMVECTOR disV = XMVector3LinePointDistance(XMLoadFloat3(&pick_ray.m_origin), XMLoadFloat3(&pick_ray.m_origin) + XMLoadFloat3(&pick_ray.m_direction), transform.GetPositionV());
+                        XMVECTOR disV = XMVector3LinePointDistance(XMLoadFloat3(&pick_ray.origin), XMLoadFloat3(&pick_ray.origin) + XMLoadFloat3(&pick_ray.direction), transform.GetPositionV());
                         float dis = XMVectorGetX(disV);
-                        if (dis > 0.01f && dis < math::Distance(transform.GetPosition(), pick_ray.m_origin) * 0.05f && dis < pick_result.distance)
+                        if (dis > 0.01f && dis < math::Distance(transform.GetPosition(), pick_ray.origin) * 0.05f && dis < pick_result.distance)
                         {
                             pick_result = scene::PickResult();
                             pick_result.entity = entity;

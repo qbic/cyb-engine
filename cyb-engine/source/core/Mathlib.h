@@ -10,7 +10,7 @@ using namespace DirectX::PackedVector;
 
 namespace cyb::math
 {
-    constexpr XMFLOAT4X4 kIdentityMatrix = XMFLOAT4X4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+    constexpr XMFLOAT4X4 IdentityMatrix = XMFLOAT4X4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
     constexpr XMFLOAT3 ZeroFloat3 = XMFLOAT3(0.0f, 0.0f, 0.0f);
     constexpr float M_PI = 3.14159265358979323846f;
     constexpr float M_2PI = 6.283185307f;
@@ -18,6 +18,8 @@ namespace cyb::math
     constexpr float M_PIDIV4 = 0.785398163f;
     constexpr float RAD2DEG = (180.f / M_PI);
     constexpr float DEG2RAD = (M_PI / 180.f);
+
+    static const XMVECTOR ZeroVector = XMVectorSet(0, 0, 0, 0);
 
     inline uint64_t TruncToInt(double value)
     {

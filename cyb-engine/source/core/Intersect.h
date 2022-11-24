@@ -1,7 +1,7 @@
 #pragma once
 #include "Core/Mathlib.h"
 
-namespace cyb
+namespace cyb::math
 {
     struct AxisAlignedBox
     {
@@ -19,7 +19,6 @@ namespace cyb
         {
         }
 
-        void CreateFromHalfWidth(const XMFLOAT3& center, const XMFLOAT3& halfWidth);
         AxisAlignedBox TransformBy(const XMMATRIX& mat) const;
         XMFLOAT3 GetCorner(uint32_t i) const;
         XMFLOAT3 GetCenter() const;
@@ -28,27 +27,25 @@ namespace cyb
         bool IsInside(const XMFLOAT3& p) const;
     };
 
+    // Utility function to construct a new AABB from position and half width.
+    AxisAlignedBox AABBFromHalfWidth(const XMFLOAT3& center, const XMFLOAT3& halfwidth);
+
     struct Ray
     {
-        explicit Ray(const XMVECTOR& origin, const XMVECTOR& direction);
+        explicit Ray(const XMVECTOR& inOrigin, const XMVECTOR& inDirection);
         bool IntersectBoundingBox(const AxisAlignedBox& aabb) const;
-        XMFLOAT3 GetOrigin() const { return m_origin; }
-        XMFLOAT3 GetDirection() const { return m_direction; }
 
-        XMFLOAT3 m_origin;
-        XMFLOAT3 m_direction;
-        XMFLOAT3 m_invDirection;
+        XMFLOAT3 origin;
+        XMFLOAT3 direction;
+        XMFLOAT3 invDirection;
     };
 
-    class Frustum
+    struct Frustum
     {
-    public:
-        Frustum() = default;
-        void Create(const XMMATRIX& viewProjection);
-
+        explicit Frustum() = default;
+        Frustum(const XMMATRIX& viewProjection);
         bool IntersectBoundingBox(const AxisAlignedBox& aabb) const;
 
-    private:
         XMFLOAT4 planes[6];
     };
 }

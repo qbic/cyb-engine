@@ -29,7 +29,7 @@ namespace cyb::scene
         XMFLOAT3 translation_local = XMFLOAT3(0, 0, 0);
 
         // Non-serialized data
-        XMFLOAT4X4 world = math::kIdentityMatrix;
+        XMFLOAT4X4 world = math::IdentityMatrix;
 
         void SetDirty(bool value = true);
         bool IsDirty() const;
@@ -109,7 +109,7 @@ namespace cyb::scene
         std::vector<MeshSubset> subsets;
 
         // Non-serialized data
-        AxisAlignedBox aabb;
+        math::AxisAlignedBox aabb;
         graphics::GPUBuffer vertex_buffer_pos;
         graphics::GPUBuffer vertex_buffer_col;
         graphics::GPUBuffer index_buffer;
@@ -180,7 +180,7 @@ namespace cyb::scene
         float range = 10.0f;
 
         // Non-serialized data
-        AxisAlignedBox aabb;
+        math::AxisAlignedBox aabb;
 
         void SetffectingSceney(bool value);
         bool IsAffectingScene() const;
@@ -214,7 +214,7 @@ namespace cyb::scene
         XMFLOAT3X3 rotation;
         XMFLOAT4X4 view, projection, VP;
         XMFLOAT4X4 inv_view, inv_projection, inv_VP;
-        Frustum frustum;
+        math::Frustum frustum;
 
         XMMATRIX GetViewProjection() const { return XMLoadFloat4x4(&VP); }
         void CreatePerspective(float newAspect, float newNear, float newFar, float newFOV = math::M_PI / 3.0f);
@@ -231,9 +231,9 @@ namespace cyb::scene
         ecs::ComponentManager<MaterialComponent> materials;
         ecs::ComponentManager<MeshComponent> meshes;
         ecs::ComponentManager<ObjectComponent> objects;
-        ecs::ComponentManager<AxisAlignedBox> aabb_objects;
+        ecs::ComponentManager<math::AxisAlignedBox> aabb_objects;
         ecs::ComponentManager<LightComponent> lights;
-        ecs::ComponentManager<AxisAlignedBox> aabb_lights;
+        ecs::ComponentManager<math::AxisAlignedBox> aabb_lights;
         ecs::ComponentManager<CameraComponent> cameras;
         ecs::ComponentManager<WeatherComponent> weathers;
 
@@ -304,7 +304,7 @@ namespace cyb::scene
         float distance = FLT_MAX;
     };
 
-    PickResult Pick(const Scene& scene, const Ray& ray);
+    PickResult Pick(const Scene& scene, const math::Ray& ray);
 
     // Scene component serializers:
     void SerializeComponent(NameComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& state);
@@ -317,6 +317,6 @@ namespace cyb::scene
     void SerializeComponent(LightComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize);
     void SerializeComponent(CameraComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize);
     void SerializeComponent(WeatherComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize);
-    void SerializeComponent(AxisAlignedBox& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize);
+    void SerializeComponent(math::AxisAlignedBox& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize);
 
 }

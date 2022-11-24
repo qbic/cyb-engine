@@ -205,7 +205,7 @@ namespace cyb::scene
             assert(result == true);
         }
 
-        aabb = AxisAlignedBox(_min, _max);
+        aabb = math::AxisAlignedBox(_min, _max);
     }
 
     void MeshComponent::ComputeNormals()
@@ -472,7 +472,7 @@ namespace cyb::scene
             return;
         }
 
-        aabb.CreateFromHalfWidth(XMFLOAT3(0, 0, 0), XMFLOAT3(range, range, range));
+        aabb = math::AABBFromHalfWidth(XMFLOAT3(0, 0, 0), XMFLOAT3(range, range, range));
     }
 
     void CameraComponent::CreatePerspective(float newAspect, float newNear, float newFar, float newFOV)
@@ -508,7 +508,7 @@ namespace cyb::scene
         XMMATRIX _Rot = XMMatrixRotationQuaternion(R);
         XMStoreFloat3x3(&rotation, _Rot);
 
-        frustum.Create(_VP);
+        frustum = math::Frustum(_VP);
     }
 
     void CameraComponent::TransformCamera(const TransformComponent& transform)
@@ -784,9 +784,9 @@ namespace cyb::scene
                 for (size_t i = 0; i < objects.Size(); ++i)
                 {
                     ObjectComponent& object = objects[i];
-                    AxisAlignedBox& aabb = aabb_objects[i];
+                    math::AxisAlignedBox& aabb = aabb_objects[i];
 
-                    aabb = AxisAlignedBox();
+                    aabb = math::AxisAlignedBox();
 
                     if (object.meshID != ecs::InvalidEntity)
                     {
@@ -814,7 +814,7 @@ namespace cyb::scene
                     LightComponent& light = lights[i];
                     light.UpdateLight();
 
-                    AxisAlignedBox& aabb = aabb_lights[i];
+                    math::AxisAlignedBox& aabb = aabb_lights[i];
                     aabb = light.aabb.TransformBy(XMLoadFloat4x4(&transform->world));
                 }
             });
@@ -858,17 +858,17 @@ namespace cyb::scene
         CYB_TRACE("Loaded scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
     }
 
-    PickResult Pick(const Scene& scene, const Ray& ray)
+    PickResult Pick(const Scene& scene, const math::Ray& ray)
     {
-        //CYB_TIMED_FUNCTION();
+        CYB_TIMED_FUNCTION();
 
         PickResult result;
-        const XMVECTOR ray_origin = XMLoadFloat3(&ray.m_origin);
-        const XMVECTOR ray_direction = XMVector3Normalize(XMLoadFloat3(&ray.m_direction));
+        const XMVECTOR ray_origin = XMLoadFloat3(&ray.origin);
+        const XMVECTOR ray_direction = XMVector3Normalize(XMLoadFloat3(&ray.direction));
 
         for (size_t i = 0; i < scene.aabb_objects.Size(); ++i)
         {
-            const AxisAlignedBox& aabb = scene.aabb_objects[i];
+            const math::AxisAlignedBox& aabb = scene.aabb_objects[i];
 
             if (!ray.IntersectBoundingBox(aabb))
                 continue;
@@ -1095,7 +1095,7 @@ namespace cyb::scene
         }
     }
 
-    void SerializeComponent(AxisAlignedBox& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(math::AxisAlignedBox& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
     {
         if (ar.IsReadMode())
         {
@@ -1103,7 +1103,7 @@ namespace cyb::scene
             XMFLOAT3 max;
             ar >> min;
             ar >> max;
-            x = AxisAlignedBox(min, max);
+            x = math::AxisAlignedBox(min, max);
         }
         else
         {

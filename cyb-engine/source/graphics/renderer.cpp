@@ -407,11 +407,11 @@ namespace cyb::renderer
 
         // Perform camera frustum culling to all objects aabb and
         // store all visible objects in the view
-        const Frustum& frustum = camera->frustum;
+        const math::Frustum& frustum = camera->frustum;
         visibleObjects.resize(scene->aabb_objects.Size());
         for (size_t i = 0; i < scene->aabb_objects.Size(); ++i)
         {
-            const AxisAlignedBox& aabb = scene->aabb_objects[i];
+            const math::AxisAlignedBox& aabb = scene->aabb_objects[i];
             if (frustum.IntersectBoundingBox(aabb))
             {
                 visibleObjects[i] = helper::SafeTruncateToU32(i);
@@ -651,7 +651,7 @@ namespace cyb::renderer
 
             for (uint32_t instanceIndex : view.visibleObjects)
             {
-                const AxisAlignedBox& aabb = view.scene->aabb_objects[instanceIndex];
+                const math::AxisAlignedBox& aabb = view.scene->aabb_objects[instanceIndex];
                 MiscCB misc_cb;
                 XMStoreFloat4x4(&misc_cb.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
                 device->BindDynamicConstantBuffer(misc_cb, CBSLOT_MISC, cmd);
@@ -725,7 +725,7 @@ namespace cyb::renderer
                 const LightComponent* light = scene.lights.GetComponent(entity);
                 if (light->type == LightType::Point)
                 {
-                    const AxisAlignedBox& aabb = scene.aabb_lights[i];
+                    const math::AxisAlignedBox& aabb = scene.aabb_lights[i];
                     MiscCB misc_cb;
                     XMStoreFloat4x4(&misc_cb.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
                     device->BindDynamicConstantBuffer(misc_cb, CBSLOT_MISC, cmd);

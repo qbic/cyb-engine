@@ -601,6 +601,10 @@ namespace cyb::editor
 
         // Create colormap texture:
         texDesc.format = graphics::Format::R8G8B8A8_Unorm;
+        texDesc.components.r = graphics::TextureComponentSwizzle::Identity;
+        texDesc.components.g = graphics::TextureComponentSwizzle::Identity;
+        texDesc.components.b = graphics::TextureComponentSwizzle::Identity;
+
         subresourceData.mem = m_colormap.data();
         subresourceData.rowPitch = texDesc.width * graphics::GetFormatStride(graphics::Format::R8G8B8A8_Unorm);
         renderer::GetDevice()->CreateTexture(&texDesc, &subresourceData, &m_colormapTex);

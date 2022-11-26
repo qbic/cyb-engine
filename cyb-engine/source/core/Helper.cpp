@@ -167,9 +167,6 @@ namespace cyb::helper
 
 	LRESULT CALLBACK SourceEditProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 	{
-		UNUSED(uIdSubclass);
-		UNUSED(dwRefData);
-
 		switch (uMsg)
 		{
 		case WM_KEYDOWN:

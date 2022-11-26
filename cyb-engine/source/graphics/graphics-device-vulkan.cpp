@@ -34,6 +34,23 @@ namespace cyb::graphics::vulkan_internal
         return VK_FORMAT_UNDEFINED;
     }
 
+    constexpr VkComponentSwizzle _ConvertComponentSwizzle(TextureComponentSwizzle swizzle)
+    {
+        switch (swizzle)
+        {
+        case TextureComponentSwizzle::Identity: return VK_COMPONENT_SWIZZLE_IDENTITY;
+        case TextureComponentSwizzle::Zero:     return VK_COMPONENT_SWIZZLE_ZERO;
+        case TextureComponentSwizzle::One:      return VK_COMPONENT_SWIZZLE_ONE;
+        case TextureComponentSwizzle::R:        return VK_COMPONENT_SWIZZLE_R;
+        case TextureComponentSwizzle::G:        return VK_COMPONENT_SWIZZLE_G;
+        case TextureComponentSwizzle::B:        return VK_COMPONENT_SWIZZLE_B;
+        case TextureComponentSwizzle::A:        return VK_COMPONENT_SWIZZLE_A;
+        }
+
+        assert(0);
+        return VK_COMPONENT_SWIZZLE_IDENTITY;
+    }
+
     constexpr VkCompareOp _ConvertComparisonFunc(ComparisonFunc value)
     {
         switch (value)
@@ -1863,16 +1880,22 @@ namespace cyb::graphics
 
         Format format = texture->GetDesc().format;
 
-        VkImageViewCreateInfo view_info = {};
-        view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        view_info.image = internal_state->resource;
-        view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        view_info.format = _ConvertFormat(format);
-        view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        view_info.subresourceRange.baseMipLevel = 0;
-        view_info.subresourceRange.levelCount = 1;
-        view_info.subresourceRange.baseArrayLayer = 0;
-        view_info.subresourceRange.layerCount = 1;
+        VkImageViewCreateInfo viewInfo = {};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = internal_state->resource;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = _ConvertFormat(format);
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        const TextureComponentMapping& swizzle = texture->GetDesc().components;
+        viewInfo.components.r = _ConvertComponentSwizzle(swizzle.r);
+        viewInfo.components.g = _ConvertComponentSwizzle(swizzle.g);
+        viewInfo.components.b = _ConvertComponentSwizzle(swizzle.b);
+        viewInfo.components.a = _ConvertComponentSwizzle(swizzle.a);
 
         switch (type)
         {
@@ -1881,13 +1904,13 @@ namespace cyb::graphics
             switch (format)
             {
             case Format::D32_Float_S8_Uint:
-                view_info.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
-                view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+                viewInfo.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+                viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
                 break;
             }
 
             Texture_Vulkan::TextureSubresource subresource;
-            VkResult res = vkCreateImageView(device, &view_info, nullptr, &subresource.image_view);
+            VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &subresource.image_view);
             assert(res == VK_SUCCESS);
 
             assert(internal_state->srv.image_view == VK_NULL_HANDLE);
@@ -1896,15 +1919,15 @@ namespace cyb::graphics
         case SubresourceType::RTV:
         {
             assert(internal_state->rtv == VK_NULL_HANDLE);
-            view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            VkResult res = vkCreateImageView(device, &view_info, nullptr, &internal_state->rtv);
+            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &internal_state->rtv);
             assert(res == VK_SUCCESS);
         } break;
         case SubresourceType::DSV:
         {
             assert(internal_state->dsv == VK_NULL_HANDLE);
-            view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-            VkResult res = vkCreateImageView(device, &view_info, nullptr, &internal_state->dsv);
+            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &internal_state->dsv);
             assert(res == VK_SUCCESS);
         } break;
 

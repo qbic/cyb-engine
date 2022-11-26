@@ -1,5 +1,5 @@
 #pragma once
-#include "core/base-types.h"
+#include "core/core-defs.h"
 #include <cmath>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>

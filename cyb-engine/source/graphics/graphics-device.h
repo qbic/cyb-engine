@@ -52,6 +52,17 @@ namespace cyb::graphics
         Border
     };
 
+    enum class TextureComponentSwizzle
+    {
+        Identity,
+        Zero,
+        One,
+        R,
+        G,
+        B,
+        A
+    };
+
     enum class Format
     {
         Unknown,
@@ -241,6 +252,14 @@ namespace cyb::graphics
         float maxLOD = FLT_MAX;
     };
 
+    struct TextureComponentMapping
+    {
+        TextureComponentSwizzle r = TextureComponentSwizzle::Identity;
+        TextureComponentSwizzle g = TextureComponentSwizzle::Identity;
+        TextureComponentSwizzle b = TextureComponentSwizzle::Identity;
+        TextureComponentSwizzle a = TextureComponentSwizzle::Identity;
+    };
+
     struct TextureDesc
     {
         enum class Type
@@ -255,6 +274,7 @@ namespace cyb::graphics
         uint32_t height = 0;
         uint32_t arraySize = 1;
         Format format = Format::Unknown;
+        TextureComponentMapping components;
         uint32_t mipLevels = 1;
         BindFlags bindFlags = BindFlags::None;
         ResourceState layout = ResourceState::ShaderResourceBit;
@@ -642,7 +662,7 @@ namespace cyb::graphics
                 allocator.alignment = GetMinOffsetAlignment(&desc);
                 desc.size = AlignTo((allocator.buffer.desc.size + dataSize) * 2, allocator.alignment);
                 CreateBuffer(&desc, nullptr, &allocator.buffer);
-                SetName(&allocator.buffer, "frame_allocator");
+                SetName(&allocator.buffer, "cyb_frame_alloc");
                 allocator.offset = 0;
             }
 

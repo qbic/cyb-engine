@@ -6,8 +6,6 @@
 #include <unordered_set>
 #include <cassert>
 
-#define UNUSED(x) x
-
 namespace cyb::helper
 {
 	template <class T>

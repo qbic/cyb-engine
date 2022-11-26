@@ -585,6 +585,9 @@ namespace cyb::editor
         texDesc.width = m_meshDesc.mapResolution;
         texDesc.height = m_meshDesc.mapResolution;
         texDesc.bindFlags = graphics::BindFlags::ShaderResourceBit;
+        texDesc.components.r = graphics::TextureComponentSwizzle::R;
+        texDesc.components.g = graphics::TextureComponentSwizzle::R;
+        texDesc.components.b = graphics::TextureComponentSwizzle::R;
 
         // Create heightmap texture:
         subresourceData.mem = m_heightmap.image.data();

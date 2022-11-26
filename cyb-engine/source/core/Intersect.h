@@ -1,11 +1,5 @@
 #pragma once
-#include "Core/Mathlib.h"
-
-enum class ForceInit
-{
-    ForceInit,
-    ForceInitToZero
-};
+#include "core/mathlib.h"
 
 namespace cyb::math
 {

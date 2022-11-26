@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/base-types.h"
+#include "core/core-defs.h"
 #include "core/logger.h"
 #include "core/serializer.h"
 #include "core/mathlib.h"

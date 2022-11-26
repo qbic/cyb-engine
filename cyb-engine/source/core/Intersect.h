@@ -18,7 +18,8 @@ namespace cyb::math
 
         explicit AxisAlignedBox(ForceInit)
         {
-            min = max = math::ZeroFloat3;
+            min = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+            max = XMFLOAT3(-FLT_MAX, -FLT_MAX, FLT_MAX);
         }
 
         AxisAlignedBox(const XMFLOAT3& inMin, const XMFLOAT3& inMax) :

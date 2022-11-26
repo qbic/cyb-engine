@@ -5,25 +5,25 @@
 
 namespace cyb::editor
 {
+    enum class TerrainStrata
+    {
+        None,
+        SharpSub,
+        SharpAdd,
+        Quantize,
+        Smooth
+    };
+
     struct TerrainBitmapDesc
     {
-        enum class Strata 
-        {
-            None,
-            SharpSub,
-            SharpAdd,
-            Quantize,
-            Smooth
-        };
-
         uint32_t width = 512;
         uint32_t height = 512;
         bool normalize = true;          // Normalize all values in bitmap to [0..1] range
         uint32_t seed = 0;              // Noise function seed value
         float frequency = 5.5f;         // Noise function frequency
         uint32_t octaves = 6;           // Fractal Brownian Motion (FBM) octaves
-        NoiseGenerator::Interpolation interp = NoiseGenerator::Interpolation::Quintic;
-        Strata strataFunc = Strata::None;
+        NoiseInterpolation interp = NoiseInterpolation::Quintic;
+        TerrainStrata strataFunc = TerrainStrata::None;
         float strata = 5.0f;            // Strata amount
     };
 

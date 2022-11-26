@@ -19,8 +19,6 @@ namespace cyb::math
     constexpr float RAD2DEG = (180.f / M_PI);
     constexpr float DEG2RAD = (M_PI / 180.f);
 
-    static const XMVECTOR ZeroVector = XMVectorSet(0, 0, 0, 0);
-
     inline uint64_t TruncToInt(double value)
     {
         return (uint64_t)value;

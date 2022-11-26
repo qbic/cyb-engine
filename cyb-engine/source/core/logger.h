@@ -67,3 +67,5 @@ namespace cyb::logger
 #define CYB_WARNING(...)	::cyb::logger::PostWarning(__VA_ARGS__)
 #define CYB_ERROR(...)		::cyb::logger::PostError(__VA_ARGS__)
 
+#define CYB_CERROR(expr, ...) { if (exor) { CYB_ERROR(__VA_ARGS__); }}
+

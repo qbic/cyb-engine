@@ -1,5 +1,6 @@
 #include "core/intersect.h"
 #include <algorithm>
+#include "core/profiler.h"
 
 namespace cyb::math
 {
@@ -78,6 +79,7 @@ namespace cyb::math
 
     bool Ray::IntersectBoundingBox(const AxisAlignedBox& aabb) const
     {
+        CYB_TIMED_FUNCTION();
         if (aabb.IsInside(origin))
             return true;
 

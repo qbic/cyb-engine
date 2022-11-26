@@ -73,29 +73,29 @@ namespace cyb::editor
                     // Apply strtata:
                     switch (desc.strataFunc)
                     {
-                    case TerrainBitmapDesc::Strata::SharpSub:
+                    case TerrainStrata::SharpSub:
                     {
                         const float steps = -math::Abs(std::sin(value * desc.strata * math::M_PI) * (0.1f / desc.strata * math::M_PI));
                         value = (value * 0.5f + steps * 0.5f);
                     } break;
-                    case TerrainBitmapDesc::Strata::SharpAdd:
+                    case TerrainStrata::SharpAdd:
                     {
                         const float steps = math::Abs(std::sin(value * desc.strata * math::M_PI) * (0.1f / desc.strata * math::M_PI));
                         value = (value * 0.5f + steps * 0.5f);
 
                     } break;
-                    case TerrainBitmapDesc::Strata::Quantize:
+                    case TerrainStrata::Quantize:
                     {
                         const float strata = desc.strata * 2.0f;
                         value = int(value * strata) * 1.0f / strata;
                     } break;
-                    case TerrainBitmapDesc::Strata::Smooth:
+                    case TerrainStrata::Smooth:
                     {
                         const float strata = desc.strata * 2.0f;
                         const float steps = std::sin(value * strata * math::M_PI) * (0.1f / strata * math::M_PI);
                         value = value * 0.5f + steps * 0.5f;
                     } break;
-                    case TerrainBitmapDesc::Strata::None:
+                    case TerrainStrata::None:
                     default:
                         break;
                     }
@@ -335,18 +335,18 @@ namespace cyb::editor
         { TerrainGenerator::Map::Color,             "Color"    }
     };
 
-    static const std::unordered_map<NoiseGenerator::Interpolation, std::string> g_interpCombo = {
-        { NoiseGenerator::Interpolation::Linear,   "Linear"   },
-        { NoiseGenerator::Interpolation::Hermite,  "Hermite"  },
-        { NoiseGenerator::Interpolation::Quintic,  "Quintic"  }
+    static const std::unordered_map<NoiseInterpolation, std::string> g_interpCombo = {
+        { NoiseInterpolation::Linear,               "Linear"   },
+        { NoiseInterpolation::Hermite,              "Hermite"  },
+        { NoiseInterpolation::Quintic,              "Quintic"  }
     };
 
-    static const std::unordered_map<TerrainBitmapDesc::Strata, std::string> g_strataFuncCombo = {
-        { TerrainBitmapDesc::Strata::None,         "None"     },
-        { TerrainBitmapDesc::Strata::SharpSub,     "SharpSub" },
-        { TerrainBitmapDesc::Strata::SharpAdd,     "SharpAdd" },
-        { TerrainBitmapDesc::Strata::Quantize,     "Quantize" },
-        { TerrainBitmapDesc::Strata::Smooth,       "Smooth"   }
+    static const std::unordered_map<TerrainStrata, std::string> g_strataFuncCombo = {
+        { TerrainStrata::None,                      "None"     },
+        { TerrainStrata::SharpSub,                  "SharpSub" },
+        { TerrainStrata::SharpAdd,                  "SharpAdd" },
+        { TerrainStrata::Quantize,                  "Quantize" },
+        { TerrainStrata::Smooth,                    "Smooth"   }
     };
 
     TerrainGenerator::TerrainGenerator()
@@ -418,7 +418,7 @@ namespace cyb::editor
                 {
                     UpdateBitmapsAndTextures();
                 }
-                if (bitmapDesc.strataFunc != TerrainBitmapDesc::Strata::None)
+                if (bitmapDesc.strataFunc != TerrainStrata::None)
                 {
                     CYB_GUI_COMPONENT(ImGui::SliderFloat, "Amount", &bitmapDesc.strata, 1.0f, 15.0f);
                     CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();

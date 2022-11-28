@@ -1,5 +1,6 @@
 #pragma once
 #include "core/mathlib.h"
+#include "core/enum-flags.h"
 #include <mutex>
 #include <string>
 #include <assert.h>
@@ -23,19 +24,21 @@ namespace cyb::platform
 		virtual XMINT2 GetClientSize() const = 0;
 	};
 
+	enum class WindowCreateFlags
+	{
+		None			= 0,
+		AllowMinimize	= (1 << 0),
+		AllowMaximize	= (1 << 1)
+	};
+	CYB_ENABLE_BITMASK_OPERATORS(WindowCreateFlags);
+
 	struct WindowCreateDescription
 	{
-		enum
-		{
-			kAllowMinimize = (1 << 0),
-			kAllowMaximize = (1 << 1)
-		};
-
 		std::wstring title;
 		Window* parent = nullptr;
 		XMFLOAT2 position = XMFLOAT2(0, 0);
 		XMFLOAT2 size = XMFLOAT2(1024, 768);
-		uint32_t flags = 0;
+		WindowCreateFlags flags = WindowCreateFlags::None;
 	};
 
 	using Instance = void*;

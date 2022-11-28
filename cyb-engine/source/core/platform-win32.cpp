@@ -31,7 +31,7 @@ namespace cyb::platform
 		HWND handle;
 
 	public:
-		Window_Win32(const WindowCreateDescription& desc);
+		explicit Window_Win32(const WindowCreateDescription& desc);
 		~Window_Win32() = default;
 
 		virtual LRESULT WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -73,9 +73,9 @@ namespace cyb::platform
 		DWORD style = WS_POPUP | WS_OVERLAPPED | WS_SYSMENU | WS_BORDER | WS_CAPTION;
 		DWORD exStyle = WS_EX_APPWINDOW;
 
-		if (desc.flags & WindowCreateDescription::kAllowMinimize)
+		if (HasFlag(desc.flags, WindowCreateFlags::AllowMinimize))
 			style |= WS_MINIMIZEBOX;
-		if (desc.flags & WindowCreateDescription::kAllowMaximize)
+		if (HasFlag(desc.flags, WindowCreateFlags::AllowMaximize))
 			style |= WS_MAXIMIZEBOX;
 
 		// Adjust window size and positions to take into account window border

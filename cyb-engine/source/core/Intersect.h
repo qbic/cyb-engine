@@ -23,8 +23,6 @@ namespace cyb::math
         }
 
         AxisAlignedBox TransformBy(const XMMATRIX& mat) const;
-        XMFLOAT3 GetCenter() const;
-        XMFLOAT3 GetHalfWidth() const;
         XMMATRIX GetAsBoxMatrix() const;
         bool IsInside(const XMFLOAT3& p) const;
     };
@@ -44,8 +42,8 @@ namespace cyb::math
 
     struct Frustum
     {
-        explicit Frustum() = default;
-        Frustum(const XMMATRIX& viewProjection);
+        explicit Frustum() { }
+        explicit Frustum(const XMMATRIX& viewProjection);
         bool IntersectBoundingBox(const AxisAlignedBox& aabb) const;
 
         XMFLOAT4 planes[6];

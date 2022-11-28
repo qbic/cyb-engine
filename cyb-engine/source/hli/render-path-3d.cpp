@@ -44,12 +44,12 @@ namespace cyb::hli
             desc.attachments.push_back(
                 RenderPassAttachment::RenderTarget(
                     &renderTarget_Main,
-                    RenderPassAttachment::LoadOp::kDontCare));
+                    RenderPassAttachment::LoadOp::DontCare));
             desc.attachments.push_back(
                 RenderPassAttachment::DepthStencil(
                     &depthBuffer_Main,
-                    RenderPassAttachment::LoadOp::kClear,
-                    RenderPassAttachment::StoreOp::kStore,
+                    RenderPassAttachment::LoadOp::Clear,
+                    RenderPassAttachment::StoreOp::Store,
                     ResourceState::DepthStencil_ReadOnlyBit,
                     ResourceState::DepthStencilBit,
                     ResourceState::DepthStencil_ReadOnlyBit));

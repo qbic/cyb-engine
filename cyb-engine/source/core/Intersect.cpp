@@ -36,23 +36,15 @@ namespace cyb::math
         return newAABB;
     }
 
-    XMFLOAT3 AxisAlignedBox::GetCenter() const
-    {
-        return XMFLOAT3((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f, (min.z + max.z) * 0.5f);
-    }
-
-    XMFLOAT3 AxisAlignedBox::GetHalfWidth() const
-    {
-        const XMFLOAT3 center = GetCenter();
-        return XMFLOAT3(abs(max.x - center.x), abs(max.y - center.y), abs(max.z - center.z));
-    }
-
     XMMATRIX AxisAlignedBox::GetAsBoxMatrix() const
     {
-        const XMFLOAT3 S = GetHalfWidth();
-        const XMFLOAT3 P = GetCenter();
+        const XMVECTOR VMin = XMLoadFloat3(&min);
+        const XMVECTOR VMax = XMLoadFloat3(&max);
 
-        return XMMatrixScaling(S.x, S.y, S.z) * XMMatrixTranslation(P.x, P.y, P.z);
+        const XMVECTOR half = XMVectorReplicate(0.5f);
+        const XMVECTOR origin = XMVectorMultiply(XMVectorAdd(VMax, VMin), half);
+        const XMVECTOR extent = XMVectorAbs(XMVectorSubtract(VMax, origin));
+        return XMMatrixScalingFromVector(extent) * XMMatrixTranslationFromVector(origin);
     }
 
     bool AxisAlignedBox::IsInside(const XMFLOAT3& p) const

@@ -1,7 +1,6 @@
 #pragma once
 #include "core/platform.h"
 #include "core/mathlib.h"
-#include "core/enum-flags.h"
 #include <vector>
 
 namespace cyb::graphics
@@ -313,26 +312,26 @@ namespace cyb::graphics
     {
         enum class Type
         {
-            kRenderTarget,
-            kDepthStencil
+            RenderTarget,
+            DepthStencil
         };
 
         enum class LoadOp
         {
-            kLoad,
-            kClear,
-            kDontCare
+            Load,
+            Clear,
+            DontCare
         };
         
         enum class StoreOp
         {
-            kStore,
-            kDontCare
+            Store,
+            DontCare
         };
 
-        Type type = Type::kRenderTarget;
-        LoadOp loadOp = LoadOp::kLoad;
-        StoreOp storeOp = StoreOp::kStore;
+        Type type = Type::RenderTarget;
+        LoadOp loadOp = LoadOp::Load;
+        StoreOp storeOp = StoreOp::Store;
         ResourceState initialLayout = ResourceState::Undefined;	    // layout before the render pass
         ResourceState subpassLayout = ResourceState::Undefined;	    // layout within the render pass
         ResourceState finalLayout = ResourceState::Undefined;		// layout after the render pass
@@ -340,14 +339,14 @@ namespace cyb::graphics
 
         static RenderPassAttachment RenderTarget(
             const Texture* resource = nullptr,
-            LoadOp load_op = LoadOp::kLoad,
-            StoreOp store_op = StoreOp::kStore,
+            LoadOp load_op = LoadOp::Load,
+            StoreOp store_op = StoreOp::Store,
             ResourceState initial_layout = ResourceState::ShaderResourceBit,
             ResourceState subpass_layout = ResourceState::RenderTargetBit,
             ResourceState final_layout = ResourceState::ShaderResourceBit)
         {
             RenderPassAttachment attachment;
-            attachment.type = Type::kRenderTarget;
+            attachment.type = Type::RenderTarget;
             attachment.texture = resource;
             attachment.loadOp = load_op;
             attachment.storeOp = store_op;
@@ -359,14 +358,14 @@ namespace cyb::graphics
 
         static RenderPassAttachment DepthStencil(
             const Texture* resource = nullptr,
-            LoadOp load_op = LoadOp::kLoad,
-            StoreOp store_op = StoreOp::kStore,
+            LoadOp load_op = LoadOp::Load,
+            StoreOp store_op = StoreOp::Store,
             ResourceState initial_layout = ResourceState::DepthStencilBit,
             ResourceState subpass_layout = ResourceState::DepthStencilBit,
             ResourceState final_layout = ResourceState::DepthStencilBit)
         {
             RenderPassAttachment attachment;
-            attachment.type = Type::kDepthStencil;
+            attachment.type = Type::DepthStencil;
             attachment.texture = resource;
             attachment.loadOp = load_op;
             attachment.storeOp = store_op;

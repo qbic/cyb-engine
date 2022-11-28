@@ -55,16 +55,18 @@ namespace cyb::graphics::vulkan_internal
     {
         switch (value)
         {
-        case ComparisonFunc::Never:            return VK_COMPARE_OP_NEVER;
-        case ComparisonFunc::Less:             return VK_COMPARE_OP_LESS;
-        case ComparisonFunc::Equal:            return VK_COMPARE_OP_EQUAL;
-        case ComparisonFunc::LessEqual:        return VK_COMPARE_OP_LESS_OR_EQUAL;
-        case ComparisonFunc::Greater:          return VK_COMPARE_OP_GREATER;
-        case ComparisonFunc::NotEqual:         return VK_COMPARE_OP_NOT_EQUAL;
-        case ComparisonFunc::GreaterEqual:     return VK_COMPARE_OP_GREATER_OR_EQUAL;
-        case ComparisonFunc::Allways:          return VK_COMPARE_OP_ALWAYS;
-        default:                                return VK_COMPARE_OP_NEVER;
+        case ComparisonFunc::Never:             return VK_COMPARE_OP_NEVER;
+        case ComparisonFunc::Less:              return VK_COMPARE_OP_LESS;
+        case ComparisonFunc::Equal:             return VK_COMPARE_OP_EQUAL;
+        case ComparisonFunc::LessEqual:         return VK_COMPARE_OP_LESS_OR_EQUAL;
+        case ComparisonFunc::Greater:           return VK_COMPARE_OP_GREATER;
+        case ComparisonFunc::NotEqual:          return VK_COMPARE_OP_NOT_EQUAL;
+        case ComparisonFunc::GreaterEqual:      return VK_COMPARE_OP_GREATER_OR_EQUAL;
+        case ComparisonFunc::Allways:           return VK_COMPARE_OP_ALWAYS;
         }
+
+        assert(0);
+        return VK_COMPARE_OP_NEVER;
     }
 
     constexpr VkStencilOp _ConvertStencilOp(StencilOp value)
@@ -79,17 +81,19 @@ namespace cyb::graphics::vulkan_internal
         case StencilOp::Invert:                return VK_STENCIL_OP_INVERT;
         case StencilOp::Increment:             return VK_STENCIL_OP_INCREMENT_AND_WRAP;
         case StencilOp::Decrement:             return VK_STENCIL_OP_DECREMENT_AND_WRAP;
-        default:                                return VK_STENCIL_OP_KEEP;
         }
+
+        assert(0);
+        return VK_STENCIL_OP_KEEP;
     }
 
     constexpr VkAttachmentLoadOp _ConvertLoadOp(RenderPassAttachment::LoadOp loadOp)
     {
         switch (loadOp)
         {
-        case RenderPassAttachment::LoadOp::kLoad: return VK_ATTACHMENT_LOAD_OP_LOAD;
-        case RenderPassAttachment::LoadOp::kClear: return VK_ATTACHMENT_LOAD_OP_CLEAR;
-        case RenderPassAttachment::LoadOp::kDontCare: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        case RenderPassAttachment::LoadOp::Load: return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case RenderPassAttachment::LoadOp::Clear: return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case RenderPassAttachment::LoadOp::DontCare: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         }
 
         assert(0);
@@ -100,8 +104,8 @@ namespace cyb::graphics::vulkan_internal
     {
         switch (storeOp)
         {
-        case RenderPassAttachment::StoreOp::kStore: return VK_ATTACHMENT_STORE_OP_STORE;
-        case RenderPassAttachment::StoreOp::kDontCare: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        case RenderPassAttachment::StoreOp::Store: return VK_ATTACHMENT_STORE_OP_STORE;
+        case RenderPassAttachment::StoreOp::DontCare: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
         }
 
         assert(0);
@@ -112,15 +116,15 @@ namespace cyb::graphics::vulkan_internal
     {
         switch (value)
         {
-        case ResourceState::Undefined:          return VK_IMAGE_LAYOUT_UNDEFINED;
-        case ResourceState::RenderTargetBit:       return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        case ResourceState::DepthStencilBit:       return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        case ResourceState::Undefined:              return VK_IMAGE_LAYOUT_UNDEFINED;
+        case ResourceState::RenderTargetBit:        return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        case ResourceState::DepthStencilBit:        return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         case ResourceState::DepthStencil_ReadOnlyBit: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
         case ResourceState::ShaderResourceBit:
         case ResourceState::ShaderResourceComputeBit: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        case ResourceState::UnorderedAccessBit:   return VK_IMAGE_LAYOUT_GENERAL;
-        case ResourceState::CopySrcBit:           return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        case ResourceState::CopyDstBit:           return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        case ResourceState::UnorderedAccessBit:     return VK_IMAGE_LAYOUT_GENERAL;
+        case ResourceState::CopySrcBit:             return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        case ResourceState::CopyDstBit:             return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         }
 
         assert(0);
@@ -2701,8 +2705,8 @@ namespace cyb::graphics
         helper::HashCombine(renderpass->hash, desc->attachments.size());
         for (const auto& attachment : desc->attachments)
         {
-            if (attachment.type == RenderPassAttachment::Type::kRenderTarget ||
-                attachment.type == RenderPassAttachment::Type::kDepthStencil)
+            if (attachment.type == RenderPassAttachment::Type::RenderTarget ||
+                attachment.type == RenderPassAttachment::Type::DepthStencil)
             {
                 helper::HashCombine(renderpass->hash, attachment.texture->desc.format);
             }
@@ -2735,7 +2739,7 @@ namespace cyb::graphics
 
             switch (attachment.type)
             {
-            case RenderPassAttachment::Type::kRenderTarget:
+            case RenderPassAttachment::Type::RenderTarget:
             {
                 attachments[validAttachmentCount] = textureInternalState->rtv;
                 colorAttachmentRefs[subpass.colorAttachmentCount].attachment = validAttachmentCount;
@@ -2743,7 +2747,7 @@ namespace cyb::graphics
                 subpass.colorAttachmentCount++;
                 subpass.pColorAttachments = colorAttachmentRefs;
             } break;
-            case RenderPassAttachment::Type::kDepthStencil:
+            case RenderPassAttachment::Type::DepthStencil:
             {
                 attachments[validAttachmentCount] = textureInternalState->dsv;
                 depthAttachmentRef.attachment = validAttachmentCount;
@@ -2800,14 +2804,14 @@ namespace cyb::graphics
         int i = 0;
         for (auto& attachment : renderpass->desc.attachments)
         {
-            if (renderpass->desc.attachments[i].type == RenderPassAttachment::Type::kRenderTarget)
+            if (renderpass->desc.attachments[i].type == RenderPassAttachment::Type::RenderTarget)
             {
                 internal_state->clear_values[i].color.float32[0] = 0.0f;
                 internal_state->clear_values[i].color.float32[1] = 0.0f;
                 internal_state->clear_values[i].color.float32[2] = 0.0f;
                 internal_state->clear_values[i].color.float32[3] = 0.0f;
             }
-            else if (renderpass->desc.attachments[i].type == RenderPassAttachment::Type::kDepthStencil)
+            else if (renderpass->desc.attachments[i].type == RenderPassAttachment::Type::DepthStencil)
             {
                 internal_state->clear_values[i].depthStencil.depth = 0.0f;
                 internal_state->clear_values[i].depthStencil.stencil = 0;

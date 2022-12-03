@@ -118,7 +118,6 @@ namespace cyb::scene
     {
         SetDirty();
 
-        // This needs to be handled a bit differently
         XMVECTOR quat = XMLoadFloat4(&rotation_local);
         XMVECTOR x = XMQuaternionRotationRollPitchYaw(value.x, 0, 0);
         XMVECTOR y = XMQuaternionRotationRollPitchYaw(0, value.y, 0);

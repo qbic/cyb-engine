@@ -1,50 +1,49 @@
 #include "core/intersect.h"
 #include <algorithm>
-#include "core/profiler.h"
 
 namespace cyb::math
 {
     AxisAlignedBox AxisAlignedBox::TransformBy(const XMMATRIX& mat) const
     {
-        const XMVECTOR VMin = XMLoadFloat3(&min);
-        const XMVECTOR VMax = XMLoadFloat3(&max);
+        const XMVECTOR vMin = XMLoadFloat3(&min);
+        const XMVECTOR vMax = XMLoadFloat3(&max);
 
         const XMVECTOR& m0 = mat.r[0];
         const XMVECTOR& m1 = mat.r[1];
         const XMVECTOR& m2 = mat.r[2];
         const XMVECTOR& m3 = mat.r[3];
 
-        const XMVECTOR half = XMVectorReplicate(0.5f);
-        const XMVECTOR origin = XMVectorMultiply(XMVectorAdd(VMax, VMin), half);
-        const XMVECTOR extent = XMVectorMultiply(XMVectorSubtract(VMax, VMin), half);
+        const XMVECTOR vHalf = XMVectorReplicate(0.5f);
+        const XMVECTOR vCenter = XMVectorMultiply(XMVectorAdd(vMax, vMin), vHalf);
+        const XMVECTOR vExtents = XMVectorMultiply(XMVectorSubtract(vMax, vMin), vHalf);
 
-        XMVECTOR newOrigin = XMVectorMultiply(XMVectorReplicate(XMVectorGetX(origin)), m0);
-        newOrigin = XMVectorMultiplyAdd(XMVectorReplicate(XMVectorGetY(origin)), m1, newOrigin);
-        newOrigin = XMVectorMultiplyAdd(XMVectorReplicate(XMVectorGetZ(origin)), m2, newOrigin);
-        newOrigin = XMVectorAdd(newOrigin, m3);
+        XMVECTOR vNewCenter = XMVectorMultiply(XMVectorReplicate(XMVectorGetX(vCenter)), m0);
+        vNewCenter = XMVectorMultiplyAdd(XMVectorReplicate(XMVectorGetY(vCenter)), m1, vNewCenter);
+        vNewCenter = XMVectorMultiplyAdd(XMVectorReplicate(XMVectorGetZ(vCenter)), m2, vNewCenter);
+        vNewCenter = XMVectorAdd(vNewCenter, m3);
 
-        XMVECTOR newExtent = XMVectorAbs(XMVectorMultiply(XMVectorReplicate(XMVectorGetX(extent)), m0));
-        newExtent = XMVectorAdd(newExtent, XMVectorAbs(XMVectorMultiply(XMVectorReplicate(XMVectorGetY(extent)), m1)));
-        newExtent = XMVectorAdd(newExtent, XMVectorAbs(XMVectorMultiply(XMVectorReplicate(XMVectorGetZ(extent)), m2)));
+        XMVECTOR vNewExtents = XMVectorAbs(XMVectorMultiply(XMVectorReplicate(XMVectorGetX(vExtents)), m0));
+        vNewExtents = XMVectorAdd(vNewExtents, XMVectorAbs(XMVectorMultiply(XMVectorReplicate(XMVectorGetY(vExtents)), m1)));
+        vNewExtents = XMVectorAdd(vNewExtents, XMVectorAbs(XMVectorMultiply(XMVectorReplicate(XMVectorGetZ(vExtents)), m2)));
 
-        const XMVECTOR newMin = XMVectorSubtract(newOrigin, newExtent);
-        const XMVECTOR newMax = XMVectorAdd(newOrigin, newExtent);
+        const XMVECTOR vNewMin = XMVectorSubtract(vNewCenter, vNewExtents);
+        const XMVECTOR vNewMax = XMVectorAdd(vNewCenter, vNewExtents);
 
         AxisAlignedBox newAABB;
-        XMStoreFloat3(&newAABB.min, newMin);
-        XMStoreFloat3(&newAABB.max, newMax);
+        XMStoreFloat3(&newAABB.min, vNewMin);
+        XMStoreFloat3(&newAABB.max, vNewMax);
         return newAABB;
     }
 
     XMMATRIX AxisAlignedBox::GetAsBoxMatrix() const
     {
-        const XMVECTOR VMin = XMLoadFloat3(&min);
-        const XMVECTOR VMax = XMLoadFloat3(&max);
+        const XMVECTOR vMin = XMLoadFloat3(&min);
+        const XMVECTOR vMax = XMLoadFloat3(&max);
 
-        const XMVECTOR half = XMVectorReplicate(0.5f);
-        const XMVECTOR origin = XMVectorMultiply(XMVectorAdd(VMax, VMin), half);
-        const XMVECTOR extent = XMVectorAbs(XMVectorSubtract(VMax, origin));
-        return XMMatrixScalingFromVector(extent) * XMMatrixTranslationFromVector(origin);
+        const XMVECTOR vHalf = XMVectorReplicate(0.5f);
+        const XMVECTOR vCenter = XMVectorMultiply(XMVectorAdd(vMax, vMin), vHalf);
+        const XMVECTOR vExtents = XMVectorAbs(XMVectorSubtract(vMax, vCenter));
+        return XMMatrixScalingFromVector(vExtents) * XMMatrixTranslationFromVector(vCenter);
     }
 
     bool AxisAlignedBox::IsInside(const XMFLOAT3& p) const
@@ -71,7 +70,6 @@ namespace cyb::math
 
     bool Ray::IntersectBoundingBox(const AxisAlignedBox& aabb) const
     {
-        CYB_TIMED_FUNCTION();
         if (aabb.IsInside(origin))
             return true;
 

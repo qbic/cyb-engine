@@ -26,9 +26,9 @@ namespace cyb::platform
 
 	enum class WindowCreateFlags
 	{
-		None			= 0,
-		AllowMinimize	= (1 << 0),
-		AllowMaximize	= (1 << 1)
+		None				= 0,
+		AllowMinimizeBit	= (1 << 0),
+		AllowMaximizeBit	= (1 << 1)
 	};
 	CYB_ENABLE_BITMASK_OPERATORS(WindowCreateFlags);
 

@@ -6,9 +6,9 @@ namespace cyb::graphics
 {
     enum class ShaderCompilerFlags
     {
-        kNone                   = 0,
-        kNoOptimazationBit      = (1 << 0),
-        kGenerateDebugInfoBit   = (1 << 1)
+        None                    = 0,
+        NoOptimizationBit       = (1 << 0),
+        GenerateDebugInfoBit    = (1 << 1)
     };
     CYB_ENABLE_BITMASK_OPERATORS(ShaderCompilerFlags);
 
@@ -27,7 +27,7 @@ namespace cyb::graphics
 
     struct ShaderCompilerInput
     {
-        ShaderCompilerFlags flags = ShaderCompilerFlags::kNone;
+        ShaderCompilerFlags flags = ShaderCompilerFlags::None;
         ShaderFormat format = ShaderFormat::None;
         ShaderStage stage = ShaderStage::_Count;
         std::string name = "shader_src";

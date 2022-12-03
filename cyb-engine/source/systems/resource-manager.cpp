@@ -77,7 +77,7 @@ namespace cyb::resourcemanager
 {
     std::mutex locker;
     std::unordered_map<std::string, std::weak_ptr<ResourceInternal>> resource_cache;
-    Mode mode = Mode::kDiscardFiledataAfterLoad;
+    Mode mode = Mode::DiscardFiledataAfterLoad;
 
     enum class DataType
     {
@@ -102,9 +102,9 @@ namespace cyb::resourcemanager
         Timer timer;
         timer.Record();
 
-        if (mode == Mode::kDiscardFiledataAfterLoad)
+        if (mode == Mode::DiscardFiledataAfterLoad)
         {
-            flags &= ~LoadFlags::kRetainFiledataBit;
+            flags &= ~LoadFlags::RetainFiledataBit;
         }
 
         // Check if we have allready loaded resource or we need to create it
@@ -142,9 +142,7 @@ namespace cyb::resourcemanager
         {
             auto it = types.find(ext);
             if (it == types.end())
-            {
                 return Resource();
-            }
                 
             type = it->second;
         }
@@ -156,7 +154,7 @@ namespace cyb::resourcemanager
             const int channels = 4;
             int width, height, bpp;
 
-            bool flip_image = !HasFlag(flags, LoadFlags::kFlipImageBit);
+            bool flip_image = !HasFlag(flags, LoadFlags::FlipImageBit);
             stbi_set_flip_vertically_on_load(flip_image);
             stbi_uc* raw_image = stbi_load_from_memory(filedata, (int)filesize, &width, &height, &bpp, channels);
             if (raw_image == nullptr)
@@ -182,12 +180,12 @@ namespace cyb::resourcemanager
         } break;
         };
 
-        if (!resource->data.empty() && !HasFlag(flags, LoadFlags::kRetainFiledataBit))
+        if (!resource->data.empty() && !HasFlag(flags, LoadFlags::RetainFiledataBit))
         {
             resource->data.clear();
         }
 
-        CYB_TRACE("Loaded resource (filename={0}) in {1:.2f}ms", name, timer.ElapsedMilliseconds());
+        CYB_INFO("Loaded resource (filename={0}) in {1:.2f}ms", name, timer.ElapsedMilliseconds());
         
         Resource ret;
         ret.internal_state = resource;

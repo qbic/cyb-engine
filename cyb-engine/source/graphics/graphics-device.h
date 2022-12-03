@@ -443,16 +443,16 @@ namespace cyb::graphics
         enum class Type
         {
             Unknown,
-            kBuffer,
-            kTexture
+            Buffer,
+            Texture
         };
 
         Type type = Type::Unknown;
         void* mappedData = nullptr;
         uint32_t mappedRowPitch = 0;
 
-        constexpr bool IsTexture() const { return type == Type::kTexture; }
-        constexpr bool IsBuffer() const { return type == Type::kBuffer; }
+        constexpr bool IsTexture() const { return type == Type::Texture; }
+        constexpr bool IsBuffer() const { return type == Type::Buffer; }
     };
 
     struct GPUBuffer : public GPUResource

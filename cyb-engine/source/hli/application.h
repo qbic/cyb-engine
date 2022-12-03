@@ -1,6 +1,6 @@
 #pragma once
-#include "Core/Platform.h"
-#include "Core/Timer.h"
+#include "core/platform.h"
+#include "core/timer.h"
 #include "hli/render-path.h"
 
 namespace cyb::hli

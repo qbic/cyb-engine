@@ -105,9 +105,9 @@ namespace cyb::graphics
 
         shaderc::CompileOptions options;
         options.SetIncluder(std::make_unique<CompileShaderIncluder>());
-        if (HasFlag(input->flags, ShaderCompilerFlags::kGenerateDebugInfoBit))
+        if (HasFlag(input->flags, ShaderCompilerFlags::GenerateDebugInfoBit))
             options.SetGenerateDebugInfo();
-        if (!HasFlag(input->flags, ShaderCompilerFlags::kNoOptimazationBit))
+        if (!HasFlag(input->flags, ShaderCompilerFlags::NoOptimizationBit))
             options.SetOptimizationLevel(shaderc_optimization_level_size);
 
         shaderc::Compiler compiler;

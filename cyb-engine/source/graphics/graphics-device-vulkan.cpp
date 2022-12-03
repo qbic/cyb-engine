@@ -1654,7 +1654,7 @@ namespace cyb::graphics
         auto internal_state = std::make_shared<Buffer_Vulkan>();
         internal_state->allocationhandler = allocationhandler;
         buffer->internal_state = internal_state;
-        buffer->type = GPUResource::Type::kBuffer;
+        buffer->type = GPUResource::Type::Buffer;
         buffer->mappedData = nullptr;
         buffer->mappedRowPitch = 0;
         buffer->desc = *desc;
@@ -1948,7 +1948,7 @@ namespace cyb::graphics
         auto internal_state = std::make_shared<Texture_Vulkan>();
         internal_state->allocationhandler = allocationhandler;
         texture->internal_state = internal_state;
-        texture->type = GPUResource::Type::kTexture;
+        texture->type = GPUResource::Type::Texture;
         texture->desc = *desc;
 
         VkImageCreateInfo image_info = {};

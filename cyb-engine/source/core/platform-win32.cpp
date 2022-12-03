@@ -73,9 +73,9 @@ namespace cyb::platform
 		DWORD style = WS_POPUP | WS_OVERLAPPED | WS_SYSMENU | WS_BORDER | WS_CAPTION;
 		DWORD exStyle = WS_EX_APPWINDOW;
 
-		if (HasFlag(desc.flags, WindowCreateFlags::AllowMinimize))
+		if (HasFlag(desc.flags, WindowCreateFlags::AllowMinimizeBit))
 			style |= WS_MINIMIZEBOX;
-		if (HasFlag(desc.flags, WindowCreateFlags::AllowMaximize))
+		if (HasFlag(desc.flags, WindowCreateFlags::AllowMaximizeBit))
 			style |= WS_MAXIMIZEBOX;
 
 		// Adjust window size and positions to take into account window border

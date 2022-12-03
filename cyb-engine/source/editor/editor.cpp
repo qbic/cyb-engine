@@ -725,7 +725,7 @@ namespace cyb::editor
         scene::NameComponent* name = scene.names.GetComponent(object->meshID);
         ImGui::InputText("##Mesh_Name", &name->name);
         ImGui::SameLine();
-        if (ImGui::Button("Change##Mesh"))
+        if (ImGui::Button("Change Mesh"))
             ImGui::OpenPopup("MeshSelectPopup");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Link another mesh to the object");
@@ -904,7 +904,7 @@ namespace cyb::editor
             DrawNode(&x);
     }
 
-    // Helper function to draw a collapsing header for entity components
+    // Draw a collapsing header for entity components
     template <typename T>
     inline void InspectComponent(
         const char* label,
@@ -915,50 +915,49 @@ namespace cyb::editor
         const std::function<void(T*)> post_draw = [](T* bogus) {bogus; })
     {
         T* component = components.GetComponent(entity);
-        if (component)
-        {
-            ImGuiTreeNodeFlags flags = default_open ? ImGuiTreeNodeFlags_DefaultOpen : 0;
-            if (ImGui::CollapsingHeader(label, flags))
-            {
-                ImGui::Indent();
-                inspector(component);
-                ImGui::Unindent();
-            }
+        if (!component)
+            return;
 
-            post_draw(component);
+        ImGuiTreeNodeFlags flags = default_open ? ImGuiTreeNodeFlags_DefaultOpen : 0;
+        if (ImGui::CollapsingHeader(label, flags))
+        {
+            ImGui::Indent();
+            inspector(component);
+            ImGui::Unindent();
         }
+
+        post_draw(component);
     }
 
     void EditEntityComponents(ecs::Entity entityID)
     {
+        if (entityID == ecs::InvalidEntity)
+            return;
+
         scene::Scene& scene = scene::GetScene();
-
-        if (entityID != ecs::InvalidEntity)
-        {
-            InspectComponent<scene::NameComponent>("Name##edit_entity_name", scene.names, InspectNameComponent, entityID, true);
-            InspectComponent<scene::ObjectComponent>("Object", scene.objects, InspectObjectComponent, entityID, false, [&](scene::ObjectComponent* object) {
-                InspectComponent<scene::MeshComponent>("Mesh *", scene.meshes, InspectMeshComponent, object->meshID, false, [&](scene::MeshComponent* mesh) {
-                    if (ImGui::CollapsingHeader("Materials *"))
-                    {
-                        ImGui::Indent();
-                        ecs::Entity material_id = SelectMaterialFromMesh(mesh);
-                        scene::MaterialComponent* material = scene.materials.GetComponent(material_id);
-                        ImGui::Separator();
-                        InspectMaterialComponent(material);
-                        ImGui::Unindent();
-                    }
-                    });
+        InspectComponent<scene::NameComponent>("Name##edit_entity_name", scene.names, InspectNameComponent, entityID, true);
+        InspectComponent<scene::ObjectComponent>("Object", scene.objects, InspectObjectComponent, entityID, false, [&](scene::ObjectComponent* object) {
+            InspectComponent<scene::MeshComponent>("Mesh *", scene.meshes, InspectMeshComponent, object->meshID, false, [&](scene::MeshComponent* mesh) {
+                if (ImGui::CollapsingHeader("Materials *"))
+                {
+                    ImGui::Indent();
+                    ecs::Entity material_id = SelectMaterialFromMesh(mesh);
+                    scene::MaterialComponent* material = scene.materials.GetComponent(material_id);
+                    ImGui::Separator();
+                    InspectMaterialComponent(material);
+                    ImGui::Unindent();
+                }
                 });
+            });
 
-            InspectComponent<scene::MeshComponent>("Mesh", scene.meshes, InspectMeshComponent, entityID, false);
-            InspectComponent<scene::MaterialComponent>("Material", scene.materials, InspectMaterialComponent, entityID, false);
-            InspectComponent<scene::LightComponent>("Light", scene.lights, InspectLightComponent, entityID, true);
-            InspectComponent<scene::TransformComponent>("Transform", scene.transforms, InspectTransformComponent, entityID, true);
-            InspectComponent<math::AxisAlignedBox>("AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
-            InspectComponent<math::AxisAlignedBox>("AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
-            InspectComponent<scene::HierarchyComponent>("Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, true);
-            InspectComponent<scene::WeatherComponent>("Weather", scene.weathers, InspectWeatherComponent, entityID, true);
-        }
+        InspectComponent<scene::MeshComponent>("Mesh", scene.meshes, InspectMeshComponent, entityID, false);
+        InspectComponent<scene::MaterialComponent>("Material", scene.materials, InspectMaterialComponent, entityID, false);
+        InspectComponent<scene::LightComponent>("Light", scene.lights, InspectLightComponent, entityID, true);
+        InspectComponent<scene::TransformComponent>("Transform", scene.transforms, InspectTransformComponent, entityID, true);
+        InspectComponent<math::AxisAlignedBox>("AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
+        InspectComponent<math::AxisAlignedBox>("AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
+        InspectComponent<scene::HierarchyComponent>("Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, true);
+        InspectComponent<scene::WeatherComponent>("Weather", scene.weathers, InspectWeatherComponent, entityID, true);
     }
 
     //------------------------------------------------------------------------------
@@ -1476,13 +1475,13 @@ namespace cyb::editor
         AttachToolToMenu(std::make_unique<Tool_LogDisplay>("Backlog"));
 
         // Icons rendered by ImGui need's to be flipped manually at loadtime
-        import_icon = resourcemanager::Load("assets/import.png", resourcemanager::LoadFlags::kFlipImageBit);
-        delete_icon = resourcemanager::Load("assets/delete.png", resourcemanager::LoadFlags::kFlipImageBit);
-        light_icon = resourcemanager::Load("assets/add.png", resourcemanager::LoadFlags::kFlipImageBit);
-        editor_icon_select = resourcemanager::Load("assets/select.png", resourcemanager::LoadFlags::kFlipImageBit);
-        translate_icon = resourcemanager::Load("assets/move.png", resourcemanager::LoadFlags::kFlipImageBit);
-        rotate_icon = resourcemanager::Load("assets/rotate.png",  resourcemanager::LoadFlags::kFlipImageBit);
-        scale_icon = resourcemanager::Load("assets/resize.png", resourcemanager::LoadFlags::kFlipImageBit);
+        import_icon = resourcemanager::Load("assets/import.png", resourcemanager::LoadFlags::FlipImageBit);
+        delete_icon = resourcemanager::Load("assets/delete.png", resourcemanager::LoadFlags::FlipImageBit);
+        light_icon = resourcemanager::Load("assets/add.png", resourcemanager::LoadFlags::FlipImageBit);
+        editor_icon_select = resourcemanager::Load("assets/select.png", resourcemanager::LoadFlags::FlipImageBit);
+        translate_icon = resourcemanager::Load("assets/move.png", resourcemanager::LoadFlags::FlipImageBit);
+        rotate_icon = resourcemanager::Load("assets/rotate.png",  resourcemanager::LoadFlags::FlipImageBit);
+        scale_icon = resourcemanager::Load("assets/resize.png", resourcemanager::LoadFlags::FlipImageBit);
 
         initialized = true;
     }

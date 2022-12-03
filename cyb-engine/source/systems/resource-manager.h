@@ -24,15 +24,15 @@ namespace cyb::resourcemanager
 {
     enum class Mode
     {
-        kDiscardFiledataAfterLoad,
-        kAllowRetainFiledata
+        DiscardFiledataAfterLoad,
+        AllowRetainFiledata
     };
 
     enum class LoadFlags
     {
-        kNone               = 0,
-        kFlipImageBit       = (1 << 1),     // Flip image vertically on load
-        kRetainFiledataBit  = (1 << 2)      // File data will be kept for later reuse.
+        None                = 0,
+        FlipImageBit        = (1 << 1),     // Flip image vertically on load
+        RetainFiledataBit   = (1 << 2)      // File data will be kept for later reuse.
     };
     CYB_ENABLE_BITMASK_OPERATORS(LoadFlags);
 
@@ -43,7 +43,7 @@ namespace cyb::resourcemanager
     //  filesize : Size of file data, if file was loaded manually (optional)
     Resource Load(
         const std::string& name, 
-        LoadFlags flags = LoadFlags::kNone,
+        LoadFlags flags = LoadFlags::None,
         const uint8_t* filedata = nullptr, 
         size_t filesize = 0);
 

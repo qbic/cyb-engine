@@ -37,5 +37,6 @@
 /build
 /tools/premake
 *.vcxproj
+*.vcxproj.user
 *.vcxproj.filters
 *.sln

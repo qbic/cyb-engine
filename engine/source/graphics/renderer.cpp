@@ -36,7 +36,7 @@ namespace cyb::renderer
     };
     Resource builtin_textures[BUILTIN_TEXTURE_COUNT];
 
-    std::string SHADERPATH = "../Shaders/";
+    std::string SHADERPATH = "../engine/shaders/";
 
     float GAMMA = 2.2f;
 

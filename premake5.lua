@@ -25,9 +25,9 @@ workspace "cyb-engine"
       files "shaders/*"
    
    group "dependencies"
-	   include "cyb-engine/third_party/imgui"
+	   include "engine/third_party/imgui"
    group ""
    
-   include "cyb-engine"
+   include "engine"
    include "game"
 

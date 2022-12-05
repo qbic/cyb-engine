@@ -42,9 +42,7 @@ namespace cyb
     void Resource::SetFileData(const std::vector<uint8_t>& data)
     {
         if (internal_state == nullptr)
-        {
             internal_state = std::make_shared<ResourceInternal>();
-        }
 
         ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();
         resourceinternal->data = data;
@@ -53,9 +51,7 @@ namespace cyb
     void Resource::SetFileData(std::vector<uint8_t>&& data)
     {
         if (internal_state == nullptr)
-        {
             internal_state = std::make_shared<ResourceInternal>();
-        }
 
         ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();
         resourceinternal->data = data;
@@ -64,9 +60,7 @@ namespace cyb
     void Resource::SetTexture(const graphics::Texture& texture)
     {
         if (internal_state == nullptr)
-        {
             internal_state = std::make_shared<ResourceInternal>();
-        }
 
         ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();
         resourceinternal->texture = texture;
@@ -103,9 +97,7 @@ namespace cyb::resourcemanager
         timer.Record();
 
         if (mode == Mode::DiscardFiledataAfterLoad)
-        {
             flags &= ~LoadFlags::RetainFiledataBit;
-        }
 
         // Check if we have allready loaded resource or we need to create it
         locker.lock();

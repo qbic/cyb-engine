@@ -1,5 +1,5 @@
 
-project "cyb-engine"
+project "engine"
 	kind "StaticLib"
    	language "C++"
    	cppdialect "C++17"
@@ -12,8 +12,14 @@ project "cyb-engine"
 	
    	files
 	{
+		--[[ Main cyb-engine source files. ]]
 		"source/**.h",
 		"source/**.cpp",
+
+		--[[ Built-in shaders. ]]
+		"shaders/*",
+
+		--[[ Staticly linked third party libraries. ]]
 		"third_party/*.h",
 		"third_party/*.cpp",
 		"third_party/*.c",
@@ -24,8 +30,8 @@ project "cyb-engine"
 	{
 		"source",
 		"%{VULKAN_SDK}/Include",
-		"%{wks.location}/cyb-engine/third_party",
-		"%{wks.location}/cyb-engine/third_party/imgui",
+		"%{wks.location}/engine/third_party",
+		"%{wks.location}/engine/third_party/imgui",
 	}
 
 	links
@@ -56,5 +62,3 @@ project "cyb-engine"
 		{
 			"%{VULKAN_SDK}/Lib/shaderc_shared.lib",
 		}
-
-

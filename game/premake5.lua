@@ -15,16 +15,11 @@ project "game"
 
 	includedirs
 	{
-		"%{wks.location}/cyb-engine/source",
-
-		-- FIXME: ThirdParty libraries used by CybEngine should be private, and not used by game
-		"%{wks.location}/cyb-engine/third_party"
+		"%{wks.location}/engine/source",
+		"%{wks.location}/engine/third_party"
 	}
 	
-	links
-	{
-		"cyb-engine"
-	}
+	links { "engine" }
 
 	filter "system:windows"
 		systemversion "latest"

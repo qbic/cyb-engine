@@ -173,9 +173,7 @@ namespace cyb::resourcemanager
         };
 
         if (!resource->data.empty() && !HasFlag(flags, LoadFlags::RetainFiledataBit))
-        {
             resource->data.clear();
-        }
 
         CYB_INFO("Loaded resource (filename={0}) in {1:.2f}ms", name, timer.ElapsedMilliseconds());
         

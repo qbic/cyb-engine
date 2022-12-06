@@ -19,10 +19,6 @@ workspace "cyb-engine"
 
    filter "configurations:Release"
       defines { "CYB_RELEASE_BUILD" }
-
-   project "shaders"
-	   kind "None"
-      files "shaders/*"
    
    group "dependencies"
 	   include "engine/third_party/imgui"

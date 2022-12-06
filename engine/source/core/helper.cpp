@@ -54,10 +54,10 @@ namespace cyb::helper
         std::ifstream file(filename, std::ios::binary | std::ios::ate);
         if (file.is_open())
         {
-            size_t dataSize = (size_t)file.tellg();
+            std::streampos fileSize = file.tellg();
             file.seekg(0, file.beg);
-            data.resize(dataSize);
-            file.read((char*)data.data(), dataSize);
+            data.resize(fileSize);
+            file.read((char*)data.data(), fileSize	);
             file.close();
             return true;
         }

@@ -17,7 +17,7 @@ namespace cyb::editor
     class GuiTool
     {
     public:
-        GuiTool(const std::string& name) { window_title = name; }
+        GuiTool(const std::string& name) { Init();  window_title = name; }
         virtual ~GuiTool() = default;
 
         const char* GetWindowTitle() const { return window_title.c_str(); }
@@ -27,6 +27,7 @@ namespace cyb::editor
         void PreDraw();
         void PostDraw();
 
+        virtual void Init() {}
         virtual void Draw() = 0;
 
     private:

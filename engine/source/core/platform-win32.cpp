@@ -19,9 +19,9 @@ namespace cyb::platform
 	class LogOutputModule_VisualStudio : public logger::LogOutputModule
 	{
 	public:
-		void Write(const std::string& msg) override
+		void Write(const logger::LogMessage& log) override
 		{
-			OutputDebugStringA(msg.c_str());
+			OutputDebugStringA(log.message.c_str());
 		}
 	};
 

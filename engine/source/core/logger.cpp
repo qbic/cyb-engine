@@ -12,9 +12,9 @@
 namespace cyb::logger
 {
     std::list<std::shared_ptr<LogOutputModule>> outputModules;
-    std::deque<std::string> stream;
+    std::deque<LogMessage> logHistory;
     SpinLock locker;
-    uint32_t logLevelThreshold = LogLevel::kTrace;
+    LogLevel logLevelThreshold = LogLevel::Trace;
 
     void RegisterOutputModule(std::shared_ptr<LogOutputModule> output, bool writeHistory)
     {
@@ -33,35 +33,47 @@ namespace cyb::logger
 
         if (writeHistory)
         {
-            for (const auto& entry : stream)
+            for (const auto& log : logHistory)
             {
-                output->Write(entry.c_str());
+                output->Write(log);
             }
         }
     }
 
-    void Post(uint16_t loglevel, const std::string& input)
+    // Check if the log level is under the global log level threshold
+    inline bool IsUnderLogLevelThreshold(LogLevel level)
     {
-        if (loglevel < logLevelThreshold)
+        return static_cast<std::underlying_type<LogLevel>::type>(level) <
+            static_cast<std::underlying_type<LogLevel>::type>(logLevelThreshold);
+    }
+
+    inline std::string GetLogLevelPrefix(LogLevel severity)
+    {
+        switch (severity)
+        {
+        case LogLevel::Trace:   return "[TRACE] ";
+        case LogLevel::Info:    return "[INFO] ";
+        case LogLevel::Warning: return "[WARNING] ";
+        case LogLevel::Error:   return "[ERROR] ";
+        }
+
+        return "";
+    }
+
+    void Post(LogLevel severity, const std::string& input)
+    {
+        if (IsUnderLogLevelThreshold(severity))
             return;
 
         locker.lock();
-
-        std::stringstream ss("");
-        switch (loglevel)
-        {
-        case LogLevel::kTrace: ss << "[TRACE] "; break;
-        case LogLevel::kInfo: ss << "[INFO] "; break;
-        case LogLevel::kWarning: ss << "[WARNING] "; break;
-        case LogLevel::kError: ss << "[ERROR] "; break;
-        default: break;
-        }
-
-        ss << input << std::endl;
-        stream.push_back(ss.str());
+        
+        LogMessage log;
+        log.message = fmt::format("{0}{1}\n", GetLogLevelPrefix(severity), input);
+        log.severity = severity;
+        logHistory.push_back(log);
 
         for (auto& output : outputModules)
-            output->Write(ss.str());
+            output->Write(log);
 
         locker.unlock();
 
@@ -72,15 +84,5 @@ namespace cyb::logger
             platform::Exit(1);
         }
 #endif
-    }
-
-    std::string GetText()
-    {
-        locker.lock();
-        std::stringstream ss("");
-        for (uint32_t i = 0; i < stream.size(); ++i)
-            ss << stream[i];
-        locker.unlock();
-        return ss.str();
     }
 }

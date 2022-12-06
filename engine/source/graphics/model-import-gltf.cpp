@@ -123,10 +123,7 @@ namespace cyb::renderer
             return ecs::InvalidEntity;
         }
 
-        if (!warningMsg.empty())
-        {
-            CYB_WARNING("ImportModel_GLTF (filename={0}): {1}", filename, warningMsg);
-        }
+        CYB_CWARNING(!warningMsg.empty(), "ImportModel_GLTF (filename={0}): {1}", filename, warningMsg);
 
         // Model must contain atleast one material!
         if (state.gltfModel.materials.empty())

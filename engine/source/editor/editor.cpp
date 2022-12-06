@@ -20,6 +20,7 @@
 #include "editor/terrain-generator.h"
 #include <stack>
 #include <numeric>
+#include <sstream>
 
 //------------------------------------------------------------------------------
 // Custom ImGui code
@@ -1016,14 +1017,27 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
+    class LogOutputModule_Editor : public logger::LogOutputModule
+    {
+    public:
+        void Write(const logger::LogMessage& log) override
+        {
+            logStream << log.message;
+        }
+
+        static std::stringstream logStream;
+    };
+    std::stringstream LogOutputModule_Editor::logStream("");
+
     class Tool_LogDisplay : public GuiTool
     {
     public:
         using GuiTool::GuiTool;
+
         virtual void Draw() override
         {
-            std::string backlog_text = logger::GetText();
-            ImGui::TextUnformatted((char*)backlog_text.c_str(), (char*)backlog_text.c_str() + backlog_text.size());
+            std::string text = LogOutputModule_Editor::logStream.str();
+            ImGui::TextUnformatted((char*)text.c_str(), (char*)text.c_str() + text.size());
 
             if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
                 ImGui::SetScrollHereY(1.0f);
@@ -1468,6 +1482,8 @@ namespace cyb::editor
 
     void Initialize()
     {
+        logger::RegisterOutputModule(std::make_unique<LogOutputModule_Editor>());
+        
         // Attach built-in tools
         AttachToolToMenu(std::make_unique<Tool_TerrainGeneration>("Terrain Generator"));
         AttachToolToMenu(std::make_unique<Tool_ContentBrowser>("Scene Content Browser"));

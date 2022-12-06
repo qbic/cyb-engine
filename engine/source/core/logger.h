@@ -12,53 +12,55 @@
 
 namespace cyb::logger 
 {
-	namespace LogLevel
+	enum class LogLevel
 	{
-		enum : uint16_t
-		{
-			kTrace,
-			kInfo,
-			kWarning,
-			kError
-		};
-	}
+		Trace,
+		Info,
+		Warning,
+		Error
+	};
+
+	struct LogMessage
+	{
+		std::string message;
+		LogLevel severity;
+	};
 
 	class LogOutputModule
 	{
 	public:
 		virtual ~LogOutputModule() = default;
-		virtual void Write(const std::string& msg) = 0;
+		virtual void Write(const LogMessage& log) = 0;
 	};
 
 	void RegisterOutputModule(std::shared_ptr<LogOutputModule> output, bool writeHistory = true);
 
-	std::string GetText();
-
-	// Post a message to all registered output modules
-	void Post(uint16_t loglevel, const std::string& input);
+	// Prefixes the input message with a log level identifier and 
+	// sends a LogMessage to all registered output modules
+	void Post(LogLevel severity, const std::string& input);
 
 	template <typename ...T>
 	void PostTrace(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LogLevel::kTrace, fmt::format(fmt, std::forward<T>(args)...));
+		Post(LogLevel::Trace, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostInfo(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LogLevel::kInfo, fmt::format(fmt, std::forward<T>(args)...));
+		Post(LogLevel::Info, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostWarning(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LogLevel::kWarning, fmt::format(fmt, std::forward<T>(args)...));
+		Post(LogLevel::Warning, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostError(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LogLevel::kError, fmt::format(fmt, std::forward<T>(args)...));
+		Post(LogLevel::Error, fmt::format(fmt, std::forward<T>(args)...));
 	}
 }
 
@@ -67,5 +69,6 @@ namespace cyb::logger
 #define CYB_WARNING(...)	::cyb::logger::PostWarning(__VA_ARGS__)
 #define CYB_ERROR(...)		::cyb::logger::PostError(__VA_ARGS__)
 
-#define CYB_CERROR(expr, ...) { if (exor) { CYB_ERROR(__VA_ARGS__); }}
+#define CYB_CWARNING(expr, ...) { if (expr) { CYB_WARNING(__VA_ARGS__); }}
+#define CYB_CERROR(expr, ...)	{ if (expr) { CYB_ERROR(__VA_ARGS__); }}
 

@@ -9,6 +9,7 @@
 #include "imgui/imgui_internal.h"
 #include <string>
 #include <unordered_map>
+#include <fmt/format.h>
 
 #define CYB_GUI_COMPONENT(func, label, ...) (ImGui::TableNextColumn(), ImGui::Text(label), ImGui::TableNextColumn(), ImGui::SetNextItemWidth(-FLT_MIN), func("##" label, __VA_ARGS__))
 
@@ -148,6 +149,73 @@ struct ImGradient
 
 namespace ImGui
 {
+    inline bool Combo(const char* label, int* currIndex, std::vector<std::string>& values)
+    {
+        static auto itemGetter = [](void* vec, int idx, const char** outText)
+        {
+            auto& vector = *static_cast<std::vector<std::string>*>(vec);
+            if (idx < 0 || idx >= static_cast<int>(vector.size()))
+                return false;
+
+            *outText = vector.at(idx).data();
+            return true;
+        };
+
+        if (values.empty())
+            return false;
+
+        return Combo(label, currIndex, itemGetter, static_cast<void*>(&values), (int)values.size());
+    }
+
+    inline bool ListBox(const char* label, int* currIndex, std::vector<std::string_view>& values)
+    {
+        static auto itemGetter = [](void* vec, int idx, const char** outText)
+        {
+            auto& vector = *static_cast<std::vector<std::string_view>*>(vec);
+            if (idx < 0 || idx >= static_cast<int>(vector.size()))
+                return false;
+
+            *outText = vector.at(idx).data();
+            return true;
+        };
+
+        if (values.empty())
+            return false;
+
+        return ListBox(label, currIndex, itemGetter, static_cast<void*>(&values), (int)values.size());
+    }
+
+    /**
+     * Draw a frame with the label inside and a filled bar with size 
+     * Lerp(vMin, vMax, (v - vMin) / (vMax - vMin)) as background.
+     */
+    inline void FilledBar(const char* label, float v, float vMin, float vMax, const char* format = "{:.3f}")
+    {
+        ImGuiWindow* window = GetCurrentWindow();
+        if (window->SkipItems)
+            return;
+
+        const ImGuiContext& g = *GImGui;
+        const ImGuiStyle& style = g.Style;
+        const ImGuiID id = window->GetID(label);
+        const float width = CalcItemWidth();
+
+        const ImVec2 labelSize = CalcTextSize(label, NULL, true);
+        const ImRect frameBox(window->DC.CursorPos, window->DC.CursorPos + ImVec2(width, labelSize.y + style.FramePadding.y * 2.0f));
+        const ImRect totalBox(frameBox.Min, frameBox.Max);
+        ItemSize(totalBox, style.FramePadding.y);
+        if (!ItemAdd(totalBox, id))
+            return;
+
+        std::string text = std::string(label) + ": "  + fmt::format(format, v);
+
+        // Render
+        RenderFrame(frameBox.Min, frameBox.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
+        const float fraction = (v - vMin) / (vMax - vMin);
+        RenderRectFilledRangeH(window->DrawList, frameBox, GetColorU32(ImGuiCol_PlotHistogram), 0.0f, fraction, 0.0f);
+        RenderText(ImVec2(frameBox.Min.x + style.ItemInnerSpacing.x, frameBox.Min.y + style.FramePadding.y), text.c_str());
+    }
+
     static bool DrawGradientBar(ImGradient* gradient,
         const ImVec2& barPos,
         float maxWidth,

@@ -78,7 +78,7 @@ namespace cyb::logger
         locker.unlock();
 
 #if CYB_ERRORS_ARE_FATAL
-        if (loglevel == LogLevel::kError)
+        if (severity == LogLevel::Error)
         {
             platform::CreateMessageWindow(input, "CybEngine Error");
             platform::Exit(1);

@@ -20,78 +20,6 @@
 #include <numeric>
 #include <sstream>
 
-//------------------------------------------------------------------------------
-// Custom ImGui code
-//------------------------------------------------------------------------------
-
-namespace ImGui
-{
-    static auto vector_getter = [](void* vec, int idx, const char** out_text)
-    {
-        auto& vector = *static_cast<std::vector<std::string>*>(vec);
-        if (idx < 0 || idx >= static_cast<int>(vector.size())) 
-            return false;
-        *out_text = vector.at(idx).c_str();
-        return true;
-    };
-
-    bool Combo(const char* label, int* currIndex, std::vector<std::string>& values)
-    {
-        if (values.empty())
-            return false;
-        return Combo(label, currIndex, vector_getter,
-            static_cast<void*>(&values), (int)values.size());
-    }
-
-    bool ListBox(const char* label, int* currIndex, std::vector<std::string_view>& values)
-    {
-        static auto getter_function = [](void* vec, int idx, const char** out_text)
-        {
-            auto& vector = *static_cast<std::vector<std::string_view>*>(vec);
-            if (idx < 0 || idx >= static_cast<int>(vector.size())) 
-                return false; 
-            *out_text = vector.at(idx).data();
-            return true;
-        };
-
-        if (values.empty()) 
-            return false; 
-
-        return ListBox(label, currIndex, getter_function, static_cast<void*>(&values), (int)values.size());
-    }
-
-    void FilledBar(const char* label, float v, float v_min, float v_max)
-    {
-        ImGuiWindow* window = GetCurrentWindow();
-        if (window->SkipItems)
-            return;
-
-        ImGuiContext& g = *GImGui;
-        const ImGuiStyle& style = g.Style;
-        const ImGuiID id = window->GetID(label);
-        const float w = CalcItemWidth();
-
-        const ImVec2 label_size = CalcTextSize(label, NULL, true);
-        const ImRect frame_bb(window->DC.CursorPos, window->DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y * 2.0f));
-        const ImRect total_bb(frame_bb.Min, frame_bb.Max);
-        ItemSize(total_bb, style.FramePadding.y);
-        if (!ItemAdd(total_bb, id))
-            return;
-
-        std::string text = fmt::format("{0}: {1:.3f}ms", label, v);
-
-        // Render
-        RenderFrame(frame_bb.Min, frame_bb.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
-        float fraction = (v - v_min)/(v_max - v_min);
-        const ImVec2 fill_br = ImVec2(ImLerp(frame_bb.Min.x, frame_bb.Max.x, fraction), frame_bb.Max.y);
-        RenderRectFilledRangeH(window->DrawList, frame_bb, GetColorU32(ImGuiCol_PlotHistogram), 0.0f, fraction, style.FrameRounding);
-
-        // Default displaying the fraction as percentage string, but user can override it
-        RenderText(ImVec2(frame_bb.Min.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), text.c_str());
-    }
-
-}   // namespace ImGui
-
 namespace cyb::editor 
 {
     // Pre-defined filters for open/save dialoge window
@@ -117,7 +45,6 @@ namespace cyb::editor
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::BOUNDS;
     bool guizmo_world_mode = true;
     std::vector<float> g_frameTimes;
-    bool g_freezeFrameTimeHistogram = false;
     SceneGraphView scenegraph_view;
 
     // History undo/redo
@@ -543,15 +470,14 @@ namespace cyb::editor
     void InspectHierarchyComponent(scene::HierarchyComponent* hierarchy)
     {
         scene::Scene& scene = scene::GetScene();
-        scene::NameComponent* name = scene.names.GetComponent(hierarchy->parentID);
-        if (name) 
-        {
-            ImGui::Text("Parent: %s", name->name.c_str());
-        } 
-        else 
+        const scene::NameComponent* name = scene.names.GetComponent(hierarchy->parentID);
+        if (!name)
         {
             ImGui::Text("Parent: (no name) entityID=%u", hierarchy->parentID);
+            return;
         }
+            
+        ImGui::Text("Parent: %s", name->name.c_str());
     }
 
     void InspectMeshComponent(scene::MeshComponent* mesh)
@@ -677,7 +603,7 @@ namespace cyb::editor
         filter.Draw("##filter");
     }
 
-    ecs::Entity SelectMaterialFromMesh(scene::MeshComponent* mesh)
+    ecs::Entity SelectAndGetMaterialForMesh(scene::MeshComponent* mesh)
     {
         scene::Scene& scene = scene::GetScene();
 
@@ -923,22 +849,19 @@ namespace cyb::editor
         ecs::ComponentManager<T>& components,
         const std::function<void(T*)> inspector,
         const ecs::Entity entity,
-        const bool default_open,
-        const std::function<void(T*)> post_draw = [](T* bogus) {bogus; })
+        const bool defaultOpen)
     {
         T* component = components.GetComponent(entity);
         if (!component)
             return;
 
-        ImGuiTreeNodeFlags flags = default_open ? ImGuiTreeNodeFlags_DefaultOpen : 0;
+        ImGuiTreeNodeFlags flags = defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0;
         if (ImGui::CollapsingHeader(label, flags))
         {
             ImGui::Indent();
             inspector(component);
             ImGui::Unindent();
         }
-
-        post_draw(component);
     }
 
     void EditEntityComponents(ecs::Entity entityID)
@@ -961,7 +884,7 @@ namespace cyb::editor
 
             scene::MeshComponent* mesh = nullptr;
 
-            if (ImGui::CollapsingHeader("Mesh"))
+            if (ImGui::CollapsingHeader("Mesh *"))
             {
                 ImGui::Indent();
                 const ecs::Entity meshID = SelectAndGetMeshForObject(object);
@@ -971,13 +894,15 @@ namespace cyb::editor
                 ImGui::Unindent();
             }
 
-            if (mesh != nullptr && ImGui::CollapsingHeader("Materials"))
+            if (mesh == nullptr)
+                mesh = scene.meshes.GetComponent(object->meshID);
+
+            if (ImGui::CollapsingHeader("Materials *"))
             {
                 ImGui::Indent();
-                const ecs::Entity materialID = SelectMaterialFromMesh(mesh);
-                scene::MaterialComponent* material = scene.materials.GetComponent(materialID);
+                const ecs::Entity materialID = SelectAndGetMaterialForMesh(mesh);
                 ImGui::Separator();
-                InspectMaterialComponent(material);
+                InspectMaterialComponent(scene.materials.GetComponent(materialID));
                 ImGui::Unindent();
             }
         }
@@ -1015,7 +940,6 @@ namespace cyb::editor
             const float totalFrameTime = std::accumulate(g_frameTimes.begin(), g_frameTimes.end(), 0.0f);
             std::string avgFrameTime = std::string("avg. time: ") + std::to_string(totalFrameTime / PROFILER_FRAME_COUNT);
             ImGui::PlotHistogram("##FrameTimes", &g_frameTimes[0], (uint32_t)g_frameTimes.size(), 0, avgFrameTime.c_str(), 0.0f, 0.02f, ImVec2(0, 80.0f));
-            ImGui::Checkbox("Freeze histogram", &g_freezeFrameTimeHistogram);
             ImGui::Text("Frame counter: %u", renderer::GetDevice()->GetFrameCount());
             ImGui::Text("Avarage FPS (Over %d frames): %.1f", PROFILER_FRAME_COUNT, PROFILER_FRAME_COUNT / totalFrameTime);
 
@@ -1041,7 +965,7 @@ namespace cyb::editor
             for (auto& it : sorted_entries)
             {
                 ImGui::SetNextItemWidth(-1);
-                ImGui::FilledBar(it.first.data(), it.second, 0, max_time);
+                ImGui::FilledBar(it.first.data(), it.second, 0, max_time, "{:.3f}ms");
             }
         }
     };
@@ -1503,12 +1427,9 @@ namespace cyb::editor
 
     void PushFrameTime(const float t)
     {
-        if (!g_freezeFrameTimeHistogram)
-        {
-            g_frameTimes.push_back(t);
-            while (g_frameTimes.size() > PROFILER_FRAME_COUNT)
-                g_frameTimes.erase(g_frameTimes.begin());
-        }
+        g_frameTimes.push_back(t);
+        while (g_frameTimes.size() > PROFILER_FRAME_COUNT)
+            g_frameTimes.erase(g_frameTimes.begin());
     }
 
     void Initialize()
@@ -1568,7 +1489,7 @@ namespace cyb::editor
                 math::Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);
                 scene::PickResult pick_result = scene::Pick(scene, pick_ray);
 
-                // Enable mouse picking on lightsources if they are being drawn
+                // Enable mouse picking on lightsources only if they are being drawn
                 if (renderer::GetDebugLightsources())
                 {
                     for (size_t i = 0; i < scene.lights.Size(); ++i)

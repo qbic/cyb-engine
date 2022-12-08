@@ -1,5 +1,3 @@
-// NOTE: Prefer using the wrapped functions in the gui namespace over ImGui directly,
-//       functions in the gui namespace records all values and allows for undo/redo.
 #include "core/logger.h"
 #include "core/timer.h"
 #include "core/profiler.h"
@@ -627,7 +625,7 @@ namespace cyb::editor
         static ImGuiTextFilter filter;
 
         assert(components.Size() < INT32_MAX);
-        if (ImGui::ListBoxHeader("", (int)components.Size(), 10))
+        if (ImGui::ListBoxHeader("##lbhd", (int)components.Size(), 10))
         {
             std::vector<NameSortableEntityData> sorted_entities;
             for (size_t i = 0; i < components.Size(); ++i)
@@ -640,9 +638,10 @@ namespace cyb::editor
             std::sort(sorted_entities.begin(), sorted_entities.end());
             for (auto& entity : sorted_entities)
             {
+                ImGui::PushID(entity.id);
                 if (filter.PassFilter(entity.name.data()))
                 {
-                    const std::string label = fmt::format("{}##{}", entity.name, entity.id); // ImGui needs a uniqe label for each materal
+                    const std::string label = fmt::format("{}##{}", entity.name, entity.id); // ImGui needs a uniqe label for each entity
                     if (ImGui::Selectable(label.c_str(), current_entity == entity.id))
                     {
                         if (current_entity != entity.id)
@@ -660,6 +659,7 @@ namespace cyb::editor
                         ImGui::CloseCurrentPopup();
                     }
                 }
+                ImGui::PopID();
             }
             ImGui::ListBoxFooter();
         }
@@ -667,7 +667,7 @@ namespace cyb::editor
         ImGui::Text("Search:");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(-1);
-        filter.Draw("");
+        filter.Draw("##filter");
     }
 
     ecs::Entity SelectMaterialFromMesh(scene::MeshComponent* mesh)
@@ -724,9 +724,10 @@ namespace cyb::editor
 
         // Edit mesh name / select mesh
         scene::NameComponent* name = scene.names.GetComponent(object->meshID);
+        ImGui::TextUnformatted("Mesh:");
         ImGui::InputText("##Mesh_Name", &name->name);
         ImGui::SameLine();
-        if (ImGui::Button("Change Mesh"))
+        if (ImGui::Button("Change"))
             ImGui::OpenPopup("MeshSelectPopup");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Link another mesh to the object");

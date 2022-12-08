@@ -556,6 +556,9 @@ namespace cyb::editor
 
     void InspectMeshComponent(scene::MeshComponent* mesh)
     {
+        if (!mesh)
+            return;
+
         scene::Scene& scene = scene::GetScene();
 
         // Mesh info
@@ -592,6 +595,9 @@ namespace cyb::editor
 
     void InspectMaterialComponent(scene::MaterialComponent* material)
     {
+        if (!material)
+            return;
+
         static const std::unordered_map<scene::MaterialComponent::Shadertype, std::string> shadertype_names =
         {
             { scene::MaterialComponent::Shadertype_BDRF,    "Flat BRDF" },
@@ -623,9 +629,10 @@ namespace cyb::editor
         ecs::Entity& current_entity)
     {
         static ImGuiTextFilter filter;
+        const int listBoxHeightInItems = 10;
 
         assert(components.Size() < INT32_MAX);
-        if (ImGui::ListBoxHeader("##lbhd", (int)components.Size(), 10))
+        if (ImGui::ListBoxHeader("##lbhd", (int)components.Size(), listBoxHeightInItems))
         {
             std::vector<NameSortableEntityData> sorted_entities;
             for (size_t i = 0; i < components.Size(); ++i)
@@ -718,13 +725,12 @@ namespace cyb::editor
         ImGui::Text("Depth: %.2fm", max.z - min.z);
     }
 
-    void InspectObjectComponent(scene::ObjectComponent* object)
+    ecs::Entity SelectAndGetMeshForObject(scene::ObjectComponent* object)
     {
         scene::Scene& scene = scene::GetScene();
 
         // Edit mesh name / select mesh
         scene::NameComponent* name = scene.names.GetComponent(object->meshID);
-        ImGui::TextUnformatted("Mesh:");
         ImGui::InputText("##Mesh_Name", &name->name);
         ImGui::SameLine();
         if (ImGui::Button("Change"))
@@ -738,7 +744,11 @@ namespace cyb::editor
             ImGui::EndPopup();
         }
 
-        ImGui::Separator();
+        return object->meshID;
+    }
+
+    void InspectObjectComponent(scene::ObjectComponent* object)
+    {
         ImGui::CheckboxFlags("Renderable (unimplemented)", (unsigned int*)&object->flags, (unsigned int)scene::ObjectComponent::Flags::RenderableBit);
         ImGui::CheckboxFlags("Cast shadow (unimplemented)", (unsigned int*)&object->flags, (unsigned int)scene::ObjectComponent::Flags::CastShadowBit);
     }
@@ -937,25 +947,45 @@ namespace cyb::editor
             return;
 
         scene::Scene& scene = scene::GetScene();
-        InspectComponent<scene::NameComponent>("Name##edit_entity_name", scene.names, InspectNameComponent, entityID, true);
-        InspectComponent<scene::ObjectComponent>("Object", scene.objects, InspectObjectComponent, entityID, false, [&](scene::ObjectComponent* object) {
-            InspectComponent<scene::MeshComponent>("Mesh *", scene.meshes, InspectMeshComponent, object->meshID, false, [&](scene::MeshComponent* mesh) {
-                if (ImGui::CollapsingHeader("Materials *"))
-                {
-                    ImGui::Indent();
-                    ecs::Entity material_id = SelectMaterialFromMesh(mesh);
-                    scene::MaterialComponent* material = scene.materials.GetComponent(material_id);
-                    ImGui::Separator();
-                    InspectMaterialComponent(material);
-                    ImGui::Unindent();
-                }
-                });
-            });
+
+        scene::ObjectComponent* object = scene.objects.GetComponent(entityID);
+        if (object)
+        {
+            if (ImGui::CollapsingHeader("Object"))
+            {
+                ImGui::Indent();
+                InspectNameComponent(scene.names.GetComponent(entityID));
+                InspectObjectComponent(object);
+                ImGui::Unindent();
+            }
+
+            scene::MeshComponent* mesh = nullptr;
+
+            if (ImGui::CollapsingHeader("Mesh"))
+            {
+                ImGui::Indent();
+                const ecs::Entity meshID = SelectAndGetMeshForObject(object);
+                ImGui::Separator();
+                mesh = scene.meshes.GetComponent(meshID);
+                InspectMeshComponent(mesh);
+                ImGui::Unindent();
+            }
+
+            if (mesh != nullptr && ImGui::CollapsingHeader("Materials"))
+            {
+                ImGui::Indent();
+                const ecs::Entity materialID = SelectMaterialFromMesh(mesh);
+                scene::MaterialComponent* material = scene.materials.GetComponent(materialID);
+                ImGui::Separator();
+                InspectMaterialComponent(material);
+                ImGui::Unindent();
+            }
+        }
 
         InspectComponent<scene::MeshComponent>("Mesh", scene.meshes, InspectMeshComponent, entityID, false);
         InspectComponent<scene::MaterialComponent>("Material", scene.materials, InspectMaterialComponent, entityID, false);
         InspectComponent<scene::LightComponent>("Light", scene.lights, InspectLightComponent, entityID, true);
-        InspectComponent<scene::TransformComponent>("Transform", scene.transforms, InspectTransformComponent, entityID, true);
+        InspectComponent<scene::TransformComponent>("Transform", scene.transforms, InspectTransformComponent, entityID, false);
         InspectComponent<math::AxisAlignedBox>("AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
         InspectComponent<math::AxisAlignedBox>("AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
         InspectComponent<scene::HierarchyComponent>("Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, true);

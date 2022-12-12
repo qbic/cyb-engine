@@ -5,7 +5,7 @@
 #include "editor/imgui-widgets.h"
 #include "editor/terrain-generator.h"
 
-#define CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE() if (ImGui::IsItemDeactivatedAfterEdit()) { UpdateBitmapsAndTextures(); }
+#define UPDATE_TEXTURES_ON_ITEM_CHANGE() if (ImGui::IsItemDeactivatedAfterEdit()) { UpdateBitmapsAndTextures(); }
 
 namespace cyb::editor
 {
@@ -366,155 +366,149 @@ namespace cyb::editor
 
     void TerrainGenerator::DrawGui(ecs::Entity selectedEntity)
     {
-        const char* tableID = "TerrainGeneratorOptionssTable";
-        const float optionsColumnWidth = 280.0f;
-
         if (!m_initialized)
         {
             UpdateBitmapsAndTextures();
             m_initialized = true;
         }
 
-        ImGui::BeginTable("TerrainGenerator", 2, 0);
-        ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, optionsColumnWidth);
-        ImGui::TableNextColumn();
-
-        const int tableFlags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings;
-        if (ImGui::BeginTable(tableID, 2, tableFlags))
+        if (ImGui::BeginTable("TerrainGenerator", 2, ImGuiTableFlags_SizingFixedFit))
         {
-            ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, 110);
             ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch);
-            CYB_GUI_COMPONENT(ImGui::DragFloat, "Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
-            CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();
-            CYB_GUI_COMPONENT(ImGui::DragFloat, "Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
-            CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();
-            CYB_GUI_COMPONENT(ImGui::DragFloat, "Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
-            CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();
-            CYB_GUI_COMPONENT(ImGui::DragInt, "Resolution", (int*)&m_meshDesc.mapResolution, 1.0f, 1, 2048), "%dpx";
-            CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();
-            CYB_GUI_COMPONENT(ImGui::SliderInt, "NumChunks", (int*)&m_meshDesc.numChunks, 1, 32, "%d^2");
-            CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();
-            ImGui::EndTable();
-        }
-        ImGui::Separator();
+            ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed);
 
-        auto editTerrainBitmap = [&](const char* label_, TerrainBitmapDesc& bitmapDesc)
-        {
-            ImGui::TextUnformatted(label_);
-            if (ImGui::BeginTable(tableID, 2, tableFlags))
+
+            // Draw the settings column:
+            ImGui::TableNextColumn();
+
+            ImGui::TextUnformatted("Terrain Mesh Settings:");
+            ImGui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
+            UPDATE_TEXTURES_ON_ITEM_CHANGE();
+            ImGui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
+            UPDATE_TEXTURES_ON_ITEM_CHANGE();
+            ImGui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
+            UPDATE_TEXTURES_ON_ITEM_CHANGE();
+            ImGui::DragInt("Resolution", (int*)&m_meshDesc.mapResolution, 1.0f, 1, 2048), "%dpx";
+            UPDATE_TEXTURES_ON_ITEM_CHANGE();
+            ImGui::SliderInt("NumChunks", (int*)&m_meshDesc.numChunks, 1, 32, "%d^2");
+            UPDATE_TEXTURES_ON_ITEM_CHANGE();
+
+            ImGui::Separator();
+
+            auto editTerrainBitmap = [&](const char* label_, TerrainBitmapDesc& bitmapDesc)
             {
-                if (CYB_GUI_COMPONENT(gui::ComboBox, "Interpolation", bitmapDesc.interp, g_interpCombo))
+                ImGui::PushID(label_);
+                ImGui::TextUnformatted(label_);
+
+                if (gui::ComboBox("Interpolation", bitmapDesc.interp, g_interpCombo))
                 {
                     UpdateBitmapsAndTextures();
                 }
-                CYB_GUI_COMPONENT(ImGui::DragInt, "Seed", (int*)&bitmapDesc.seed, 1.0f, 0, std::numeric_limits<int>::max());
-                CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();
-                CYB_GUI_COMPONENT(ImGui::SliderFloat, "Frequency", &bitmapDesc.frequency, 0.0f, 10.0f);
-                CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();
-                CYB_GUI_COMPONENT(ImGui::SliderInt, "FBM Octaves", (int*)&bitmapDesc.octaves, 1, 8);
-                CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();
-
-                if (CYB_GUI_COMPONENT(gui::ComboBox, "Strata", bitmapDesc.strataFunc, g_strataFuncCombo))
+                ImGui::DragInt("Seed", (int*)&bitmapDesc.seed, 1.0f, 0, std::numeric_limits<int>::max());
+                UPDATE_TEXTURES_ON_ITEM_CHANGE();
+                ImGui::SliderFloat("Frequency", &bitmapDesc.frequency, 0.0f, 10.0f);
+                UPDATE_TEXTURES_ON_ITEM_CHANGE();
+                ImGui::SliderInt("FBM Octaves", (int*)&bitmapDesc.octaves, 1, 8);
+                UPDATE_TEXTURES_ON_ITEM_CHANGE();
+                if (gui::ComboBox("Strata", bitmapDesc.strataFunc, g_strataFuncCombo))
                 {
                     UpdateBitmapsAndTextures();
                 }
                 if (bitmapDesc.strataFunc != TerrainStrata::None)
                 {
-                    CYB_GUI_COMPONENT(ImGui::SliderFloat, "Amount", &bitmapDesc.strata, 1.0f, 15.0f);
-                    CYB_REFRESH_TEXTURES_ON_ITEM_CHANGE();
+                    ImGui::SliderFloat("Amount", &bitmapDesc.strata, 1.0f, 15.0f);
+                    UPDATE_TEXTURES_ON_ITEM_CHANGE();
                 }
 
-                ImGui::EndTable();
-            }
-            ImGui::Separator();
-        };
+                ImGui::Separator();
+                ImGui::PopID();
+            };
 
-        editTerrainBitmap("HeightMap Description", m_heightmapDesc);
-        editTerrainBitmap("MoistureMap Description", m_moisturemapDesc);
-        ImGui::Spacing();
+            editTerrainBitmap("HeightMap Description", m_heightmapDesc);
+            editTerrainBitmap("MoistureMap Description", m_moisturemapDesc);
+            ImGui::Spacing();
 
-        if (ImGui::BeginTable(tableID, 2, tableFlags))
-        {
-            if (CYB_GUI_COMPONENT(ImGui::GradientButton, "ColorBand", &m_biomeColorBand))
-            {
-                UpdateColormapAndTextures();
-            }
+           if (ImGui::GradientButton("ColorBand", &m_biomeColorBand))
+               UpdateColormapAndTextures();
 
-            CYB_GUI_COMPONENT(ImGui::Checkbox, "Use MoistureMap", &m_useMoistureMap);
+            ImGui::Checkbox("Use MoistureMap", &m_useMoistureMap);
             if (m_useMoistureMap)
             {
-                if (CYB_GUI_COMPONENT(ImGui::GradientButton, "Moisture Colors", &m_moistureBiomeColorBand))
+                if (ImGui::GradientButton("Moisture Colors", &m_moistureBiomeColorBand))
                 {
                     UpdateColormapAndTextures();
                 }
             }
-            ImGui::EndTable();
-        }
 
-        ImGui::Spacing();
-        ImGui::Separator();
+            ImGui::Spacing();
+            ImGui::Separator();
 
-        if (ImGui::BeginTable(tableID, 2, tableFlags))
-        {
-            CYB_GUI_COMPONENT(gui::ComboBox, "Map Display", m_selectedMapType, g_mapCombo);
-            CYB_GUI_COMPONENT(ImGui::Checkbox, "Draw Chunks", &m_drawChunkLines);
-            ImGui::EndTable();
-        }
-        ImGui::Spacing();
-        ImGui::Spacing();
+            gui::ComboBox("Map Display", m_selectedMapType, g_mapCombo);
+            ImGui::Checkbox("Draw Chunks", &m_drawChunkLines);
 
-        if (ImGui::Button("Set default params", ImVec2(-1, 0)))
-        {
-            m_meshDesc = TerrainMeshDesc();
-            UpdateBitmapsAndTextures();
-        }
+            ImGui::Spacing();
+            ImGui::Spacing();
 
-        if (ImGui::Button("Random seed", ImVec2(-1, 0)))
-        {
-            m_heightmapDesc.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
-            m_moisturemapDesc.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
-            UpdateBitmapsAndTextures();
-        }
+            if (ImGui::Button("Set default params", ImVec2(-1, 0)))
+            {
+                m_meshDesc = TerrainMeshDesc();
+                UpdateBitmapsAndTextures();
+            }
+
+            if (ImGui::Button("Random seed", ImVec2(-1, 0)))
+            {
+                m_heightmapDesc.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
+                m_moisturemapDesc.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
+                UpdateBitmapsAndTextures();
+            }
 
 #if 0
-        if (ImGui::Button("Generate terrain texture", ImVec2(-1, 0)) || !m_heightmapTex.IsValid())
-        {
-            UpdateBitmaps();
-            UpdateBitmapTextures();
-    }
-#endif
-        if (ImGui::Button("Generate terrain mesh", ImVec2(-1, 0)) || !m_heightmapTex.IsValid())
-        {
-            scene::Scene& scene = scene::GetScene();
-            //GenerateTerrain(desc, &scene);
-        }
-        if (ImGui::IsItemHovered())
-        {
-            ImGui::SetTooltip("Generated on the selected entity objects mesh. Old data is cleared");
-        }
-
-        //
-        // Display the generated image
-        //
-        ImGui::TableNextColumn();
-        const graphics::Texture* tex = GetTerrainMapTexture(m_selectedMapType);
-
-        if (tex->IsValid())
-        {
-            ImVec2 size = ImGui::CalcItemSize(ImVec2(-1, -2), 300, 300);
-            size.x = math::Min(size.x, size.y);
-            size.y = math::Min(size.x, size.y);
-
-            ImVec2 chunkLinesPos = ImGui::GetCursorScreenPos();
-            ImGui::Image((ImTextureID)tex, size);
-
-            if (m_drawChunkLines)
+            if (ImGui::Button("Generate terrain texture", ImVec2(-1, 0)) || !m_heightmapTex.IsValid())
             {
-                DrawChunkLines(chunkLinesPos);
+                UpdateBitmaps();
+                UpdateBitmapTextures();
             }
-        }
+#endif
+            if (ImGui::Button("Generate terrain mesh", ImVec2(-1, 0)) || !m_heightmapTex.IsValid())
+            {
+                scene::Scene& scene = scene::GetScene();
+                //GenerateTerrain(desc, &scene);
+            }
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Generated on the selected entity objects mesh. Old data is cleared");
+            }
 
-        ImGui::EndTable();
+            // Display the selected terrain map image:
+            ImGui::TableNextColumn();
+            const graphics::Texture* tex = GetTerrainMapTexture(m_selectedMapType);
+
+            // Draw a 1px transparent height bar to force an initial column width
+            const int defaultColumnWidth = 660;
+            ImDrawList* DrawList = ImGui::GetWindowDrawList();
+            ImGui::InvisibleButton("##ForceDefaultWidth", ImVec2(defaultColumnWidth, 1));
+            DrawList->AddRectFilled(ImGui::GetCursorScreenPos(),
+                ImVec2(ImGui::GetCursorScreenPos().x + defaultColumnWidth, 1),
+                IM_COL32(100, 200, 100, 0));
+
+            if (tex->IsValid())
+            {
+                ImVec2 size = ImGui::CalcItemSize(ImVec2(-1, -2), 300, 300);
+                size.x = math::Min(size.x, size.y);
+                size.y = math::Min(size.x, size.y);
+
+                ImVec2 chunkLinesPos = ImGui::GetCursorScreenPos();
+                ImGui::Image((ImTextureID)tex, size);
+
+                if (m_drawChunkLines)
+                {
+                    DrawChunkLines(chunkLinesPos);
+                }
+            }
+
+
+            ImGui::EndTable();
+        }
     }
 
     const graphics::Texture* TerrainGenerator::GetTerrainMapTexture(Map type) const

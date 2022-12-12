@@ -1,6 +1,6 @@
 //
 // Gradient editor based on:
-// https://gist.github.com/galloscript/8a5d179e432e062550972afcd1ecf112
+// David Gallardo's https://gist.github.com/galloscript/8a5d179e432e062550972afcd1ecf112
 //
 #pragma once
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
@@ -186,10 +186,10 @@ namespace ImGui
     }
 
     /**
-     * Draw a frame with the label inside and a filled bar with size 
-     * Lerp(vMin, vMax, (v - vMin) / (vMax - vMin)) as background.
+     * Draw a frame with the label inside and a filled bar with a 
+     * frameBox * (v - vMin) / (vMax - vMin)) size filled background.
      */
-    inline void FilledBar(const char* label, float v, float vMin, float vMax, const char* format = "{:.3f}")
+    inline void FilledBar(const char* label, float v, float vMin, float vMax, const char* format = "{:.2f}")
     {
         ImGuiWindow* window = GetCurrentWindow();
         if (window->SkipItems)
@@ -207,7 +207,7 @@ namespace ImGui
         if (!ItemAdd(totalBox, id))
             return;
 
-        std::string text = std::string(label) + ": "  + fmt::format(format, v);
+        const std::string text = std::string(label) + ": "  + fmt::format(format, v);
 
         // Render
         RenderFrame(frameBox.Min, frameBox.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
@@ -216,10 +216,7 @@ namespace ImGui
         RenderText(ImVec2(frameBox.Min.x + style.ItemInnerSpacing.x, frameBox.Min.y + style.FramePadding.y), text.c_str());
     }
 
-    static bool DrawGradientBar(ImGradient* gradient,
-        const ImVec2& barPos,
-        float maxWidth,
-        float height)
+    static bool DrawGradientBar(ImGradient* gradient, const ImVec2& barPos, float maxWidth, float height)
     {
         bool modified = false;
         ImDrawList* DrawList = ImGui::GetWindowDrawList();
@@ -478,7 +475,10 @@ namespace ImGui
         const ImRect totalBB(frameBB.Min, frameBB.Max + ImVec2(labelSize.x > 0.0f ? style.ItemInnerSpacing.x + labelSize.x : 0.0f, 0.0f));
         ItemSize(totalBB, style.FramePadding.y);
         if (!ItemAdd(totalBB, id))
+        {
+            PopID();
             return false;
+        }
 
         const float frameHeight = frameBB.Max.y - frameBB.Min.y;
         bool pressed = ButtonBehavior(frameBB, id, nullptr, nullptr);

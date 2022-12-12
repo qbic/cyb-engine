@@ -217,9 +217,7 @@ namespace cyb::editor
             ImGui::PopID();
         }
 
-        static void InputText(
-            const std::string& label,
-            std::string& value)
+        static void InputText(const std::string& label, std::string& value)
         {
             BeginElement(label);
             ImGui::InputText("##INPUT_TEXT", &value);
@@ -236,10 +234,7 @@ namespace cyb::editor
         }
 
         template <class T>
-        static bool CheckboxFlags(
-            const std::string& label,
-            T& flags,
-            T flags_value)
+        static bool CheckboxFlags(const std::string& label, T& flags, T flags_value)
         {
             BeginElement(label);
             bool value_changed = ImGui::CheckboxFlags("##FLAG", (unsigned int*)&flags, (unsigned int)flags_value);
@@ -418,20 +413,14 @@ namespace cyb::editor
             return value_changed;
         }
 
-        // Helper function to draw a Color control with label on left side.
-        // The label column width is specifiled by column_width.
-        void ColorEdit3(
-            const std::string& label,
-            XMFLOAT3& value)
+        void ColorEdit3(const std::string& label, XMFLOAT3& value)
         {
             BeginElement(label);
             ImGui::ColorEdit3("##COLOR3", &value.x, ImGuiColorEditFlags_Float);
             EndElement();
         }
 
-        void ColorEdit4(
-            const std::string& label,
-            XMFLOAT4& value)
+        void ColorEdit4(const std::string& label, XMFLOAT4& value)
         {
             BeginElement(label);
             ImGui::ColorEdit4("##COLOR4", &value.x, ImGuiColorEditFlags_Float);
@@ -614,16 +603,16 @@ namespace cyb::editor
             names.push_back(name);
         }
 
-        static int selected_item = 0;
-        selected_item = std::min(selected_item, (int)mesh->subsets.size() - 1);
+        static int selectedSubsetIndex = 0;
+        selectedSubsetIndex = std::min(selectedSubsetIndex, (int)mesh->subsets.size() - 1);
 
         gui::BeginElement("Select Material");
-        ImGui::ListBox("##MeshMaterials", &selected_item, names);
+        ImGui::ListBox("##MeshMaterials", &selectedSubsetIndex, names);
         gui::EndElement();
-        ecs::Entity selected_material_id = mesh->subsets[selected_item].materialID;
+        ecs::Entity selectedMaterialID = mesh->subsets[selectedSubsetIndex].materialID;
 
         // Edit material name / select material
-        scene::NameComponent* name = scene.names.GetComponent(selected_material_id);
+        scene::NameComponent* name = scene.names.GetComponent(selectedMaterialID);
         ImGui::InputText("##Material_Name", &name->name);
         ImGui::SameLine();
         if (ImGui::Button("Change##Material"))
@@ -633,11 +622,11 @@ namespace cyb::editor
 
         if (ImGui::BeginPopup("MaterialSelectPopup"))
         {
-            SelectEntityPopup(scene.materials, scene.names, mesh->subsets[selected_item].materialID);
+            SelectEntityPopup(scene.materials, scene.names, mesh->subsets[selectedSubsetIndex].materialID);
             ImGui::EndPopup();
         }
 
-        return selected_material_id;
+        return selectedMaterialID;
     }
 
     void InspectAABBComponent(const math::AxisAlignedBox* aabb)
@@ -919,9 +908,9 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    void GuiTool::PreDraw()
+    bool GuiTool::PreDraw()
     {
-        ImGui::Begin(GetWindowTitle(), &show_window, ImGuiWindowFlags_HorizontalScrollbar);
+        return ImGui::Begin(GetWindowTitle(), &show_window, ImGuiWindowFlags_HorizontalScrollbar);
     }
 
     void GuiTool::PostDraw()
@@ -1066,8 +1055,9 @@ namespace cyb::editor
             if (!x->IsShown())
                 continue;
 
-            x->PreDraw();
-            x->Draw();
+            if (x->PreDraw())
+                x->Draw();
+            
             x->PostDraw();
         }
     }
@@ -1330,29 +1320,6 @@ namespace cyb::editor
         //ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
     }
 
-    void DrawSceneEditor()
-    {
-        if (ImGui::BeginTable("Entity/Component edit", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders))
-        {
-            // Entity select frame
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            ImGui::BeginChild("SceneGraphView");
-            scenegraph_view.GenerateView();
-            scenegraph_view.Draw();
-            ImGui::EndChild();
-
-            // Inspect components frame
-            ImGui::TableNextColumn();
-            ImGui::Spacing();
-            ImGui::BeginChild("EntityComponentChild");
-            EditEntityComponents(scenegraph_view.SelectedEntity());
-            ImGui::EndChild();
-
-            ImGui::EndTable();
-        }
-    }
-
     static void DrawGizmo()
     {
         scene::Scene& scene = scene::GetScene();
@@ -1462,18 +1429,22 @@ namespace cyb::editor
 
         ImGuizmo::BeginFrame();
 
-        ImGui::Begin("CybEngine Editor", 0, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoResize);
+        ImGui::Begin("CybEngine Editor", 0, ImGuiWindowFlags_MenuBar);
         DrawMenuBar();
         DrawIconBar();
-        ImGui::End();
 
-        ImGui::Begin("Scene hierarchy", 0);
+        ImGui::Text("Scene Hierarchy:");
+        ImGui::BeginChild("Scene hierarchy", ImVec2(0, 300), true, 0);
         scenegraph_view.GenerateView();
         scenegraph_view.Draw();
-        ImGui::End();
+        ImGui::EndChild();
         
-        ImGui::Begin("Components", 0);
+        ImGui::Text("Components:");
+        const float componentChildHeight = math::Max(300.0f, ImGui::GetContentRegionAvail().y);
+        ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), true);
         EditEntityComponents(scenegraph_view.SelectedEntity());
+        ImGui::EndChild();
+
         ImGui::End();
 
         DrawGizmo();

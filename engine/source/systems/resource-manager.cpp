@@ -100,6 +100,7 @@ namespace cyb::resourcemanager
             flags &= ~LoadFlags::RetainFiledataBit;
 
         // Check if we have allready loaded resource or we need to create it
+
         locker.lock();
         std::shared_ptr<ResourceInternal> resource = resource_cache[name].lock();
         if (resource != nullptr)
@@ -184,8 +185,7 @@ namespace cyb::resourcemanager
 
     void Clear()
     {
-        locker.lock();
+        std::scoped_lock<std::mutex> lock(locker);
         resource_cache.clear();
-        locker.unlock();
     }
 };

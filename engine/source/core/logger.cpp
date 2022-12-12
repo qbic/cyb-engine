@@ -13,7 +13,7 @@ namespace cyb::logger
 {
     std::list<std::shared_ptr<LogOutputModule>> outputModules;
     std::deque<LogMessage> logHistory;
-    SpinLock locker;
+    SpinLock postLock;
     LogLevel logLevelThreshold = LogLevel::Trace;
 
     void RegisterOutputModule(std::shared_ptr<LogOutputModule> output, bool writeHistory)
@@ -65,7 +65,7 @@ namespace cyb::logger
         if (IsUnderLogLevelThreshold(severity))
             return;
 
-        locker.lock();
+        std::scoped_lock<SpinLock> lock(postLock);
         
         LogMessage log;
         log.message = fmt::format("{0}{1}\n", GetLogLevelPrefix(severity), input);
@@ -74,8 +74,6 @@ namespace cyb::logger
 
         for (auto& output : outputModules)
             output->Write(log);
-
-        locker.unlock();
 
 #if CYB_ERRORS_ARE_FATAL
         if (severity == LogLevel::Error)

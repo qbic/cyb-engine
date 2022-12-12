@@ -80,6 +80,7 @@ namespace cyb::math
         x |= x >> 16;
         return ++x;
     }
+
     constexpr uint64_t GetNextPowerOfTwo(uint64_t x)
     {
         --x;
@@ -146,6 +147,7 @@ namespace cyb::math
 
         return retval;
     }
+
     inline uint32_t StoreColor_RGBA(const XMFLOAT4& color)
     {
         uint32_t retval = 0;

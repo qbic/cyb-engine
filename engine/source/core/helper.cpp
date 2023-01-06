@@ -74,9 +74,7 @@ namespace cyb::helper
 	bool FileWrite(const std::string& filename, const uint8_t* data, size_t size)
 	{
 		if (size <= 0)
-		{
 			return false;
-		}
 
 		std::ofstream file(filename, std::ios::binary | std::ios::trunc);
 		if (file.is_open())
@@ -125,7 +123,7 @@ namespace cyb::helper
 	{
 		std::thread([=] {
 
-			char szFile[256];
+			char szFile[256] = {};
 
 			OPENFILENAMEA ofn;
 			ZeroMemory(&ofn, sizeof(ofn));

@@ -297,7 +297,6 @@ namespace ImGui
         bool modified = false;  // for color drag and drop
         ImGuiContext& g = *GImGui;
         float barBottom = bar_pos.y + height;
-        ImGradientMark* prevMark = nullptr;
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         ImGradientMark*& draggingMark = gradient->draggingMark;
         ImGradientMark*& selectedMark = gradient->selectedMark;
@@ -377,8 +376,6 @@ namespace ImGui
                 Text("pos: %f", mark->position);
                 EndTooltip();
             }
-
-            prevMark = mark;
         }
 
         ImGui::SetCursorScreenPos(ImVec2(bar_pos.x, bar_pos.y + height + 20.0f));

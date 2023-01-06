@@ -1,6 +1,6 @@
-#include "core/Profiler.h"
+#include "core/profiler.h"
 #include "graphics/graphics-device-vulkan.h"
-#include "graphics/Renderer.h"
+#include "graphics/renderer.h"
 #include "systems/event-system.h"
 #include "systems/job-system.h"
 #include "input/input.h"

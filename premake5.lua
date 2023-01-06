@@ -2,7 +2,6 @@
 workspace "cyb-engine"
    architecture "x64"
    startproject "game"
-
    configurations { "Debug", "Release" }
    flags { "MultiProcessorCompile" }
 

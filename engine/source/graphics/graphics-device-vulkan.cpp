@@ -3044,6 +3044,7 @@ namespace cyb::graphics
             internal_state->semaphore_aquire,
             VK_NULL_HANDLE, 
             &internal_state->image_index);
+        assert(res == VK_SUCCESS);
 
         VkClearValue clearColor = {
             swapchain->desc.clearColor[0],

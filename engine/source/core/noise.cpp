@@ -120,14 +120,14 @@ namespace cyb
         return sum * m_fractalBounding;
     }
 
-    float NoiseGenerator::GradCoord2D(uint8_t offset, int x, int y, float xd, float yd) const
+    inline float NoiseGenerator::GradCoord2D(uint8_t offset, int x, int y, float xd, float yd) const
     {
         uint8_t lutPos = Index2D_12(offset, x, y);
 
         return xd * GRAD_X[lutPos] + yd * GRAD_Y[lutPos];
     }
 
-    uint8_t NoiseGenerator::Index2D_12(uint8_t offset, int x, int y) const
+    inline uint8_t NoiseGenerator::Index2D_12(uint8_t offset, int x, int y) const
     {
         return m_perm12[(x & 0xff) + m_perm[(y & 0xff) + offset]];
     }

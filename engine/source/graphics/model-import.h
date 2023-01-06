@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Systems/Scene.h"
+#include "systems/scene.h"
 
 namespace cyb::renderer
 {

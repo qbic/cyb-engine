@@ -1,6 +1,6 @@
 #pragma once
 #include <unordered_set>
-#include "systems/Scene.h"
+#include "systems/scene.h"
 
 namespace cyb::editor::gui
 {
@@ -42,7 +42,7 @@ namespace cyb::editor
         {
             Node() = default;
             Node(Node* _parent, ecs::Entity _entity, const std::string_view& _name) :
-                parent(_parent), entity(_entity), name(_name)
+                entity(_entity), name(_name), parent(_parent)
             {
             }
              

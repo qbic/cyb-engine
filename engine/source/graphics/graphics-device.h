@@ -10,24 +10,25 @@ namespace cyb::graphics
 
     enum class BindFlags
     {
-        None                    = 0,
-        VertexBufferBit         = (1 << 0),
-        IndexBufferBit          = (1 << 1),
-        ConstantBufferBit       = (1 << 2),
-        RenderTargetBit         = (1 << 3),
-        DepthStencilBit         = (1 << 4),
-        ShaderResourceBit       = (1 << 5)
+        None = 0,
+        VertexBufferBit = (1 << 0),
+        IndexBufferBit = (1 << 1),
+        ConstantBufferBit = (1 << 2),
+        RenderTargetBit = (1 << 3),
+        DepthStencilBit = (1 << 4),
+        ShaderResourceBit = (1 << 5)
     };
     CYB_ENABLE_BITMASK_OPERATORS(BindFlags);
 
     enum class ResourceMiscFlag
     {
-        None                    = 0,
-        BufferRawBit            = (1 << 0),
-        BufferStructuredBit     = (1 << 1),
+        None = 0,
+        BufferRawBit = (1 << 0),
+        BufferStructuredBit = (1 << 1),
     };
     CYB_ENABLE_BITMASK_OPERATORS(ResourceMiscFlag);
-    
+
+
     enum class MemoryAccess
     {
         Default,                            // CPU no access, GPU read/write
@@ -35,15 +36,15 @@ namespace cyb::graphics
         Readback                            // CPU read, GPU write
     };
 
-    enum class TextureFilter 
-    { 
+    enum class TextureFilter
+    {
         kPoint,
         kBilinear,
         kTrilinear,
         kAnisotropic
     };
 
-    enum class TextureAddressMode 
+    enum class TextureAddressMode
     {
         Clamp,
         Wrap,
@@ -79,7 +80,7 @@ namespace cyb::graphics
         R32G32B32_Float
     };
 
-    enum class IndexBufferFormat 
+    enum class IndexBufferFormat
     {
         Uint16,
         Uint32
@@ -92,7 +93,7 @@ namespace cyb::graphics
         DSV                                 // Depth stencil view
     };
 
-    enum class FillMode 
+    enum class FillMode
     {
         Whireframe,
         Solid
@@ -111,8 +112,8 @@ namespace cyb::graphics
         CW                                  // Clockwise
     };
 
-    enum class PrimitiveTopology 
-    { 
+    enum class PrimitiveTopology
+    {
         TriangleList,
         TriangleStrip,
         PointList,

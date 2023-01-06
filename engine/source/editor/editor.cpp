@@ -2,7 +2,7 @@
 #include "core/timer.h"
 #include "core/profiler.h"
 #include "core/helper.h"
-#include "core/Mathlib.h"
+#include "core/mathlib.h"
 #include "graphics/renderer.h"
 #include "graphics/model-import.h"
 #include "systems/event-system.h"
@@ -902,7 +902,7 @@ namespace cyb::editor
         InspectComponent<scene::TransformComponent>("Transform", scene.transforms, InspectTransformComponent, entityID, false);
         InspectComponent<math::AxisAlignedBox>("AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
         InspectComponent<math::AxisAlignedBox>("AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
-        InspectComponent<scene::HierarchyComponent>("Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, true);
+        InspectComponent<scene::HierarchyComponent>("Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, false);
         InspectComponent<scene::WeatherComponent>("Weather", scene.weathers, InspectWeatherComponent, entityID, true);
     }
 
@@ -1281,6 +1281,7 @@ namespace cyb::editor
 
     void DrawIconBar()
     {
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 16.0f);
         if (DrawIconButton(import_icon.GetTexture(), "Import a 3D model to the scene"))
             OpenDialog_ImportModel(FILE_FILTER_IMPORT_MODEL);
 
@@ -1318,6 +1319,7 @@ namespace cyb::editor
 
         //ImGui::SameLine();
         //ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+        ImGui::PopStyleVar();
     }
 
     static void DrawGizmo()

@@ -110,7 +110,6 @@ void GameRenderer::CameraControl(float dt)
     }
 
     camera_transform.UpdateTransform();
-    int a = 1;
 }
 
 

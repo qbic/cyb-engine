@@ -1,3 +1,4 @@
+#include "core/logger.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include "editor/imgui-backend.h"
@@ -30,13 +31,12 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	auto* backendData = ImGui_Impl_GetBackendData();
 
-	// Add custom fontpack
-	ImFontConfig font_config;
-	font_config.MergeMode = true;
-	static const ImWchar icon_ranges[] = { cyb::editor::INTERNAL_ICON_START, cyb::editor::INTERNAL_ICON_END, 0 };
-	io.Fonts->AddFontDefault();
-	io.Fonts->AddFontFromFileTTF("../Game/Assets/OpenFontIcons.ttf", 13.0, &font_config, icon_ranges);
-	io.Fonts->Build();
+	ImFontConfig fontConfig = {};
+	fontConfig.OversampleH = 3;
+	fontConfig.OversampleV = 1;
+	fontConfig.RasterizerMultiply = 1.2f;
+	auto font = io.Fonts->AddFontFromFileTTF("Assets/Cascadia Code Regular 400.otf", 16.0, &fontConfig);
+	io.FontDefault = font;
 
 	// Build texture atlas
 	unsigned char* pixels;
@@ -118,6 +118,7 @@ void ImGui_Impl_CybEngine_Init()
 	io.BackendRendererUserData = (void*)bd;
 	io.BackendRendererName = "CybEngine";
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
+	CYB_INFO("Initialized ImGui v{0}", IMGUI_VERSION);
 }
 
 void ImGui_Impl_CybEngine_Update()
@@ -145,9 +146,8 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 	ImGui::Render();
 
 	auto draw_data = ImGui::GetDrawData();
-	if (!draw_data || draw_data->TotalVtxCount == 0) {
+	if (!draw_data || draw_data->TotalVtxCount == 0)
 		return;
-	}
 
 	// Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
 	int framebufferWidth = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);

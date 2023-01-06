@@ -1,4 +1,3 @@
-#pragma once
 #include "hli/render-path-2d.h"
 #include "editor/editor.h"
 #include "imgui.h"

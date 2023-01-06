@@ -32,8 +32,8 @@ namespace cyb
 
     private:
         void CalculateFractalBounding();
-        float GradCoord2D(uint8_t offset, int x, int y, float xd, float yd) const;
-        uint8_t Index2D_12(uint8_t offset, int x, int y) const;
+        inline float GradCoord2D(uint8_t offset, int x, int y, float xd, float yd) const;
+        inline uint8_t Index2D_12(uint8_t offset, int x, int y) const;
 
         uint32_t m_perm[512];                   // Permutation table
         uint32_t m_perm12[512];

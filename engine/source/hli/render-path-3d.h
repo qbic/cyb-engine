@@ -1,7 +1,7 @@
 #pragma once
 #include "hli/render-path-2d.h"
-#include "Graphics/Renderer.h"
-#include "Systems/Scene.h"
+#include "graphics/renderer.h"
+#include "systems/scene.h"
 
 namespace cyb::hli
 {

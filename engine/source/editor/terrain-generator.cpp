@@ -100,7 +100,7 @@ namespace cyb::editor
                         break;
                     }
 
-                    // Get min/max noise values for height normalization stage:
+                    // Get min/max noise values for height normalization
                     bitmap.maxN = math::Max(bitmap.maxN.load(), value);
                     bitmap.minN = math::Min(bitmap.minN.load(), value);
                     bitmap.image[offset] = value;
@@ -117,12 +117,49 @@ namespace cyb::editor
                 {
                     const float scale = 1.0f / (bitmap.maxN - bitmap.minN);
                     const uint32_t y = args.jobIndex;
+#if defined (_XM_NO_INTRINSICS_)
                     for (uint32_t x = 0; x < bitmap.desc.width; ++x)
                     {
                         const size_t offset = (size_t)y * bitmap.desc.width + x;
                         const float value = bitmap.image[offset];
                         bitmap.image[offset] = math::Saturate((value - bitmap.minN) * scale);
                     }
+#elif defined(_XM_SSE_INTRINSICS_)
+                    // Load scale and minN into SSE registers
+                    __m128 scale_vec = _mm_set1_ps(scale);
+                    __m128 minN_vec = _mm_set1_ps(bitmap.minN);
+
+                    // Set up a loop to process 4 pixels at a time
+                    const uint32_t num_pixels = bitmap.desc.width;
+                    const uint32_t num_iterations = num_pixels / 4;
+
+                    for (uint32_t i = 0; i < num_iterations; ++i)
+                    {
+                        // Load 4 pixels from the image into an SSE register
+                        const size_t offset = (size_t)y * bitmap.desc.width + (i * 4);
+                        __m128 value_vec = _mm_loadu_ps(bitmap.image.data() + offset);
+
+                        // Subtract minN from the pixels and multiply by scale
+                        value_vec = _mm_sub_ps(value_vec, minN_vec);
+                        value_vec = _mm_mul_ps(value_vec, scale_vec);
+
+                        // Saturate the result to [0, 1]
+                        value_vec = _mm_max_ps(value_vec, _mm_setzero_ps());
+                        value_vec = _mm_min_ps(value_vec, _mm_set1_ps(1.0f));
+
+                        // Store the result back to the image
+                        _mm_storeu_ps(bitmap.image.data() + offset, value_vec);
+                    }
+
+                    // Process any remaining pixels that couldn't be processed in the SSE loop
+                    for (uint32_t x = num_iterations * 4; x < num_pixels; ++x)
+                    {
+                        const size_t offset = (size_t)y * bitmap.desc.width + x;
+                        float value = bitmap.image[offset];
+                        value = math::Saturate((value - bitmap.minN) * scale);
+                        bitmap.image[offset] = value;
+                    }
+#endif
                 });
         }
     }
@@ -314,8 +351,6 @@ namespace cyb::editor
     //  TerrainGenerator GUI
     //=============================================================
 
-    static ecs::Entity terrain_object_id = ecs::InvalidEntity;
-    static ecs::Entity terrain_material_id = ecs::InvalidEntity;
     static TerrainMeshDesc terrain_generator_params;
 
     void SetTerrainGenerationParams(const TerrainMeshDesc* params)
@@ -374,9 +409,8 @@ namespace cyb::editor
 
         if (ImGui::BeginTable("TerrainGenerator", 2, ImGuiTableFlags_SizingFixedFit))
         {
-            ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed);
-
+            ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch);
 
             // Draw the settings column:
             ImGui::TableNextColumn();
@@ -471,7 +505,7 @@ namespace cyb::editor
 #endif
             if (ImGui::Button("Generate terrain mesh", ImVec2(-1, 0)) || !m_heightmapTex.IsValid())
             {
-                scene::Scene& scene = scene::GetScene();
+                //scene::Scene& scene = scene::GetScene();
                 //GenerateTerrain(desc, &scene);
             }
             if (ImGui::IsItemHovered())
@@ -501,11 +535,8 @@ namespace cyb::editor
                 ImGui::Image((ImTextureID)tex, size);
 
                 if (m_drawChunkLines)
-                {
                     DrawChunkLines(chunkLinesPos);
-                }
             }
-
 
             ImGui::EndTable();
         }

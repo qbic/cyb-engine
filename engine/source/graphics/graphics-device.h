@@ -574,7 +574,7 @@ namespace cyb::graphics
 
         virtual CommandList BeginCommandList() { return CommandList{}; }
         virtual void SubmitCommandList() {}
-        virtual void SetName(GPUResource* resource, const char* name) {}
+        virtual void SetName(GPUResource* resource, const char* name) { }
 
         constexpr uint64_t GetFrameCount() const { return frameCount; }
         constexpr uint32_t GetBufferIndex() const { return GetFrameCount() % kBufferCount; }

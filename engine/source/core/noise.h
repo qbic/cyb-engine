@@ -16,7 +16,7 @@ namespace cyb
     {
     public:
         NoiseGenerator(uint32_t seed = 1337);
-
+        
         void SetSeed(uint32_t seed);
         uint32_t GetSeed() const { return m_seed; }
         void SetFrequency(float frequency) { m_frequency = frequency; }
@@ -35,8 +35,8 @@ namespace cyb
         inline float GradCoord2D(uint8_t offset, int x, int y, float xd, float yd) const;
         inline uint8_t Index2D_12(uint8_t offset, int x, int y) const;
 
-        uint32_t m_perm[512];                   // Permutation table
-        uint32_t m_perm12[512];
+        uint8_t m_perm[512];                   // Permutation table
+        uint8_t m_perm12[512];
         uint32_t m_seed = 1337;
         float m_frequency = 0.01f;
         NoiseInterpolation m_interp = NoiseInterpolation::Quintic;

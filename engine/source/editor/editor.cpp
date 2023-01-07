@@ -217,13 +217,6 @@ namespace cyb::editor
             ImGui::PopID();
         }
 
-        static void InputText(const std::string& label, std::string& value)
-        {
-            BeginElement(label);
-            ImGui::InputText("##INPUT_TEXT", &value);
-            EndElement();
-        }
-
         bool CheckBox(const std::string& label, bool& value)
         {
             BeginElement(label);
@@ -528,7 +521,7 @@ namespace cyb::editor
 
     struct NameSortableEntityData
     {
-        ecs::Entity id;
+        ecs::Entity id = ecs::InvalidEntity;
         std::string_view name;
 
         bool operator<(const NameSortableEntityData& a)
@@ -1299,19 +1292,19 @@ namespace cyb::editor
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
         ImGui::SameLine();
-        if (DrawIconButton(editor_icon_select.GetTexture(), "Select entity", guizmo_operation == ImGuizmo::BOUNDS))
+        if (DrawIconButton(editor_icon_select.GetTexture(), "Select entity", guizmo_operation & ImGuizmo::BOUNDS))
             guizmo_operation = ImGuizmo::BOUNDS;
 
         ImGui::SameLine();
-        if (DrawIconButton(translate_icon.GetTexture(), "Move the selected entity", guizmo_operation == ImGuizmo::TRANSLATE))
+        if (DrawIconButton(translate_icon.GetTexture(), "Move the selected entity", guizmo_operation & ImGuizmo::TRANSLATE))
             guizmo_operation = ImGuizmo::TRANSLATE;
 
         ImGui::SameLine();
-        if (DrawIconButton(rotate_icon.GetTexture(), "Rotate the selected entity", guizmo_operation == ImGuizmo::ROTATE))
+        if (DrawIconButton(rotate_icon.GetTexture(), "Rotate the selected entity", guizmo_operation & ImGuizmo::ROTATE))
             guizmo_operation = ImGuizmo::ROTATE;
 
         ImGui::SameLine();
-        if (DrawIconButton(scale_icon.GetTexture(), "Scale the selected entity", guizmo_operation == ImGuizmo::SCALEU))
+        if (DrawIconButton(scale_icon.GetTexture(), "Scale the selected entity", guizmo_operation & ImGuizmo::SCALEU))
             guizmo_operation = ImGuizmo::SCALEU;
 
         //ImGui::SameLine();
@@ -1452,7 +1445,7 @@ namespace cyb::editor
         DrawGizmo();
 
         // Pick on left mouse click
-        if (guizmo_operation == ImGuizmo::BOUNDS)
+        if (guizmo_operation & ImGuizmo::BOUNDS)
         {
             ImGuiIO& io = ImGui::GetIO();
             bool mouse_in_3dview = !io.WantCaptureMouse && !ImGuizmo::IsOver();

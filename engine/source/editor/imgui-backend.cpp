@@ -29,7 +29,6 @@ static ImGui_Impl_Data* ImGui_Impl_GetBackendData()
 void ImGui_Impl_CybEngine_CreateDeviceObject()
 {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	auto* backendData = ImGui_Impl_GetBackendData();
 
 	ImFontConfig fontConfig = {};
 	fontConfig.OversampleH = 3;
@@ -155,7 +154,7 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 	if (framebufferWidth <= 0 || framebufferHeight <= 0)
 		return;
 
-	auto* bd = ImGui_Impl_GetBackendData();
+	//auto* bd = ImGui_Impl_GetBackendData();
 
 	GraphicsDevice* device = GetDevice();
 

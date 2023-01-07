@@ -30,19 +30,19 @@ namespace cyb
 
         for (uint32_t i = 0; i < 256; ++i)
         {
-            m_perm[i] = i;
+            m_perm[i] = (uint8_t)i;
         }
 
         std::mt19937_64 rand(seed);
         for (uint32_t i = 0; i < 256; ++i)
         {
-            uint32_t rng = (uint32_t)(rand() % (256 - i));
-            uint32_t j = rng + i;
-            uint32_t k = m_perm[i];
+            uint8_t rng = (uint8_t)(rand() % (256 - i));
+            uint8_t j = rng + (uint8_t)i;
+            uint8_t k = m_perm[i];
             m_perm[i] = m_perm[i + 256] = m_perm[j];
             m_perm[j] = k;
             m_perm12[i] = m_perm12[i + 256] = m_perm[i] % 12;
-        }
+        } 
     }
 
     void NoiseGenerator::CalculateFractalBounding()
@@ -73,7 +73,8 @@ namespace cyb
         int x1 = x0 + 1;
         int y1 = y0 + 1;
 
-        float xs, ys;
+        float xs = 0.0f;
+        float ys = 0.0f;
         switch (m_interp)
         {
         case NoiseInterpolation::Linear:

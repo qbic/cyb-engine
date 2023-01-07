@@ -19,16 +19,6 @@ namespace cyb::math
     constexpr float RAD2DEG = (180.f / M_PI);
     constexpr float DEG2RAD = (M_PI / 180.f);
 
-    inline uint64_t TruncToInt(double value)
-    {
-        return (uint64_t)value;
-    }
-
-    static int32_t TruncToInt(float value)
-    {
-        return (int32_t)value;
-    }
-
     // Returns highest of 2 values
     template<class T>
     constexpr T Max(const T a, const T b)

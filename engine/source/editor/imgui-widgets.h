@@ -86,6 +86,7 @@ struct ImGradient
         ImGradientMark* lower = nullptr;
         for (ImGradientMark* mark : markList)
         {
+            assert(mark);
             if (mark->position <= position)
             {
                 if (!lower || lower->position < mark->position)

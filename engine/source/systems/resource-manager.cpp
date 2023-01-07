@@ -70,22 +70,31 @@ namespace cyb
 namespace cyb::resourcemanager
 {
     std::mutex locker;
-    std::unordered_map<std::string, std::weak_ptr<ResourceInternal>> resource_cache;
+    std::unordered_map<std::string, std::weak_ptr<ResourceInternal>> resourceCache;
     Mode mode = Mode::DiscardFiledataAfterLoad;
 
     enum class DataType
     {
-        IMAGE,
-        SOUND,
+        Unknown,
+        Image,
+        Sound,
     };
 
-    std::unordered_map<std::string, DataType> types = 
+    DataType GetResourceTypeByExtension(const std::string& extension)
     {
-        std::make_pair("JPG", DataType::IMAGE),
-        std::make_pair("PNG", DataType::IMAGE),
-        std::make_pair("DDS", DataType::IMAGE),
-        std::make_pair("TGA", DataType::IMAGE)
-    };
+        static const std::unordered_map<std::string, DataType> types = {
+            std::make_pair("JPG", DataType::Image),
+            std::make_pair("PNG", DataType::Image),
+            std::make_pair("DDS", DataType::Image),
+            std::make_pair("TGA", DataType::Image)
+        };
+
+        auto it = types.find(extension);
+        if (it == types.end())
+            return DataType::Unknown;
+
+        return it->second;
+    }
 
     Resource Load(
         const std::string& name,
@@ -100,9 +109,8 @@ namespace cyb::resourcemanager
             flags &= ~LoadFlags::RetainFiledataBit;
 
         // Check if we have allready loaded resource or we need to create it
-
         locker.lock();
-        std::shared_ptr<ResourceInternal> resource = resource_cache[name].lock();
+        std::shared_ptr<ResourceInternal> resource = resourceCache[name].lock();
         if (resource != nullptr)
         {
             locker.unlock();
@@ -112,7 +120,7 @@ namespace cyb::resourcemanager
         }
         
         resource = std::make_shared<ResourceInternal>();    
-        resource_cache[name] = resource;
+        resourceCache[name] = resource;
         locker.unlock();
 
         // Load filedata if none was appointed
@@ -128,32 +136,28 @@ namespace cyb::resourcemanager
             filesize = resource->data.size();
         }
 
-        std::string ext = helper::ToUpper(helper::GetExtensionFromFileName(name));
-        DataType type;
-
-        // dynamic type selection:
+        const std::string extension = helper::ToUpper(helper::GetExtensionFromFileName(name));
+        const DataType type = GetResourceTypeByExtension(extension);
+        if (type == DataType::Unknown)
         {
-            auto it = types.find(ext);
-            if (it == types.end())
-                return Resource();
-                
-            type = it->second;
+            CYB_ERROR("Failed to determine resource type (filename={0})", name);
+            return Resource();
         }
 
         switch (type)
         {
-        case DataType::IMAGE:
+        case DataType::Image:
         {
             const int channels = 4;
             int width, height, bpp;
 
-            bool flip_image = !HasFlag(flags, LoadFlags::FlipImageBit);
-            stbi_set_flip_vertically_on_load(flip_image);
-            stbi_uc* raw_image = stbi_load_from_memory(filedata, (int)filesize, &width, &height, &bpp, channels);
-            if (raw_image == nullptr)
+            const bool flipImage = !HasFlag(flags, LoadFlags::FlipImageBit);
+            stbi_set_flip_vertically_on_load(flipImage);
+            stbi_uc* rawImage = stbi_load_from_memory(filedata, (int)filesize, &width, &height, &bpp, channels);
+            if (rawImage == nullptr)
             {
                 CYB_ERROR("Failed to decode image (filename={0}): {1}", name, stbi_failure_reason());
-                stbi_image_free(raw_image);
+                stbi_image_free(rawImage);
                 return Resource();
             }
 
@@ -164,12 +168,12 @@ namespace cyb::resourcemanager
             desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
             desc.mipLevels = 1;     // Generate full mip chain at runtime
 
-            graphics::SubresourceData subresource_data;
-            subresource_data.mem = raw_image;
-            subresource_data.rowPitch = width * channels;
+            graphics::SubresourceData subresourceData;
+            subresourceData.mem = rawImage;
+            subresourceData.rowPitch = width * channels;
             
-            renderer::GetDevice()->CreateTexture(&desc, &subresource_data, &resource->texture);
-            stbi_image_free(raw_image);
+            renderer::GetDevice()->CreateTexture(&desc, &subresourceData, &resource->texture);
+            stbi_image_free(rawImage);
         } break;
         };
 
@@ -186,6 +190,6 @@ namespace cyb::resourcemanager
     void Clear()
     {
         std::scoped_lock<std::mutex> lock(locker);
-        resource_cache.clear();
+        resourceCache.clear();
     }
 };

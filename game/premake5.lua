@@ -2,7 +2,7 @@ project "game"
 	kind "WindowedApp"
 	language "C++"
 	cppdialect "C++17"
-	staticruntime "off"
+	staticruntime "Off"
 
 	targetdir ("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")
@@ -21,15 +21,12 @@ project "game"
 	
 	links { "engine" }
 
-	filter "system:windows"
-		systemversion "latest"
-		defines { "_CRT_SECURE_NO_WARNINGS", "NOMINMAX" }
-
 	filter "configurations:Debug"
 		runtime "Debug"
+		optimize "Off"
 		symbols "On"
 
 	filter "configurations:Release"
 		runtime "Release"
 		optimize "On"
-		symbols "off"
+		symbols "Off"

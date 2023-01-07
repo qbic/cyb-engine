@@ -9,9 +9,12 @@ workspace "cyb-engine"
    targetdir ("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")
 
-   --[[ Build without the editor. This is not preperly tested and might not
-        work as intended yet. ]]
+   -- Build without the editor. This is not preperly tested and might not work as intended
    -- defines { "NO_EDITOR" }
+
+   filter "system:windows"
+      systemversion "latest"
+      defines { "_CRT_SECURE_NO_WARNINGS", "NOMINMAX" }
 
    filter "configurations:Debug"
       defines { "CYB_DEBUG_BUILD" }

@@ -229,7 +229,7 @@ namespace cyb::graphics::vulkan_internal
         VkPipelineShaderStageCreateInfo stage_info = {};
 
         std::vector<VkDescriptorSetLayoutBinding> layout_bindings;
-        VkDeviceSize uniform_buffer_sizes[kDescriptorBinderCBVCount] = {};
+        VkDeviceSize uniform_buffer_sizes[DESCRIPTORBINDER_CBV_COUNT] = {};
         std::vector<uint32_t> uniform_buffer_dynamic_slots;
         std::vector<VkImageViewType> imageview_types;
 
@@ -265,7 +265,7 @@ namespace cyb::graphics::vulkan_internal
         
         std::vector<VkDescriptorSetLayoutBinding> layout_bindings;
         std::vector<VkImageViewType> imageview_types;
-        VkDeviceSize uniform_buffer_sizes[kDescriptorBinderCBVCount] = {};
+        VkDeviceSize uniform_buffer_sizes[DESCRIPTORBINDER_CBV_COUNT] = {};
         std::vector<uint32_t> uniform_buffer_dynamic_slots;
         size_t binding_hash = 0;
 
@@ -994,15 +994,15 @@ namespace cyb::graphics
         VkDescriptorPoolSize pool_size = {};
 
         pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        pool_size.descriptorCount = kDescriptorBinderCBVCount * pool_max_size;
+        pool_size.descriptorCount = DESCRIPTORBINDER_CBV_COUNT * pool_max_size;
         pool_sizes.push_back(pool_size);
 
         pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-        pool_size.descriptorCount = kDescriptorBinderCBVCount * pool_max_size;
+        pool_size.descriptorCount = DESCRIPTORBINDER_CBV_COUNT * pool_max_size;
         pool_sizes.push_back(pool_size);
 
         pool_size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        pool_size.descriptorCount = kDescriptorBinderSRVCount * pool_max_size;
+        pool_size.descriptorCount = DESCRIPTORBINDER_SRV_COUNT * pool_max_size;
         pool_sizes.push_back(pool_size);
 
         VkDescriptorPoolCreateInfo create_info = {};
@@ -1343,7 +1343,7 @@ namespace cyb::graphics
                     if (discreteGPU)
                     {
                         // if this is discrete GPU, look no further (prioritize discrete GPU)
-                        break; 
+                        break;
                     }
                 }
             }
@@ -1374,13 +1374,13 @@ namespace cyb::graphics
             // Query base queue families:
             for (uint32_t i = 0; i < queueFamilyCount; ++i)
             {
-                if (graphicsFamily == VK_QUEUE_FAMILY_IGNORED && 
+                if (graphicsFamily == VK_QUEUE_FAMILY_IGNORED &&
                     queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
                     graphicsFamily = i;
-                if (copyFamily == VK_QUEUE_FAMILY_IGNORED && 
+                if (copyFamily == VK_QUEUE_FAMILY_IGNORED &&
                     queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
                     copyFamily = i;
-                if (computeFamily == VK_QUEUE_FAMILY_IGNORED && 
+                if (computeFamily == VK_QUEUE_FAMILY_IGNORED &&
                     queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
                     computeFamily = i;
             }
@@ -1436,10 +1436,17 @@ namespace cyb::graphics
             }
 
             volkLoadDevice(device);
+        }
 
+        // Queues:
+        {
             vkGetDeviceQueue(device, graphicsFamily, 0, &graphicsQueue);
             vkGetDeviceQueue(device, computeFamily, 0, &computeQueue);
             vkGetDeviceQueue(device, copyFamily, 0, &copyQueue);
+
+            queues[static_cast<uint32_t>(QueueType::Graphics)].queue = graphicsQueue;
+            queues[static_cast<uint32_t>(QueueType::Compute)].queue = computeQueue;
+            queues[static_cast<uint32_t>(QueueType::Copy)].queue = copyQueue;
         }
 
         memory_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
@@ -1488,14 +1495,16 @@ namespace cyb::graphics
 
         // Create frame resources:
         {
-            for (uint32_t i = 0; i < kBufferCount; ++i)
+            for (uint32_t i = 0; i < BUFFERCOUNT; ++i)
             {
-                // Create fences:
-                VkFenceCreateInfo fence_info = {};
-                fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-                //fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-                VkResult res = vkCreateFence(device, &fence_info, nullptr, &frame_resources[i].fence);
-                assert(res == VK_SUCCESS);
+                for (uint32_t q = 0; q < static_cast<uint32_t>(QueueType::_Count); ++q)
+                {
+                    VkFenceCreateInfo fenceInfo = {};
+                    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+                    //fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+                    VkResult res = vkCreateFence(device, &fenceInfo, nullptr, &frame_resources[i].fence[q]);
+                    assert(res == VK_SUCCESS);
+                }
 
                 // Create resources for transition command buffer:
                 VkCommandPoolCreateInfo pool_info = {};
@@ -1568,7 +1577,11 @@ namespace cyb::graphics
 
         for(auto& frame : frame_resources)
         {
-            vkDestroyFence(device, frame.fence, nullptr);
+            for (uint32_t i = 0; i < static_cast<uint32_t>(QueueType::_Count); ++i)
+            {
+                vkDestroyFence(device, frame.fence[i], nullptr);
+            }
+            
             vkDestroyCommandPool(device, frame.init_commandpool, nullptr);
         }
 
@@ -1589,9 +1602,12 @@ namespace cyb::graphics
 
         for (auto& commandlist : commandlists)
         {
-            for (uint32_t buffer_index = 0; buffer_index < kBufferCount; ++buffer_index)
+            for (uint32_t buffer_index = 0; buffer_index < BUFFERCOUNT; ++buffer_index)
             {
-                vkDestroyCommandPool(device, commandlist->commandpools[buffer_index], nullptr);
+                for (uint32_t q = 0; q < static_cast<uint32_t>(QueueType::_Count); ++q)
+                {
+                    vkDestroyCommandPool(device, commandlist->commandpools[buffer_index][q], nullptr);
+                }
             }
 
             for (auto& x : commandlist->binder_pools)
@@ -1820,7 +1836,7 @@ namespace cyb::graphics
     void GraphicsDevice_Vulkan::BindResource(const GPUResource* resource, int slot, CommandList cmd)
     {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        assert(slot < kDescriptorBinderSRVCount);
+        assert(slot < DESCRIPTORBINDER_SRV_COUNT);
         auto& binder = commandlist.binder;
         if (binder.table.SRV[slot].internal_state != resource->internal_state)
         {
@@ -1832,7 +1848,7 @@ namespace cyb::graphics
     void GraphicsDevice_Vulkan::BindSampler(const Sampler* sampler, uint32_t slot, CommandList cmd)
     {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        assert(slot < kDescriptorBinderSamplerCount);
+        assert(slot < DESCRIPTORBINDER_SAMPLER_COUNT);
         auto& binder = commandlist.binder;
         if (binder.table.SAM[slot].internal_state != sampler->internal_state)
         {
@@ -1844,7 +1860,7 @@ namespace cyb::graphics
     void GraphicsDevice_Vulkan::BindConstantBuffer(const GPUBuffer* buffer, uint32_t slot, CommandList cmd, uint64_t offset)
     {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        assert(slot < kDescriptorBinderCBVCount);
+        assert(slot < DESCRIPTORBINDER_CBV_COUNT);
         auto& binder = commandlist.binder;
 
         if (binder.table.CBV[slot].internal_state != buffer->internal_state)
@@ -2300,28 +2316,28 @@ namespace cyb::graphics
 
         switch (desc->filter)
         {
-        case TextureFilter::kPoint:
+        case TextureFilter::Point:
             sampler_info.minFilter = VK_FILTER_NEAREST;
             sampler_info.magFilter = VK_FILTER_NEAREST;
             sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
             sampler_info.anisotropyEnable = VK_FALSE;
             sampler_info.compareEnable = VK_FALSE;
             break;
-        case TextureFilter::kBilinear:
+        case TextureFilter::Bilinear:
             sampler_info.minFilter = VK_FILTER_LINEAR;
             sampler_info.magFilter = VK_FILTER_LINEAR;
             sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
             sampler_info.anisotropyEnable = VK_FALSE;
             sampler_info.compareEnable = VK_FALSE;
             break;
-        case TextureFilter::kTrilinear:
+        case TextureFilter::Trilinear:
             sampler_info.minFilter = VK_FILTER_LINEAR;
             sampler_info.magFilter = VK_FILTER_LINEAR;
             sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
             sampler_info.anisotropyEnable = VK_FALSE;
             sampler_info.compareEnable = VK_FALSE;
             break;
-        case TextureFilter::kAnisotropic:
+        case TextureFilter::Anisotropic:
             sampler_info.minFilter = VK_FILTER_LINEAR;
             sampler_info.magFilter = VK_FILTER_LINEAR;
             sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
@@ -2826,7 +2842,7 @@ namespace cyb::graphics
         return R_SUCCESS;
     }
 
-    CommandList GraphicsDevice_Vulkan::BeginCommandList() 
+    CommandList GraphicsDevice_Vulkan::BeginCommandList(QueueType queue)
     {
         cmd_locker.lock();
         const uint32_t cmd_current = cmd_count++;
@@ -2840,26 +2856,27 @@ namespace cyb::graphics
 
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         commandlist.Reset(GetBufferIndex());
+        commandlist.queue = queue;
         commandlist.id = cmd_current;
 
         if (commandlist.GetCommandBuffer() == VK_NULL_HANDLE)
         {
             // Need to create one more command list:
-            for (uint32_t buffer_index = 0; buffer_index < kBufferCount; ++buffer_index)
+            for (uint32_t buffer_index = 0; buffer_index < BUFFERCOUNT; ++buffer_index)
             {
-                VkCommandPoolCreateInfo pool_info = {};
-                pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-                pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-                pool_info.queueFamilyIndex = graphicsFamily;
-                VkResult res = vkCreateCommandPool(device, &pool_info, nullptr, &commandlist.commandpools[buffer_index]);
+                VkCommandPoolCreateInfo poolInfo = {};
+                poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+                poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+                poolInfo.queueFamilyIndex = graphicsFamily;
+                VkResult res = vkCreateCommandPool(device, &poolInfo, nullptr, &commandlist.commandpools[buffer_index][static_cast<uint32_t>(queue)]);
                 assert(res == VK_SUCCESS);
 
-                VkCommandBufferAllocateInfo alloc_info = {};
-                alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-                alloc_info.commandPool = commandlist.commandpools[buffer_index];
-                alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-                alloc_info.commandBufferCount = 1;
-                res = vkAllocateCommandBuffers(device, &alloc_info, &commandlist.commandbuffers[buffer_index]);
+                VkCommandBufferAllocateInfo allocInfo = {};
+                allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+                allocInfo.commandPool = commandlist.commandpools[buffer_index][static_cast<uint32_t>(queue)];
+                allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+                allocInfo.commandBufferCount = 1;
+                res = vkAllocateCommandBuffers(device, &allocInfo, &commandlist.commandbuffers[buffer_index][static_cast<uint32_t>(queue)]);
                 assert(res == VK_SUCCESS);
 
                 commandlist.binder_pools[buffer_index].Init(this);
@@ -2891,32 +2908,31 @@ namespace cyb::graphics
         return cmd;
     }
 
-
     void GraphicsDevice_Vulkan::CommandQueue::Submit(GraphicsDevice_Vulkan* device, VkFence fence)
     {
-        VkSubmitInfo submit_info = {};
-        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submit_info.commandBufferCount = (uint32_t)submit_cmds.size();
-        submit_info.pCommandBuffers = submit_cmds.data();
+        VkSubmitInfo submitInfo = {};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = (uint32_t)submit_cmds.size();
+        submitInfo.pCommandBuffers = submit_cmds.data();
 
-        submit_info.waitSemaphoreCount = static_cast<uint32_t>(submit_waitSemaphores.size());
-        submit_info.pWaitSemaphores = submit_waitSemaphores.data();
-        submit_info.pWaitDstStageMask = submit_waitStages.data();
+        submitInfo.waitSemaphoreCount = static_cast<uint32_t>(submit_waitSemaphores.size());
+        submitInfo.pWaitSemaphores = submit_waitSemaphores.data();
+        submitInfo.pWaitDstStageMask = submit_waitStages.data();
 
-        submit_info.signalSemaphoreCount = static_cast<uint32_t>(submit_signalSemaphores.size());
-        submit_info.pSignalSemaphores = submit_signalSemaphores.data();
+        submitInfo.signalSemaphoreCount = static_cast<uint32_t>(submit_signalSemaphores.size());
+        submitInfo.pSignalSemaphores = submit_signalSemaphores.data();
 
-        VkTimelineSemaphoreSubmitInfo timeline_info = {};
-        timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-        timeline_info.pNext = nullptr;
-        timeline_info.waitSemaphoreValueCount = (uint32_t)submit_waitValues.size();
-        timeline_info.pWaitSemaphoreValues = submit_waitValues.data();
-        timeline_info.signalSemaphoreValueCount = (uint32_t)submit_signalValues.size();
-        timeline_info.pSignalSemaphoreValues = submit_signalValues.data();
+        VkTimelineSemaphoreSubmitInfo timelineInfo = {};
+        timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        timelineInfo.pNext = nullptr;
+        timelineInfo.waitSemaphoreValueCount = (uint32_t)submit_waitValues.size();
+        timelineInfo.pWaitSemaphoreValues = submit_waitValues.data();
+        timelineInfo.signalSemaphoreValueCount = (uint32_t)submit_signalValues.size();
+        timelineInfo.pSignalSemaphoreValues = submit_signalValues.data();
 
-        submit_info.pNext = &timeline_info;
+        submitInfo.pNext = &timelineInfo;
 
-        VkResult res = vkQueueSubmit(queue, 1, &submit_info, fence);
+        VkResult res = vkQueueSubmit(queue, 1, &submitInfo, fence);
         assert(res == VK_SUCCESS);
 
         if (!submit_swapchains.empty())
@@ -2930,8 +2946,18 @@ namespace cyb::graphics
             present_info.pSwapchains = submit_swapchains.data();
             present_info.pImageIndices = submit_swapChainImageIndices.data();
 
-            vkQueuePresentKHR(queue, &present_info);
+            res = vkQueuePresentKHR(queue, &present_info);
+            assert(res == VK_SUCCESS);
         }
+
+        submit_swapchains.clear();
+        submit_swapChainImageIndices.clear();
+        submit_waitStages.clear();
+        submit_waitSemaphores.clear();
+        submit_waitValues.clear();
+        submit_signalSemaphores.clear();
+        submit_signalValues.clear();
+        submit_cmds.clear();
     }
 
     void GraphicsDevice_Vulkan::SubmitCommandList()
@@ -2946,17 +2972,28 @@ namespace cyb::graphics
             // Transitions:
             if (init_submits)
             {
+                init_submits = false;
                 res = vkEndCommandBuffer(frame.init_commandbuffer);
                 assert(res == VK_SUCCESS);
+                queues[static_cast<uint32_t>(QueueType::Graphics)].submit_cmds.push_back(frame.init_commandbuffer);
             }
 
-            uint64_t copy_sync = copy_allocator.Flush();
+            // Sync up with copyallocator before first submit
+            uint64_t copySync = copy_allocator.Flush();
+            if (copySync > 0)
+            {
+                for (uint32_t i = 0; i < static_cast<uint32_t>(QueueType::_Count); ++i)
+                {
+                    CommandQueue& queue = queues[i];
+                    queue.submit_waitStages.push_back(VK_PIPELINE_STAGE_TRANSFER_BIT);
+                    queue.submit_waitSemaphores.push_back(copy_allocator.semaphore);
+                    queue.submit_waitValues.push_back(copySync);
+                }
+                copySync = 0;
+            }
 
             const uint32_t cmd_last = cmd_count;
             cmd_count = 0;
-
-            CommandQueue queue = {};
-            queue.queue = graphicsQueue;
 
             for (uint32_t cmd_index = 0; cmd_index < cmd_last; ++cmd_index)
             {
@@ -2964,20 +3001,8 @@ namespace cyb::graphics
                 res = vkEndCommandBuffer(commandlist.GetCommandBuffer());
                 assert(res == VK_SUCCESS);
 
-                if (init_submits)
-                {
-                    queue.submit_cmds.push_back(frame.init_commandbuffer);
-                    init_submits = false;
-                }
-
-                // sync up with copyallocator before first submit
-                if (copy_sync > 0)
-                {
-                    queue.submit_waitStages.push_back(VK_PIPELINE_STAGE_TRANSFER_BIT);
-                    queue.submit_waitSemaphores.push_back(copy_allocator.semaphore);
-                    queue.submit_waitValues.push_back(copy_sync);
-                    copy_sync = 0;
-                }
+                CommandQueue& queue = queues[static_cast<uint32_t>(commandlist.queue)];
+                queue.submit_cmds.push_back(commandlist.GetCommandBuffer());
 
                 for (auto& swapchain : commandlist.prev_swapchains)
                 {
@@ -2990,11 +3015,12 @@ namespace cyb::graphics
                     queue.submit_signalSemaphores.push_back(swapchain_internal->semaphore_release);
                     queue.submit_signalValues.push_back(0); // Not a timeline semaphore
                 }
-
-                queue.submit_cmds.push_back(commandlist.GetCommandBuffer());
             }
 
-            queue.Submit(this, frame.fence);
+            for (uint32_t i = 0; i < static_cast<uint32_t>(QueueType::_Count); ++i)
+            {
+                queues[i].Submit(this, frame.fence[i]);
+            }
         }
 
         frameCount++;
@@ -3003,14 +3029,19 @@ namespace cyb::graphics
         {
             auto& frame = GetFrameResources();
 
-            if (frameCount >= kBufferCount) 
+            if (frameCount >= BUFFERCOUNT) 
             {
-                VkFence& fence = frame.fence;
-                vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
-                vkResetFences(device, 1, &fence);
+                for (uint32_t i = 0; i < static_cast<uint32_t>(QueueType::_Count); ++i)
+                {
+                    VkFence& fence = frame.fence[i];
+                    res =  vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+                    assert(res == VK_SUCCESS);
+                    res = vkResetFences(device, 1, &fence);
+                    assert(res == VK_SUCCESS);
+                }
             }
 
-            allocationhandler->Update(frameCount, kBufferCount);
+            allocationhandler->Update(frameCount, BUFFERCOUNT);
 
             // Restart transition command buffers:
             {

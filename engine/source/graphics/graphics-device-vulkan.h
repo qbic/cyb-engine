@@ -39,7 +39,6 @@ namespace cyb::graphics
         std::vector<VkDynamicState> pso_dynamic_states;
         VkPipelineDynamicStateCreateInfo dynamic_state_info = {};
 
-
         struct CommandQueue
         {
             VkQueue queue = VK_NULL_HANDLE;
@@ -54,6 +53,7 @@ namespace cyb::graphics
 
             void Submit(GraphicsDevice_Vulkan* device, VkFence fence);
         };
+        CommandQueue queues[static_cast<uint32_t>(QueueType::_Count)];
 
         struct CopyAllocator
         {
@@ -85,13 +85,13 @@ namespace cyb::graphics
 
         struct FrameResources
         {
-            VkFence fence;
+            VkFence fence[static_cast<uint32_t>(QueueType::_Count)];
             VkCommandPool init_commandpool;
             VkCommandBuffer init_commandbuffer;
         };
         mutable std::mutex init_locker;
         mutable bool init_submits = false;
-        struct FrameResources frame_resources[kBufferCount];
+        struct FrameResources frame_resources[BUFFERCOUNT];
         const FrameResources& GetFrameResources() const { return frame_resources[GetBufferIndex()]; }
         FrameResources& GetFrameResources() { return frame_resources[GetBufferIndex()]; }
 
@@ -104,7 +104,7 @@ namespace cyb::graphics
             std::vector<VkDescriptorBufferInfo> buffer_infos;
             std::vector<VkDescriptorImageInfo> image_infos;
 
-            uint32_t uniform_buffer_dynamic_offsets[kDescriptorBinderCBVCount] = {};
+            uint32_t uniform_buffer_dynamic_offsets[DESCRIPTORBINDER_CBV_COUNT] = {};
 
             VkDescriptorSet descriptorset_graphics = VK_NULL_HANDLE;
             VkDescriptorSet descriptorset_compute = VK_NULL_HANDLE;
@@ -137,15 +137,16 @@ namespace cyb::graphics
 
         struct CommandList_Vulkan
         {
-            VkCommandPool commandpools[kBufferCount] = {};
-            VkCommandBuffer commandbuffers[kBufferCount] = {};
+            VkCommandPool commandpools[BUFFERCOUNT][static_cast<uint32_t>(QueueType::_Count)] = {};
+            VkCommandBuffer commandbuffers[BUFFERCOUNT][static_cast<uint32_t>(QueueType::_Count)] = {};
             uint32_t buffer_index = 0;
 
+            QueueType queue = QueueType::_Count;
             uint32_t id = 0;
 
             DescriptorBinder binder;
-            DescriptorBinderPool binder_pools[kBufferCount];
-            GPULinearAllocator frame_allocators[kBufferCount];
+            DescriptorBinderPool binder_pools[BUFFERCOUNT];
+            GPULinearAllocator frame_allocators[BUFFERCOUNT];
 
             size_t prev_pipeline_hash = 0;
             std::vector<SwapChain> prev_swapchains;
@@ -158,11 +159,11 @@ namespace cyb::graphics
 
             inline VkCommandPool GetCommandPool() const
             {
-                return commandpools[buffer_index];
+                return commandpools[buffer_index][static_cast<uint32_t>(queue)];
             }
             inline VkCommandBuffer GetCommandBuffer() const
             {
-                return commandbuffers[buffer_index];
+                return commandbuffers[buffer_index][static_cast<uint32_t>(queue)];
             }
 
             void Reset(uint32_t newBufferIndex)
@@ -211,7 +212,6 @@ namespace cyb::graphics
     public:
         GraphicsDevice_Vulkan();
         virtual ~GraphicsDevice_Vulkan();
-        GraphicsDeviceAPI GetDeviceAPI() const override { return GraphicsDeviceAPI::kVulkan; }
 
         bool CreateSwapChain(const SwapChainDesc* desc, platform::Window* window, SwapChain* swapchain) const override;
         bool CreateBuffer(const GPUBufferDesc* desc, const void* init_data, GPUBuffer* buffer) const override;
@@ -222,7 +222,7 @@ namespace cyb::graphics
         bool CreateRenderPass(const RenderPassDesc* desc, RenderPass* renderpass) const override;
         void CreateSubresource(Texture* texture, SubresourceType type) const;
 
-        virtual CommandList BeginCommandList() override;
+        virtual CommandList BeginCommandList(QueueType queue) override;
         virtual void SubmitCommandList() override;
 
         void SetName(GPUResource* pResource, const char* name) override;

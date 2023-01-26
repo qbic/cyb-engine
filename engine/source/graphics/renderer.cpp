@@ -66,7 +66,7 @@ namespace cyb::renderer
 
     void LoadBuffers(jobsystem::Context& ctx)
     {
-        jobsystem::Execute(ctx, []() {
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
             auto device = GetDevice();
             GPUBufferDesc desc;
             desc.bindFlags = BindFlags::ConstantBufferBit;
@@ -159,7 +159,7 @@ namespace cyb::renderer
         GraphicsDevice* device = GetDevice();
 
         // Point filtering states
-        desc.filter = TextureFilter::kPoint;
+        desc.filter = TextureFilter::Point;
         desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_WRAP]);
 
@@ -170,7 +170,7 @@ namespace cyb::renderer
         device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_CLAMP]);
 
         // BiLinear filtering states
-        desc.filter = TextureFilter::kBilinear;
+        desc.filter = TextureFilter::Bilinear;
         desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_WRAP]);
 
@@ -181,7 +181,7 @@ namespace cyb::renderer
         device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_CLAMP]);
 
         // TriLinearfiltering states
-        desc.filter = TextureFilter::kTrilinear;
+        desc.filter = TextureFilter::Trilinear;
         desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_WRAP]);
 
@@ -192,7 +192,7 @@ namespace cyb::renderer
         device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_CLAMP]);
 
         // Anisotropic filtering states
-        desc.filter = TextureFilter::kAnisotropic;
+        desc.filter = TextureFilter::Anisotropic;
         desc.maxAnisotropy = 16;
         desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_WRAP]);
@@ -206,15 +206,15 @@ namespace cyb::renderer
 
     static void LoadBuiltinTextures(jobsystem::Context& ctx)
     {
-        jobsystem::Execute(ctx, []() { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::Load("assets/light_point2.png"); });
-        jobsystem::Execute(ctx, []() { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::Load("assets/light_directional2.png"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::Load("assets/light_point2.png"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::Load("assets/light_directional2.png"); });
     }
 
     static void LoadShaders(jobsystem::Context& ctx)
     {
         Timer timer;
 
-        jobsystem::Execute(ctx, []() {
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
             input_layouts[VLTYPE_FLAT_SHADING] =
             {
                 { "in_position", 0, scene::MeshComponent::Vertex_Pos::kFormat },
@@ -222,15 +222,15 @@ namespace cyb::renderer
             };
             LoadShader(ShaderStage::VS, shaders[VSTYPE_FLAT_SHADING], "flat_shader.vert");
             });
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::VS, shaders[VSTYPE_IMAGE], "image.vert"); });
-        jobsystem::Execute(ctx, []() {
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::VS, shaders[VSTYPE_IMAGE], "image.vert"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
             input_layouts[VLTYPE_SKY] =
             {
                 { "in_pos",   0, scene::MeshComponent::Vertex_Pos::kFormat }
             };
             LoadShader(ShaderStage::VS, shaders[VSTYPE_SKY], "sky.vert");
             });
-        jobsystem::Execute(ctx, []() {
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
             input_layouts[VLTYPE_DEBUG_LINE] =
             {
                 { "in_position", 0, Format::R32G32B32A32_Float },
@@ -239,13 +239,13 @@ namespace cyb::renderer
             LoadShader(ShaderStage::VS, shaders[VSTYPE_DEBUG_LINE], "debug_line.vert");
             });
 
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
 
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::FS, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::FS, shaders[FSTYPE_IMAGE], "image.frag"); });
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::FS, shaders[FSTYPE_SKY], "sky.frag"); });
-        jobsystem::Execute(ctx, []() { LoadShader(ShaderStage::FS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_IMAGE], "image.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_SKY], "sky.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
 
         //CYB_TRACE("Loaded shaders in {0:.2f}ms", timer.ElapsedMilliseconds());
     }

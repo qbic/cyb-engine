@@ -16,6 +16,7 @@ static Texture font_texture;
 static Sampler sampler;
 static VertexInputLayout imgui_input_layout;
 static PipelineState imgui_pso;
+static IndexBufferFormat indexFormat = IndexBufferFormat::Uint16;
 
 struct ImGui_Impl_Data
 {
@@ -61,7 +62,7 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	sampler_desc.addressU = TextureAddressMode::Wrap;
 	sampler_desc.addressV = TextureAddressMode::Wrap;
 	sampler_desc.addressW = TextureAddressMode::Wrap;
-	sampler_desc.filter = TextureFilter::kPoint;
+	sampler_desc.filter = TextureFilter::Point;
 	GetDevice()->CreateSampler(&sampler_desc, &sampler);
 
 	// Store our identifier
@@ -87,6 +88,10 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 
 void ImGui_Impl_CybEngine_Init()
 {
+	// Default ImGui index is 16bit, but user can change to 32bit on imconfig.h
+	if (sizeof(ImDrawIdx) == 4)
+		indexFormat = IndexBufferFormat::Uint32;
+
 	// Compile shaders
 	{
 		LoadShader(ShaderStage::VS, imgui_vs, "imgui.vert");
@@ -213,7 +218,7 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 	};
 
 	device->BindVertexBuffers(vbs, 1, strides, offsets, cmd);
-	device->BindIndexBuffer(&indexBufferAllocation.buffer, IndexBufferFormat::Uint16, indexBufferAllocation.offset, cmd);
+	device->BindIndexBuffer(&indexBufferAllocation.buffer, indexFormat, indexBufferAllocation.offset, cmd);
 
 	Viewport viewport;
 	viewport.width = (float)framebufferWidth;

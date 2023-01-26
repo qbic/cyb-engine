@@ -40,6 +40,12 @@ namespace cyb::math
     }
 
     template <typename Tfloat>
+    static int Round(Tfloat f)
+    {
+        return f >= 0 ? (int)(f + 0.5f) : (int)(f - 0.5f);
+    }
+
+    template <typename Tfloat>
     constexpr Tfloat Abs(Tfloat f) 
     { 
         return f < 0 ? -f : f; 
@@ -53,6 +59,26 @@ namespace cyb::math
     constexpr XMFLOAT3 Min(const XMFLOAT3& a, const XMFLOAT3& b)
     {
         return XMFLOAT3(Min(a.x, b.x), Min(a.y, b.y), Min(a.z, b.z));
+    }
+
+    constexpr XMINT2 Min(const XMINT2& a, const XMINT2& b)
+    {
+        return XMINT2(Min(a.x, b.x), Min(a.y, b.y));
+    }
+
+    constexpr XMINT2 Max(const XMINT2& a, const XMINT2& b)
+    {
+        return XMINT2(Max(a.x, b.x), Max(a.y, b.y));
+    }
+
+    constexpr XMUINT2 Min(const XMUINT2& a, const XMUINT2& b)
+    {
+        return XMUINT2(Min(a.x, b.x), Min(a.y, b.y));
+    }
+
+    constexpr XMUINT2 Max(const XMUINT2& a, const XMUINT2& b)
+    {
+        return XMUINT2(Max(a.x, b.x), Max(a.y, b.y));
     }
 
     constexpr float Saturate(float x) 

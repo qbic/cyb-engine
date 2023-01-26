@@ -778,7 +778,7 @@ namespace cyb::scene
 
     void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Execute(ctx, [&]
+        jobsystem::Execute(ctx, [&](jobsystem::JobArgs)
             {
                 for (size_t i = 0; i < objects.Size(); ++i)
                 {
@@ -803,7 +803,7 @@ namespace cyb::scene
 
     void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Execute(ctx, [&]
+        jobsystem::Execute(ctx, [&](jobsystem::JobArgs)
             {
                 for (size_t i = 0; i < lights.Size(); ++i)
                 {
@@ -942,7 +942,7 @@ namespace cyb::scene
             ar >> x.translation_local;
 
             x.SetDirty();
-            jobsystem::Execute(serialize.ctx, [&x] { x.UpdateTransform(); });
+            jobsystem::Execute(serialize.ctx, [&x](jobsystem::JobArgs) { x.UpdateTransform(); });
         }
         else
         {
@@ -1003,7 +1003,7 @@ namespace cyb::scene
             ar >> x.vertex_colors;
             ar >> x.indices;
 
-            jobsystem::Execute(serialize.ctx, [&x] { x.CreateRenderData(); });
+            jobsystem::Execute(serialize.ctx, [&x](jobsystem::JobArgs) { x.CreateRenderData(); });
         }
         else
         {

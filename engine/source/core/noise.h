@@ -5,11 +5,30 @@
 
 namespace cyb
 {
-    enum class NoiseInterpolation
+    enum class NoiseType
     {
-        Linear,
-        Hermite,
-        Quintic
+        Perlin,
+        Cellular
+    };
+
+    enum class NoiseStrataOp
+    {
+        None,
+        SharpSub,
+        SharpAdd,
+        Quantize,
+        Smooth
+    };
+
+    enum class CellularReturnType
+    {
+        CellValue,
+        Distance,
+        Distance2,
+        Distance2Add,
+        Distance2Sub,
+        Distance2Mul,
+        Distance2Div
     };
 
     class NoiseGenerator
@@ -17,32 +36,33 @@ namespace cyb
     public:
         NoiseGenerator(uint32_t seed = 1337);
         
-        void SetSeed(uint32_t seed);
-        uint32_t GetSeed() const { return m_seed; }
+        void SetSeed(uint32_t seed) { m_seed = seed; }
+        void SetNoiseType(NoiseType type) { m_noiseType = type; }
         void SetFrequency(float frequency) { m_frequency = frequency; }
-        float GetFrequency() const { return m_frequency; }
-        void SetInterp(NoiseInterpolation interp) { m_interp = interp; }
-        NoiseInterpolation GetInterp() const { return m_interp; }
         void SetFractalOctaves(int octaves) { m_octaves = octaves; CalculateFractalBounding(); }
-        int GetFractalOctaves() const { return m_octaves; }
+        void SetStrataFunctionOp(NoiseStrataOp op) { m_strataOp = op; }
+        void SetStrata(float strata) { m_strata = strata; }
+        void SetCellularReturnType(CellularReturnType type) { m_cellularReturnType = type; }
         float GetNoise(float x, float y) const;
-
-        float SinglePerlin(uint8_t offset, float x, float y) const;
-        float SinglePerlinFractalFBM(float x, float y) const;
 
     private:
         void CalculateFractalBounding();
-        inline float GradCoord2D(uint8_t offset, int x, int y, float xd, float yd) const;
-        inline uint8_t Index2D_12(uint8_t offset, int x, int y) const;
+        float GetNoiseSingle(uint32_t seed, float x, float y) const;
+        float SinglePerlin(uint32_t seed, float x, float y) const;
+        float SingleCellular(uint32_t seed, float x, float y) const;
 
-        uint8_t m_perm[512];                   // Permutation table
-        uint8_t m_perm12[512];
         uint32_t m_seed = 1337;
         float m_frequency = 0.01f;
-        NoiseInterpolation m_interp = NoiseInterpolation::Quintic;
+        NoiseType m_noiseType = NoiseType::Perlin;
         uint32_t m_octaves = 3;
         float m_lacunarity = 2.0f;
         float m_gain = 0.5f;
         float m_fractalBounding;
+
+        NoiseStrataOp m_strataOp = NoiseStrataOp::None;
+        float m_strata = 5.0f;
+
+        float m_cellularJitterModifier = 1.0f;
+        CellularReturnType m_cellularReturnType = CellularReturnType::Distance;
     };
 }

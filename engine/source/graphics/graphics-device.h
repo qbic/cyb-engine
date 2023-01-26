@@ -28,7 +28,6 @@ namespace cyb::graphics
     };
     CYB_ENABLE_BITMASK_OPERATORS(ResourceMiscFlag);
 
-
     enum class MemoryAccess
     {
         Default,                            // CPU no access, GPU read/write
@@ -38,10 +37,10 @@ namespace cyb::graphics
 
     enum class TextureFilter
     {
-        kPoint,
-        kBilinear,
-        kTrilinear,
-        kAnisotropic
+        Point,
+        Bilinear,
+        Trilinear,
+        Anisotropic
     };
 
     enum class TextureAddressMode
@@ -170,6 +169,7 @@ namespace cyb::graphics
     {
         Graphics,
         Compute,
+        Copy,
         _Count
     };
 
@@ -219,7 +219,7 @@ namespace cyb::graphics
 
     struct VertexInputLayout
     {
-        /** Automatically calculate alignedByteOffset using format. */
+        // Automatically calculate alignedByteOffset using format
         static constexpr uint32_t AppendAlignedElement = ~0u; 
 
         struct Element
@@ -241,7 +241,7 @@ namespace cyb::graphics
 
     struct SamplerDesc
     {
-        TextureFilter filter = TextureFilter::kPoint;
+        TextureFilter filter = TextureFilter::Point;
         TextureAddressMode addressU = TextureAddressMode::Wrap;
         TextureAddressMode addressV = TextureAddressMode::Wrap;
         TextureAddressMode addressW = TextureAddressMode::Wrap;
@@ -504,25 +504,10 @@ namespace cyb::graphics
     //  Render Device Interface Class
     //=============================================================
 
-    enum { kMaxTextureUnits = 4 };
-
     struct FrameStats
     {
-        uint32_t draw_calls = 0;
-        uint64_t triangle_count = 0;
-    };
-
-    struct DeviceContextState
-    {
-        const Texture* currentTexture[kMaxTextureUnits] = { 0 };
-        const Sampler* currentSamplerState[kMaxTextureUnits] = { 0 };
-        const PipelineState* currentPipelineState = nullptr;
-    };
-
-    enum class GraphicsDeviceAPI
-    {
-        kOpenGL,
-        kVulkan
+        uint32_t drawCalls = 0;
+        uint64_t triangleCount = 0;
     };
 
     struct CommandList
@@ -531,17 +516,16 @@ namespace cyb::graphics
         constexpr bool IsValid() const { return internal_state != nullptr; }
     };
 
-    enum { kDescriptorBinderCBVCount = 14 };
-    enum { kDescriptorBinderSRVCount = 14 };
-    enum { kDescriptorBinderSamplerCount = 14 };
-
+    static constexpr uint32_t DESCRIPTORBINDER_CBV_COUNT = 14;
+    static constexpr uint32_t DESCRIPTORBINDER_SRV_COUNT = 16;
+    static constexpr uint32_t DESCRIPTORBINDER_SAMPLER_COUNT = 8;
     struct DescriptorBindingTable
     {
-        GPUBuffer CBV[kDescriptorBinderCBVCount];
-        uint64_t CBV_offset[kDescriptorBinderCBVCount] = {};
-        GPUResource SRV[kDescriptorBinderSRVCount];
-        int SRV_index[kDescriptorBinderSRVCount] = {};
-        Sampler SAM[kDescriptorBinderSamplerCount];
+        GPUBuffer CBV[DESCRIPTORBINDER_CBV_COUNT];
+        uint64_t CBV_offset[DESCRIPTORBINDER_CBV_COUNT] = {};
+        GPUResource SRV[DESCRIPTORBINDER_SRV_COUNT];
+        int SRV_index[DESCRIPTORBINDER_SRV_COUNT] = {};
+        Sampler SAM[DESCRIPTORBINDER_SAMPLER_COUNT];
     };
 
     constexpr uint32_t AlignTo(uint32_t value, uint32_t alignment)
@@ -556,13 +540,12 @@ namespace cyb::graphics
     class GraphicsDevice
     {
     protected:
-        enum { kBufferCount = 2 };
+        enum { BUFFERCOUNT = 2 };
         uint64_t frameCount = 0;
         bool validationModeEnabled = true;
 
     public:
         virtual ~GraphicsDevice() = default;
-        virtual GraphicsDeviceAPI GetDeviceAPI() const = 0;
 
         virtual bool CreateSwapChain(const SwapChainDesc* desc, platform::Window* window, SwapChain* swapchain) const = 0;
         virtual bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const = 0;
@@ -572,12 +555,12 @@ namespace cyb::graphics
         virtual bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const = 0;
         virtual bool CreateRenderPass(const RenderPassDesc* desc, RenderPass* renderpass) const = 0;
 
-        virtual CommandList BeginCommandList() { return CommandList{}; }
+        virtual CommandList BeginCommandList(QueueType queue = QueueType::Graphics) = 0;
         virtual void SubmitCommandList() {}
         virtual void SetName(GPUResource* resource, const char* name) { }
 
         constexpr uint64_t GetFrameCount() const { return frameCount; }
-        constexpr uint32_t GetBufferIndex() const { return GetFrameCount() % kBufferCount; }
+        constexpr uint32_t GetBufferIndex() const { return GetFrameCount() % BUFFERCOUNT; }
 
         // Returns the minimum required alignment for buffer offsets when creating subresources
         virtual uint64_t GetMinOffsetAlignment(const GPUBufferDesc* desc) const = 0;
@@ -662,7 +645,7 @@ namespace cyb::graphics
                 allocator.alignment = GetMinOffsetAlignment(&desc);
                 desc.size = AlignTo((allocator.buffer.desc.size + dataSize) * 2, allocator.alignment);
                 CreateBuffer(&desc, nullptr, &allocator.buffer);
-                SetName(&allocator.buffer, "cyb_frame_alloc");
+                SetName(&allocator.buffer, "cyb::FrameAlloc");
                 allocator.offset = 0;
             }
 

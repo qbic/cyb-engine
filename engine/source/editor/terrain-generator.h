@@ -5,46 +5,56 @@
 
 namespace cyb::editor
 {
-    enum class TerrainStrata
+    enum class HeightmapCombineType
     {
-        None,
-        SharpSub,
-        SharpAdd,
-        Quantize,
-        Smooth
+        Mul,
+        Lerp
     };
 
-    struct TerrainBitmapDesc
+    struct NoiseDesc
+    {
+        NoiseType noiseType = NoiseType::Perlin;
+        uint32_t seed = 0;              // Noise function seed value
+        float frequency = 5.5f;         // Noise function frequency
+        uint32_t octaves = 4;           // Fractal Brownian Motion (FBM) octaves
+        NoiseStrataOp strataOp = NoiseStrataOp::None;
+        float strata = 5.0f;            // Strata amount
+        CellularReturnType cellularReturnType = CellularReturnType::Distance;
+    };
+
+    struct HeightmapDesc
     {
         uint32_t width = 512;
         uint32_t height = 512;
-        bool normalize = true;          // Normalize all values in bitmap to [0..1] range
-        uint32_t seed = 0;              // Noise function seed value
-        float frequency = 5.5f;         // Noise function frequency
-        uint32_t octaves = 6;           // Fractal Brownian Motion (FBM) octaves
-        NoiseInterpolation interp = NoiseInterpolation::Quintic;
-        TerrainStrata strataFunc = TerrainStrata::None;
-        float strata = 5.0f;            // Strata amount
     };
 
-    struct TerrainBitmap
+    struct Heightmap
     {
-        TerrainBitmapDesc desc;
+        NoiseGenerator noiseGen;
+        HeightmapDesc desc;
         std::atomic<float> maxN;
         std::atomic<float> minN;
         std::vector<float> image;       // Bitmap in 1ch 32-bit floating point format
+
+        float GetHeightAt(uint32_t x, uint32_t y) const;
+        float GetHeightAt(const XMINT2& p) const;
+        std::pair<XMINT2, float> FindCandidate(const XMINT2 p0, const XMINT2 p1, const XMINT2 p2) const;
     };
 
     struct TerrainMeshDesc
     {
         float size = 1000.0f;           // Terrain size in meters
-        float maxAltitude = 120.0f;     // Peak height in meters
+        float maxAltitude = 160.0f;     // Peak height in meters
         float minAltitude = -22.0f;     // Lowest terrain point
         uint32_t mapResolution = 512;   // Terrain and image resolutions, higher = more triangles
         uint32_t numChunks = 8;         // Devide terrain in numChunks^2 seperate scene objects
 
-        TerrainBitmap* m_heightmap;
-        TerrainBitmap* m_moisturemap;
+        float maxError = 0.008f;
+        uint32_t maxTriangles = 0;
+        uint32_t maxVertices = 0;
+
+        Heightmap* m_heightmap;
+        Heightmap* m_moisturemap;
     };
 
     struct TerrainMesh
@@ -63,15 +73,15 @@ namespace cyb::editor
         TerrainMeshDesc desc;
         std::vector<Chunk> chunks;
 
+        ////
+        std::vector<XMFLOAT3> points;
+        std::vector<XMINT3> triangles;
+        ////
+
         //---- scene data ----
         ecs::Entity materialID;
         ecs::Entity groupID;
     };
-
-    void CreateTerrainBitmap(jobsystem::Context& ctx, const TerrainBitmapDesc& desc, TerrainBitmap& bitmap);
-    void NormalizeTerrainBitmapValues(jobsystem::Context& ctx, TerrainBitmap& bitmap);
-    void CreateTerrainColormap(jobsystem::Context& ctx, const TerrainBitmap& height, const TerrainBitmap& moisture, std::vector<uint32_t>& color);
-    void CreateTerrainMesh(const TerrainMeshDesc& desc, TerrainMesh& terrain);
 
     //=============================================================
     //  TerrainGenerator GUI
@@ -95,30 +105,41 @@ namespace cyb::editor
 
     private:
         bool m_initialized = false;
-        TerrainMeshDesc m_meshDesc;
-        TerrainBitmapDesc m_heightmapDesc;
-        TerrainBitmapDesc m_moisturemapDesc;
-
-        TerrainBitmap m_heightmap;
-        TerrainBitmap m_moisturemap;
+        HeightmapDesc m_heightmapDesc;
+        NoiseDesc m_heightmapNoise1;
+        NoiseDesc m_heightmapNoise2;
+        HeightmapCombineType m_combineType = HeightmapCombineType::Lerp;
+        float m_heightmapNoiseMix = 0.5f;
+        HeightmapDesc m_moisturemapDesc;
+        NoiseDesc m_moisturemapNoise;
+        Heightmap m_heightmap;
+        Heightmap m_moisturemap;
         std::vector<uint32_t> m_colormap;
-
         graphics::Texture m_heightmapTex;
         graphics::Texture m_moisturemapTex;
         graphics::Texture m_colormapTex;
+        ImGradient m_biomeColorBand;
+        ImGradient m_moistureBiomeColorBand;
+
+        TerrainMeshDesc m_meshDesc;
+        TerrainMesh m_mesh;
 
         Map m_selectedMapType = Map::Height;
         bool m_drawChunkLines = false;
-
+        bool m_drawTriangles = false;
         bool m_useMoistureMap = false;
-        ImGradient m_biomeColorBand;
-        ImGradient m_moistureBiomeColorBand;
         
+        void ResetParams();
         void DrawChunkLines(const ImVec2& drawStartPos) const;
-        void UpdateBitmaps();   // also updates colormap
+        void DrawMeshTriangles(const ImVec2& drawStartPos) const;
+
+        void UpdateAllMaps();   // also updates colormap
         void UpdateColormap(jobsystem::Context& ctx);
         void UpdateColormapAndTextures();
-        void UpdateBitmapTextures();
+        void UpdateTextures();
         void UpdateBitmapsAndTextures();
+
+        void UpdateTerrainMesh();
+        void GenerateTerrainMesh();
     };
 }

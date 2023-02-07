@@ -41,73 +41,47 @@ namespace cyb
         CalculateFractalBounding();
     }
 
+    NoiseGenerator::NoiseGenerator(const NoiseDesc& noiseDesc)
+    {
+        desc = noiseDesc;
+        CalculateFractalBounding();
+    }
+
     void NoiseGenerator::CalculateFractalBounding()
     {
-        float amp = m_gain;
+        float amp = desc.gain;
         float ampFractal = 1.0f;
-        for (uint32_t i = 1; i < m_octaves; i++)
+        for (uint32_t i = 1; i < desc.octaves; i++)
         {
             ampFractal += amp;
-            amp *= m_gain;
+            amp *= desc.gain;
         }
-        m_fractalBounding = 1.0f / ampFractal;
+        fractalBounding = 1.0f / ampFractal;
     }
 
     float NoiseGenerator::GetNoise(float x, float y) const
     {
-        x *= m_frequency;
-        y *= m_frequency;
+        x *= desc.frequency;
+        y *= desc.frequency;
 
         float sum = 0.0f;
         float amp = 1;
 
-        for (uint32_t i = 0; i < m_octaves; ++i)
+        for (uint32_t i = 0; i < desc.octaves; ++i)
         {
-            x *= m_lacunarity;
-            y *= m_lacunarity;
+            x *= desc.lacunarity;
+            y *= desc.lacunarity;
 
-            amp *= m_gain;
-            sum += GetNoiseSingle(m_seed + i, x, y) * amp;
+            amp *= desc.gain;
+            sum += GetNoiseSingle(desc.seed + i, x, y) * amp;
         }
 
-        sum *= m_fractalBounding;
-
-        // Apply strata:
-        switch (m_strataOp)
-        {
-        case NoiseStrataOp::SharpSub:
-        {
-            const float steps = -math::Abs(std::sin(sum * m_strata * math::M_PI) * (0.1f / m_strata * math::M_PI));
-            sum = (sum * 0.5f + steps * 0.5f);
-        } break;
-        case NoiseStrataOp::SharpAdd:
-        {
-            const float steps = math::Abs(std::sin(sum * m_strata * math::M_PI) * (0.1f / m_strata * math::M_PI));
-            sum = (sum * 0.5f + steps * 0.5f);
-
-        } break;
-        case NoiseStrataOp::Quantize:
-        {
-            const float strata = m_strata * 2.0f;
-            sum = int(sum * strata) * 1.0f / strata;
-        } break;
-        case NoiseStrataOp::Smooth:
-        {
-            const float strata = m_strata * 2.0f;
-            const float steps = std::sin(sum * strata * math::M_PI) * (0.1f / strata * math::M_PI);
-            sum = sum * 0.5f + steps * 0.5f;
-        } break;
-        case NoiseStrataOp::None:
-        default:
-            break;
-        }
-
-        return sum;
+        return sum * fractalBounding;
     }
 
     float NoiseGenerator::GetNoiseSingle(uint32_t seed, float x, float y) const
     {
-        switch (m_noiseType)
+        switch (desc.noiseType)
         {
         case NoiseType::Perlin:
             return SinglePerlin(seed, x, y);
@@ -130,8 +104,8 @@ namespace cyb
         const float xd1 = xd0 - 1;
         const float yd1 = yd0 - 1;
 
-        const float xs = math::InterpQuinticFunc(x - (float)x0);
-        const float ys = math::InterpQuinticFunc(y - (float)y0);
+        const float xs = math::InterpQuinticFunc(xd0);
+        const float ys = math::InterpQuinticFunc(yd0);
 
         x0 *= PrimeX;
         y0 *= PrimeY;
@@ -153,7 +127,7 @@ namespace cyb
         float distance1 = 1e10f;
         int closestHash = 0;
 
-        float cellularJitter = 0.43701595f * m_cellularJitterModifier;
+        float cellularJitter = 0.43701595f * desc.cellularJitterModifier;
 
         int xPrimed = (xr - 1) * PrimeX;
         int yPrimedBase = (yr - 1) * PrimeY;
@@ -183,7 +157,7 @@ namespace cyb
             xPrimed += PrimeX;
         }
             
-        switch (m_cellularReturnType)
+        switch (desc.cellularReturnType)
         {
         case CellularReturnType::CellValue:
             return closestHash * (1 / 2147483648.0f);

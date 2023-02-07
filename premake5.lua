@@ -3,8 +3,10 @@ workspace "cyb-engine"
    architecture "x64"
    startproject "game"
    configurations { "Debug", "Release" }
-   flags { "MultiProcessorCompile" }
 
+   flags { "MultiProcessorCompile" }
+   floatingpoint "fast"
+   
    outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
    targetdir ("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")

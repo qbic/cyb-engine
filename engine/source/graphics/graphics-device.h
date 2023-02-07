@@ -540,9 +540,9 @@ namespace cyb::graphics
     class GraphicsDevice
     {
     protected:
-        enum { BUFFERCOUNT = 2 };
+        static const uint32_t BUFFERCOUNT = 2;
+        const bool VALIDATION_MODE_ENABLED = true;
         uint64_t frameCount = 0;
-        bool validationModeEnabled = true;
 
     public:
         virtual ~GraphicsDevice() = default;

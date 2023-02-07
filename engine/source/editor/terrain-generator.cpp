@@ -5,118 +5,20 @@
 #include "editor/imgui-widgets.h"
 #include "editor/terrain-generator.h"
 
-#define UPDATE_MESH_ON_ITEM_CHANGE() if (ImGui::IsItemDeactivatedAfterEdit()) { UpdateTerrainMesh(); }
-#define UPDATE_TEXTURES_AND_MESH_ON_ITEM_CHANGE() if (ImGui::IsItemDeactivatedAfterEdit()) { UpdateBitmapsAndTextures(); UpdateTerrainMesh(); }
+#define UPDATE_HEIGHTMAP_ON_CHANGE() if (ImGui::IsItemDeactivatedAfterEdit()) { UpdateHeightmapAndTextures(); }
 
 namespace cyb::editor
 {
-    float Heightmap::GetHeightAt(uint32_t x, uint32_t y) const
-    {
-        return image[y * desc.width + x];
-    }
-
-    float Heightmap::GetHeightAt(const XMINT2& p) const
-    {
-        return GetHeightAt(p.x, p.y);
-    }
-
-    std::pair<XMINT2, float> Heightmap::FindCandidate(const XMINT2 p0, const XMINT2 p1, const XMINT2 p2) const
-    {
-        constexpr auto edge = [](const XMINT2& a, const XMINT2& b, const XMINT2& c)
-        {
-            return (b.x - c.x) * (a.y - c.y) - (b.y - c.y) * (a.x - c.x);
-        };
-
-        // Triangle bounding box
-        const XMINT2 bbMin = math::Min(math::Min(p0, p1), p2);
-        const XMINT2 bbMax = math::Max(math::Max(p0, p1), p2);
-
-        // Forward differencing variables
-        int32_t w00 = edge(p1, p2, bbMin);
-        int32_t w01 = edge(p2, p0, bbMin);
-        int32_t w02 = edge(p0, p1, bbMin);
-        const int32_t a01 = p1.y - p0.y;
-        const int32_t b01 = p0.x - p1.x;
-        const int32_t a12 = p2.y - p1.y;
-        const int32_t b12 = p1.x - p2.x;
-        const int32_t a20 = p0.y - p2.y;
-        const int32_t b20 = p2.x - p0.x;
-
-        // Pre-multiplied z values at vertices
-        const float a = static_cast<float>(edge(p0, p1, p2));
-        const float z0 = GetHeightAt(p0) / a;
-        const float z1 = GetHeightAt(p1) / a;
-        const float z2 = GetHeightAt(p2) / a;
-
-        // Iterate over pixels in bounding box
-        float maxError = 0;
-        XMINT2 maxPoint(0, 0);
-        for (int32_t y = bbMin.y; y <= bbMax.y; y++)
-        {
-            // compute starting offset
-            int32_t dx = 0;
-            if (w00 < 0 && a12 != 0)
-                dx = math::Max(dx, -w00 / a12);
-            if (w01 < 0 && a20 != 0)
-                dx = math::Max(dx, -w01 / a20);
-            if (w02 < 0 && a01 != 0)
-                dx = math::Max(dx, -w02 / a01);
-
-            int32_t w0 = w00 + a12 * dx;
-            int32_t w1 = w01 + a20 * dx;
-            int32_t w2 = w02 + a01 * dx;
-
-            bool wasInside = false;
-
-            for (int32_t x = bbMin.x + dx; x <= bbMax.x; x++)
-            {
-                // check if inside triangle
-                if (w0 >= 0 && w1 >= 0 && w2 >= 0) 
-                {
-                    wasInside = true;
-
-                    // compute z using barycentric coordinates
-                    const float z = z0 * w0 + z1 * w1 + z2 * w2;
-                    const float dz = math::Abs(z - GetHeightAt(x, y));
-                    if (dz > maxError) 
-                    {
-                        maxError = dz;
-                        maxPoint = XMINT2(x, y);
-                    }
-                }
-                else if (wasInside) 
-                {
-                    break;
-                }
-
-                w0 += a12;
-                w1 += a20;
-                w2 += a01;
-            }
-
-            w00 += b12;
-            w01 += b20;
-            w02 += b01;
-        }
-
-        if ((maxPoint.x == p0.x && maxPoint.y == p0.y) || 
-            (maxPoint.x == p1.x && maxPoint.y == p1.y) || 
-            (maxPoint.x == p2.x && maxPoint.y == p2.y)) 
-            maxError = 0;
-
-        return std::make_pair(maxPoint, maxError);
-    }
-
     class HeightmapTriangulator
     {
     public:
         HeightmapTriangulator(const Heightmap* heightmap) : m_Heightmap(heightmap) {}
 
-        void Run(const float maxError, const int maxTriangles, const int maxPoints);
+        void Run(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints);
 
-        int NumPoints() const { return m_Points.size(); }
-        int NumTriangles() const { return m_Queue.size(); }
-        float Error() const { return m_Errors[m_Queue[0]]; }
+        uint32_t NumPoints() const { return (uint32_t)m_Points.size(); }
+        uint32_t NumTriangles() const { return (uint32_t)m_queue.size(); }
+        float Error() const { return m_Errors[m_queue[0]]; }
 
         std::vector<XMFLOAT3> GetPoints() const;
         std::vector<XMINT3> GetTriangles() const;
@@ -124,50 +26,51 @@ namespace cyb::editor
     private:
         void Flush();
         void Step();
-        int AddPoint(const XMINT2 point);
+        uint32_t AddPoint(const XMINT2 point);
         int AddTriangle(
             const int a, const int b, const int c,
             const int ab, const int bc, const int ca,
-            int e);
+            int32_t e);
         void Legalize(const int a);
         void QueuePush(const int t);
         int QueuePop();
         int QueuePopBack();
         void QueueRemove(const int t);
-        bool QueueLess(const int i, const int j) const;
-        void QueueSwap(const int i, const int j);
-        void QueueUp(const int j0);
-        bool QueueDown(const int i0, const int n);
+        bool QueueLess(const size_t i, const size_t j) const;
+        void QueueSwap(const size_t i, const size_t j);
+        void QueueUp(const size_t j0);
+        bool QueueDown(const size_t i0, const size_t n);
 
         const Heightmap* m_Heightmap;
         std::vector<XMINT2> m_Points;
-        std::vector<int> m_Triangles;
+        std::vector<uint32_t> m_triangles;      // triangle indexes
         std::vector<int> m_Halfedges;
         std::vector<XMINT2> m_Candidates;
         std::vector<float> m_Errors;
-        std::vector<int> m_QueueIndexes;
-        std::vector<int> m_Queue;
-        std::vector<int> m_Pending;
+
+        std::vector<size_t> m_queueIndexes;
+        std::vector<uint32_t> m_queue;
+        std::vector<uint32_t> m_pending;
     };        
 
-    void HeightmapTriangulator::Run(const float maxError, const int maxTriangles, const int maxPoints)
+    void HeightmapTriangulator::Run(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints)
     {
         // add points at all four corners
-        const int x0 = 0;
-        const int y0 = 0;
-        const int x1 = m_Heightmap->desc.width - 1;
-        const int y1 = m_Heightmap->desc.height - 1;
-        const int p0 = AddPoint(XMINT2(x0, y0));
-        const int p1 = AddPoint(XMINT2(x1, y0));
-        const int p2 = AddPoint(XMINT2(x0, y1));
-        const int p3 = AddPoint(XMINT2(x1, y1));
+        const int32_t x0 = 0;
+        const int32_t y0 = 0;
+        const int32_t x1 = m_Heightmap->desc.width - 1;
+        const int32_t y1 = m_Heightmap->desc.height - 1;
+        const int32_t p0 = AddPoint(XMINT2(x0, y0));
+        const int32_t p1 = AddPoint(XMINT2(x1, y0));
+        const int32_t p2 = AddPoint(XMINT2(x0, y1));
+        const int32_t p3 = AddPoint(XMINT2(x1, y1));
 
         // add initial two triangles
         const int t0 = AddTriangle(p3, p0, p2, -1, -1, -1, -1);
         AddTriangle(p0, p3, p1, t0, -1, -1, -1);
         Flush();
 
-        // helper function to check if triangulation is complete
+        // lambda to check if triangulation is complete
         const auto done = [this, maxError, maxTriangles, maxPoints]() 
         {
             return (Error() <= maxError) ||
@@ -197,26 +100,26 @@ namespace cyb::editor
     std::vector<XMINT3> HeightmapTriangulator::GetTriangles() const 
     {
         std::vector<XMINT3> triangles;
-        triangles.reserve(m_Queue.size());
-        for (const int i : m_Queue)
+        triangles.reserve(m_queue.size());
+        for (const auto i : m_queue)
         {
             triangles.emplace_back(
-                m_Triangles[i * 3 + 0],
-                m_Triangles[i * 3 + 1],
-                m_Triangles[i * 3 + 2]);
+                m_triangles[i * 3 + 0],
+                m_triangles[i * 3 + 1],
+                m_triangles[i * 3 + 2]);
         }
         return triangles;
     }
 
     void HeightmapTriangulator::Flush() 
     {
-        for (const int t : m_Pending)
+        for (const int t : m_pending)
         {
             // rasterize triangle to find maximum pixel error
             const auto pair = m_Heightmap->FindCandidate(
-                m_Points[m_Triangles[t * 3 + 0]],
-                m_Points[m_Triangles[t * 3 + 1]],
-                m_Points[m_Triangles[t * 3 + 2]]);
+                m_Points[m_triangles[t * 3 + 0]],
+                m_Points[m_triangles[t * 3 + 1]],
+                m_Points[m_triangles[t * 3 + 2]]);
             // update metadata
             m_Candidates[t] = pair.first;
             m_Errors[t] = pair.second;
@@ -224,7 +127,7 @@ namespace cyb::editor
             QueuePush(t);
         }
 
-        m_Pending.clear();
+        m_pending.clear();
     }
 
     void HeightmapTriangulator::Step() 
@@ -236,9 +139,9 @@ namespace cyb::editor
         const int e1 = t * 3 + 1;
         const int e2 = t * 3 + 2;
 
-        const int p0 = m_Triangles[e0];
-        const int p1 = m_Triangles[e1];
-        const int p2 = m_Triangles[e2];
+        const int p0 = m_triangles[e0];
+        const int p1 = m_triangles[e1];
+        const int p2 = m_triangles[e2];
 
         const XMINT2 a = m_Points[p0];
         const XMINT2 b = m_Points[p1];
@@ -247,8 +150,7 @@ namespace cyb::editor
 
         const int pn = AddPoint(p);
 
-        const auto collinear = [](
-            const XMINT2& p0, const XMINT2& p1, const XMINT2& p2)
+        const auto collinear = [](const XMINT2& p0, const XMINT2& p1, const XMINT2& p2)
         {
             return (p1.y - p0.y) * (p2.x - p1.x) == (p2.y - p1.y) * (p1.x - p0.x);
         };
@@ -258,9 +160,9 @@ namespace cyb::editor
             const int a0 = a - a % 3;
             const int al = a0 + (a + 1) % 3;
             const int ar = a0 + (a + 2) % 3;
-            const int p0 = m_Triangles[ar];
-            const int pr = m_Triangles[a];
-            const int pl = m_Triangles[al];
+            const int p0 = m_triangles[ar];
+            const int pr = m_triangles[a];
+            const int pl = m_triangles[al];
             const int hal = m_Halfedges[al];
             const int har = m_Halfedges[ar];
 
@@ -278,7 +180,7 @@ namespace cyb::editor
             const int b0 = b - b % 3;
             const int bl = b0 + (b + 2) % 3;
             const int br = b0 + (b + 1) % 3;
-            const int p1 = m_Triangles[bl];
+            const int p1 = m_triangles[bl];
             const int hbl = m_Halfedges[bl];
             const int hbr = m_Halfedges[br];
 
@@ -321,26 +223,26 @@ namespace cyb::editor
         Flush();
     }
 
-    int HeightmapTriangulator::AddPoint(const XMINT2 point)
+    uint32_t HeightmapTriangulator::AddPoint(const XMINT2 point)
     {
-        const int i = m_Points.size();
         m_Points.push_back(point);
-        return i;
+        assert(m_Points.size() < std::numeric_limits<uint32_t>::max());
+        return (uint32_t)m_Points.size() - 1;
     }
 
     int HeightmapTriangulator::AddTriangle(
         const int a, const int b, const int c,
         const int ab, const int bc, const int ca,
-        int e)
+        int32_t e)
     {
         if (e < 0) 
         {
             // new halfedge index
-            e = m_Triangles.size();
+            e = (int32_t)m_triangles.size();
             // add triangle vertices
-            m_Triangles.push_back(a);
-            m_Triangles.push_back(b);
-            m_Triangles.push_back(c);
+            m_triangles.push_back(a);
+            m_triangles.push_back(b);
+            m_triangles.push_back(c);
             // add triangle halfedges
             m_Halfedges.push_back(ab);
             m_Halfedges.push_back(bc);
@@ -348,14 +250,14 @@ namespace cyb::editor
             // add triangle metadata
             m_Candidates.emplace_back(0, 0);
             m_Errors.push_back(0);
-            m_QueueIndexes.push_back(-1);
+            m_queueIndexes.push_back(-1);
         }
         else 
         {
             // set triangle vertices
-            m_Triangles[e + 0] = a;
-            m_Triangles[e + 1] = b;
-            m_Triangles[e + 2] = c;
+            m_triangles[e + 0] = a;
+            m_triangles[e + 1] = b;
+            m_triangles[e + 2] = c;
             // set triangle halfedges
             m_Halfedges[e + 0] = ab;
             m_Halfedges[e + 1] = bc;
@@ -372,7 +274,7 @@ namespace cyb::editor
 
         // add triangle to pending queue for later rasterization
         const int t = e / 3;
-        m_Pending.push_back(t);
+        m_pending.push_back(t);
 
         // return first halfedge index
         return e;
@@ -396,12 +298,12 @@ namespace cyb::editor
         //           pr                    pr
         const auto inCircle = [](const XMINT2& a, const XMINT2& b, const XMINT2& c, const XMINT2& p)
         {
-            const int64_t dx = a.x - p.x;
-            const int64_t dy = a.y - p.y;
-            const int64_t ex = b.x - p.x;
-            const int64_t ey = b.y - p.y;
-            const int64_t fx = c.x - p.x;
-            const int64_t fy = c.y - p.y;
+            const int32_t dx = a.x - p.x;
+            const int32_t dy = a.y - p.y;
+            const int32_t ex = b.x - p.x;
+            const int32_t ey = b.y - p.y;
+            const int32_t fx = c.x - p.x;
+            const int32_t fy = c.y - p.y;
             const int64_t ap = dx * dx + dy * dy;
             const int64_t bp = ex * ex + ey * ey;
             const int64_t cp = fx * fx + fy * fy;
@@ -418,10 +320,10 @@ namespace cyb::editor
         const int ar = a0 + (a + 2) % 3;
         const int bl = b0 + (b + 2) % 3;
         const int br = b0 + (b + 1) % 3;
-        const int p0 = m_Triangles[ar];
-        const int pr = m_Triangles[a];
-        const int pl = m_Triangles[al];
-        const int p1 = m_Triangles[bl];
+        const int p0 = m_triangles[ar];
+        const int pr = m_triangles[a];
+        const int pl = m_triangles[al];
+        const int p1 = m_triangles[bl];
 
         if (!inCircle(m_Points[p0], m_Points[pr], m_Points[pl], m_Points[p1]))
             return;
@@ -443,15 +345,15 @@ namespace cyb::editor
 
     void HeightmapTriangulator::QueuePush(const int t)
     {
-        const int i = m_Queue.size();
-        m_QueueIndexes[t] = i;
-        m_Queue.push_back(t);
+        const uint32_t i = (uint32_t)m_queue.size();
+        m_queueIndexes[t] = i;
+        m_queue.push_back(t);
         QueueUp(i);
     }
 
     int HeightmapTriangulator::QueuePop()
     {
-        const int n = m_Queue.size() - 1;
+        const uint32_t n = (uint32_t)m_queue.size() - 1;
         QueueSwap(0, n);
         QueueDown(0, n);
         return QueuePopBack();
@@ -459,25 +361,25 @@ namespace cyb::editor
 
     int HeightmapTriangulator::QueuePopBack()
     {
-        const int t = m_Queue.back();
-        m_Queue.pop_back();
-        m_QueueIndexes[t] = -1;
+        const uint32_t t = m_queue.back();
+        m_queue.pop_back();
+        m_queueIndexes[t] = ~0;
         return t;
     }
 
     void HeightmapTriangulator::QueueRemove(const int t)
     {
-        const int i = m_QueueIndexes[t];
-        if (i < 0)
+        const size_t i = m_queueIndexes[t];
+        if (i == ~0)
         {
-            const auto it = std::find(m_Pending.begin(), m_Pending.end(), t);
-            assert(it != m_Pending.end());
-            std::swap(*it, m_Pending.back());
-            m_Pending.pop_back();
+            const auto it = std::find(m_pending.begin(), m_pending.end(), t);
+            assert(it != m_pending.end());
+            std::swap(*it, m_pending.back());
+            m_pending.pop_back();
             return;
         }
 
-        const int n = m_Queue.size() - 1;
+        const size_t n = m_queue.size() - 1;
         if (n != i)
         {
             QueueSwap(i, n);
@@ -487,26 +389,27 @@ namespace cyb::editor
         QueuePopBack();
     }
 
-    bool HeightmapTriangulator::QueueLess(const int i, const int j) const
+    bool HeightmapTriangulator::QueueLess(const size_t i, const size_t j) const
     {
-        return -m_Errors[m_Queue[i]] < -m_Errors[m_Queue[j]];
+        return -m_Errors[m_queue[i]] < -m_Errors[m_queue[j]];
     }
 
-    void HeightmapTriangulator::QueueSwap(const int i, const int j)
+    void HeightmapTriangulator::QueueSwap(const size_t i, const size_t j)
     {
-        const int pi = m_Queue[i];
-        const int pj = m_Queue[j];
-        m_Queue[i] = pj;
-        m_Queue[j] = pi;
-        m_QueueIndexes[pi] = j;
-        m_QueueIndexes[pj] = i;
+        const int pi = m_queue[i];
+        const int pj = m_queue[j];
+        m_queue[i] = pj;
+        m_queue[j] = pi;
+        m_queueIndexes[pi] = j;
+        m_queueIndexes[pj] = i;
     }
 
-    void HeightmapTriangulator::QueueUp(const int j0)
+    void HeightmapTriangulator::QueueUp(const size_t j0)
     {
-        int j = j0;
-        while (1) {
-            int i = (j - 1) / 2;
+        size_t j = j0;
+        while (1)
+        {
+            int32_t i = ((int32_t)j - 1) / 2;
             if (i == j || !QueueLess(j, i))
                 break;
             QueueSwap(i, j);
@@ -514,16 +417,16 @@ namespace cyb::editor
         }
     }
 
-    bool HeightmapTriangulator::QueueDown(const int i0, const int n)
+    bool HeightmapTriangulator::QueueDown(const size_t i0, const size_t n)
     {
-        int i = i0;
+        size_t i = i0;
         while (1) 
         {
-            const int j1 = 2 * i + 1;
-            if (j1 >= n || j1 < 0)
+            const size_t j1 = 2 * i + 1;
+            if (j1 >= n)
                 break;
-            const int j2 = j1 + 1;
-            int j = j1;
+            const size_t j2 = j1 + 1;
+            size_t j = j1;
             if (j2 < n && QueueLess(j2, j1))
                 j = j2;
             if (!QueueLess(j, i))
@@ -532,128 +435,6 @@ namespace cyb::editor
             i = j;
         }
         return i > i0;
-    }
-
-    void CreateHeightmapFromNoise(jobsystem::Context& ctx, const NoiseDesc& noiseDesc, const HeightmapDesc& desc, Heightmap& heightmap)
-    {
-        heightmap.desc = desc;
-        heightmap.image.clear();
-        heightmap.image.resize(static_cast<size_t>(desc.width) * static_cast<size_t>(desc.height));
-        heightmap.maxN = std::numeric_limits<float>::min();
-        heightmap.minN = std::numeric_limits<float>::max();
-        
-        jobsystem::Dispatch(ctx, desc.height, 256, [&](jobsystem::JobArgs args)
-            {
-                NoiseGenerator noise;
-                noise.SetSeed(noiseDesc.seed);
-                noise.SetNoiseType(noiseDesc.noiseType);
-                noise.SetFrequency(noiseDesc.frequency);
-                noise.SetFractalOctaves(noiseDesc.octaves);
-                noise.SetStrataFunctionOp(noiseDesc.strataOp);
-                noise.SetStrata(noiseDesc.strata);
-                noise.SetCellularReturnType(noiseDesc.cellularReturnType);
-
-                const uint32_t y = args.jobIndex;
-                float maxN = std::numeric_limits<float>::min();
-                float minN = std::numeric_limits<float>::max();
-
-                for (uint32_t x = 0; x < desc.width; ++x)
-                {
-                    const float xs = (float)x / (float)desc.width;
-                    const float ys = (float)y / (float)desc.height;
-                    const size_t offset = (size_t)y * desc.width + x;
-
-                    const float value = noise.GetNoise(xs, ys);
-                    heightmap.image[offset] = value;
-
-                    // Get min/max noise values for height normalization
-                    maxN = math::Max(maxN, value);
-                    minN = math::Min(minN, value);
-                }
-
-                heightmap.maxN = math::Max(heightmap.maxN.load(), maxN);
-                heightmap.minN = math::Min(heightmap.minN.load(), minN);
-            });
-    }
-
-    // Normalize heightmap values to [0..1] range
-    // NOTE: maxN/minN needs to be correctly set before normalizing
-    void NormalizeHeightmap(jobsystem::Context& ctx, Heightmap& heightmap)
-    {
-        jobsystem::Dispatch(ctx, heightmap.desc.height, 256, [&](jobsystem::JobArgs args)
-        {
-            const float scale = 1.0f / (heightmap.maxN - heightmap.minN);
-            const uint32_t y = args.jobIndex;
-            for (uint32_t x = 0; x < heightmap.desc.width; ++x)
-            {
-                const size_t offset = (size_t)y * heightmap.desc.width + x;
-                const float value = heightmap.image[offset];
-                heightmap.image[offset] = math::Saturate((value - heightmap.minN) * scale);
-            }
-        });
-    }
-
-    void NormalizeAndCombibeHeightmaps(jobsystem::Context& ctx, const Heightmap& a, const Heightmap& b, Heightmap& out, HeightmapCombineType mixType, float mixValue)
-    {
-        out.desc = a.desc;
-        out.image.clear();
-        out.image.resize(static_cast<size_t>(out.desc.width) * static_cast<size_t>(out.desc.height));
-        out.maxN = std::numeric_limits<float>::min();
-        out.minN = std::numeric_limits<float>::max();
-
-        jobsystem::Dispatch(ctx, out.desc.height, 256, [&](jobsystem::JobArgs args)
-        {
-            float maxN = std::numeric_limits<float>::min();
-            float minN = std::numeric_limits<float>::max();
-            const float minA = a.minN;
-            const float minB = b.minN;
-            const float scaleA = 1.0f / (a.maxN - minA);
-            const float scaleB = 1.0f / (b.maxN - minB);
-            const uint32_t y = args.jobIndex;
-            for (uint32_t x = 0; x < out.desc.width; ++x)
-            {
-                const size_t offset = (size_t)y * out.desc.width + x;
-                const float valueA = math::Saturate((a.image[offset] - minA) * scaleA);
-                const float valueB = math::Saturate((b.image[offset] - minB) * scaleB);
-
-                float value = 0.0f;
-                switch (mixType)
-                {
-                case HeightmapCombineType::Mul:
-                    value = valueA * valueB;
-                    break;
-                case HeightmapCombineType::Lerp:
-                    value = math::Lerp(valueA, valueB, mixValue);
-                    break;
-                }
-                
-                maxN = math::Max(maxN, value);
-                minN = math::Min(minN, value);
-                out.image[offset] = value;
-            }
-
-            out.maxN = math::Max(out.maxN.load(), maxN);
-            out.minN = math::Min(out.minN.load(), minN);
-        });
-    }
-
-    void CreateColormap(jobsystem::Context& ctx, const Heightmap& height, const ImGradient& colorBand, std::vector<uint32_t>& color)
-    {
-        assert(height.image.size() == height.desc.width * height.desc.height);
-
-        color.clear();
-        color.resize(height.image.size());
-
-        jobsystem::Dispatch(ctx, height.desc.height, 128, [&](jobsystem::JobArgs args)
-        {
-            uint32_t y = args.jobIndex;
-            for (uint32_t x = 0; x < height.desc.width; ++x)
-            {
-                const size_t offset = (size_t)y * height.desc.height + x;
-                const float h = height.image[offset];
-                color[offset] = colorBand.GetColorAt(h);
-            }
-        });
     }
 
 #if 0
@@ -820,12 +601,12 @@ namespace cyb::editor
         { TerrainGenerator::Map::Color,             "Color"    }
     };
 
-    static const std::unordered_map<NoiseStrataOp, std::string> g_strataFuncCombo = {
-        { NoiseStrataOp::None,                      "None"     },
-        { NoiseStrataOp::SharpSub,                  "SharpSub" },
-        { NoiseStrataOp::SharpAdd,                  "SharpAdd" },
-        { NoiseStrataOp::Quantize,                  "Quantize" },
-        { NoiseStrataOp::Smooth,                    "Smooth"   }
+    static const std::unordered_map<HeightmapStrataOp, std::string> g_strataFuncCombo = {
+        { HeightmapStrataOp::None,                  "None"     },
+        { HeightmapStrataOp::SharpSub,              "SharpSub" },
+        { HeightmapStrataOp::SharpAdd,              "SharpAdd" },
+        { HeightmapStrataOp::Quantize,              "Quantize" },
+        { HeightmapStrataOp::Smooth,                "Smooth"   }
     };
 
     static const std::unordered_map<NoiseType, std::string> g_noiseTypeCombo = {
@@ -834,6 +615,8 @@ namespace cyb::editor
     };
 
     static const std::unordered_map<HeightmapCombineType, std::string> g_mixTypeCombo = {
+        { HeightmapCombineType::Add,                "Add"       },
+        { HeightmapCombineType::Sub,                "Sub"       },
         { HeightmapCombineType::Mul,                "Mul"       },
         { HeightmapCombineType::Lerp,               "Lerp"      }
     };
@@ -867,136 +650,142 @@ namespace cyb::editor
 
     void TerrainGenerator::DrawGui(ecs::Entity selectedEntity)
     {
+        static constexpr uint32_t settingsPandelWidth = 320;
         if (!m_initialized)
         {
-            UpdateBitmapsAndTextures();
-            UpdateTerrainMesh();
+            UpdateHeightmapAndTextures();
             m_initialized = true;
         }
 
         if (ImGui::BeginTable("TerrainGenerator", 2, ImGuiTableFlags_SizingFixedFit))
         {
-            ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_NoClip);
             ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch);
 
             // Draw the settings column:
             ImGui::TableNextColumn();
+            ImGui::BeginChild("Settings panel", ImVec2(settingsPandelWidth, 700), true, 0);
 
-            ImGui::TextUnformatted("Terrain Mesh Settings:");
-            ImGui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
-            ImGui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
-            UPDATE_MESH_ON_ITEM_CHANGE();
-            ImGui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
-            UPDATE_MESH_ON_ITEM_CHANGE();
-            ImGui::DragInt("Resolution", (int*)&m_meshDesc.mapResolution, 1.0f, 1, 2048), "%dpx";
-            UPDATE_TEXTURES_AND_MESH_ON_ITEM_CHANGE();
-            ImGui::SliderInt("NumChunks", (int*)&m_meshDesc.numChunks, 1, 32, "%d^2");
-            ImGui::SliderFloat("Max Error", &m_meshDesc.maxError, 0.0001f, 0.1f, "%.4f");
-            UPDATE_MESH_ON_ITEM_CHANGE();
-            ImGui::Separator();
-
-            auto editNoiseDesc = [&](const char* label_, NoiseDesc& noiseDesc)
+            if (ImGui::CollapsingHeader("Terrain Mesh Settings"))
             {
-                ImGui::PushID(label_);
-                ImGui::TextUnformatted(label_);
-                if (gui::ComboBox("NoiseType", noiseDesc.noiseType, g_noiseTypeCombo))
-                {
-                    UpdateBitmapsAndTextures();
-                    UpdateTerrainMesh();
-                }
-                ImGui::DragInt("Seed", (int*)&noiseDesc.seed, 1.0f, 0, std::numeric_limits<int>::max());
-                UPDATE_TEXTURES_AND_MESH_ON_ITEM_CHANGE();
-                ImGui::SliderFloat("Frequency", &noiseDesc.frequency, 0.0f, 10.0f);
-                UPDATE_TEXTURES_AND_MESH_ON_ITEM_CHANGE();
-                ImGui::SliderInt("FBM Octaves", (int*)&noiseDesc.octaves, 1, 8);
-                UPDATE_TEXTURES_AND_MESH_ON_ITEM_CHANGE();
-                if (gui::ComboBox("Strata", noiseDesc.strataOp, g_strataFuncCombo))
-                {
-                    UpdateBitmapsAndTextures();
-                    UpdateTerrainMesh();
-                }
-                if (noiseDesc.strataOp != NoiseStrataOp::None)
-                {
-                    ImGui::SliderFloat("Amount", &noiseDesc.strata, 1.0f, 15.0f);
-                    UPDATE_TEXTURES_AND_MESH_ON_ITEM_CHANGE();
-                }
+                ImGui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
+                ImGui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
+                ImGui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
+                //ImGui::DragInt("Resolution", (int*)&m_meshDesc.mapResolution, 1.0f, 1, 2048), "%dpx";
+                //UPDATE_TEXTURES_AND_MESH_ON_ITEM_CHANGE();
+                ImGui::SliderInt("NumChunks", (int*)&m_meshDesc.numChunks, 1, 32, "%d^2");
+                ImGui::SliderFloat("Max Error", &m_meshDesc.maxError, 0.0001f, 0.01f, "%.4f");
+            }
 
-                if (noiseDesc.noiseType == NoiseType::Cellular)
+            if (ImGui::CollapsingHeader("Heightmap Settings", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                auto editNoiseDesc = [&](const char* label_, HeightmapDevice& device)
                 {
-                    if (gui::ComboBox("CellularReturn", noiseDesc.cellularReturnType, g_cellularReturnTypeCombo))
+                    gui::ScopedIdGuard guard(label_);
+
+                    if (ImGui::CollapsingHeader(label_), ImGuiTreeNodeFlags_DefaultOpen)
                     {
-                        UpdateBitmapsAndTextures();
-                        UpdateTerrainMesh();
+                        ImGui::Indent();
+
+                        NoiseDesc& noiseDesc = device.noise;
+                        if (gui::ComboBox("NoiseType", noiseDesc.noiseType, g_noiseTypeCombo))
+                            UpdateHeightmapAndTextures();
+                        ImGui::DragInt("Seed", (int*)&noiseDesc.seed, 1.0f, 0, std::numeric_limits<int>::max());
+                        UPDATE_HEIGHTMAP_ON_CHANGE();
+                        ImGui::SliderFloat("Frequency", &noiseDesc.frequency, 0.0f, 10.0f);
+                        UPDATE_HEIGHTMAP_ON_CHANGE();
+                        ImGui::SliderInt("FBM Octaves", (int*)&noiseDesc.octaves, 1, 8);
+                        UPDATE_HEIGHTMAP_ON_CHANGE();
+                        if (gui::ComboBox("Strata", device.strataOp, g_strataFuncCombo))
+                            UpdateHeightmapAndTextures();
+
+                        if (device.strataOp != HeightmapStrataOp::None)
+                        {
+                            ImGui::SliderFloat("Amount", &device.strata, 1.0f, 15.0f);
+                            UPDATE_HEIGHTMAP_ON_CHANGE();
+                        }
+
+                        if (noiseDesc.noiseType == NoiseType::Cellular)
+                        {
+                            if (gui::ComboBox("CellularReturn", noiseDesc.cellularReturnType, g_cellularReturnTypeCombo))
+                                UpdateHeightmapAndTextures();
+                        }
+
+                        ImGui::SliderFloat("Blur", &device.blur, 0.0f, 10.0f);
+                        UPDATE_HEIGHTMAP_ON_CHANGE();
+
+                        ImGui::Unindent();
                     }
+                };
+
+                if (ImGui::DragInt("Resolution", (int*)&m_heightmapDesc.width, 1.0f, 1, 2048, "%dpx"))
+                    m_heightmapDesc.height = m_heightmapDesc.width;
+                UPDATE_HEIGHTMAP_ON_CHANGE();
+
+                editNoiseDesc("Heightmap Device 1", m_heightmapDesc.device1);
+                editNoiseDesc("Heightmap Device 2", m_heightmapDesc.device2);
+                ImGui::Spacing();
+                if (gui::ComboBox("Combine Type", m_heightmapDesc.combineType, g_mixTypeCombo))
+                    UpdateHeightmapAndTextures();
+                if (m_heightmapDesc.combineType == HeightmapCombineType::Lerp)
+                {
+                    ImGui::SliderFloat("Combine Strength", &m_heightmapDesc.combineStrength, 0.0f, 1.0f);
+                    UPDATE_HEIGHTMAP_ON_CHANGE();
                 }
 
-                ImGui::Separator();
-                ImGui::PopID();
-            };
+                ImGui::Spacing();
+                ImGui::SliderInt("Iterations", (int*)&m_heightmapDesc.iterations, 0, 2000);
+                UPDATE_HEIGHTMAP_ON_CHANGE();
+                ImGui::SliderFloat("Erosion", &m_heightmapDesc.erosion, 0.0f, 0.01f);
+                UPDATE_HEIGHTMAP_ON_CHANGE();
+            }
 
-            editNoiseDesc("HeightMapNoise1 Description", m_heightmapNoise1);
-            editNoiseDesc("HeightMapNoise2 Description", m_heightmapNoise2);
             ImGui::Spacing();
-            if (gui::ComboBox("CombineType", m_combineType, g_mixTypeCombo))
-            {
-                UpdateBitmapsAndTextures();
-                UpdateTerrainMesh();
-            }
-            if (m_combineType == HeightmapCombineType::Lerp)
-            {
-                ImGui::SliderFloat("HeightmapNoiseMix", &m_heightmapNoiseMix, 0.0f, 1.0f);
-                UPDATE_TEXTURES_AND_MESH_ON_ITEM_CHANGE();
-            }
-            ImGui::Spacing();
-            editNoiseDesc("MoistureMapNoise Description", m_moisturemapNoise);
-            ImGui::Spacing();
+            //editNoiseDesc("MoistureMapNoise Description", m_moisturemapNoise);
+            //ImGui::Spacing();
 
            if (ImGui::GradientButton("ColorBand", &m_biomeColorBand))
-               UpdateColormapAndTextures();
+               UpdateHeightmapAndTextures();
 
             ImGui::Checkbox("Use MoistureMap", &m_useMoistureMap);
             if (m_useMoistureMap)
             {
                 if (ImGui::GradientButton("Moisture Colors", &m_moistureBiomeColorBand))
-                {
-                    UpdateColormapAndTextures();
-                }
+                    UpdateHeightmapAndTextures();
             }
 
-            ImGui::Spacing();
-            ImGui::Separator();
+            ImGui::EndChild();
+            ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 180), true, 0);
 
             gui::ComboBox("Map Display", m_selectedMapType, g_mapCombo);
             ImGui::Checkbox("Draw Chunks", &m_drawChunkLines);
-            ImGui::Checkbox("Draw Triangles", &m_drawTriangles);
-
-            ImGui::Spacing();
-            ImGui::Spacing();
+            //ImGui::Checkbox("Draw Triangles", &m_drawTriangles);
 
             if (ImGui::Button("Set default params", ImVec2(-1, 0)))
             {
                 ResetParams();
-                UpdateBitmapsAndTextures();
-                UpdateTerrainMesh();
+                UpdateHeightmapAndTextures();
             }
 
             if (ImGui::Button("Random seed", ImVec2(-1, 0)))
             {
-                m_heightmapNoise1.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
-                m_heightmapNoise2.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
-                m_moisturemapNoise.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
-                UpdateBitmapsAndTextures();
-                UpdateTerrainMesh();
+                m_heightmapDesc.device1.noise.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
+                m_heightmapDesc.device2.noise.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
+                //m_moisturemapNoise.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
+                UpdateHeightmapAndTextures();
             }
 
             if (ImGui::Button("Generate terrain mesh", ImVec2(-1, 0)))
             {
+                //UpdateHeightmapAndTextures();
                 GenerateTerrainMesh();
             }
             if (ImGui::IsItemHovered())
             {
                 ImGui::SetTooltip("Generated on the selected entity objects mesh. Old data is cleared");
             }
+
+            ImGui::EndChild();
 
             // Display the selected terrain map image:
             ImGui::TableNextColumn();
@@ -1019,8 +808,8 @@ namespace cyb::editor
                 ImVec2 drawPosStart = ImGui::GetCursorScreenPos();
                 ImGui::Image((ImTextureID)tex, size);
 
-                if (m_drawTriangles)
-                    DrawMeshTriangles(drawPosStart);
+                //if (m_drawTriangles)
+                //    DrawMeshTriangles(drawPosStart);
                 if (m_drawChunkLines)
                     DrawChunkLines(drawPosStart);
             }
@@ -1046,15 +835,16 @@ namespace cyb::editor
     {
         m_heightmapDesc = HeightmapDesc();
 
-        m_heightmapNoise1 = NoiseDesc();
-        m_heightmapNoise1.noiseType = NoiseType::Perlin;
-        m_heightmapNoise1.frequency = 2.847;
-        m_heightmapNoise1.octaves = 4;
+        m_heightmapDesc.device1.noise = NoiseDesc();
+        m_heightmapDesc.device1.noise.noiseType = NoiseType::Perlin;
+        m_heightmapDesc.device1.noise.frequency = 2.847f;
+        m_heightmapDesc.device1.noise.octaves = 4;
 
-        m_heightmapNoise2.noiseType = NoiseType::Cellular;
-        m_heightmapNoise2.frequency = 0.765f;
-        m_heightmapNoise2.octaves = 6;
-        m_heightmapNoise2.cellularReturnType = CellularReturnType::Distance;
+        m_heightmapDesc.device2.noise.noiseType = NoiseType::Cellular;
+        m_heightmapDesc.device2.noise.frequency = 0.765f;
+        m_heightmapDesc.device2.noise.octaves = 6;
+        m_heightmapDesc.device2.noise.cellularReturnType = CellularReturnType::Distance;
+        
         m_moisturemapNoise = NoiseDesc();
     }
 
@@ -1090,103 +880,71 @@ namespace cyb::editor
         }
     }
 
-    void TerrainGenerator::UpdateAllMaps()
+    void TerrainGenerator::UpdateHeightmap()
     {
         CYB_TIMED_FUNCTION();
-
-        m_heightmapDesc.width = m_heightmapDesc.height = m_meshDesc.mapResolution;
-        m_moisturemapDesc.width = m_moisturemapDesc.height = m_meshDesc.mapResolution;
-
-        jobsystem::Context ctx;
-        Heightmap tempMap1;
-        Heightmap tempMap2;
-        CreateHeightmapFromNoise(ctx, m_heightmapNoise1, m_heightmapDesc, tempMap1);
-        CreateHeightmapFromNoise(ctx, m_heightmapNoise2, m_heightmapDesc, tempMap2);
-        CreateHeightmapFromNoise(ctx, m_moisturemapNoise, m_moisturemapDesc, m_moisturemap);
-        jobsystem::Wait(ctx);
-        NormalizeAndCombibeHeightmaps(ctx, tempMap1, tempMap2, m_heightmap, m_combineType, m_heightmapNoiseMix);
-        NormalizeHeightmap(ctx, m_moisturemap);
-        jobsystem::Wait(ctx);
-        NormalizeHeightmap(ctx, m_heightmap);
-        jobsystem::Wait(ctx);
-        UpdateColormap(ctx);
-        jobsystem::Wait(ctx);
-    }
-
-    void TerrainGenerator::UpdateColormap(jobsystem::Context& ctx)
-    {
-        CreateColormap(ctx, m_heightmap, m_biomeColorBand, m_colormap);
-    }
-
-    void TerrainGenerator::UpdateColormapAndTextures()
-    {
-        jobsystem::Context ctx;
-        UpdateColormap(ctx);
-        jobsystem::Wait(ctx);
-        UpdateTextures();
-        jobsystem::Wait(ctx);
+        CreateHeightmap(m_heightmapDesc, m_heightmap);
     }
 
     void TerrainGenerator::UpdateTextures()
     {
-        graphics::TextureDesc texDesc;
+        graphics::TextureDesc desc;
         graphics::SubresourceData subresourceData;
 
-        texDesc.format = graphics::Format::R32_Float;
-        texDesc.components.r = graphics::TextureComponentSwizzle::R;
-        texDesc.components.g = graphics::TextureComponentSwizzle::R;
-        texDesc.components.b = graphics::TextureComponentSwizzle::R;
-        texDesc.width = m_meshDesc.mapResolution;
-        texDesc.height = m_meshDesc.mapResolution;
-        texDesc.bindFlags = graphics::BindFlags::ShaderResourceBit;
+        desc.format = graphics::Format::R32_Float;
+        desc.components.r = graphics::TextureComponentSwizzle::R;
+        desc.components.g = graphics::TextureComponentSwizzle::R;
+        desc.components.b = graphics::TextureComponentSwizzle::R;
+        desc.width = m_heightmap.desc.width;
+        desc.height = m_heightmap.desc.height;
+        desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
 
         // Create heightmap texture:
         subresourceData.mem = m_heightmap.image.data();
-        subresourceData.rowPitch = texDesc.width * graphics::GetFormatStride(graphics::Format::R32_Float);
-        renderer::GetDevice()->CreateTexture(&texDesc, &subresourceData, &m_heightmapTex);
+        subresourceData.rowPitch = desc.width * graphics::GetFormatStride(graphics::Format::R32_Float);
+        renderer::GetDevice()->CreateTexture(&desc, &subresourceData, &m_heightmapTex);
 
         // Create moisturemap texture:
         subresourceData.mem = m_moisturemap.image.data();
-        subresourceData.rowPitch = texDesc.width * graphics::GetFormatStride(graphics::Format::R32_Float);
-        renderer::GetDevice()->CreateTexture(&texDesc, &subresourceData, &m_moisturemapTex);
+        subresourceData.rowPitch = desc.width * graphics::GetFormatStride(graphics::Format::R32_Float);
+        //renderer::GetDevice()->CreateTexture(&desc, &subresourceData, &m_moisturemapTex);
 
         // Create colormap texture:
-        texDesc.format = graphics::Format::R8G8B8A8_Unorm;
-        texDesc.components.r = graphics::TextureComponentSwizzle::Identity;
-        texDesc.components.g = graphics::TextureComponentSwizzle::Identity;
-        texDesc.components.b = graphics::TextureComponentSwizzle::Identity;
+        desc.format = graphics::Format::R8G8B8A8_Unorm;
+        desc.components.r = graphics::TextureComponentSwizzle::Identity;
+        desc.components.g = graphics::TextureComponentSwizzle::Identity;
+        desc.components.b = graphics::TextureComponentSwizzle::Identity;
 
         subresourceData.mem = m_colormap.data();
-        subresourceData.rowPitch = texDesc.width * graphics::GetFormatStride(graphics::Format::R8G8B8A8_Unorm);
-        renderer::GetDevice()->CreateTexture(&texDesc, &subresourceData, &m_colormapTex);
+        subresourceData.rowPitch = desc.width * graphics::GetFormatStride(graphics::Format::R8G8B8A8_Unorm);
+        //renderer::GetDevice()->CreateTexture(&desc, &subresourceData, &m_colormapTex);
     }
 
-    void TerrainGenerator::UpdateBitmapsAndTextures()
+    void TerrainGenerator::UpdateHeightmapAndTextures()
     {
-        UpdateAllMaps();
+        UpdateHeightmap();
         UpdateTextures();
-    }
-
-    void TerrainGenerator::UpdateTerrainMesh()
-    {
-        //CYB_TIMED_FUNCTION();
-        HeightmapTriangulator triangulator(&m_heightmap);
-        triangulator.Run(m_meshDesc.maxError, m_meshDesc.maxVertices, m_meshDesc.maxTriangles);
-        m_mesh.points = triangulator.GetPoints();
-        m_mesh.triangles = triangulator.GetTriangles();
-        CYB_TRACE("Updated terrain mesh (numVertices={0}, numTriangles={1})", m_mesh.points.size(), m_mesh.triangles.size());
     }
 
     void TerrainGenerator::GenerateTerrainMesh()
     {
         //CYB_TIMED_FUNCTION();
 
+        // Triangulate the heightmap:
+        HeightmapTriangulator triangulator(&m_heightmap);
+        triangulator.Run(m_meshDesc.maxError, m_meshDesc.maxVertices, m_meshDesc.maxTriangles);
+        m_mesh.points = triangulator.GetPoints();
+        m_mesh.triangles = triangulator.GetTriangles();
+        CYB_TRACE("Updated terrain mesh (numVertices={0}, numTriangles={1})", m_mesh.points.size(), m_mesh.triangles.size());
+
+        // Create scene entities:
         scene::Scene& scene = scene::GetScene();
         ecs::Entity objectID = scene.CreateObject("Terrain01");
         scene::ObjectComponent* object = scene.objects.GetComponent(objectID);
         object->meshID = scene.CreateMesh("Terrain_Mesh");
         scene::MeshComponent* mesh = scene.meshes.GetComponent(object->meshID);
 
+        // Load vertices:
         const XMFLOAT3 positionToCenter = XMFLOAT3(-(m_meshDesc.size * 0.5f), 0.0f, -(m_meshDesc.size * 0.5f));
         for (const auto& p : m_mesh.points)
         {
@@ -1197,6 +955,7 @@ namespace cyb::editor
             mesh->vertex_colors.push_back(m_biomeColorBand.GetColorAt(p.y));
         }
         
+        // Load indices
         for (const auto& tri : m_mesh.triangles)
         {
             mesh->indices.push_back(tri.x);
@@ -1204,9 +963,10 @@ namespace cyb::editor
             mesh->indices.push_back(tri.y);
         }
 
+        // Setup mesh subset and create render data:
         scene::MeshComponent::MeshSubset subset;
         subset.indexOffset = 0;
-        subset.indexCount = mesh->indices.size();
+        subset.indexCount = (uint32_t)mesh->indices.size();
         subset.materialID = scene.CreateMaterial("Terrain_Material");
         mesh->subsets.push_back(subset);
         mesh->CreateRenderData();

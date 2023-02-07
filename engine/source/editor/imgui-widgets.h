@@ -45,6 +45,22 @@ namespace cyb::editor::gui
 
         return change;
     }
+
+    template <class T>
+    class ScopedIdGuard
+    {
+    public:
+        ScopedIdGuard(const T label)
+        {
+            ImGui::PushID(label);
+        }
+
+        ~ScopedIdGuard()
+        {
+            ImGui::PopID();
+        }
+    };
+
 }
 
 struct ImGradientMark

@@ -11,15 +11,6 @@ namespace cyb
         Cellular
     };
 
-    enum class NoiseStrataOp
-    {
-        None,
-        SharpSub,
-        SharpAdd,
-        Quantize,
-        Smooth
-    };
-
     enum class CellularReturnType
     {
         CellValue,
@@ -31,18 +22,29 @@ namespace cyb
         Distance2Div
     };
 
+    struct NoiseDesc
+    {
+        NoiseType noiseType = NoiseType::Perlin;
+        uint32_t seed = 0;              // Noise function seed value
+        float frequency = 5.5f;         // Noise function frequency
+        uint32_t octaves = 4;           // Fractal Brownian Motion (FBM) octaves
+        float lacunarity = 2.0f;
+        float gain = 0.5f;
+        CellularReturnType cellularReturnType = CellularReturnType::Distance;
+        float cellularJitterModifier = 1.0f;
+    };
+
     class NoiseGenerator
     {
     public:
         NoiseGenerator(uint32_t seed = 1337);
-        
-        void SetSeed(uint32_t seed) { m_seed = seed; }
-        void SetNoiseType(NoiseType type) { m_noiseType = type; }
-        void SetFrequency(float frequency) { m_frequency = frequency; }
-        void SetFractalOctaves(int octaves) { m_octaves = octaves; CalculateFractalBounding(); }
-        void SetStrataFunctionOp(NoiseStrataOp op) { m_strataOp = op; }
-        void SetStrata(float strata) { m_strata = strata; }
-        void SetCellularReturnType(CellularReturnType type) { m_cellularReturnType = type; }
+        NoiseGenerator(const NoiseDesc& noiseDesc);
+
+        void SetSeed(uint32_t seed) { desc.seed = seed; }
+        void SetNoiseType(NoiseType type) { desc.noiseType = type; }
+        void SetFrequency(float frequency) { desc.frequency = frequency; }
+        void SetFractalOctaves(int octaves) { desc.octaves = octaves; CalculateFractalBounding(); }
+        void SetCellularReturnType(CellularReturnType type) { desc.cellularReturnType = type; }
         float GetNoise(float x, float y) const;
 
     private:
@@ -51,18 +53,7 @@ namespace cyb
         float SinglePerlin(uint32_t seed, float x, float y) const;
         float SingleCellular(uint32_t seed, float x, float y) const;
 
-        uint32_t m_seed = 1337;
-        float m_frequency = 0.01f;
-        NoiseType m_noiseType = NoiseType::Perlin;
-        uint32_t m_octaves = 3;
-        float m_lacunarity = 2.0f;
-        float m_gain = 0.5f;
-        float m_fractalBounding;
-
-        NoiseStrataOp m_strataOp = NoiseStrataOp::None;
-        float m_strata = 5.0f;
-
-        float m_cellularJitterModifier = 1.0f;
-        CellularReturnType m_cellularReturnType = CellularReturnType::Distance;
+        NoiseDesc desc;
+        float fractalBounding;
     };
 }

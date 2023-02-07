@@ -1208,7 +1208,7 @@ namespace cyb::graphics
         instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #endif
 
-        if (validationModeEnabled)
+        if (VALIDATION_MODE_ENABLED)
         {
             // Determine the optimal validation layers to enable that are necessary for useful debugging
             static const std::vector<const char*> validationLayerPriorityList[] =
@@ -1265,7 +1265,7 @@ namespace cyb::graphics
 
             VkDebugUtilsMessengerCreateInfoEXT debugUtilsCreateInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
 
-            if (validationModeEnabled && debugUtils)
+            if (VALIDATION_MODE_ENABLED && debugUtils)
             {
                 debugUtilsCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
                 debugUtilsCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
@@ -1283,7 +1283,7 @@ namespace cyb::graphics
 
             volkLoadInstanceOnly(instance);
 
-            if (validationModeEnabled && debugUtils)
+            if (VALIDATION_MODE_ENABLED && debugUtils)
             {
                 vkCreateDebugUtilsMessengerEXT(instance, &debugUtilsCreateInfo, nullptr, &debugUtilsMessenger);
             }

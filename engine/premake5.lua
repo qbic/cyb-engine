@@ -55,5 +55,5 @@ project "engine"
    	filter "configurations:Release"
 		runtime "Release"
 		optimize "On"
-		symbols "Off"
+		symbols "on"
 		links { "%{VULKAN_SDK}/Lib/shaderc_shared.lib" }

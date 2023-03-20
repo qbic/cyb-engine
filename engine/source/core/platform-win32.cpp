@@ -1,10 +1,7 @@
 #include "core/platform.h"
 #include "core/logger.h"
-
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <ShellScalingAPI.h>
-#pragma comment(lib, "Shcore.lib")
 
 // The main window needs to communicate with both imgui and the input layer:
 extern LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -179,8 +176,7 @@ namespace cyb::platform
 		assert(SUCCEEDED(ar));
 
 		// Enable high dpi awareness
-		HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
-		assert(SUCCEEDED(hr));
+		SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 	}
 
 	Instance GetInstance()

@@ -1,6 +1,7 @@
 #include "core/logger.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
+#include "imgui/imgui_freetype.h"
 #include "editor/imgui-backend.h"
 #ifdef _WIN32
 #include "backends/imgui_impl_win32.cpp"
@@ -11,16 +12,24 @@ using namespace cyb::scene;
 using namespace cyb::graphics;
 using namespace cyb::renderer;
 
-static Shader imgui_vs;
-static Shader imgui_fs;
-static Texture font_texture;
-static Sampler sampler;
-static VertexInputLayout imgui_input_layout;
-static PipelineState imgui_pso;
-static IndexBufferFormat indexFormat = IndexBufferFormat::Uint16;
-
 struct ImGui_Impl_Data
 {
+	Shader vs;
+	Shader fs;
+	Texture fontTexture;
+	Sampler sampler;
+	VertexInputLayout inputLayout;
+	PipelineState pso;
+
+	ImGui_Impl_Data()
+	{
+		memset(this, 0, sizeof(ImGui_ImplWin32_Data));
+	}
+};
+
+struct ImGuiConstants
+{
+	float mvp[4][4];
 };
 
 static ImGui_Impl_Data* ImGui_Impl_GetBackendData()
@@ -33,24 +42,28 @@ ImFont* AddFont(const char* filename, const ImWchar* ranges, float size, bool me
 	ImFontConfig fontConfig = {};
 	fontConfig.MergeMode = merge;
 	fontConfig.PixelSnapH = true;
-	return ImGui::GetIO().Fonts->AddFontFromFileTTF(filename, size, &fontConfig, ranges);
+	float pixelSize = std::round(size * 96.0f / 72.0f);
+	return ImGui::GetIO().Fonts->AddFontFromFileTTF(filename, pixelSize, &fontConfig, ranges);
 }
 
 void ImGui_Impl_CybEngine_CreateDeviceObject()
 {
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGui_Impl_Data* bd = ImGui_Impl_GetBackendData();
+	ImGuiIO& io = ImGui::GetIO();
 
 	static const ImWchar fontAwesomeIconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
 	static const ImWchar notoSansRanges[] = { 0x20, 0x52f, 0x1ab0, 0x2189, 0x2c60, 0x2e44, 0xa640, 0xab65, 0 };
 	static const ImWchar notoMonoRanges[] = { 0x20, 0x513, 0x1e00, 0x1f4d, 0 };
 
-	AddFont("Assets/NotoMono-Regular.ttf", notoMonoRanges, 16.0, false);
-	AddFont("Assets/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 14.f, true);
+	AddFont("Assets/CascadiaCode-Regular.ttf", notoSansRanges, 14.0f, false);
+	AddFont("Assets/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 13.f, true);
 	AddFont("Assets/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 12.f, true);
+	AddFont("Assets/NotoMono-Regular.ttf", notoMonoRanges, 14.0, false);
 
 	// Build texture atlas
 	unsigned char* pixels;
 	int width, height;
+	io.Fonts->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint;
 	io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
 	// Upload texture to graphics system
@@ -66,19 +79,19 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	texture_data.mem = pixels;
 	texture_data.rowPitch = width * GetFormatStride(texture_desc.format);
 	texture_data.slicePitch = texture_data.rowPitch * height;
-	GetDevice()->CreateTexture(&texture_desc, &texture_data, &font_texture);
+	GetDevice()->CreateTexture(&texture_desc, &texture_data, &bd->fontTexture);
 
 	SamplerDesc sampler_desc;
 	sampler_desc.addressU = TextureAddressMode::Wrap;
 	sampler_desc.addressV = TextureAddressMode::Wrap;
 	sampler_desc.addressW = TextureAddressMode::Wrap;
 	sampler_desc.filter = TextureFilter::Point;
-	GetDevice()->CreateSampler(&sampler_desc, &sampler);
+	GetDevice()->CreateSampler(&sampler_desc, &bd->sampler);
 
 	// Store our identifier
-	io.Fonts->SetTexID((ImTextureID)&font_texture);
+	io.Fonts->SetTexID((ImTextureID)&bd->fontTexture);
 
-	imgui_input_layout.elements =
+	bd->inputLayout.elements =
 	{
 		{ "in_position", 0, Format::R32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, pos) },
 		{ "in_uv",       0, Format::R32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, uv)  },
@@ -87,34 +100,35 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 
 	// Create pipeline
 	PipelineStateDesc desc;
-	desc.vs = &imgui_vs;
-	desc.fs = &imgui_fs;
-	desc.il = &imgui_input_layout;
+	desc.vs = &bd->vs;
+	desc.fs = &bd->fs;
+	desc.il = &bd->inputLayout;
 	desc.dss = GetDepthStencilState(DSSTYPE_DEFAULT);
 	desc.rs = GetRasterizerState(RSTYPE_DOUBLESIDED);
 	desc.pt = PrimitiveTopology::TriangleList;
-	GetDevice()->CreatePipelineState(&desc, &imgui_pso);
+	GetDevice()->CreatePipelineState(&desc, &bd->pso);
 }
 
 void ImGui_Impl_CybEngine_Init()
 {
-	// Default ImGui index is 16bit, but user can change to 32bit on imconfig.h
-	if (sizeof(ImDrawIdx) == 4)
-		indexFormat = IndexBufferFormat::Uint32;
-
-	// Compile shaders
-	{
-		LoadShader(ShaderStage::VS, imgui_vs, "imgui.vert");
-		LoadShader(ShaderStage::FS, imgui_fs, "imgui.frag");
-	}
-
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
+
+	ImGuiIO& io = ImGui::GetIO();
+	IM_ASSERT(io.BackendRendererUserData == nullptr && "Already initialized a renderer backend!");
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
 	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+
+	// Setup backend capabilities flags
+	ImGui_Impl_Data* bd = IM_NEW(ImGui_Impl_Data)();
+	io.BackendRendererUserData = (void*)bd;
+	io.BackendRendererName = "CybEngine";
+	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
+
+	// Compile shaders
+	LoadShader(ShaderStage::VS, bd->vs, "imgui.vert");
+	LoadShader(ShaderStage::FS, bd->fs, "imgui.frag");
 
 	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
@@ -125,23 +139,14 @@ void ImGui_Impl_CybEngine_Init()
 	ImGui_ImplSDL2_InitForVulkan(window);
 #endif
 
-	IM_ASSERT(io.BackendRendererUserData == NULL && "Already initialized a renderer backend!");
-
-	// Setup backend capabilities flags
-	ImGui_Impl_Data* bd = IM_NEW(ImGui_Impl_Data)();
-	io.BackendRendererUserData = (void*)bd;
-	io.BackendRendererName = "CybEngine";
-	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
 	CYB_INFO("Initialized ImGui v{0}", IMGUI_VERSION);
 }
 
 void ImGui_Impl_CybEngine_Update()
 {
-	// Start the Dear ImGui frame
-	auto* backendData = ImGui_Impl_GetBackendData();
-	IM_ASSERT(backendData != NULL);
+	ImGui_Impl_Data* bd = ImGui_Impl_GetBackendData();
 
-	if (!font_texture.IsValid())
+	if (!bd->fontTexture.IsValid())
 		ImGui_Impl_CybEngine_CreateDeviceObject();
 
 #ifdef _WIN32
@@ -169,8 +174,7 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 	if (framebufferWidth <= 0 || framebufferHeight <= 0)
 		return;
 
-	//auto* bd = ImGui_Impl_GetBackendData();
-
+	ImGui_Impl_Data* bd = ImGui_Impl_GetBackendData();
 	GraphicsDevice* device = GetDevice();
 
 	// Get memory for vertex and index buffers
@@ -192,30 +196,21 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 	}
 
 	// Setup orthographic projection matrix into our constant buffer
-	struct ImGuiConstants
+	const float L = draw_data->DisplayPos.x;
+	const float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
+	const float T = draw_data->DisplayPos.y;
+	const float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+	float mvp[4][4] =
 	{
-		float mvp[4][4];
+		{ 2.0f / (R - L),    0.0f,              0.0f, 0.0f },
+		{ 0.0f,              2.0f / (T - B),    0.0f, 0.0f },
+		{ 0.0f,              0.0f,              0.5f, 0.0f },
+		{ (R + L) / (L - R), (T + B) / (B - T), 0.5f, 1.0f },
 	};
 
-	{
-		const float L = draw_data->DisplayPos.x;
-		const float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
-		const float T = draw_data->DisplayPos.y;
-		const float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
-
-		ImGuiConstants constants;
-
-		float mvp[4][4] =
-		{
-			{ 2.0f / (R - L),    0.0f,              0.0f, 0.0f },
-			{ 0.0f,              2.0f / (T - B),    0.0f, 0.0f },
-			{ 0.0f,              0.0f,              0.5f, 0.0f },
-			{ (R + L) / (L - R), (T + B) / (B - T), 0.5f, 1.0f },
-		};
-		memcpy(&constants.mvp, mvp, sizeof(mvp));
-
-		device->BindDynamicConstantBuffer(constants, 0, cmd);
-	}
+	ImGuiConstants constants = {};
+	memcpy(&constants.mvp, mvp, sizeof(mvp));
+	device->BindDynamicConstantBuffer(constants, 0, cmd);
 
 	const GPUBuffer* vbs[] = {
 		&vertexBufferAllocation.buffer,
@@ -228,16 +223,18 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 	};
 
 	device->BindVertexBuffers(vbs, 1, strides, offsets, cmd);
+
+	IndexBufferFormat indexFormat = IndexBufferFormat::Uint32;
 	device->BindIndexBuffer(&indexBufferAllocation.buffer, indexFormat, indexBufferAllocation.offset, cmd);
 
 	Viewport viewport;
 	viewport.width = (float)framebufferWidth;
 	viewport.height = (float)framebufferHeight;
 	device->BindViewports(&viewport, 1, cmd);
-	device->BindPipelineState(&imgui_pso, cmd);
-	device->BindSampler(&sampler, 1, cmd);
+	device->BindPipelineState(&bd->pso, cmd);
+	device->BindSampler(&bd->sampler, 1, cmd);
 
-	// Will project scissor/clipping rectangles into framebuffer space
+	// We'll project scissor/clipping rectangles into framebuffer space
 	ImVec2 clip_off = draw_data->DisplayPos;         // (0,0) unless using multi-viewports
 	ImVec2 clip_scale = draw_data->FramebufferScale; // (1,1) unless using retina display which are often (2,2)
 

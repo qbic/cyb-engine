@@ -51,7 +51,7 @@ namespace cyb::editor::gui
 #define UI_LAYOUT_ELEMENT(func, label, ...) (ImGui::TableNextColumn(), ImGui::Text(label), ImGui::TableNextColumn(), ImGui::SetNextItemWidth(-FLT_MIN), func("##" label, __VA_ARGS__))
 
 
-namespace ui
+namespace cyb::ui
 {
     template <class T>
     class ScopedIdGuard

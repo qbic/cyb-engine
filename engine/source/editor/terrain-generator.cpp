@@ -2,8 +2,9 @@
 #include "core/noise.h"
 #include "core/profiler.h"
 #include "editor/editor.h"
-#include "editor/imgui-widgets.h"
 #include "editor/widgets.h"
+#include "editor/imgui-widgets.h"
+
 #include "editor/terrain-generator.h"
 #include "editor/icons_font_awesome6.h"
 
@@ -676,7 +677,12 @@ namespace cyb::editor
 
             if (ImGui::CollapsingHeader("Terrain Mesh Settings"))
             {
-                ImGui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
+                {
+                    ui::ScopedIdGuard asd("Map Size");
+                    ui::ItemLabel("Map Size");
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::DragFloat("", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
+                }
                 ImGui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
                 ImGui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
                 ImGui::SliderInt("NumChunks", (int*)&m_meshDesc.numChunks, 1, 32, "%d^2");

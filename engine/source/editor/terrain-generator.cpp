@@ -3,7 +3,9 @@
 #include "core/profiler.h"
 #include "editor/editor.h"
 #include "editor/imgui-widgets.h"
+#include "editor/widgets.h"
 #include "editor/terrain-generator.h"
+#include "editor/icons_font_awesome6.h"
 
 #define UPDATE_HEIGHTMAP_ON_CHANGE() if (ImGui::IsItemDeactivatedAfterEdit()) { UpdateHeightmapAndTextures(); }
 
@@ -311,7 +313,7 @@ namespace cyb::editor
         };
 
         const int b = m_Halfedges[a];
-        if (b < 0)
+        if (b == -1)
             return;
 
         const int a0 = a - a % 3;
@@ -596,9 +598,9 @@ namespace cyb::editor
     }
 
     static const std::unordered_map<TerrainGenerator::Map, std::string> g_mapCombo = {
-        { TerrainGenerator::Map::Height,            "Height"   },
-        { TerrainGenerator::Map::Moisture,          "Moisture" },
-        { TerrainGenerator::Map::Color,             "Color"    }
+        { TerrainGenerator::Map::InputA,            "Input A"   },
+        { TerrainGenerator::Map::InputB,            "Input B"   },
+        { TerrainGenerator::Map::Combined,          "Combined"  }
     };
 
     static const std::unordered_map<HeightmapStrataOp, std::string> g_strataFuncCombo = {
@@ -637,20 +639,20 @@ namespace cyb::editor
             { ImColor(173, 137,  59), 0.000f },
             { ImColor( 78,  62,  27), 0.100f },
             { ImColor(173, 137,  59), 0.142f },
-            { ImColor( 16, 109,  27), 0.185f },
-            { ImColor( 29, 191,  38), 0.312f },
-            { ImColor( 16, 109,  27), 0.559f },
-            { ImColor( 94,  94,  94), 0.607f },
-            { ImColor( 45, 154,  38), 0.798f },
-            { ImColor( 59, 116,  34), 0.921f }
+            { ImColor( 25, 125,  48), 0.185f },
+            { ImColor( 51, 170,  28), 0.312f },
+            { ImColor( 25, 153,  40), 0.559f },
+            { ImColor(106, 166,  31), 0.798f },
+            { ImColor(255, 255, 255), 0.921f }
         };
 
-        ResetParams();
+        SetDefaultHeightmapValues();
     }
 
     void TerrainGenerator::DrawGui(ecs::Entity selectedEntity)
     {
-        static constexpr uint32_t settingsPandelWidth = 320;
+        static const char* tableName = "SettingsTable";
+        static constexpr uint32_t settingsPandelWidth = 420;
         if (!m_initialized)
         {
             UpdateHeightmapAndTextures();
@@ -664,55 +666,87 @@ namespace cyb::editor
 
             // Draw the settings column:
             ImGui::TableNextColumn();
-            ImGui::BeginChild("Settings panel", ImVec2(settingsPandelWidth, 700), true, 0);
+            ImGui::BeginChild("Settings panel", ImVec2(settingsPandelWidth, 700), true);
+
+            ui::ItemLabel("Test");
+            ImGui::Button(ICON_FA_TRASH_CAN);
+            ui::ItemLabel("Testssasdasdasdasddasd");
+            ImGui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
+
 
             if (ImGui::CollapsingHeader("Terrain Mesh Settings"))
             {
                 ImGui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
                 ImGui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
                 ImGui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
-                //ImGui::DragInt("Resolution", (int*)&m_meshDesc.mapResolution, 1.0f, 1, 2048), "%dpx";
-                //UPDATE_TEXTURES_AND_MESH_ON_ITEM_CHANGE();
                 ImGui::SliderInt("NumChunks", (int*)&m_meshDesc.numChunks, 1, 32, "%d^2");
                 ImGui::SliderFloat("Max Error", &m_meshDesc.maxError, 0.0001f, 0.01f, "%.4f");
             }
 
             if (ImGui::CollapsingHeader("Heightmap Settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                auto editNoiseDesc = [&](const char* label_, HeightmapDevice& device)
+                auto editNoiseDesc = [&](const char* label_, HeightmapDevice& device, graphics::Texture& texture)
                 {
-                    gui::ScopedIdGuard guard(label_);
-
-                    if (ImGui::CollapsingHeader(label_), ImGuiTreeNodeFlags_DefaultOpen)
+                    if (ImGui::CollapsingHeader(label_, ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         ImGui::Indent();
 
+#if 0
+                        // Draw a preview using only the top 1/3 of the noise texture
+                        ImVec2 size = ImGui::CalcItemSize(ImVec2(-1, -1), 100, 100);
+                        size.x = math::Min(size.x, size.y);
+                        size.y = math::Min(size.x, size.y) / 3;
+                        ImVec2 drawPosStart = ImGui::GetCursorScreenPos();
+                        ImGui::Image((ImTextureID)&texture, size, ImVec2(0, 0), ImVec2(1, 0.33f));
+#endif
                         NoiseDesc& noiseDesc = device.noise;
-                        if (gui::ComboBox("NoiseType", noiseDesc.noiseType, g_noiseTypeCombo))
+
+                        if (gui::ComboBox("Noise Type", noiseDesc.noiseType, g_noiseTypeCombo))
                             UpdateHeightmapAndTextures();
                         ImGui::DragInt("Seed", (int*)&noiseDesc.seed, 1.0f, 0, std::numeric_limits<int>::max());
                         UPDATE_HEIGHTMAP_ON_CHANGE();
                         ImGui::SliderFloat("Frequency", &noiseDesc.frequency, 0.0f, 10.0f);
                         UPDATE_HEIGHTMAP_ON_CHANGE();
-                        ImGui::SliderInt("FBM Octaves", (int*)&noiseDesc.octaves, 1, 8);
-                        UPDATE_HEIGHTMAP_ON_CHANGE();
-                        if (gui::ComboBox("Strata", device.strataOp, g_strataFuncCombo))
-                            UpdateHeightmapAndTextures();
 
-                        if (device.strataOp != HeightmapStrataOp::None)
+                        if (ImGui::TreeNode("Fractal"))
                         {
-                            ImGui::SliderFloat("Amount", &device.strata, 1.0f, 15.0f);
+                            ImGui::SliderInt("Octaves", (int*)&noiseDesc.octaves, 1, 8);
                             UPDATE_HEIGHTMAP_ON_CHANGE();
+                            ImGui::SliderFloat("Lacunarity", &noiseDesc.lacunarity, 0.0f, 4.0f);
+                            UPDATE_HEIGHTMAP_ON_CHANGE();
+                            ImGui::SliderFloat("Gain", &noiseDesc.gain, 0.0f, 4.0f);
+                            UPDATE_HEIGHTMAP_ON_CHANGE();
+                            ImGui::TreePop();
                         }
 
                         if (noiseDesc.noiseType == NoiseType::Cellular)
                         {
-                            if (gui::ComboBox("CellularReturn", noiseDesc.cellularReturnType, g_cellularReturnTypeCombo))
-                                UpdateHeightmapAndTextures();
+                            if (ImGui::TreeNode("Cellular"))
+                            {
+                                if (gui::ComboBox("Return", noiseDesc.cellularReturnType, g_cellularReturnTypeCombo))
+                                    UpdateHeightmapAndTextures();
+                                ImGui::SliderFloat("Jitter", &noiseDesc.cellularJitterModifier, 0.0f, 2.5f);
+                                UPDATE_HEIGHTMAP_ON_CHANGE();
+
+                                ImGui::TreePop();
+                            }
                         }
 
-                        ImGui::SliderFloat("Blur", &device.blur, 0.0f, 10.0f);
-                        UPDATE_HEIGHTMAP_ON_CHANGE();
+                        if (ImGui::TreeNode("Post Filter"))
+                        {
+                            if (gui::ComboBox("Strata", device.strataOp, g_strataFuncCombo))
+                                UpdateHeightmapAndTextures();
+
+                            if (device.strataOp != HeightmapStrataOp::None)
+                            {
+                                ImGui::SliderFloat("Amount", &device.strata, 1.0f, 15.0f);
+                                UPDATE_HEIGHTMAP_ON_CHANGE();
+                            }
+
+                            ImGui::SliderFloat("Blur", &device.blur, 0.0f, 10.0f);
+                            UPDATE_HEIGHTMAP_ON_CHANGE();
+                            ImGui::TreePop();
+                        }
 
                         ImGui::Unindent();
                     }
@@ -722,8 +756,8 @@ namespace cyb::editor
                     m_heightmapDesc.height = m_heightmapDesc.width;
                 UPDATE_HEIGHTMAP_ON_CHANGE();
 
-                editNoiseDesc("Heightmap Device 1", m_heightmapDesc.device1);
-                editNoiseDesc("Heightmap Device 2", m_heightmapDesc.device2);
+                editNoiseDesc("Heightmap Input A", m_heightmapDesc.device1, m_heightmapInputATex);
+                editNoiseDesc("Heightmap Input B", m_heightmapDesc.device2, m_heightmapInputBTex);
                 ImGui::Spacing();
                 if (gui::ComboBox("Combine Type", m_heightmapDesc.combineType, g_mixTypeCombo))
                     UpdateHeightmapAndTextures();
@@ -733,10 +767,7 @@ namespace cyb::editor
                     UPDATE_HEIGHTMAP_ON_CHANGE();
                 }
 
-                ImGui::Spacing();
-                ImGui::SliderInt("Iterations", (int*)&m_heightmapDesc.iterations, 0, 2000);
-                UPDATE_HEIGHTMAP_ON_CHANGE();
-                ImGui::SliderFloat("Erosion", &m_heightmapDesc.erosion, 0.0f, 0.01f);
+                ImGui::SliderFloat("Exponent", &m_heightmapDesc.exponent, 0.0f, 4.0f);
                 UPDATE_HEIGHTMAP_ON_CHANGE();
             }
 
@@ -755,15 +786,14 @@ namespace cyb::editor
             }
 
             ImGui::EndChild();
-            ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 180), true, 0);
+            ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 93), true);
 
-            gui::ComboBox("Map Display", m_selectedMapType, g_mapCombo);
-            ImGui::Checkbox("Draw Chunks", &m_drawChunkLines);
+            //ImGui::Checkbox("Draw Chunks", &m_drawChunkLines);
             //ImGui::Checkbox("Draw Triangles", &m_drawTriangles);
 
             if (ImGui::Button("Set default params", ImVec2(-1, 0)))
             {
-                ResetParams();
+                SetDefaultHeightmapValues();
                 UpdateHeightmapAndTextures();
             }
 
@@ -771,19 +801,13 @@ namespace cyb::editor
             {
                 m_heightmapDesc.device1.noise.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
                 m_heightmapDesc.device2.noise.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
-                //m_moisturemapNoise.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
                 UpdateHeightmapAndTextures();
             }
 
             if (ImGui::Button("Generate terrain mesh", ImVec2(-1, 0)))
-            {
-                //UpdateHeightmapAndTextures();
                 GenerateTerrainMesh();
-            }
             if (ImGui::IsItemHovered())
-            {
                 ImGui::SetTooltip("Generated on the selected entity objects mesh. Old data is cleared");
-            }
 
             ImGui::EndChild();
 
@@ -801,11 +825,11 @@ namespace cyb::editor
 
             if (tex->IsValid())
             {
+                const ImVec2 drawPosStart = ImGui::GetCursorScreenPos();
+                
                 ImVec2 size = ImGui::CalcItemSize(ImVec2(-1, -2), 300, 300);
                 size.x = math::Min(size.x, size.y);
                 size.y = math::Min(size.x, size.y);
-
-                ImVec2 drawPosStart = ImGui::GetCursorScreenPos();
                 ImGui::Image((ImTextureID)tex, size);
 
                 //if (m_drawTriangles)
@@ -813,6 +837,9 @@ namespace cyb::editor
                 if (m_drawChunkLines)
                     DrawChunkLines(drawPosStart);
             }
+
+            ImGui::SameLine(-1, 20);
+            gui::ComboBox("Display", m_selectedMapType, g_mapCombo);
 
             ImGui::EndTable();
         }
@@ -822,29 +849,33 @@ namespace cyb::editor
     {
         switch (m_selectedMapType)
         {
-        case Map::Height: return &m_heightmapTex;;
-        case Map::Moisture: return &m_moisturemapTex;
-        case Map::Color: return &m_colormapTex;
+        case Map::InputA: return &m_heightmapInputATex;
+        case Map::InputB: return &m_heightmapInputBTex;
+        case Map::Combined: return &m_heightmapTex;
         default: assert(0);
         }
 
         return nullptr;
     }
 
-    void TerrainGenerator::ResetParams()
+    void TerrainGenerator::SetDefaultHeightmapValues()
     {
         m_heightmapDesc = HeightmapDesc();
 
         m_heightmapDesc.device1.noise = NoiseDesc();
         m_heightmapDesc.device1.noise.noiseType = NoiseType::Perlin;
-        m_heightmapDesc.device1.noise.frequency = 2.847f;
+        m_heightmapDesc.device1.noise.frequency = 1.389f;
         m_heightmapDesc.device1.noise.octaves = 4;
+        m_heightmapDesc.device1.strataOp = HeightmapStrataOp::Smooth;
+        m_heightmapDesc.device1.strata = 5.0f;
 
         m_heightmapDesc.device2.noise.noiseType = NoiseType::Cellular;
-        m_heightmapDesc.device2.noise.frequency = 0.765f;
-        m_heightmapDesc.device2.noise.octaves = 6;
+        m_heightmapDesc.device2.noise.frequency = 1.859f;
+        m_heightmapDesc.device2.noise.octaves = 4;
         m_heightmapDesc.device2.noise.cellularReturnType = CellularReturnType::Distance;
-        
+        m_heightmapDesc.device2.strataOp = HeightmapStrataOp::Smooth;
+        m_heightmapDesc.device2.strata = 12.0f;
+
         m_moisturemapNoise = NoiseDesc();
     }
 
@@ -886,44 +917,65 @@ namespace cyb::editor
         CreateHeightmap(m_heightmapDesc, m_heightmap);
     }
 
-    void TerrainGenerator::UpdateTextures()
+    static void CreateHeightmapImageTexture(const HeightmapImage& image, graphics::Texture& texture)
     {
         graphics::TextureDesc desc;
-        graphics::SubresourceData subresourceData;
-
         desc.format = graphics::Format::R32_Float;
         desc.components.r = graphics::TextureComponentSwizzle::R;
         desc.components.g = graphics::TextureComponentSwizzle::R;
         desc.components.b = graphics::TextureComponentSwizzle::R;
-        desc.width = m_heightmap.desc.width;
-        desc.height = m_heightmap.desc.height;
+        desc.width = image.width;
+        desc.height = image.height;
         desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
 
-        // Create heightmap texture:
-        subresourceData.mem = m_heightmap.image.data();
+        graphics::SubresourceData subresourceData;
+        subresourceData.mem = image.data.data();
         subresourceData.rowPitch = desc.width * graphics::GetFormatStride(graphics::Format::R32_Float);
-        renderer::GetDevice()->CreateTexture(&desc, &subresourceData, &m_heightmapTex);
+        
+        renderer::GetDevice()->CreateTexture(&desc, &subresourceData, &texture);
+    }
 
-        // Create moisturemap texture:
-        subresourceData.mem = m_moisturemap.image.data();
-        subresourceData.rowPitch = desc.width * graphics::GetFormatStride(graphics::Format::R32_Float);
-        //renderer::GetDevice()->CreateTexture(&desc, &subresourceData, &m_moisturemapTex);
-
-        // Create colormap texture:
-        desc.format = graphics::Format::R8G8B8A8_Unorm;
-        desc.components.r = graphics::TextureComponentSwizzle::Identity;
-        desc.components.g = graphics::TextureComponentSwizzle::Identity;
-        desc.components.b = graphics::TextureComponentSwizzle::Identity;
-
-        subresourceData.mem = m_colormap.data();
-        subresourceData.rowPitch = desc.width * graphics::GetFormatStride(graphics::Format::R8G8B8A8_Unorm);
-        //renderer::GetDevice()->CreateTexture(&desc, &subresourceData, &m_colormapTex);
+    void TerrainGenerator::UpdateTextures()
+    {
+        CreateHeightmapImageTexture(m_heightmap.inputA, m_heightmapInputATex);
+        CreateHeightmapImageTexture(m_heightmap.inputB, m_heightmapInputBTex);
+        CreateHeightmapImageTexture(m_heightmap.image, m_heightmapTex);
     }
 
     void TerrainGenerator::UpdateHeightmapAndTextures()
     {
         UpdateHeightmap();
         UpdateTextures();
+    }
+
+    // ========================= TEST =========================
+    void ColorizeMountains(scene::MeshComponent* mesh)
+    {
+        for (size_t i = 0; i < mesh->indices.size(); i += 3)
+        {
+            uint32_t i0 = mesh->indices[i + 0];
+            uint32_t i1 = mesh->indices[i + 1];
+            uint32_t i2 = mesh->indices[i + 2];
+
+            const XMFLOAT3& p0 = mesh->vertex_positions[i0];
+            const XMFLOAT3& p1 = mesh->vertex_positions[i1];
+            const XMFLOAT3& p2 = mesh->vertex_positions[i2];
+
+            XMVECTOR U = XMLoadFloat3(&p2) - XMLoadFloat3(&p0);
+            XMVECTOR V = XMLoadFloat3(&p1) - XMLoadFloat3(&p0);
+
+            XMVECTOR N = XMVector3Cross(U, V);
+            N = XMVector3Normalize(N);
+
+            XMVECTOR UP = XMVectorSet(0, 1, 0, 0);
+            float dp = XMVectorGetX(XMVector3Dot(UP, N));
+            if (dp < 0.55f)
+            {
+                mesh->vertex_colors[i0] = math::StoreColor_RGBA(XMFLOAT4(0.6, 0.6, 0.6, 1));
+                mesh->vertex_colors[i1] = math::StoreColor_RGBA(XMFLOAT4(0.6, 0.6, 0.6, 1));
+                mesh->vertex_colors[i2] = math::StoreColor_RGBA(XMFLOAT4(0.6, 0.6, 0.6, 1));
+            }
+        }
     }
 
     void TerrainGenerator::GenerateTerrainMesh()
@@ -946,6 +998,8 @@ namespace cyb::editor
 
         // Load vertices:
         const XMFLOAT3 positionToCenter = XMFLOAT3(-(m_meshDesc.size * 0.5f), 0.0f, -(m_meshDesc.size * 0.5f));
+        mesh->vertex_positions.reserve(m_mesh.points.size());
+        mesh->vertex_colors.reserve(m_mesh.points.size());
         for (const auto& p : m_mesh.points)
         {
             mesh->vertex_positions.push_back(XMFLOAT3(
@@ -955,7 +1009,8 @@ namespace cyb::editor
             mesh->vertex_colors.push_back(m_biomeColorBand.GetColorAt(p.y));
         }
         
-        // Load indices
+        // Load indices:
+        mesh->indices.reserve(m_mesh.triangles.size() * 3);
         for (const auto& tri : m_mesh.triangles)
         {
             mesh->indices.push_back(tri.x);
@@ -963,12 +1018,19 @@ namespace cyb::editor
             mesh->indices.push_back(tri.y);
         }
 
+        ColorizeMountains(mesh);
+
         // Setup mesh subset and create render data:
         scene::MeshComponent::MeshSubset subset;
         subset.indexOffset = 0;
         subset.indexCount = (uint32_t)mesh->indices.size();
         subset.materialID = scene.CreateMaterial("Terrain_Material");
         mesh->subsets.push_back(subset);
+
+        scene::MaterialComponent* material = scene.materials.GetComponent(subset.materialID);
+        material->roughness = 0.82;
+        material->metalness = 0.24;
+
         mesh->CreateRenderData();
     }
 }

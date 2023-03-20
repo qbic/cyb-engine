@@ -4,23 +4,25 @@
 #include "systems/job-system.h"
 #include "editor/imgui-widgets.h"
 #include "core/random.h"
+
 namespace cyb::editor
 {
-    std::vector<int> BoxesForGaussian(const float sigma, const int n) {
+    std::vector<int> BoxesForGaussian(const float sigma, const int n)
+    {
         const float wIdeal = std::sqrt((12 * sigma * sigma / n) + 1);
-        int wl = wIdeal;
-        if (wl % 2 == 0) {
+        int wl = (int)wIdeal;
+        if (wl % 2 == 0)
             wl--;
-        }
         const int wu = wl + 2;
 
         const float mIdeal =
             (12 * sigma * sigma - n * wl * wl - 4 * n * wl - 3 * n) /
             (-4 * wl - 4);
-        const int m = std::round(mIdeal);
+        const int m = math::Round(mIdeal);
 
         std::vector<int> sizes;
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < n; i++)
+        {
             sizes.push_back(i < m ? wl : wu);
         }
         return sizes;
@@ -32,30 +34,35 @@ namespace cyb::editor
         const int w, const int h, const int r)
     {
         const float m = 1.f / (r + r + 1);
-        for (int i = 0; i < h; i++) {
+        for (int i = 0; i < h; i++)
+        {
             int ti = i * w;
             int li = ti;
             int ri = ti + r;
             float fv = src[ti];
             float lv = src[ti + w - 1];
             float val = (r + 1) * fv;
-            for (int j = 0; j < r; j++) {
+            for (int j = 0; j < r; j++)
+            {
                 val += src[ti + j];
             }
-            for (int j = 0; j <= r; j++) {
+            for (int j = 0; j <= r; j++)
+            {
                 val += src[ri] - fv;
                 dst[ti] = val * m;
                 ri++;
                 ti++;
             }
-            for (int j = r + 1; j < w - r; j++) {
+            for (int j = r + 1; j < w - r; j++)
+            {
                 val += src[ri] - src[li];
                 dst[ti] = val * m;
                 li++;
                 ri++;
                 ti++;
             }
-            for (int j = w - r; j < w; j++) {
+            for (int j = w - r; j < w; j++)
+            {
                 val += lv - src[li];
                 dst[ti] = val * m;
                 li++;
@@ -70,30 +77,35 @@ namespace cyb::editor
         const int w, const int h, const int r)
     {
         const float m = 1.f / (r + r + 1);
-        for (int i = 0; i < w; i++) {
+        for (int i = 0; i < w; i++)
+        {
             int ti = i;
             int li = ti;
             int ri = ti + r * w;
             float fv = src[ti];
             float lv = src[ti + w * (h - 1)];
             float val = (r + 1) * fv;
-            for (int j = 0; j < r; j++) {
+            for (int j = 0; j < r; j++)
+            {
                 val += src[ti + j * w];
             }
-            for (int j = 0; j <= r; j++) {
+            for (int j = 0; j <= r; j++)
+            {
                 val += src[ri] - fv;
                 dst[ti] = val * m;
                 ri += w;
                 ti += w;
             }
-            for (int j = r + 1; j < h - r; j++) {
+            for (int j = r + 1; j < h - r; j++)
+            {
                 val += src[ri] - src[li];
                 dst[ti] = val * m;
                 li += w;
                 ri += w;
                 ti += w;
             }
-            for (int j = h - r; j < h; j++) {
+            for (int j = h - r; j < h; j++)
+            {
                 val += lv - src[li];
                 dst[ti] = val * m;
                 li += w;
@@ -114,7 +126,7 @@ namespace cyb::editor
 
     std::vector<float> GaussianBlur(
         const std::vector<float>& data,
-        const int w, const int h, const int r)
+        const int w, const int h, const float r)
     {
         std::vector<float> src = data;
         std::vector<float> dst(data.size());
@@ -127,9 +139,9 @@ namespace cyb::editor
 
     float Heightmap::GetHeightAt(uint32_t x, uint32_t y) const
     {
-        return image[y * desc.width + x];
+        return image.data[y * image.width + x];
     }
-
+    
     float Heightmap::GetHeightAt(const XMINT2& p) const
     {
         return GetHeightAt(p.x, p.y);
@@ -222,109 +234,73 @@ namespace cyb::editor
         return std::make_pair(maxPoint, maxError);
     }
 
-    static void CreateNoise(jobsystem::Context& ctx, const NoiseDesc& noiseDesc, Heightmap& map)
+    static void CreateNoiseImage(jobsystem::Context& ctx, const NoiseDesc& noiseDesc, uint32_t width, uint32_t height, HeightmapImage& image)
     {
-        map.image.clear();
-        map.image.resize(map.desc.width * map.desc.height);
+        image.width = width;
+        image.height = height;
+        image.data.clear();
+        image.data.resize(width * height);
 
-        jobsystem::Dispatch(ctx, map.desc.height, 256, [&](jobsystem::JobArgs args)
-        {
-            NoiseGenerator noise(noiseDesc);
-
-            const uint32_t y = args.jobIndex;
-            for (uint32_t x = 0; x < map.desc.width; ++x)
+        jobsystem::Dispatch(ctx, image.height, 256, [&](jobsystem::JobArgs args)
             {
-                const float xs = static_cast<float>(x) / static_cast<float>(map.desc.width);
-                const float ys = static_cast<float>(y) / static_cast<float>(map.desc.height);
-                const size_t offset = y * map.desc.width + x;
+                NoiseGenerator noise(noiseDesc);
 
-                map.image[offset] = noise.GetNoise(xs, ys);
-            }
-        });
+                const uint32_t y = args.jobIndex;
+                for (uint32_t x = 0; x < image.width; ++x)
+                {
+                    const float xs = static_cast<float>(x) / static_cast<float>(image.width);
+                    const float ys = static_cast<float>(y) / static_cast<float>(image.height);
+                    const size_t offset = y * image.width + x;
+
+                    image.data[offset] = noise.GetNoise(xs, ys);
+                }
+            });
     }
 
     // Normalize all values in map to [0..1] range
-    static void NormalizeHeightmap(jobsystem::Context& ctx, Heightmap& map)
+    static void NormalizeHeightmap(jobsystem::Context& ctx, HeightmapImage& image)
     {
         float minH = std::numeric_limits<float>::max();
         float maxH = std::numeric_limits<float>::min();
 
-        for (uint32_t y = 0; y < map.desc.height; ++y)
+        for (uint32_t y = 0; y < image.height; ++y)
         {
-            for (uint32_t x = 0; x < map.desc.width; ++x)
+            for (uint32_t x = 0; x < image.width; ++x)
             {
-                const size_t offset = y * map.desc.width + x;
-                const float value = map.image[offset];
+                const size_t offset = y * image.width + x;
+                const float value = image.data[offset];
                 minH = math::Min(minH, value);
                 maxH = math::Max(maxH, value);
             }
         }
 
-        //jobsystem::Dispatch(ctx, height, 256, [&](jobsystem::JobArgs args)
-        for (uint32_t y = 0; y < map.desc.height; ++y)
+        for (uint32_t y = 0; y < image.height; ++y)
         {
             const float scale = 1.0f / (maxH - minH);
-            //const uint32_t y = args.jobIndex;
-            for (uint32_t x = 0; x < map.desc.width; ++x)
+            for (uint32_t x = 0; x < image.width; ++x)
             {
-                const size_t offset = y * map.desc.width + x;
-                const float value = map.image[offset];
-                map.image[offset] = (value - minH) * scale;
+                const size_t offset = y * image.width + x;
+                const float value = image.data[offset];
+                image.data[offset] = (value - minH) * scale;
             }
         }
     }
 
-    void CombineMaps(jobsystem::Context& ctx, const Heightmap& inA, const Heightmap& inB, Heightmap& out, HeightmapCombineType combineType, float strength)
+    static void ApplyBlur(HeightmapImage& image, float blur)
     {
-        out.image.clear();
-        out.image.resize(out.desc.width * out.desc.height);
-
-        jobsystem::Dispatch(ctx, out.desc.height, 256, [&](jobsystem::JobArgs args)
-        {
-            const uint32_t y = args.jobIndex;
-            for (uint32_t x = 0; x < out.desc.width; ++x)
-            {
-                const size_t offset = y * out.desc.width + x;
-                const float valueA = inA.image[offset];
-                const float valueB = inB.image[offset];
-
-                float value = 0.0f;
-                switch (combineType)
-                {
-                case HeightmapCombineType::Add:
-                    value = valueA + valueB;
-                    break;
-                case HeightmapCombineType::Sub:
-                    value = valueA - valueB;
-                    break;
-                case HeightmapCombineType::Mul:
-                    value = valueA * valueB;
-                    break;
-                case HeightmapCombineType::Lerp:
-                    value = math::Lerp(valueA, valueB, strength);
-                    break;
-                }
-
-                out.image[offset] = value;
-            }
-        });
+        std::vector<float> temp = GaussianBlur(image.data, image.width, image.height, blur);
+        image.data = temp;
     }
 
-    static void ApplyBlur(Heightmap& map, float blur)
+    static void ApplyStrata(jobsystem::Context& ctx, HeightmapImage& image, const HeightmapDevice& device)
     {
-        std::vector<float> temp = GaussianBlur(map.image, map.desc.width, map.desc.height, blur);
-        map.image = temp;
-    }
-
-    static void ApplyStrata(jobsystem::Context& ctx, Heightmap& map, const HeightmapDevice& device)
-    {
-        jobsystem::Dispatch(ctx, map.desc.height, 256, [&](jobsystem::JobArgs args)
+        jobsystem::Dispatch(ctx, image.height, 256, [&](jobsystem::JobArgs args)
         {
             const uint32_t y = args.jobIndex;
-            for (uint32_t x = 0; x < map.desc.width; ++x)
+            for (uint32_t x = 0; x < image.width; ++x)
             {
-                const size_t offset = y * map.desc.width + x;
-                float value = map.image[offset];
+                const size_t offset = y * image.width + x;
+                float value = image.data[offset];
 
                 switch (device.strataOp)
                 {
@@ -355,11 +331,25 @@ namespace cyb::editor
                     break;
                 }
 
-                map.image[offset] = value;
+                image.data[offset] = value;
             }
         });
     }
 
+    static void ApplyExponent(HeightmapImage& image, float exponent)
+    {
+        for (uint32_t y = 0; y < image.height; ++y)
+        {
+            for (uint32_t x = 0; x < image.width; ++x)
+            {
+                const size_t offset = y * image.width + x;
+                const float value = image.data[offset];
+                image.data[offset] = std::pow(value, exponent);
+            }
+        }
+    }
+
+#if 0
     void CreateColormap(jobsystem::Context& ctx, const Heightmap& height, const ImGradient& colorBand, std::vector<uint32_t>& color)
     {
         assert(height.image.size() == height.desc.width * height.desc.height);
@@ -378,40 +368,83 @@ namespace cyb::editor
             }
         });
     }
+#endif 
+
+    static void CombineMaps(jobsystem::Context& ctx, const HeightmapImage& inputA, const HeightmapImage& inputB, HeightmapImage& out, HeightmapCombineType combineType, float strength)
+    {
+        assert(inputA.width == inputB.width);
+        assert(inputA.height == inputB.width);
+
+        out.width = inputA.width;
+        out.height = inputB.height;
+        out.data.clear();
+        out.data.resize(out.width * out.height);
+
+        jobsystem::Dispatch(ctx, out.height, 256, [&](jobsystem::JobArgs args)
+            {
+                const uint32_t y = args.jobIndex;
+                for (uint32_t x = 0; x < out.width; ++x)
+                {
+                    const size_t offset = y * out.width + x;
+                    const float valueA = inputA.data[offset];
+                    const float valueB = inputB.data[offset];
+
+                    float value = 0.0f;
+                    switch (combineType)
+                    {
+                    case HeightmapCombineType::Add:
+                        value = valueA + valueB;
+                        break;
+                    case HeightmapCombineType::Sub:
+                        value = valueA - valueB;
+                        break;
+                    case HeightmapCombineType::Mul:
+                        value = valueA * valueB;
+                        break;
+                    case HeightmapCombineType::Lerp:
+                        value = math::Lerp(valueA, valueB, strength);
+                        break;
+                    }
+
+                    out.data[offset] = value;
+                }
+            });
+    }
 
     void CreateHeightmap(const HeightmapDesc& desc, Heightmap& heightmap)
     {
         jobsystem::Context ctx;
-        Heightmap buffers[2];
 
         heightmap.desc = desc;
-        buffers[0].desc = desc;
-        buffers[1].desc = desc;
-        CreateNoise(ctx, desc.device1.noise, buffers[0]);
-        CreateNoise(ctx, desc.device2.noise, buffers[1]);
+        CreateNoiseImage(ctx, desc.device1.noise, desc.width, desc.height, heightmap.inputA);
+        CreateNoiseImage(ctx, desc.device2.noise, desc.width, desc.height, heightmap.inputB);
 
         jobsystem::Wait(ctx);
-        NormalizeHeightmap(ctx, buffers[0]);
-        NormalizeHeightmap(ctx, buffers[1]);
+        NormalizeHeightmap(ctx, heightmap.inputA);
+        NormalizeHeightmap(ctx, heightmap.inputB);
 
         jobsystem::Wait(ctx);
-        ApplyStrata(ctx, buffers[0], desc.device1);
-        ApplyStrata(ctx, buffers[1], desc.device2);
+        ApplyStrata(ctx, heightmap.inputA, desc.device1);
+        ApplyStrata(ctx, heightmap.inputB, desc.device2);
 
         jobsystem::Wait(ctx);
-        jobsystem::Execute(ctx, [&](jobsystem::JobArgs args) { ApplyBlur(buffers[0], desc.device1.blur * (desc.width * 0.003f)); });
-        jobsystem::Execute(ctx, [&](jobsystem::JobArgs args) { ApplyBlur(buffers[1], desc.device2.blur * (desc.width * 0.003f)); });
+        jobsystem::Execute(ctx, [&](jobsystem::JobArgs args) { ApplyBlur(heightmap.inputA, desc.device1.blur * (desc.width * 0.003f)); });
+        jobsystem::Execute(ctx, [&](jobsystem::JobArgs args) { ApplyBlur(heightmap.inputB, desc.device2.blur * (desc.width * 0.003f)); });
         
         jobsystem::Wait(ctx);
-        CombineMaps(ctx, buffers[0], buffers[1], heightmap, desc.combineType, desc.combineStrength);
+        CombineMaps(ctx, heightmap.inputA, heightmap.inputB, heightmap.image, desc.combineType, desc.combineStrength);
 
         jobsystem::Wait(ctx);
-        NormalizeHeightmap(ctx, heightmap);
+        NormalizeHeightmap(ctx, heightmap.image);
         
         jobsystem::Wait(ctx);
-        //ApplyErosion(heightmap, desc.iterations, 0.1f, desc.erosion);
-        //CreateColormap(ctx, m_heightmap, m_biomeColorBand, m_colormap);
-        //jobsystem::Wait(ctx);
+
+        if (desc.exponent != 1.0f)
+        {
+            ApplyExponent(heightmap.image, desc.exponent);
+            ApplyBlur(heightmap.image, 1 * (desc.width * 0.002f));
+            NormalizeHeightmap(ctx, heightmap.image);
+            jobsystem::Wait(ctx);
+        }
     }
-
 }

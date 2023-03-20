@@ -32,11 +32,13 @@ project "engine"
 		"%{VULKAN_SDK}/Include",
 		"%{wks.location}/engine/third_party",
 		"%{wks.location}/engine/third_party/imgui",
+		"%{wks.location}/engine/third_party/freetype/include",
 	}
 
 	links
 	{
 		"imgui",
+		"freetype",
 		"comctl32.lib",		-- High DPI awareness interface
 	}
 

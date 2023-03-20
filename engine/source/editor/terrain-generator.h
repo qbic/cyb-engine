@@ -8,16 +8,13 @@ namespace cyb::editor
     struct TerrainMeshDesc
     {
         float size = 1000.0f;           // Terrain size in meters
-        float maxAltitude = 160.0f;     // Peak height in meters
+        float maxAltitude = 200.0f;     // Peak height in meters
         float minAltitude = -22.0f;     // Lowest terrain point
         uint32_t numChunks = 8;         // Devide terrain in numChunks^2 seperate scene objects
 
-        float maxError = 0.008f;
+        float maxError = 0.004f;
         uint32_t maxTriangles = 0;
         uint32_t maxVertices = 0;
-
-        Heightmap* m_heightmap;
-        Heightmap* m_moisturemap;
     };
 
     struct TerrainMesh
@@ -57,9 +54,9 @@ namespace cyb::editor
     public:
         enum class Map
         {
-            Height,
-            Moisture,
-            Color
+            InputA,
+            InputB,
+            Combined
         };
 
         TerrainGenerator();
@@ -75,20 +72,24 @@ namespace cyb::editor
         Heightmap m_heightmap;
         Heightmap m_moisturemap;
         std::vector<uint32_t> m_colormap;
+        ImGradient m_biomeColorBand;
+        ImGradient m_moistureBiomeColorBand;
+
+
+        graphics::Texture m_heightmapInputATex;
+        graphics::Texture m_heightmapInputBTex;
         graphics::Texture m_heightmapTex;
         graphics::Texture m_moisturemapTex;
         graphics::Texture m_colormapTex;
-        ImGradient m_biomeColorBand;
-        ImGradient m_moistureBiomeColorBand;
 
         TerrainMeshDesc m_meshDesc;
         TerrainMesh m_mesh;
 
-        Map m_selectedMapType = Map::Height;
+        Map m_selectedMapType = Map::Combined;
         bool m_drawChunkLines = false;
         bool m_useMoistureMap = false;
         
-        void ResetParams();
+        void SetDefaultHeightmapValues();
         void DrawChunkLines(const ImVec2& drawStartPos) const;
         void DrawMeshTriangles(const ImVec2& drawStartPos) const;
 

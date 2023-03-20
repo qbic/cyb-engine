@@ -19,6 +19,6 @@ void main()
 {
     final_color = vec4(fs_in.col);
 
-    float dist = length(camera_cb.pos.xyz - fs_in.pos);
+    float dist = length(cbCamera.pos.xyz - fs_in.pos);
     ApplyFog(dist, final_color);
 }

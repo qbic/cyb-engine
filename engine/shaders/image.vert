@@ -5,7 +5,7 @@ layout(location = 0) out vec2 frag_uv;
 
 void main() 
 {
-    if ((image_cb.flags & IMAGE_FLAG_FULLSCREEN) != IMAGE_FLAG_FULLSCREEN)
+    if ((cbImage.flags & IMAGE_FULLSCREEN_BIT) != IMAGE_FULLSCREEN_BIT)
     {
         CreateFullscreenTriangleUV(gl_VertexIndex, gl_Position, frag_uv);
     }
@@ -20,16 +20,16 @@ void main()
 		{
 		default:
 		case 0:
-			gl_Position = image_cb.corners[0];
+			gl_Position = cbImage.corners[0];
 			break;
 		case 1:
-			gl_Position = image_cb.corners[1];
+			gl_Position = cbImage.corners[1];
 			break;
 		case 2:
-			gl_Position = image_cb.corners[2];
+			gl_Position = cbImage.corners[2];
 			break;
 		case 3:
-			gl_Position = image_cb.corners[3];
+			gl_Position = cbImage.corners[3];
 			break;
 		}
 

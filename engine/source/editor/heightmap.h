@@ -40,20 +40,28 @@ namespace cyb::editor
         HeightmapDevice device2;
         HeightmapCombineType combineType = HeightmapCombineType::Lerp;
         float combineStrength = 0.5f;
+        float exponent = 1.8f;
+    };
 
-        int iterations = 1;
-        float erosion = 0.0f;
+    struct HeightmapImage
+    {
+        uint32_t width = 256;
+        uint32_t height = 256;
+        std::vector<float> data;        // Image data in 1ch 32-bit floating point format
     };
 
     struct Heightmap
     {
         HeightmapDesc desc;
-        std::vector<float> image;               // Image data in 1ch 32-bit floating point format
+        HeightmapImage inputA;
+        HeightmapImage inputB;
+        HeightmapImage image;
 
         float GetHeightAt(uint32_t x, uint32_t y) const;
         float GetHeightAt(const XMINT2& p) const;
         std::pair<XMINT2, float> FindCandidate(const XMINT2 p0, const XMINT2 p1, const XMINT2 p2) const;
     };
 
+    void CreateImageFromDevice(const HeightmapDevice& device);
     void CreateHeightmap(const HeightmapDesc& desc, Heightmap& heightmap);
 }

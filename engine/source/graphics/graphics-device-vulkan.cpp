@@ -2035,6 +2035,7 @@ namespace cyb::graphics
                 for (uint32_t mip = 0; mip < desc->mipLevels; ++mip)
                 {
                     const SubresourceData& subresourceData = init_data[init_data_index++];
+                    assert(subresourceData.mem != nullptr);
                     const uint32_t block_size = 1; // GetFormatBlockSize(desc->format);
                     const uint32_t num_blocks_x = width / block_size;
                     const uint32_t num_blocks_y = height / block_size;

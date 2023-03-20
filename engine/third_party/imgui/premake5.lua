@@ -6,6 +6,11 @@ project "imgui"
 	targetdir ("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")
 
+	includedirs 
+	{
+		"%{wks.location}/engine/third_party/freetype/include"
+	}
+
 	files
 	{
 		"imconfig.h",
@@ -21,7 +26,9 @@ project "imgui"
 		"imstb_textedit.h",
 		"imstb_truetype.h",
 		"imgui_demo.cpp",
-		"imstb_truetype.h"
+		"imstb_truetype.h",
+		"imgui_freetype.cpp",
+		"imgui_freetype.h"
 	}
 
 	filter "system:windows"

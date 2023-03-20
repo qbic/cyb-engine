@@ -1,3 +1,4 @@
+//? #version 450
 #include "globals.glsl"
 #ifndef NO_LIGHTING
 #include "lighting.glsl"
@@ -34,32 +35,33 @@ void main()
         Surface surface = CreateSurface(normal, gs_in[vertex_index].pos, gs_in[vertex_index].col.rgb);
         Lighting lighting = Lighting(vec3(0.0), vec3(0.0));
 
-        for (int light_index = 0; light_index < frame_cb.num_lights; light_index++)
+        for (int light_index = 0; light_index < cbFrame.numLights; light_index++)
         {
-            switch (frame_cb.lights[light_index].type)
+            switch (cbFrame.lights[light_index].type)
             {
             case LIGHTSOURCE_TYPE_DIRECTIONAL:
-                ApplyDirectionalLight(frame_cb.lights[light_index], surface, lighting);
+                Light_Directional(cbFrame.lights[light_index], surface, lighting);
                 break;
             case LIGHTSOURCE_TYPE_POINT:
-                ApplyPointLight(frame_cb.lights[light_index], surface, lighting);
+                Light_Point(cbFrame.lights[light_index], surface, lighting);
                 break;
             }
         }
 
         ApplyLighting(surface, lighting, vertex_colors[vertex_index]);
 #else
-        vertex_colors[vertex_index] = gs_in[vertex_index].col.rgb * material_cb.base_color.rgb;
+        vertex_colors[vertex_index] = gs_in[vertex_index].col.rgb * cbMaterial.baseColor.rgb;
 #endif
     }
 
     // calculate average color of the triangle
     const float alpha = 0.33333 * (gs_in[0].col.a + gs_in[1].col.a + gs_in[2].col.a);
+    //vec4 final_color = vec4(vertex_colors[0], alpha);
     vec4 final_color = vec4(0.33333 * (vertex_colors[0] + vertex_colors[1] + vertex_colors[2]), alpha);
 
     // add a slight sky color tint to the object, giving it the apperance 
     // of some object to sky reflectance (maybe add-in material property)
-    const vec3 sky_reflectance = mix(clamp(mix(frame_cb.horizon, frame_cb.zenith, 0.5) * 1.5, 0, 1), vec3(1.0), 0.8);
+    const vec3 sky_reflectance = mix(clamp(mix(cbFrame.horizon, cbFrame.zenith, 0.5) * 1.5, 0, 1), vec3(1.0), 0.8);
     final_color.rgb *= sky_reflectance;
 
     for (int i = 0; i < gl_in.length(); i++)

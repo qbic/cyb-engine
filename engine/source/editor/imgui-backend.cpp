@@ -5,6 +5,7 @@
 #ifdef _WIN32
 #include "backends/imgui_impl_win32.cpp"
 #endif
+#include "editor/icons_font_awesome6.h"
 
 using namespace cyb::scene;
 using namespace cyb::graphics;
@@ -27,16 +28,25 @@ static ImGui_Impl_Data* ImGui_Impl_GetBackendData()
 	return ImGui::GetCurrentContext() ? (ImGui_Impl_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
+ImFont* AddFont(const char* filename, const ImWchar* ranges, float size, bool merge)
+{
+	ImFontConfig fontConfig = {};
+	fontConfig.MergeMode = merge;
+	fontConfig.PixelSnapH = true;
+	return ImGui::GetIO().Fonts->AddFontFromFileTTF(filename, size, &fontConfig, ranges);
+}
+
 void ImGui_Impl_CybEngine_CreateDeviceObject()
 {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-	ImFontConfig fontConfig = {};
-	fontConfig.OversampleH = 3;
-	fontConfig.OversampleV = 1;
-	fontConfig.RasterizerMultiply = 1.2f;
-	auto font = io.Fonts->AddFontFromFileTTF("Assets/Cascadia Code Regular 400.otf", 16.0, &fontConfig);
-	io.FontDefault = font;
+	static const ImWchar fontAwesomeIconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+	static const ImWchar notoSansRanges[] = { 0x20, 0x52f, 0x1ab0, 0x2189, 0x2c60, 0x2e44, 0xa640, 0xab65, 0 };
+	static const ImWchar notoMonoRanges[] = { 0x20, 0x513, 0x1e00, 0x1f4d, 0 };
+
+	AddFont("Assets/NotoMono-Regular.ttf", notoMonoRanges, 16.0, false);
+	AddFont("Assets/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 14.f, true);
+	AddFont("Assets/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 12.f, true);
 
 	// Build texture atlas
 	unsigned char* pixels;

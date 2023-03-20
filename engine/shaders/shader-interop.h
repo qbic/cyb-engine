@@ -1,5 +1,5 @@
-#ifndef RENDER_SHADER_INTEROP2_H
-#define RENDER_SHADER_INTEROP2_H
+#ifndef SHADER_INTEROP_H
+#define SHADER_INTEROP_H
 
 #ifdef __cplusplus
 // c++ application-side types
@@ -56,10 +56,10 @@ CBUFFER(FrameCB, CBSLOT_FRAME)
     vec3 fog;                   // fog [start, end, height]
     float gamma;
 
-    int num_lights;
+    int numLights;
     CBPADDING(3)
     LightSource lights[SHADER_MAX_LIGHTSOURCES];
-} CBUFFER_NAME(frame_cb);
+} CBUFFER_NAME(cbFrame);
 
 CBUFFER(CameraCB, CBSLOT_CAMERA)
 {
@@ -70,24 +70,24 @@ CBUFFER(CameraCB, CBSLOT_CAMERA)
     mat4 inv_view;
     mat4 inv_vp;
     vec4 pos;
-} CBUFFER_NAME(camera_cb);
+} CBUFFER_NAME(cbCamera);
 
 CBUFFER(MaterialCB, CBSLOT_MATERIAL)
 {
-    vec4 base_color;
+    vec4 baseColor;
     float roughness;
     float metalness;
     CBPADDING(2)
-} CBUFFER_NAME(material_cb);
+} CBUFFER_NAME(cbMaterial);
 
-#define IMAGE_FLAG_FULLSCREEN (1 << 3)
+#define IMAGE_FULLSCREEN_BIT (1 << 3)
 
 CBUFFER(ImageCB, CBSLOT_IMAGE)
 {
     int flags;
     CBPADDING(3)
     vec4 corners[4];
-} CBUFFER_NAME(image_cb);
+} CBUFFER_NAME(cbImage);
 
 CBUFFER(MiscCB, CBSLOT_MISC)
 {
@@ -101,4 +101,4 @@ CBUFFER(MiscCB, CBSLOT_MISC)
 #undef mat4 
 #endif // __cplusplus
 
-#endif // RENDER_SHADER_INTEROP2_H
+#endif // SHADER_INTEROP_H

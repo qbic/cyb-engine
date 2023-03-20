@@ -212,8 +212,6 @@ namespace cyb::renderer
 
     static void LoadShaders(jobsystem::Context& ctx)
     {
-        Timer timer;
-
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
             input_layouts[VLTYPE_FLAT_SHADING] =
             {
@@ -246,8 +244,6 @@ namespace cyb::renderer
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_IMAGE], "image.frag"); });
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_SKY], "sky.frag"); });
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
-
-        //CYB_TRACE("Loaded shaders in {0:.2f}ms", timer.ElapsedMilliseconds());
     }
 
     static void LoadPipelineStates()
@@ -435,7 +431,7 @@ namespace cyb::renderer
         frameCB.fog = XMFLOAT3(weather.fogStart, weather.fogEnd, weather.fogHeight);
 
         // Add lightsources:
-        frameCB.num_lights = 0;
+        frameCB.numLights = 0;
         for (size_t i = 0; i < view.scene->lights.Size(); ++i)
         {
             if (i >= SHADER_MAX_LIGHTSOURCES)
@@ -450,14 +446,14 @@ namespace cyb::renderer
 
             if (light->IsAffectingScene())
             {
-                LightSource& cbLight = frameCB.lights[frameCB.num_lights];
+                LightSource& cbLight = frameCB.lights[frameCB.numLights];
                 cbLight.type = static_cast<uint32_t>(light->GetType());
                 cbLight.position = XMFLOAT4(transform->translation_local.x, transform->translation_local.y, transform->translation_local.z, 0.0f);
                 cbLight.direction = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
                 cbLight.color = XMFLOAT4(light->color.x, light->color.y, light->color.z, 0.0f);
                 cbLight.energy = light->energy;
                 cbLight.range = light->range;
-                ++frameCB.num_lights;
+                ++frameCB.numLights;
             }
         }
     }
@@ -544,7 +540,7 @@ namespace cyb::renderer
                     const MaterialComponent* material = view.scene->materials.GetComponent(subset.materialID);
                     {
                         MaterialCB material_cb;
-                        material_cb.base_color = material->baseColor;
+                        material_cb.baseColor = material->baseColor;
                         material_cb.roughness = material->roughness;
                         material_cb.metalness = material->metalness;
                         device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
@@ -646,7 +642,7 @@ namespace cyb::renderer
             device->BindIndexBuffer(&wirecube_ib, IndexBufferFormat::Uint16, 0, cmd);
 
             MaterialCB material_cb;
-            material_cb.base_color = XMFLOAT4(1.0f, 0.933f, 0.6f, 1.0f);
+            material_cb.baseColor = XMFLOAT4(1.0f, 0.933f, 0.6f, 1.0f);
             device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
 
             for (uint32_t instanceIndex : view.visibleObjects)
@@ -714,9 +710,9 @@ namespace cyb::renderer
             device->BindVertexBuffers(vbs, _countof(vbs), strides, nullptr, cmd);
             device->BindIndexBuffer(&wirecube_ib, IndexBufferFormat::Uint16, 0, cmd);
 
-            MaterialCB material_cb;
-            material_cb.base_color = XMFLOAT4(0.666f, 0.874f, 0.933f, 1.0f);
-            device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
+            MaterialCB cbMaterial;
+            cbMaterial.baseColor = XMFLOAT4(0.666f, 0.874f, 0.933f, 1.0f);
+            device->BindDynamicConstantBuffer(cbMaterial, CBSLOT_MATERIAL, cmd);
 
             scene::Scene& scene = scene::GetScene();
             for (uint32_t i = 0; i < scene.aabb_lights.Size(); ++i)
@@ -726,10 +722,9 @@ namespace cyb::renderer
                 if (light->type == LightType::Point)
                 {
                     const math::AxisAlignedBox& aabb = scene.aabb_lights[i];
-                    MiscCB misc_cb;
-                    XMStoreFloat4x4(&misc_cb.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
-                    device->BindDynamicConstantBuffer(misc_cb, CBSLOT_MISC, cmd);
-
+                    MiscCB cbMisc;
+                    XMStoreFloat4x4(&cbMisc.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
+                    device->BindDynamicConstantBuffer(cbMisc, CBSLOT_MISC, cmd);
                     device->DrawIndexed(24, 0, 0, cmd);
                 }
             }
@@ -761,7 +756,7 @@ namespace cyb::renderer
                 XMStoreFloat4(&image_cb.corners[i], VM);
             }
 
-            image_cb.flags |= IMAGE_FLAG_FULLSCREEN;
+            image_cb.flags |= IMAGE_FULLSCREEN_BIT;
         }
         
         device->BindPipelineState(&pso_image, cmd);

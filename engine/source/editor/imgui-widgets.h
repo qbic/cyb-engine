@@ -3,15 +3,14 @@
 // David Gallardo's https://gist.github.com/galloscript/8a5d179e432e062550972afcd1ecf112
 //
 #pragma once
+#include <string>
+#include <unordered_map>
+#include <fmt/format.h>
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #endif
 #include "imgui/imgui_internal.h"
-#include <string>
-#include <unordered_map>
-#include <fmt/format.h>
 
-#define CYB_GUI_COMPONENT(func, label, ...) (ImGui::TableNextColumn(), ImGui::Text(label), ImGui::TableNextColumn(), ImGui::SetNextItemWidth(-FLT_MIN), func("##" label, __VA_ARGS__))
 
 namespace cyb::editor::gui
 {
@@ -45,7 +44,15 @@ namespace cyb::editor::gui
 
         return change;
     }
+}
 
+#define CYB_GUI_COMPONENT(func, label, ...) (ImGui::TableNextColumn(), ImGui::Text(label), ImGui::TableNextColumn(), ImGui::SetNextItemWidth(-FLT_MIN), func("##" label, __VA_ARGS__))
+
+#define UI_LAYOUT_ELEMENT(func, label, ...) (ImGui::TableNextColumn(), ImGui::Text(label), ImGui::TableNextColumn(), ImGui::SetNextItemWidth(-FLT_MIN), func("##" label, __VA_ARGS__))
+
+
+namespace ui
+{
     template <class T>
     class ScopedIdGuard
     {
@@ -61,6 +68,25 @@ namespace cyb::editor::gui
         }
     };
 
+    class ScopedLayoutTable
+    {
+    public:
+        ScopedLayoutTable(const std::string& label) :
+            m_idGuard(label.c_str())
+        {
+            ImGui::BeginTable(label.c_str(), 2);
+            ImGui::TableSetupColumn("##One");
+            ImGui::TableSetupColumn("##Two");
+        }
+
+        ~ScopedLayoutTable()
+        {
+            ImGui::EndTable();
+        }
+
+    private:
+        ScopedIdGuard<const char*> m_idGuard;
+    };
 }
 
 struct ImGradientMark

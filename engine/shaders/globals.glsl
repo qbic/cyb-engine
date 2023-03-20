@@ -1,6 +1,9 @@
+//? #version 450
 #ifndef _GLOBALS_GLSL
 #define _GLOBALS_GLSL
 #include "shader-interop.h"
+
+#define PI 3.14159265359
 
 #define GAMMA(x)		(ApplySRGBCurve_Fast(x))
 #define DEGAMMA(x)		(RemoveSRGBCurve_Fast(x))
@@ -57,12 +60,12 @@ vec3 UnpackNormal(in uint value)
 vec3 GetDynamicSkyColor(in vec3 V)
 {
     float a = V.y * 0.5 + 0.5;
-    return mix(frame_cb.horizon, frame_cb.zenith, a);
+    return mix(cbFrame.horizon, cbFrame.zenith, a);
 }
 
 float GetFogAmount(float dist)
 {
-	return clamp((dist - frame_cb.fog.x) / (frame_cb.fog.y - frame_cb.fog.x), 0.0, 1.0);
+	return clamp((dist - cbFrame.fog.x) / (cbFrame.fog.y - cbFrame.fog.x), 0.0, 1.0);
 }
 
 #endif

@@ -26,6 +26,7 @@ workspace "cyb-engine"
    
    group "dependencies"
 	   include "engine/third_party/imgui"
+      include "engine/third_party/freetype"
    group ""
    
    include "engine"

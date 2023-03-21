@@ -653,7 +653,7 @@ namespace cyb::editor
     void TerrainGenerator::DrawGui(ecs::Entity selectedEntity)
     {
         static const char* tableName = "SettingsTable";
-        static constexpr uint32_t settingsPandelWidth = 420;
+        static const uint32_t settingsPandelWidth = 420;
         if (!m_initialized)
         {
             UpdateHeightmapAndTextures();
@@ -674,14 +674,14 @@ namespace cyb::editor
             ui::ItemLabel("Testssasdasdasdasddasd");
             ImGui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
 
-
             if (ImGui::CollapsingHeader("Terrain Mesh Settings"))
             {
                 {
-                    ui::ScopedIdGuard asd("Map Size");
+                    const ui::IdScopeGuard idGuard("__Map Size__");
                     ui::ItemLabel("Map Size");
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                     ImGui::DragFloat("", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
+                    ImGui::Text("ablabla");
                 }
                 ImGui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
                 ImGui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
@@ -695,6 +695,7 @@ namespace cyb::editor
                 {
                     if (ImGui::CollapsingHeader(label_, ImGuiTreeNodeFlags_DefaultOpen))
                     {
+                        const ui::IdScopeGuard idGuard(label_);
                         ImGui::Indent();
 
 #if 0
@@ -792,7 +793,7 @@ namespace cyb::editor
             }
 
             ImGui::EndChild();
-            ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 93), true);
+            ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 100), true);
 
             //ImGui::Checkbox("Draw Chunks", &m_drawChunkLines);
             //ImGui::Checkbox("Draw Triangles", &m_drawTriangles);

@@ -20,6 +20,7 @@ struct ImGui_Impl_Data
 	Sampler sampler;
 	VertexInputLayout inputLayout;
 	PipelineState pso;
+	IndexBufferFormat indexFormat;
 
 	ImGui_Impl_Data()
 	{
@@ -107,6 +108,39 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	desc.rs = GetRasterizerState(RSTYPE_DOUBLESIDED);
 	desc.pt = PrimitiveTopology::TriangleList;
 	GetDevice()->CreatePipelineState(&desc, &bd->pso);
+
+	// Get the index buffer format from ImDrawIdx size (can be overwrittern in imconfig.h)
+	assert(sizeof(ImDrawIdx) == 2 || sizeof(ImDrawIdx) == 4);
+	if (sizeof(ImDrawIdx) == 2)
+		bd->indexFormat = IndexBufferFormat::Uint16;
+	else 
+		bd->indexFormat = IndexBufferFormat::Uint32;
+}
+
+static void SetupCustomStyle()
+{
+	ImVec4* colors = ImGui::GetStyle().Colors;
+	colors[ImGuiCol_WindowBg] = ImVec4(0.13f, 0.13f, 0.11f, 0.94f);
+	colors[ImGuiCol_FrameBg] = ImVec4(0.06f, 0.06f, 0.06f, 0.71f);
+	colors[ImGuiCol_FrameBgHovered] = ImVec4(0.10f, 0.10f, 0.10f, 0.71f);
+	colors[ImGuiCol_FrameBgActive] = ImVec4(0.10f, 0.10f, 0.10f, 0.71f);
+	colors[ImGuiCol_TitleBg] = ImVec4(0.13f, 0.13f, 0.11f, 0.94f);
+	colors[ImGuiCol_TitleBgActive] = ImVec4(0.25f, 0.25f, 0.25f, 0.94f);
+	colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
+	colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
+	colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
+	colors[ImGuiCol_CheckMark] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+	colors[ImGuiCol_SliderGrab] = ImVec4(0.38f, 0.58f, 0.71f, 0.94f);
+	colors[ImGuiCol_SliderGrabActive] = ImVec4(0.58f, 0.75f, 0.81f, 1.00f);
+	colors[ImGuiCol_Button] = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
+	colors[ImGuiCol_ButtonHovered] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
+	colors[ImGuiCol_ButtonActive] = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
+	colors[ImGuiCol_Header] = ImVec4(0.19f, 0.19f, 0.19f, 1.00f);
+	colors[ImGuiCol_HeaderHovered] = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
+	colors[ImGuiCol_HeaderActive] = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+	colors[ImGuiCol_Tab] = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
+	colors[ImGuiCol_TabHovered] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
+	colors[ImGuiCol_TabActive] = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
 }
 
 void ImGui_Impl_CybEngine_Init()
@@ -132,6 +166,7 @@ void ImGui_Impl_CybEngine_Init()
 
 	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
+	SetupCustomStyle();
 
 #ifdef _WIN32
 	ImGui_ImplWin32_Init(cyb::platform::main_window->GetNativePtr());
@@ -156,7 +191,8 @@ void ImGui_Impl_CybEngine_Update()
 #endif
 	ImGui::NewFrame();
 
-	//ImGui::ShowDemoWindow();
+	// This can be disabled from imconfig.h aswell
+	ImGui::ShowDemoWindow();
 }
 
 void ImGui_Impl_CybEngine_Compose(CommandList cmd)
@@ -223,9 +259,7 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 	};
 
 	device->BindVertexBuffers(vbs, 1, strides, offsets, cmd);
-
-	IndexBufferFormat indexFormat = IndexBufferFormat::Uint32;
-	device->BindIndexBuffer(&indexBufferAllocation.buffer, indexFormat, indexBufferAllocation.offset, cmd);
+	device->BindIndexBuffer(&indexBufferAllocation.buffer, bd->indexFormat, indexBufferAllocation.offset, cmd);
 
 	Viewport viewport;
 	viewport.width = (float)framebufferWidth;
@@ -251,13 +285,8 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 			{
 				// User callback, registered via ImDrawList::AddCallback()
 				// (ImDrawCallback_ResetRenderState is a special callback value used by the user to request the renderer to reset render state.)
-				if (drawCmd->UserCallback == ImDrawCallback_ResetRenderState)
-				{
-				}
-				else
-				{
+				if (drawCmd->UserCallback != ImDrawCallback_ResetRenderState)
 					drawCmd->UserCallback(drawList, drawCmd);
-				}
 			}
 			else
 			{

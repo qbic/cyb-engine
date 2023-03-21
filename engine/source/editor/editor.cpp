@@ -15,6 +15,7 @@
 #include "imgui_stdlib.h"
 #include "ImGuizmo.h"
 #include "editor/imgui-widgets.h"
+#include "editor/widgets.h"
 #include "editor/terrain-generator.h"
 #include <stack>
 #include <numeric>
@@ -820,6 +821,8 @@ namespace cyb::editor
 
     void SceneGraphView::Draw()
     {
+        ui::ColorScopeGuard colorGuard(ImGuiCol_Header, ImVec4(0.38f, 0.58f, 0.71f, 0.94f));
+
         for (const auto& x : root.children)
             DrawNode(&x);
     }
@@ -856,7 +859,7 @@ namespace cyb::editor
         scene::ObjectComponent* object = scene.objects.GetComponent(entityID);
         if (object)
         {
-            if (ImGui::CollapsingHeader("Object"))
+            if (ImGui::CollapsingHeader(ICON_FA_TAGS " Object"))
             {
                 ImGui::Indent();
                 InspectNameComponent(scene.names.GetComponent(entityID));
@@ -866,7 +869,7 @@ namespace cyb::editor
 
             scene::MeshComponent* mesh = nullptr;
 
-            if (ImGui::CollapsingHeader("Mesh *"))
+            if (ImGui::CollapsingHeader(ICON_FA_DICE_D6 " Mesh *"))
             {
                 ImGui::Indent();
                 const ecs::Entity meshID = SelectAndGetMeshForObject(object);
@@ -879,7 +882,7 @@ namespace cyb::editor
             if (mesh == nullptr)
                 mesh = scene.meshes.GetComponent(object->meshID);
 
-            if (ImGui::CollapsingHeader("Materials *"))
+            if (ImGui::CollapsingHeader(ICON_FA_PALETTE " Materials *"))
             {
                 ImGui::Indent();
                 const ecs::Entity materialID = SelectAndGetMaterialForMesh(mesh);
@@ -889,14 +892,14 @@ namespace cyb::editor
             }
         }
 
-        InspectComponent<scene::MeshComponent>("Mesh", scene.meshes, InspectMeshComponent, entityID, false);
-        InspectComponent<scene::MaterialComponent>("Material", scene.materials, InspectMaterialComponent, entityID, false);
-        InspectComponent<scene::LightComponent>("Light", scene.lights, InspectLightComponent, entityID, true);
-        InspectComponent<scene::TransformComponent>("Transform", scene.transforms, InspectTransformComponent, entityID, false);
-        InspectComponent<math::AxisAlignedBox>("AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
-        InspectComponent<math::AxisAlignedBox>("AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
-        InspectComponent<scene::HierarchyComponent>("Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, false);
-        InspectComponent<scene::WeatherComponent>("Weather", scene.weathers, InspectWeatherComponent, entityID, true);
+        InspectComponent<scene::MeshComponent>(ICON_FA_DICE_D6" Mesh", scene.meshes, InspectMeshComponent, entityID, false);
+        InspectComponent<scene::MaterialComponent>(ICON_FA_PALETTE " Material", scene.materials, InspectMaterialComponent, entityID, false);
+        InspectComponent<scene::LightComponent>(ICON_FA_LIGHTBULB " Light", scene.lights, InspectLightComponent, entityID, true);
+        InspectComponent<scene::TransformComponent>(ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT " Transform", scene.transforms, InspectTransformComponent, entityID, false);
+        InspectComponent<math::AxisAlignedBox>(ICON_FA_EXPAND " AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
+        InspectComponent<math::AxisAlignedBox>(ICON_FA_EXPAND " AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
+        InspectComponent<scene::HierarchyComponent>(ICON_FA_CODE_FORK " Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, false);
+        InspectComponent<scene::WeatherComponent>(ICON_FA_CLOUD_RAIN " Weather", scene.weathers, InspectWeatherComponent, entityID, true);
     }
 
     //------------------------------------------------------------------------------

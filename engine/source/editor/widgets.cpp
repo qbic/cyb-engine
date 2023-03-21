@@ -6,6 +6,37 @@
 
 namespace cyb::ui
 {
+    ColorScopeGuard::ColorScopeGuard(ImGuiCol id, const ImVec4& color) :
+        m_numColors(1)
+    {
+        ImGui::PushStyleColor(id, color);
+    }
+
+    ColorScopeGuard::ColorScopeGuard(ImGuiCol id, ImU32 color) :
+        m_numColors(1)
+    {
+        ImGui::PushStyleColor(id, color);
+    }
+
+    ColorScopeGuard::ColorScopeGuard(const std::initializer_list<std::pair<ImGuiCol, ImVec4>> colors) :
+        m_numColors(static_cast<uint32_t>(colors.size()))
+    {
+        for (const auto& [id, color] : colors)
+            ImGui::PushStyleColor(id, color);
+    }
+
+    ColorScopeGuard::ColorScopeGuard(const std::initializer_list<std::pair<ImGuiCol, ImU32>> colors) :
+        m_numColors(static_cast<uint32_t>(colors.size()))
+    {
+        for (const auto& [id, color] : colors)
+            ImGui::PushStyleColor(id, color);
+    }
+
+    ColorScopeGuard::~ColorScopeGuard()
+    {
+        ImGui::PopStyleColor(m_numColors);
+    }
+
     void ItemLabel(const std::string& title, bool isLeft)
     {
         ImGuiWindow& window = *ImGui::GetCurrentWindow();
@@ -47,7 +78,9 @@ namespace cyb::ui
             ImGui::SetCursorScreenPos(textRect.Max - ImVec2{ 0, textSize.y + window.DC.CurrLineTextBaseOffset });
             ImGui::SameLine();
         }
-        else if (!isLeft)
+        else
+        {
             ImGui::SetCursorScreenPos(lineStart);
+        }
     }
 }

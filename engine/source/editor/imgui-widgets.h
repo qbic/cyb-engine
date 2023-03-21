@@ -11,7 +11,6 @@
 #endif
 #include "imgui/imgui_internal.h"
 
-
 namespace cyb::editor::gui
 {
     template <typename T>
@@ -48,46 +47,6 @@ namespace cyb::editor::gui
 
 #define CYB_GUI_COMPONENT(func, label, ...) (ImGui::TableNextColumn(), ImGui::Text(label), ImGui::TableNextColumn(), ImGui::SetNextItemWidth(-FLT_MIN), func("##" label, __VA_ARGS__))
 
-#define UI_LAYOUT_ELEMENT(func, label, ...) (ImGui::TableNextColumn(), ImGui::Text(label), ImGui::TableNextColumn(), ImGui::SetNextItemWidth(-FLT_MIN), func("##" label, __VA_ARGS__))
-
-
-namespace cyb::ui
-{
-    template <class T>
-    class ScopedIdGuard
-    {
-    public:
-        ScopedIdGuard(const T label)
-        {
-            ImGui::PushID(label);
-        }
-
-        ~ScopedIdGuard()
-        {
-            ImGui::PopID();
-        }
-    };
-
-    class ScopedLayoutTable
-    {
-    public:
-        ScopedLayoutTable(const std::string& label) :
-            m_idGuard(label.c_str())
-        {
-            ImGui::BeginTable(label.c_str(), 2);
-            ImGui::TableSetupColumn("##One");
-            ImGui::TableSetupColumn("##Two");
-        }
-
-        ~ScopedLayoutTable()
-        {
-            ImGui::EndTable();
-        }
-
-    private:
-        ScopedIdGuard<const char*> m_idGuard;
-    };
-}
 
 struct ImGradientMark
 {

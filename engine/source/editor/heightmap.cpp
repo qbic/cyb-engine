@@ -2,7 +2,6 @@
 #include "core/profiler.h"
 #include "editor/heightmap.h"
 #include "systems/job-system.h"
-#include "editor/imgui-widgets.h"
 #include "core/random.h"
 
 namespace cyb::editor
@@ -350,7 +349,7 @@ namespace cyb::editor
     }
 
 #if 0
-    void CreateColormap(jobsystem::Context& ctx, const Heightmap& height, const ImGradient& colorBand, std::vector<uint32_t>& color)
+    void CreateColormap(jobsystem::Context& ctx, const Heightmap& height, const Gradient& colorBand, std::vector<uint32_t>& color)
     {
         assert(height.image.size() == height.desc.width * height.desc.height);
 

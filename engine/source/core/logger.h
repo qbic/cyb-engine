@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <sstream>
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
 
@@ -31,6 +32,25 @@ namespace cyb::logger
 	public:
 		virtual ~LogOutputModule() = default;
 		virtual void Write(const LogMessage& log) = 0;
+	};
+
+	class LogOutputModule_StringBuffer : public LogOutputModule
+	{
+	public:
+		void Write(const logger::LogMessage& log) override
+		{
+			m_logStream << log.message;
+			m_stringBuffer = m_logStream.str();
+		}
+
+		const std::string& GetStringBuffer() const
+		{
+			return m_stringBuffer;
+		}
+
+	private:
+		std::stringstream m_logStream;
+		std::string m_stringBuffer;
 	};
 
 	void RegisterOutputModule(std::shared_ptr<LogOutputModule> output, bool writeHistory = true);

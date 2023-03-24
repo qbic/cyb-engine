@@ -95,7 +95,7 @@ void Light_Point(in LightSource light, in Surface surface, inout Lighting lighti
 
 void ApplyLighting(in Surface surface, in Lighting lighting, out vec3 color)
 {
-    const float abmient = 0.12;
+    const float abmient = 0.00;
     color = (abmient + lighting.diffuse) * surface.baseColor;
     color += lighting.specular;
 }

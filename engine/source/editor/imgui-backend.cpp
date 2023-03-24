@@ -52,6 +52,7 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	ImGui_Impl_Data* bd = ImGui_Impl_GetBackendData();
 	ImGuiIO& io = ImGui::GetIO();
 
+	// Load fonts:
 	static const ImWchar fontAwesomeIconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
 	static const ImWchar notoSansRanges[] = { 0x20, 0x52f, 0x1ab0, 0x2189, 0x2c60, 0x2e44, 0xa640, 0xab65, 0 };
 	static const ImWchar notoMonoRanges[] = { 0x20, 0x513, 0x1e00, 0x1f4d, 0 };
@@ -61,13 +62,13 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	AddFont("Assets/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 12.f, true);
 	AddFont("Assets/NotoMono-Regular.ttf", notoMonoRanges, 14.0, false);
 
-	// Build texture atlas
+	// Build texture atlas:
 	unsigned char* pixels;
 	int width, height;
 	io.Fonts->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint;
 	io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
-	// Upload texture to graphics system
+	// Upload texture to graphics system:
 	TextureDesc texture_desc;
 	texture_desc.width = width;
 	texture_desc.height = height;
@@ -89,7 +90,7 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	sampler_desc.filter = TextureFilter::Point;
 	GetDevice()->CreateSampler(&sampler_desc, &bd->sampler);
 
-	// Store our identifier
+	// Store our identifier:
 	io.Fonts->SetTexID((ImTextureID)&bd->fontTexture);
 
 	bd->inputLayout.elements =
@@ -99,7 +100,7 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 		{ "in_color",    0, Format::R8G8B8A8_Unorm, (uint32_t)IM_OFFSETOF(ImDrawVert, col) }
 	};
 
-	// Create pipeline
+	// Create pipeline:
 	PipelineStateDesc desc;
 	desc.vs = &bd->vs;
 	desc.fs = &bd->fs;
@@ -129,7 +130,7 @@ static void SetupCustomStyle()
 	colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
 	colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
 	colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
-	colors[ImGuiCol_CheckMark] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+	colors[ImGuiCol_CheckMark] = ImVec4(0.38f, 0.58f, 0.71f, 0.94f);
 	colors[ImGuiCol_SliderGrab] = ImVec4(0.38f, 0.58f, 0.71f, 0.94f);
 	colors[ImGuiCol_SliderGrabActive] = ImVec4(0.58f, 0.75f, 0.81f, 1.00f);
 	colors[ImGuiCol_Button] = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
@@ -141,6 +142,9 @@ static void SetupCustomStyle()
 	colors[ImGuiCol_Tab] = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
 	colors[ImGuiCol_TabHovered] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
 	colors[ImGuiCol_TabActive] = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
+
+	ImGui::GetStyle().FrameRounding = 4.0f;
+	ImGui::GetStyle().GrabRounding = 4.0f;
 }
 
 void ImGui_Impl_CybEngine_Init()
@@ -192,7 +196,7 @@ void ImGui_Impl_CybEngine_Update()
 	ImGui::NewFrame();
 
 	// This can be disabled from imconfig.h aswell
-	ImGui::ShowDemoWindow();
+	//ImGui::ShowDemoWindow();
 }
 
 void ImGui_Impl_CybEngine_Compose(CommandList cmd)

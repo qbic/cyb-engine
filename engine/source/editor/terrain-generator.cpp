@@ -2,11 +2,13 @@
 #include "core/noise.h"
 #include "core/profiler.h"
 #include "editor/editor.h"
-#include "editor/widgets.h"
-#include "editor/imgui-widgets.h"
-
 #include "editor/terrain-generator.h"
 #include "editor/icons_font_awesome6.h"
+
+// needed for CalcItemSize()
+// TODO: get this removed
+#include "imgui/imgui_internal.h"
+
 
 #define UPDATE_HEIGHTMAP_ON_CHANGE() if (ImGui::IsItemDeactivatedAfterEdit()) { UpdateHeightmapAndTextures(); }
 
@@ -653,40 +655,30 @@ namespace cyb::editor
     void TerrainGenerator::DrawGui(ecs::Entity selectedEntity)
     {
         static const char* tableName = "SettingsTable";
-        static const uint32_t settingsPandelWidth = 420;
+        static const uint32_t settingsPandelWidth = 340;
         if (!m_initialized)
         {
             UpdateHeightmapAndTextures();
             m_initialized = true;
         }
 
-        if (ImGui::BeginTable("TerrainGenerator", 2, ImGuiTableFlags_SizingFixedFit))
+        if (ImGui::BeginTable("TerrainGenerator", 2,  ImGuiTableFlags_SizingFixedFit))
         {
             ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_NoClip);
             ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch);
 
             // Draw the settings column:
             ImGui::TableNextColumn();
-            ImGui::BeginChild("Settings panel", ImVec2(settingsPandelWidth, 700), true);
-
-            ui::ItemLabel("Test");
-            ImGui::Button(ICON_FA_TRASH_CAN);
-            ui::ItemLabel("Testssasdasdasdasddasd");
-            ImGui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
+            ImGui::BeginChild("Settings panel", ImVec2(settingsPandelWidth, 680), true);
 
             if (ImGui::CollapsingHeader("Terrain Mesh Settings"))
             {
-                {
-                    const ui::IdScopeGuard idGuard("__Map Size__");
-                    ui::ItemLabel("Map Size");
-                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                    ImGui::DragFloat("", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
-                    ImGui::Text("ablabla");
-                }
-                ImGui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
-                ImGui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
-                ImGui::SliderInt("NumChunks", (int*)&m_meshDesc.numChunks, 1, 32, "%d^2");
-                ImGui::SliderFloat("Max Error", &m_meshDesc.maxError, 0.0001f, 0.01f, "%.4f");
+                ui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
+
+                ui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
+                ui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
+                ui::SliderInt("Num Chunks", (int*)&m_meshDesc.numChunks, 1, 32, "%d^2");
+                ui::SliderFloat("Max Error", &m_meshDesc.maxError, 0.0001f, 0.01f, "%.4f");
             }
 
             if (ImGui::CollapsingHeader("Heightmap Settings", ImGuiTreeNodeFlags_DefaultOpen))
@@ -696,7 +688,6 @@ namespace cyb::editor
                     if (ImGui::CollapsingHeader(label_, ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         const ui::IdScopeGuard idGuard(label_);
-                        ImGui::Indent();
 
 #if 0
                         // Draw a preview using only the top 1/3 of the noise texture
@@ -708,20 +699,20 @@ namespace cyb::editor
 #endif
                         NoiseDesc& noiseDesc = device.noise;
 
-                        if (gui::ComboBox("Noise Type", noiseDesc.noiseType, g_noiseTypeCombo))
+                        if (ui::ComboBox("Noise Type", noiseDesc.noiseType, g_noiseTypeCombo))
                             UpdateHeightmapAndTextures();
-                        ImGui::DragInt("Seed", (int*)&noiseDesc.seed, 1.0f, 0, std::numeric_limits<int>::max());
+                        ui::DragInt("Seed", (int*)&noiseDesc.seed, 1.0f, 0, std::numeric_limits<int>::max());
                         UPDATE_HEIGHTMAP_ON_CHANGE();
-                        ImGui::SliderFloat("Frequency", &noiseDesc.frequency, 0.0f, 10.0f);
+                        ui::SliderFloat("Frequency", &noiseDesc.frequency, 0.0f, 10.0f);
                         UPDATE_HEIGHTMAP_ON_CHANGE();
 
                         if (ImGui::TreeNode("Fractal"))
                         {
-                            ImGui::SliderInt("Octaves", (int*)&noiseDesc.octaves, 1, 8);
+                            ui::SliderInt("Octaves", (int*)&noiseDesc.octaves, 1, 8);
                             UPDATE_HEIGHTMAP_ON_CHANGE();
-                            ImGui::SliderFloat("Lacunarity", &noiseDesc.lacunarity, 0.0f, 4.0f);
+                            ui::SliderFloat("Lacunarity", &noiseDesc.lacunarity, 0.0f, 4.0f);
                             UPDATE_HEIGHTMAP_ON_CHANGE();
-                            ImGui::SliderFloat("Gain", &noiseDesc.gain, 0.0f, 4.0f);
+                            ui::SliderFloat("Gain", &noiseDesc.gain, 0.0f, 4.0f);
                             UPDATE_HEIGHTMAP_ON_CHANGE();
                             ImGui::TreePop();
                         }
@@ -730,9 +721,9 @@ namespace cyb::editor
                         {
                             if (ImGui::TreeNode("Cellular"))
                             {
-                                if (gui::ComboBox("Return", noiseDesc.cellularReturnType, g_cellularReturnTypeCombo))
+                                if (ui::ComboBox("Return", noiseDesc.cellularReturnType, g_cellularReturnTypeCombo))
                                     UpdateHeightmapAndTextures();
-                                ImGui::SliderFloat("Jitter", &noiseDesc.cellularJitterModifier, 0.0f, 2.5f);
+                                ui::SliderFloat("Jitter", &noiseDesc.cellularJitterModifier, 0.0f, 2.5f);
                                 UPDATE_HEIGHTMAP_ON_CHANGE();
 
                                 ImGui::TreePop();
@@ -741,40 +732,38 @@ namespace cyb::editor
 
                         if (ImGui::TreeNode("Post Filter"))
                         {
-                            if (gui::ComboBox("Strata", device.strataOp, g_strataFuncCombo))
+                            if (ui::ComboBox("Strata", device.strataOp, g_strataFuncCombo))
                                 UpdateHeightmapAndTextures();
 
                             if (device.strataOp != HeightmapStrataOp::None)
                             {
-                                ImGui::SliderFloat("Amount", &device.strata, 1.0f, 15.0f);
+                                ui::SliderFloat("Amount", &device.strata, 1.0f, 15.0f);
                                 UPDATE_HEIGHTMAP_ON_CHANGE();
                             }
 
-                            ImGui::SliderFloat("Blur", &device.blur, 0.0f, 10.0f);
+                            ui::SliderFloat("Blur", &device.blur, 0.0f, 10.0f);
                             UPDATE_HEIGHTMAP_ON_CHANGE();
                             ImGui::TreePop();
                         }
-
-                        ImGui::Unindent();
                     }
                 };
 
-                if (ImGui::DragInt("Resolution", (int*)&m_heightmapDesc.width, 1.0f, 1, 2048, "%dpx"))
+                if (ui::DragInt("Resolution", (int*)&m_heightmapDesc.width, 1.0f, 1, 2048, "%dpx"))
                     m_heightmapDesc.height = m_heightmapDesc.width;
                 UPDATE_HEIGHTMAP_ON_CHANGE();
 
                 editNoiseDesc("Heightmap Input A", m_heightmapDesc.device1, m_heightmapInputATex);
                 editNoiseDesc("Heightmap Input B", m_heightmapDesc.device2, m_heightmapInputBTex);
                 ImGui::Spacing();
-                if (gui::ComboBox("Combine Type", m_heightmapDesc.combineType, g_mixTypeCombo))
+                if (ui::ComboBox("Combine Type", m_heightmapDesc.combineType, g_mixTypeCombo))
                     UpdateHeightmapAndTextures();
                 if (m_heightmapDesc.combineType == HeightmapCombineType::Lerp)
                 {
-                    ImGui::SliderFloat("Combine Strength", &m_heightmapDesc.combineStrength, 0.0f, 1.0f);
+                    ui::SliderFloat("Combine Strength", &m_heightmapDesc.combineStrength, 0.0f, 1.0f);
                     UPDATE_HEIGHTMAP_ON_CHANGE();
                 }
 
-                ImGui::SliderFloat("Exponent", &m_heightmapDesc.exponent, 0.0f, 4.0f);
+                ui::SliderFloat("Exponent", &m_heightmapDesc.exponent, 0.0f, 4.0f);
                 UPDATE_HEIGHTMAP_ON_CHANGE();
             }
 
@@ -782,21 +771,22 @@ namespace cyb::editor
             //editNoiseDesc("MoistureMapNoise Description", m_moisturemapNoise);
             //ImGui::Spacing();
 
-           if (ImGui::GradientButton("ColorBand", &m_biomeColorBand))
+           if (ui::GradientButton("ColorBand", &m_biomeColorBand))
                UpdateHeightmapAndTextures();
 
-            ImGui::Checkbox("Use MoistureMap", &m_useMoistureMap);
+            ui::Checkbox("Use MoistureMap", &m_useMoistureMap);
             if (m_useMoistureMap)
             {
-                if (ImGui::GradientButton("Moisture Colors", &m_moistureBiomeColorBand))
+                if (ui::GradientButton("Moisture Colors", &m_moistureBiomeColorBand))
                     UpdateHeightmapAndTextures();
             }
 
             ImGui::EndChild();
-            ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 100), true);
+            ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 130), true);
 
             //ImGui::Checkbox("Draw Chunks", &m_drawChunkLines);
             //ImGui::Checkbox("Draw Triangles", &m_drawTriangles);
+            ui::ComboBox("Display", m_selectedMapType, g_mapCombo);
 
             if (ImGui::Button("Set default params", ImVec2(-1, 0)))
             {
@@ -834,19 +824,16 @@ namespace cyb::editor
             {
                 const ImVec2 drawPosStart = ImGui::GetCursorScreenPos();
                 
-                ImVec2 size = ImGui::CalcItemSize(ImVec2(-1, -2), 300, 300);
-                size.x = math::Min(size.x, size.y);
-                size.y = math::Min(size.x, size.y);
-                ImGui::Image((ImTextureID)tex, size);
+                ImVec2 previewSize = ImGui::CalcItemSize(ImVec2(-1, -2), 300, 300);
+                previewSize.x = math::Min(previewSize.x, previewSize.y);
+                previewSize.y = math::Min(previewSize.x, previewSize.y);
+                ImGui::Image((ImTextureID)tex, previewSize);
 
                 //if (m_drawTriangles)
                 //    DrawMeshTriangles(drawPosStart);
                 if (m_drawChunkLines)
                     DrawChunkLines(drawPosStart);
             }
-
-            ImGui::SameLine(-1, 20);
-            gui::ComboBox("Display", m_selectedMapType, g_mapCombo);
 
             ImGui::EndTable();
         }

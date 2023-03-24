@@ -14,7 +14,6 @@
 #include "backends/imgui_impl_win32.h"
 #include "imgui_stdlib.h"
 #include "ImGuizmo.h"
-#include "editor/imgui-widgets.h"
 #include "editor/widgets.h"
 #include "editor/terrain-generator.h"
 #include <stack>
@@ -177,252 +176,6 @@ namespace cyb::editor
         }
     }
 
-    namespace gui
-    {
-        const float DEFAULT_COLUMN_WIDTH = 100.0f;
-        std::stack<float> column_width_stack;
-
-        void PushColumnWidth(float width)
-        {
-            column_width_stack.push(width);
-        }
-
-        void PopColumnWidth()
-        {
-            column_width_stack.pop();
-        }
-
-        float ColumnWidth()
-        {
-            if (!column_width_stack.empty())
-                return column_width_stack.top();
-
-            return DEFAULT_COLUMN_WIDTH;
-        }
-
-        static void BeginElement(const std::string& label)
-        {
-            ImGui::PushID(label.c_str());
-
-            ImGui::BeginTable(label.c_str(), 2);
-            ImGui::TableSetupColumn("one", ImGuiTableColumnFlags_WidthFixed, ColumnWidth());
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(label.c_str());
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth(-1);
-        }
-
-        static void EndElement()
-        {
-            ImGui::EndTable();
-            ImGui::PopID();
-        }
-
-        bool CheckBox(const std::string& label, bool& value)
-        {
-            BeginElement(label);
-            bool value_changed = ImGui::Checkbox("##FLAG", &value);
-            EndElement();
-
-            return value_changed;
-        }
-
-        template <class T>
-        static bool CheckboxFlags(const std::string& label, T& flags, T flags_value)
-        {
-            BeginElement(label);
-            bool value_changed = ImGui::CheckboxFlags("##FLAG", (unsigned int*)&flags, (unsigned int)flags_value);
-            EndElement();
-
-            return value_changed;
-        }
-
-        // Helper function to draw a float slider with label on left side.
-        // The label column width is specifiled by column_width.
-        bool DragFloat(
-            const std::string& label,
-            float& value,
-            float v_speed,
-            float v_min,
-            float v_max,
-            const char* format
-        )
-        {
-            static float old_value = 0.0f;
-
-            BeginElement(label);
-            bool value_changed = ImGui::DragFloat("##X", &value, v_speed, v_min, v_max, format);
-            if (ImGui::IsItemActivated())
-                old_value = value;
-
-            if (ImGui::IsItemDeactivatedAfterEdit())
-            {
-                serializer::Archive& ar = AdvanceHistory();
-                ar << (int)HistoryOpType::DRAG_FLOAT;
-                ar << old_value - value;
-                ar << (uintptr_t)&value;
-            }
-            EndElement();
-
-            return value_changed;
-        }
-
-        bool DragInt(
-            const std::string& label,
-            uint32_t& value,
-            float v_speed,
-            uint32_t v_min,
-            uint32_t v_max,
-            const char* format
-        )
-        {
-            static uint32_t old_value = 0;
-
-            BeginElement(label);
-            bool value_changed = ImGui::DragInt("##X", (int *)&value, v_speed, v_min, v_max, format);
-            if (ImGui::IsItemActivated())
-                old_value = value;
-
-            if (ImGui::IsItemDeactivatedAfterEdit())
-            {
-                serializer::Archive& ar = AdvanceHistory();
-                ar << (int)HistoryOpType::DRAG_INT;
-                ar << old_value - value;
-                ar << (uintptr_t)&value;
-            }
-            EndElement();
-
-            return value_changed;
-        }
-
-        bool SliderFloat(const std::string& label, float& value, float v_min, float v_max)
-        {
-            static float old_value = 0.0f;
-
-            BeginElement(label);
-            bool value_changed = ImGui::SliderFloat("##X", &value, v_min, v_max, "%.2f");
-            if (ImGui::IsItemActivated())
-                old_value = value;
-
-            if (ImGui::IsItemDeactivatedAfterEdit())
-            {
-                serializer::Archive& ar = AdvanceHistory();
-                ar << (int)HistoryOpType::SLIDER_FLOAT;
-                ar << old_value - value;
-                ar << (uintptr_t)&value;
-            }
-            EndElement();
-
-            return value_changed;
-        }
-
-        bool SliderInt(const std::string& label, uint32_t& value, uint32_t v_min, uint32_t v_max, const char* format)
-        {
-            static uint32_t old_value = 0;
-
-            BeginElement(label);
-            bool value_changed = ImGui::SliderInt("##X", (int *)&value, v_min, v_max, format);
-            if (ImGui::IsItemActivated())
-                old_value = value;
-
-            if (ImGui::IsItemDeactivatedAfterEdit())
-            {
-                serializer::Archive& ar = AdvanceHistory();
-                ar << (int)HistoryOpType::SLIDER_INT;
-                ar << old_value - value;
-                ar << (uintptr_t)&value;
-            }
-            EndElement();
-
-            return value_changed;
-        }
-
-        static bool Float3Edit(
-            const std::string& label,
-            XMFLOAT3& values,
-            float reset_value = 0.0f)
-        {
-            bool value_changed = false;
-
-            BeginElement(label);
-
-            ImGui::PushMultiItemsWidths(4, ImGui::CalcItemWidth());
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0, 0 });
-
-            const float line_height = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
-            const ImVec2 button_size = { line_height + 3.0f, line_height };
-
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.8f, 0.1f, 0.15f, 1.0f });
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.9f, 0.2f, 0.2f, 1.0f });
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.8f, 0.1f, 0.15f, 1.0f });
-            if (ImGui::Button("X", button_size))
-            {
-                values.x = reset_value;
-                value_changed = true;
-            }
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Reset X to %.2f", reset_value);
-            ImGui::PopStyleColor(3);
-            ImGui::SameLine();
-            value_changed |= ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f");
-
-            ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f });
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.3f, 0.8f, 0.3f, 1.0f });
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f });
-            if (ImGui::Button("Y", button_size))
-            {
-                values.y = reset_value;
-                value_changed = true;
-            }
-            if (ImGui::IsItemHovered())
-            {
-                ImGui::SetTooltip("Reset Y to %.2f", reset_value);
-            }
-            ImGui::PopStyleColor(3);
-            ImGui::SameLine();
-            ImGui::SameLine();
-            value_changed |= ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f");
-
-            ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.25f, 0.8f, 1.0f });
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.2f, 0.35f, 0.9f, 1.0f });
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.25f, 0.8f, 1.0f });
-            if (ImGui::Button("Z", button_size))
-            {
-                values.z = reset_value;
-                value_changed = true;
-            }
-            if (ImGui::IsItemHovered())
-            {
-                ImGui::SetTooltip("Reset Z to %.2f", reset_value);
-            }
-            ImGui::PopStyleColor(3);
-            ImGui::SameLine();
-            value_changed |= ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
-
-            ImGui::PopItemWidth();
-            ImGui::PopStyleVar();
-            EndElement();
-            return value_changed;
-        }
-
-        void ColorEdit3(const std::string& label, XMFLOAT3& value)
-        {
-            BeginElement(label);
-            ImGui::ColorEdit3("##COLOR3", &value.x, ImGuiColorEditFlags_Float);
-            EndElement();
-        }
-
-        void ColorEdit4(const std::string& label, XMFLOAT4& value)
-        {
-            BeginElement(label);
-            ImGui::ColorEdit4("##COLOR4", &value.x, ImGuiColorEditFlags_Float);
-            EndElement();
-        }
-    }
-
-
     //------------------------------------------------------------------------------
     // Component inspectors
     //------------------------------------------------------------------------------
@@ -432,22 +185,14 @@ namespace cyb::editor
         ImGui::InputText("Name", &name_component->name);
     }
 
+    // TODO: Edit rotation
     void InspectTransformComponent(scene::TransformComponent* transform)
     {
-        if (gui::Float3Edit("Translation", transform->translation_local))
-        {
+        if (ui::DragFloat3("Translation", &transform->translation_local.x, 0.1f))
             transform->SetDirty(true);
-        }
 
-        //if (gui::Vec3Control("Rotation", transform->rotation_local.xyz))
-        //{
-        //    transform->SetDirty(true);
-        //}
-
-        if (gui::Float3Edit("Scale", transform->scale_local, 1.0f))
-        {
+        if (ui::DragFloat3("Scale", &transform->scale_local.x, 0.1f))
             transform->SetDirty(true);
-        }
     }
 
     void InspectHierarchyComponent(scene::HierarchyComponent* hierarchy)
@@ -514,10 +259,10 @@ namespace cyb::editor
             { scene::MaterialComponent::Shadertype_Terrain, "Terrain (NOT IMPLEMENTED)" }
         };
 
-        gui::ComboBox("Shader Type", material->shaderType, shadertype_names);
-        gui::ColorEdit4("BaseColor", material->baseColor);
-        gui::SliderFloat("Roughness", material->roughness, 0.0f, 1.0f);
-        gui::SliderFloat("Metalness", material->metalness, 0.0f, 1.0f);
+        ui::ComboBox("Shader Type", material->shaderType, shadertype_names);
+        ui::ColorEdit4("BaseColor", &material->baseColor.x);
+        ui::SliderFloat("Roughness", &material->roughness, 0.0f, 1.0f);
+        ui::SliderFloat("Metalness", &material->metalness, 0.0f, 1.0f);
     }
 
     struct NameSortableEntityData
@@ -599,17 +344,14 @@ namespace cyb::editor
 
         static int selectedSubsetIndex = 0;
         selectedSubsetIndex = std::min(selectedSubsetIndex, (int)mesh->subsets.size() - 1);
-
-        gui::BeginElement("Select Material");
-        ImGui::ListBox("##MeshMaterials", &selectedSubsetIndex, names);
-        gui::EndElement();
+        ui::ListBox("Material", &selectedSubsetIndex, names);
         ecs::Entity selectedMaterialID = mesh->subsets[selectedSubsetIndex].materialID;
 
         // Edit material name / select material
         scene::NameComponent* name = scene.names.GetComponent(selectedMaterialID);
         ImGui::InputText("##Material_Name", &name->name);
         ImGui::SameLine();
-        if (ImGui::Button("Change##Material"))
+        if (ImGui::Button("Change##Material", ImVec2(-1, 0)))
             ImGui::OpenPopup("MaterialSelectPopup");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Link another material to the mesh");
@@ -658,18 +400,18 @@ namespace cyb::editor
 
     void InspectObjectComponent(scene::ObjectComponent* object)
     {
-        ImGui::CheckboxFlags("Renderable (unimplemented)", (unsigned int*)&object->flags, (unsigned int)scene::ObjectComponent::Flags::RenderableBit);
-        ImGui::CheckboxFlags("Cast shadow (unimplemented)", (unsigned int*)&object->flags, (unsigned int)scene::ObjectComponent::Flags::CastShadowBit);
+        ui::CheckboxFlags("Renderable (unimplemented)", &object->flags, scene::ObjectComponent::Flags::RenderableBit);
+        ui::CheckboxFlags("Cast shadow (unimplemented)", &object->flags, scene::ObjectComponent::Flags::CastShadowBit);
     }
 
     bool InspectCameraComponent(scene::CameraComponent& camera)
     {
-        bool change = ImGui::SliderFloat("Z Near Plane", &camera.zNearPlane, 0.001f, 10.0f);
-        change |= ImGui::SliderFloat("Z Far Plane", &camera.zFarPlane, 10.0f, 1000.0f);
-        change |= ImGui::SliderFloat("FOV", &camera.fov, 0.0f, 3.0f);
-        change |= gui::Float3Edit("Position", camera.pos);
-        change |= gui::Float3Edit("Target", camera.target);
-        change |= gui::Float3Edit("Up", camera.up);
+        bool change = ui::SliderFloat("Z Near Plane", &camera.zNearPlane, 0.001f, 10.0f);
+        change |= ui::SliderFloat("Z Far Plane", &camera.zFarPlane, 10.0f, 1000.0f);
+        change |= ui::SliderFloat("FOV", &camera.fov, 0.0f, 3.0f);
+        change |= ui::DragFloat3("Position", &camera.pos.x);
+        change |= ui::DragFloat3("Target", &camera.target.x);
+        change |= ui::DragFloat3("Up", &camera.up.x);
         return change;
     }
 
@@ -682,23 +424,23 @@ namespace cyb::editor
         };
 
         scene::LightType light_type = light->GetType();
-        if (gui::ComboBox("Type", light_type, lightTypeNames))
+        if (ui::ComboBox("Type", light_type, lightTypeNames))
             light->SetType(light_type);
 
-        gui::ColorEdit3("Color", light->color);
-        gui::DragFloat("Energy", light->energy, 0.02f);
-        gui::DragFloat("Range", light->range, 1.2f, 0.0f, FLT_MAX);
-        gui::CheckboxFlags("Affects scene", light->flags, scene::LightComponent::Flags::AffectsSceneBit);
-        gui::CheckboxFlags("Cast shadows", light->flags, scene::LightComponent::Flags::CastShadowsBit);
+        ui::ColorEdit3("Color", &light->color.x);
+        ui::DragFloat("Energy", &light->energy, 0.02f);
+        ui::DragFloat("Range", &light->range, 1.2f, 0.0f, FLT_MAX);
+        ui::CheckboxFlags("Affects scene", &light->flags, scene::LightComponent::Flags::AffectsSceneBit);
+        ui::CheckboxFlags("Cast shadows", &light->flags, scene::LightComponent::Flags::CastShadowsBit);
     }
 
     void InspectWeatherComponent(scene::WeatherComponent* weather)
     {
-        ImGui::ColorEdit3("Horizon Color", &weather->horizon.x);
-        ImGui::ColorEdit3("Zenith Color", &weather->zenith.x);
-        ImGui::DragFloat("Fog Begin", &weather->fogStart);
-        ImGui::DragFloat("Fog End", &weather->fogEnd);
-        ImGui::DragFloat("Fog Height", &weather->fogHeight);
+        ui::ColorEdit3("Horizon Color", &weather->horizon.x);
+        ui::ColorEdit3("Zenith Color", &weather->zenith.x);
+        ui::DragFloat("Fog Begin", &weather->fogStart);
+        ui::DragFloat("Fog End", &weather->fogEnd);
+        ui::DragFloat("Fog Height", &weather->fogHeight);
     }
 
     //------------------------------------------------------------------------------
@@ -950,38 +692,34 @@ namespace cyb::editor
             for (auto& it : sorted_entries)
             {
                 ImGui::SetNextItemWidth(-1);
-                ImGui::FilledBar(it.first.data(), it.second, 0, max_time, "{:.3f}ms");
+                ui::FilledBar(it.first.data(), it.second, 0, max_time, "{:.3f}ms");
             }
         }
     };
 
     //------------------------------------------------------------------------------
 
-    class LogOutputModule_Editor : public logger::LogOutputModule
-    {
-    public:
-        void Write(const logger::LogMessage& log) override
-        {
-            logStream << log.message;
-        }
-
-        static std::stringstream logStream;
-    };
-    std::stringstream LogOutputModule_Editor::logStream("");
-
     class Tool_LogDisplay : public GuiTool
     {
     public:
-        using GuiTool::GuiTool;
-
-        virtual void Draw() override
+        Tool_LogDisplay(const std::string& name) :
+            GuiTool(name)
         {
-            std::string text = LogOutputModule_Editor::logStream.str();
+            m_logOutput = std::make_shared<logger::LogOutputModule_StringBuffer>();
+            logger::RegisterOutputModule(m_logOutput);
+        }
+
+        void Draw() override
+        {
+            const std::string& text = m_logOutput->GetStringBuffer();
             ImGui::TextUnformatted((char*)text.c_str(), (char*)text.c_str() + text.size());
 
             if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
                 ImGui::SetScrollHereY(1.0f);
         }
+
+    private:
+        std::shared_ptr<logger::LogOutputModule_StringBuffer> m_logOutput;
     };
 
     //------------------------------------------------------------------------------
@@ -1398,9 +1136,7 @@ namespace cyb::editor
     }
 
     void Initialize()
-    {
-        logger::RegisterOutputModule(std::make_unique<LogOutputModule_Editor>());
-        
+    {        
         // Attach built-in tools
         AttachToolToMenu(std::make_unique<Tool_TerrainGeneration>("Terrain Generator"));
         AttachToolToMenu(std::make_unique<Tool_ContentBrowser>("Scene Content Browser"));

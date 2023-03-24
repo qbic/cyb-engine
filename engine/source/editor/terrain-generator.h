@@ -1,7 +1,7 @@
 #pragma once
 #include "systems/scene.h"
-#include "editor/imgui-widgets.h"
 #include "editor/heightmap.h"
+#include "editor/widgets.h"
 
 namespace cyb::editor
 {
@@ -72,9 +72,8 @@ namespace cyb::editor
         Heightmap m_heightmap;
         Heightmap m_moisturemap;
         std::vector<uint32_t> m_colormap;
-        ImGradient m_biomeColorBand;
-        ImGradient m_moistureBiomeColorBand;
-
+        ui::Gradient m_biomeColorBand;
+        ui::Gradient m_moistureBiomeColorBand;
 
         graphics::Texture m_heightmapInputATex;
         graphics::Texture m_heightmapInputBTex;

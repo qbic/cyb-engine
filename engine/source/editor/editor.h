@@ -24,8 +24,8 @@ namespace cyb::editor
         void ShowWindow(bool show = true) { show_window = show; }
         bool IsShown() const { return show_window; }
 
-        bool PreDraw();
-        void PostDraw();
+        virtual bool PreDraw();
+        virtual void PostDraw();
 
         virtual void Init() {}
         virtual void Draw() = 0;

@@ -2,6 +2,7 @@
  * Gradient editor based on:
  * David Gallardo's https://gist.github.com/galloscript/8a5d179e432e062550972afcd1ecf112
  */
+#include <memory>
 #include "editor/widgets.h"
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -100,49 +101,74 @@ namespace cyb::ui
     bool Checkbox(const char* label, bool* v)
     {
         WidgetScopedLayout widget(label);
-        return ImGui::Checkbox("", v);
+        bool change = ImGui::Checkbox("", v);
+        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<bool, 1>>(v);
+        return change;
     }
 
     bool DragFloat(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
     {
         WidgetScopedLayout widget(label);
-        return ImGui::DragFloat("", v, v_speed, v_min, v_max, format, flags);
+        bool change = ImGui::DragFloat("", v, v_speed, v_min, v_max, format, flags);
+        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<float, 1>>(v);
+        return change;
     }
 
     bool DragFloat3(const char* label, float v[3], float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
     {
         WidgetScopedLayout widget(label);
-        return ImGui::DragFloat3("", v, v_speed, v_min, v_max, format, flags);
+        bool change = ImGui::DragFloat3("", v, v_speed, v_min, v_max, format, flags);
+        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<float, 3>>(v);
+        return change;
     }
 
     bool DragInt(const char* label, int* v, float v_speed, int v_min, int v_max, const char* format, ImGuiSliderFlags flags)
     {
         WidgetScopedLayout widget(label);
-        return ImGui::DragInt("", v, v_speed, v_min, v_max, format, flags);
+        bool change = ImGui::DragInt("", v, v_speed, v_min, v_max, format, flags);
+        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<int, 1>>(v);
+        return change;
     }
 
     bool SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
     {
         WidgetScopedLayout widget(label);
-        return ImGui::SliderFloat("", v, v_min, v_max, format, flags);
+        bool change = ImGui::SliderFloat("", v, v_min, v_max, format, flags);
+        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<float, 1>>(v);
+        return change;
     }
 
     bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format, ImGuiSliderFlags flags)
     {
         WidgetScopedLayout widget(label);
-        return ImGui::SliderInt("", v, v_min, v_max, format, flags);
+        bool change = ImGui::SliderInt("", v, v_min, v_max, format, flags);
+        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<int, 1>>(v);
+        return change;
     }
 
     bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags)
     {
         WidgetScopedLayout widget(label);
-        return ImGui::ColorEdit3("", col, ImGuiColorEditFlags_Float);
+        bool change = ImGui::ColorEdit3("", col, flags);
+        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<float, 3>>(col);
+        return change;
     }
 
     bool ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flags)
     {
         WidgetScopedLayout widget(label);
-        return ImGui::ColorEdit4("", col, ImGuiColorEditFlags_Float);
+        bool change = ImGui::ColorEdit4("", col, flags);
+        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<float, 4>>(col);
+        return change;
+    }
+
+    bool EditTransformComponent(const char* label, float component[3], scene::TransformComponent* transform)
+    {
+        WidgetScopedLayout widget(label);
+        bool change = ImGui::DragFloat3("", component, 0.1f);
+        SaveChangeToUndoManager<ui::EditorAction_ModifyTransform>(transform);
+        
+        return change;
     }
 
     bool ListBox(const char* label, int* selectedIndex, std::vector<std::string_view>& values)
@@ -161,7 +187,8 @@ namespace cyb::ui
         if (values.empty())
             return false;
 
-        return ImGui::ListBox("", selectedIndex, itemGetter, static_cast<void*>(&values), (int)values.size());
+        bool change = ImGui::ListBox("", selectedIndex, itemGetter, static_cast<void*>(&values), (int)values.size());
+        return change;
     }
 
     /**
@@ -538,11 +565,9 @@ namespace cyb::ui
             return false;
 
         const float frameHeight = size.y - style.FramePadding.y;
-        bool pressed = ImGui::ButtonBehavior(bb, ImGui::GetItemID(), nullptr, nullptr);
-        bool modified = DrawGradientBar(gradient, bb.Min, bb.GetWidth(), frameHeight);
-
-        if (pressed)
+        if (ImGui::ButtonBehavior(bb, ImGui::GetItemID(), nullptr, nullptr))
             ImGui::OpenPopup("grad_edit");
+        bool modified = DrawGradientBar(gradient, bb.Min, bb.GetWidth(), frameHeight);
 
         if (ImGui::BeginPopup("grad_edit"))
         {

@@ -1,9 +1,12 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <functional>
+#include <optional>
 #include <fmt/format.h>
 #include "imgui/imgui.h"
 #include "editor/icons_font_awesome6.h"
+#include "editor/undo-manager.h"
 
 namespace cyb::ui
 {
@@ -48,6 +51,19 @@ namespace cyb::ui
         IdScopeGuard m_idGuard;
     };
 
+    template <class T>
+    void SaveChangeToUndoManager(typename T::value_type* v)
+    {
+        if (ImGui::IsItemActivated())
+        {
+            auto action = std::make_shared<T>(v);
+            ui::GetUndoManager()->PushAction(action);
+        }
+
+        if (ImGui::IsItemDeactivatedAfterEdit())
+            ui::GetUndoManager()->CommitIncompleteAction();
+    }
+
     // These are just ImGui wrappers wich to the following:
     //  * Puts the label to the left
     //  * Adds some custom styling
@@ -61,11 +77,15 @@ namespace cyb::ui
     bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags = 0);
     bool ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flags = 0);
 
+    bool EditTransformComponent(const char* label, float component[3], scene::TransformComponent* transform);
+
     template <typename T>
     bool CheckboxFlags(const char* label, T* flags, T flags_value)
     {
         WidgetScopedLayout widget(label);
-        return ImGui::CheckboxFlags("", (unsigned int*)flags, (unsigned int)flags_value);
+        bool change = ImGui::CheckboxFlags("", (unsigned int*)flags, (unsigned int)flags_value);
+        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<T, 1>>(flags);
+        return change;
     }
 
     template <typename T>
@@ -94,6 +114,7 @@ namespace cyb::ui
             ImGui::EndCombo();
         }
 
+        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<T, 1>>(&value);
         return valueChange;
     }
 

@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 #include <sstream>
+#include <chrono>
+#include <iomanip>
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
 
@@ -24,6 +26,7 @@ namespace cyb::logger
 	struct LogMessage
 	{
 		std::string message;
+		std::chrono::system_clock::time_point timestamp;
 		LogLevel severity;
 	};
 
@@ -37,8 +40,19 @@ namespace cyb::logger
 	class LogOutputModule_StringBuffer : public LogOutputModule
 	{
 	public:
+		LogOutputModule_StringBuffer(bool writeTimestamp = false) :
+			m_writeTimestamp(writeTimestamp)
+		{
+		}
+
 		void Write(const logger::LogMessage& log) override
 		{
+			if (m_writeTimestamp)
+			{
+				const auto time = std::chrono::system_clock::to_time_t(log.timestamp);
+				m_logStream << std::put_time(std::localtime(&time), "%Y-%m-%d %X ");
+			}
+
 			m_logStream << log.message;
 			m_stringBuffer = m_logStream.str();
 		}
@@ -51,6 +65,7 @@ namespace cyb::logger
 	private:
 		std::stringstream m_logStream;
 		std::string m_stringBuffer;
+		bool m_writeTimestamp;
 	};
 
 	void RegisterOutputModule(std::shared_ptr<LogOutputModule> output, bool writeHistory = true);

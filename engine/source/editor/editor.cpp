@@ -1,3 +1,5 @@
+#include <stack>
+#include <numeric>
 #include "core/logger.h"
 #include "core/timer.h"
 #include "core/profiler.h"
@@ -16,9 +18,6 @@
 #include "ImGuizmo.h"
 #include "editor/widgets.h"
 #include "editor/terrain-generator.h"
-#include <stack>
-#include <numeric>
-#include <sstream>
 
 namespace cyb::editor 
 {
@@ -47,134 +46,6 @@ namespace cyb::editor
     std::vector<float> g_frameTimes;
     SceneGraphView scenegraph_view;
 
-    // History undo/redo
-    enum class HistoryOpType
-    {
-        TRANSFORM,
-        DRAG_FLOAT,
-        DRAG_INT,
-        SLIDER_FLOAT,
-        SLIDER_INT,
-        ENTITY_CHANGE,
-        INT32_CHANGE,
-        None
-    };
-    std::vector<serializer::Archive> history;
-    int history_pos = -1;
-
-    serializer::Archive& AdvanceHistory()
-    {
-        history_pos++;
-
-        while (static_cast<int>(history.size()) > history_pos)
-        {
-            history.pop_back();
-        }
-
-        history.emplace_back();
-        return history.back();
-    }
-
-    void ConsumeHistoryOp(bool undo)
-    {
-        if ((undo && history_pos >= 0) || (!undo && history_pos < (int)history.size() - 1))
-        {
-            if (!undo)
-                history_pos++;
-
-            scene::Scene& scene = scene::GetScene();
-            serializer::Archive& archive = history[history_pos];
-            archive.SetAccessModeAndResetPos(serializer::Archive::kRead);
-
-            int temp;
-            archive >> temp;
-            HistoryOpType op = (HistoryOpType)temp;
-
-            switch (op)
-            {
-            case HistoryOpType::TRANSFORM: 
-            {
-                XMFLOAT4X4 delta;
-                ecs::Entity entity;
-
-                archive >> delta;
-                archive >> entity;
-                XMMATRIX W = XMLoadFloat4x4(&delta);
-                if (undo)
-                {
-                    W = XMMatrixInverse(nullptr, W);
-                }
-                scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
-                if (transform != nullptr)
-                {
-                    transform->MatrixTransform(W);
-                }
-            } break;
-            case HistoryOpType::SLIDER_FLOAT:
-            case HistoryOpType::DRAG_FLOAT:
-            {
-                float delta;
-                uintptr_t ptr_addr;
-                archive >> delta;
-                archive >> ptr_addr;
-                if (undo)
-                {
-                    delta = -delta;
-                }
-                float* value_ptr = (float*)ptr_addr;
-                *value_ptr -= delta;
-            } break;
-            case HistoryOpType::SLIDER_INT:
-            case HistoryOpType::DRAG_INT:
-            {
-                int32_t delta;
-                uintptr_t ptr_addr;
-                archive >> delta;
-                archive >> ptr_addr;
-                if (undo)
-                {
-                    delta = -delta;
-                }
-                uint32_t* value_ptr = (uint32_t*)ptr_addr;
-                *value_ptr -= delta;
-            } break;
-            case HistoryOpType::ENTITY_CHANGE:
-            {
-                ecs::Entity new_value;
-                ecs::Entity old_value;
-                uintptr_t ptr_addr;
-                archive >> new_value;
-                archive >> old_value;
-                archive >> ptr_addr;
-
-                ecs::Entity value = undo ? old_value : new_value;
-                ecs::Entity* value_ptr = (uint32_t*)ptr_addr;
-                *value_ptr = value;
-
-            } break;
-            case HistoryOpType::INT32_CHANGE:
-            {
-                int32_t new_value;
-                int32_t old_value;
-                uintptr_t ptr_addr;
-                archive >> new_value;
-                archive >> old_value;
-                archive >> ptr_addr;
-
-                int32_t value = undo ? old_value : new_value;
-                int32_t* value_ptr = (int32_t*)ptr_addr;
-                *value_ptr = value;
-
-            } break;
-            default: break;
-            }
-
-            if (undo)
-            {
-                history_pos--;
-            }
-        }
-    }
 
     //------------------------------------------------------------------------------
     // Component inspectors
@@ -185,14 +56,12 @@ namespace cyb::editor
         ImGui::InputText("Name", &name_component->name);
     }
 
-    // TODO: Edit rotation
     void InspectTransformComponent(scene::TransformComponent* transform)
     {
-        if (ui::DragFloat3("Translation", &transform->translation_local.x, 0.1f))
-            transform->SetDirty(true);
-
-        if (ui::DragFloat3("Scale", &transform->scale_local.x, 0.1f))
-            transform->SetDirty(true);
+        if (ui::EditTransformComponent("Translation", &transform->translation_local.x, transform))
+            transform->SetDirty();
+        if (ui::EditTransformComponent("Scale", &transform->scale_local.x, transform))
+            transform->SetDirty();
     }
 
     void InspectHierarchyComponent(scene::HierarchyComponent* hierarchy)
@@ -305,17 +174,6 @@ namespace cyb::editor
                     const std::string label = fmt::format("{}##{}", entity.name, entity.id); // ImGui needs a uniqe label for each entity
                     if (ImGui::Selectable(label.c_str(), current_entity == entity.id))
                     {
-                        if (current_entity != entity.id)
-                        {
-                            serializer::Archive& ar = AdvanceHistory();
-                            ar << (int)HistoryOpType::ENTITY_CHANGE;
-                            ar << entity.id;        // new
-                            ar << current_entity;   // old
-                            ar << (uintptr_t)&current_entity;
-
-                            current_entity = entity.id;
-                        }
-
                         filter.Clear();
                         ImGui::CloseCurrentPopup();
                     }
@@ -756,11 +614,6 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    // Generate a terrain mesh on the currently selected entity.
-    // Params are stored in global terrain_generator_params.
-    //
-    // TODO: This tool feels abit wonky, having to select the entity in the
-    // scene browser, and using global TerrainParameters...
     class Tool_TerrainGeneration : public GuiTool
     {
     public:
@@ -923,9 +776,9 @@ namespace cyb::editor
             if (ImGui::BeginMenu("Edit"))
             {
                 if (ImGui::MenuItem("Undo", "CTRL+Z"))
-                    ConsumeHistoryOp(true);
+                    ui::GetUndoManager()->Undo();
                 if (ImGui::MenuItem("Redo", "CTRL+Y"))
-                    ConsumeHistoryOp(false);
+                    ui::GetUndoManager()->Redo();
 
                 ImGui::Separator();
 
@@ -1096,13 +949,13 @@ namespace cyb::editor
 
             if (ImGuizmo::FinishedDragging())
             {
-                XMFLOAT4X4 drag_matrix;
+                XMFLOAT4X4 drag_matrix = {};
                 ImGuizmo::GetFinishedDragMatrix(&drag_matrix._11);
 
-                serializer::Archive& ar = AdvanceHistory();
-                ar << (int)HistoryOpType::TRANSFORM;
-                ar << drag_matrix;
-                ar << entity;
+                //serializer::Archive& ar = AdvanceHistory();
+                //ar << (int)HistoryOpType::TRANSFORM;
+                //ar << drag_matrix;
+                //ar << entity;
             }
         }
     }

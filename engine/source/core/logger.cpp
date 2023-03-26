@@ -64,11 +64,11 @@ namespace cyb::logger
     {
         if (IsUnderLogLevelThreshold(severity))
             return;
-
         std::scoped_lock<SpinLock> lock(postLock);
         
         LogMessage log;
         log.message = fmt::format("{0}{1}\n", GetLogLevelPrefix(severity), input);
+        log.timestamp = std::chrono::system_clock::now();
         log.severity = severity;
         logHistory.push_back(log);
 

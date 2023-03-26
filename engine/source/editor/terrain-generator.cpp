@@ -9,7 +9,6 @@
 // TODO: get this removed
 #include "imgui/imgui_internal.h"
 
-
 #define UPDATE_HEIGHTMAP_ON_CHANGE() if (ImGui::IsItemDeactivatedAfterEdit()) { UpdateHeightmapAndTextures(); }
 
 namespace cyb::editor
@@ -587,19 +586,6 @@ namespace cyb::editor
     //  TerrainGenerator GUI
     //=============================================================
 
-    static TerrainMeshDesc terrain_generator_params;
-
-    void SetTerrainGenerationParams(const TerrainMeshDesc* params)
-    {
-        if (params == nullptr)
-        {
-            terrain_generator_params = TerrainMeshDesc();
-            return;
-        }
-
-        terrain_generator_params = *params;
-    }
-
     static const std::unordered_map<TerrainGenerator::Map, std::string> g_mapCombo = {
         { TerrainGenerator::Map::InputA,            "Input A"   },
         { TerrainGenerator::Map::InputB,            "Input B"   },
@@ -652,9 +638,29 @@ namespace cyb::editor
         SetDefaultHeightmapValues();
     }
 
+    void TerrainGenerator::SetDefaultHeightmapValues()
+    {
+        m_heightmapDesc = HeightmapDesc();
+
+        m_heightmapDesc.device1.noise = NoiseDesc();
+        m_heightmapDesc.device1.noise.noiseType = NoiseType::Perlin;
+        m_heightmapDesc.device1.noise.frequency = 1.389f;
+        m_heightmapDesc.device1.noise.octaves = 4;
+        m_heightmapDesc.device1.strataOp = HeightmapStrataOp::Smooth;
+        m_heightmapDesc.device1.strata = 5.0f;
+
+        m_heightmapDesc.device2.noise.noiseType = NoiseType::Cellular;
+        m_heightmapDesc.device2.noise.frequency = 1.859f;
+        m_heightmapDesc.device2.noise.octaves = 4;
+        m_heightmapDesc.device2.noise.cellularReturnType = CellularReturnType::Distance;
+        m_heightmapDesc.device2.strataOp = HeightmapStrataOp::Smooth;
+        m_heightmapDesc.device2.strata = 12.0f;
+
+        m_moisturemapNoise = NoiseDesc();
+    }
+
     void TerrainGenerator::DrawGui(ecs::Entity selectedEntity)
     {
-        static const char* tableName = "SettingsTable";
         static const uint32_t settingsPandelWidth = 340;
         if (!m_initialized)
         {
@@ -674,7 +680,6 @@ namespace cyb::editor
             if (ImGui::CollapsingHeader("Terrain Mesh Settings"))
             {
                 ui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
-
                 ui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
                 ui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
                 ui::SliderInt("Num Chunks", (int*)&m_meshDesc.numChunks, 1, 32, "%d^2");
@@ -850,27 +855,6 @@ namespace cyb::editor
         }
 
         return nullptr;
-    }
-
-    void TerrainGenerator::SetDefaultHeightmapValues()
-    {
-        m_heightmapDesc = HeightmapDesc();
-
-        m_heightmapDesc.device1.noise = NoiseDesc();
-        m_heightmapDesc.device1.noise.noiseType = NoiseType::Perlin;
-        m_heightmapDesc.device1.noise.frequency = 1.389f;
-        m_heightmapDesc.device1.noise.octaves = 4;
-        m_heightmapDesc.device1.strataOp = HeightmapStrataOp::Smooth;
-        m_heightmapDesc.device1.strata = 5.0f;
-
-        m_heightmapDesc.device2.noise.noiseType = NoiseType::Cellular;
-        m_heightmapDesc.device2.noise.frequency = 1.859f;
-        m_heightmapDesc.device2.noise.octaves = 4;
-        m_heightmapDesc.device2.noise.cellularReturnType = CellularReturnType::Distance;
-        m_heightmapDesc.device2.strataOp = HeightmapStrataOp::Smooth;
-        m_heightmapDesc.device2.strata = 12.0f;
-
-        m_moisturemapNoise = NoiseDesc();
     }
 
     void TerrainGenerator::DrawChunkLines(const ImVec2& drawStartPos) const

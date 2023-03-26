@@ -8,9 +8,7 @@ namespace cyb::math
         XMFLOAT3 min;
         XMFLOAT3 max;
 
-        AxisAlignedBox() { }
-
-        explicit AxisAlignedBox(ForceInit)
+        explicit AxisAlignedBox()
         {
             min = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
             max = XMFLOAT3(-FLT_MAX, -FLT_MAX, FLT_MAX);

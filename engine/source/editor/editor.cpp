@@ -909,52 +909,56 @@ namespace cyb::editor
     static void DrawGizmo()
     {
         const ImGuiIO& io = ImGui::GetIO();
-        const ImGuizmo::MODE mode = guizmo_world_mode ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
         scene::Scene& scene = scene::GetScene();
         scene::CameraComponent& camera = scene::GetCamera();
 
         const ecs::Entity entity = scenegraph_view.SelectedEntity();
         scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
-        if (transform) 
+
+        XMFLOAT4X4 world = {};
+        if (transform)
+            world = transform->world;
+
+        const bool isEnabled = transform != nullptr;
+        ImGuizmo::Enable(isEnabled);
+        ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+        ImGuizmo::MODE mode = guizmo_world_mode ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+        ImGuizmo::Manipulate(
+            &camera.view._11,
+            &camera.projection._11,
+            guizmo_operation,
+            mode,
+            &world._11);
+
+        if (ImGuizmo::IsUsing() && transform != nullptr)
         {
-            XMFLOAT4X4& world = transform->world;
-            ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-            ImGuizmo::Manipulate(
-                &camera.view._11,
-                &camera.projection._11,
-                guizmo_operation,
-                mode,
-                &world._11);
+            transform->world = world;
+            transform->ApplyTransform();
 
-            if (ImGuizmo::IsUsing())
+            // Transform to local space if parented
+            const scene::HierarchyComponent* hierarchy = scene.hierarchy.GetComponent(entity);
+            if (hierarchy)
             {
-                transform->ApplyTransform();
-
-                // Transform to local space if parented
-                const scene::HierarchyComponent* hierarchy = scene.hierarchy.GetComponent(entity);
-                if (hierarchy)
-                {
-                    const scene::TransformComponent* parent_transform = scene.transforms.GetComponent(hierarchy->parentID);
-                    if (parent_transform != nullptr)
-                        transform->MatrixTransform(XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent_transform->world)));
-                }
+                const scene::TransformComponent* parent_transform = scene.transforms.GetComponent(hierarchy->parentID);
+                if (parent_transform != nullptr)
+                    transform->MatrixTransform(XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent_transform->world)));
             }
+        }
 
-            if (ImGui::IsItemActivated())
-                CYB_TRACE("guizmo activateed");
-            if (ImGui::IsItemDeactivatedAfterEdit())
-                CYB_TRACE("guizmo deactivated");
+        if (ImGui::IsItemActivated())
+            CYB_TRACE("guizmo activateed");
+        if (ImGui::IsItemDeactivatedAfterEdit())
+            CYB_TRACE("guizmo deactivated");
 
-            //if (ImGuizmo::FinishedDragging())
-            {
-                //XMFLOAT4X4 drag_matrix = {};
-                //ImGuizmo::GetFinishedDragMatrix(&drag_matrix._11);
+        //if (ImGuizmo::FinishedDragging())
+        {
+            //XMFLOAT4X4 drag_matrix = {};
+            //ImGuizmo::GetFinishedDragMatrix(&drag_matrix._11);
 
-                //serializer::Archive& ar = AdvanceHistory();
-                //ar << (int)HistoryOpType::TRANSFORM;
-                //ar << drag_matrix;
-                //ar << entity;
-            }
+            //serializer::Archive& ar = AdvanceHistory();
+            //ar << (int)HistoryOpType::TRANSFORM;
+            //ar << drag_matrix;
+            //ar << entity;
         }
 
 #if 0
@@ -1060,8 +1064,8 @@ namespace cyb::editor
         if (guizmo_operation & ImGuizmo::BOUNDS)
         {
             ImGuiIO& io = ImGui::GetIO();
-            bool mouse_in_3dview = !io.WantCaptureMouse && !ImGuizmo::IsOver();
-            if (mouse_in_3dview && io.MouseClicked[0])
+            bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver();
+            if (isMouseIn3DView && io.MouseClicked[0])
             {
                 const scene::Scene& scene = scene::GetScene();
                 math::Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);

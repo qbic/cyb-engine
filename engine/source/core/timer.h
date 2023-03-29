@@ -9,23 +9,35 @@ public:
         Record();
     }
 
-    void Record()
+    inline void Record()
     {
-        m_startTime = std::chrono::high_resolution_clock::now();
+        m_timestamp = std::chrono::high_resolution_clock::now();
     }
 
-    double ElapsedSeconds()
+    inline double ElapedSecondsSence(std::chrono::high_resolution_clock::time_point time) const
     {
-        const auto currentTime = std::chrono::high_resolution_clock::now();
-        const std::chrono::duration<double> timeSpan = std::chrono::duration_cast<std::chrono::duration<double>>(currentTime - m_startTime);
+        std::chrono::duration<double> timeSpan = std::chrono::duration_cast<std::chrono::duration<double>>(time - m_timestamp);
         return timeSpan.count();
     }
 
-    double ElapsedMilliseconds()
+    inline double ElapsedSeconds() const
+    {
+        return ElapedSecondsSence(std::chrono::high_resolution_clock::now());
+    }
+
+    inline double ElapsedMilliseconds() const
     {
         return ElapsedSeconds() * 1000.0;
     }
 
+    inline double RecordElapsedSeconds()
+    {
+        auto now = std::chrono::high_resolution_clock::now();
+        auto elapsed = ElapedSecondsSence(now);
+        m_timestamp = now;
+        return elapsed;
+    }
+
 private:
-    std::chrono::high_resolution_clock::time_point m_startTime;
+    std::chrono::high_resolution_clock::time_point m_timestamp;
 };

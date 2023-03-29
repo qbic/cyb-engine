@@ -62,54 +62,51 @@ void GameRenderer::Update(float dt)
 
 void GameRenderer::CameraControl(float dt)
 {
-    const float mouse_sensitivity = 0.15f;
-    const float move_speed = 50.0f;
-    const float move_acceleration = 0.135f;
-
-    // if dt > 100 millisec, don't allow the camera to jump too far...
-    const float clamped_dt = std::min(dt, 0.1f); 
-
     float xDif = 0;
     float yDif = 0;
     if (input::IsDown(input::key::MB_RIGHT2))
     {
-        const XMFLOAT2 mouse_delta = input::GetMousePositionDelta();
-        xDif = mouse_sensitivity * mouse_delta.x * (1.0f / 60.0f);
-        yDif = mouse_sensitivity * mouse_delta.y * (1.0f / 60.0f);
+        const XMFLOAT2 mouseDelta = input::GetMousePositionDelta();
+        xDif = m_mouseSensitivity * mouseDelta.x * (1.0f / 60.0f);
+        yDif = m_mouseSensitivity * mouseDelta.y * (1.0f / 60.0f);
     }
 
-    static XMVECTOR move = XMVectorSet(0, 0, 0, 0);
-    XMVECTOR move_new = XMVectorSet(0, 0, 0, 0);
+    // if dt > 100 millisec, don't allow the camera to jump too far...
+    const float clampedDt = std::min(dt, 0.1f);
+
+    const float speed = (input::IsDown('F') ? 3.0f : 1.0f) * m_moveSpeed;
+    XMVECTOR move = XMLoadFloat3(&m_cameraMove);
+    XMVECTOR moveNew = XMVectorSet(0, 0, 0, 0);
 
     if (input::IsDown('A'))
-        move_new += XMVectorSet(-1, 0, 0, 0);
+        moveNew += XMVectorSet(-1, 0, 0, 0);
     if (input::IsDown('D'))
-        move_new += XMVectorSet(1, 0, 0, 0);
+        moveNew += XMVectorSet(1, 0, 0, 0);
     if (input::IsDown('S'))
-        move_new += XMVectorSet(0, 0, -1, 0);
+        moveNew += XMVectorSet(0, 0, -1, 0);
     if (input::IsDown('W'))
-        move_new += XMVectorSet(0, 0, 1, 0);
+        moveNew += XMVectorSet(0, 0, 1, 0);
     if (input::IsDown('C'))
-        move_new += XMVectorSet(0, -1, 0, 0);
+        moveNew += XMVectorSet(0, -1, 0, 0);
     if (input::IsDown(input::key::KB_SPACE))
-        move_new += XMVectorSet(0, 1, 0, 0);
+        moveNew += XMVectorSet(0, 1, 0, 0);
+    moveNew = XMVector3Normalize(moveNew) * speed;
 
-    const float speed = input::IsDown('F') ? move_speed * 3.0f : move_speed;
-    move_new = XMVector3Normalize(move_new) * speed * clamped_dt;
-    move = XMVectorLerp(move, move_new, move_acceleration * clamped_dt / 0.0166f); // smooth the movement a bit
-    const float move_length = XMVectorGetX(XMVector3Length(move));
+    move = XMVectorLerp(move, moveNew, m_moveAcceleration * clampedDt / 0.0166f); // smooth the movement a bit
+    const float moveLength = XMVectorGetX(XMVector3Length(move));
     
-    if (abs(xDif) + abs(yDif) > 0 || move_length > 0.0001f)
+    if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f)
     {
-        XMMATRIX camera_rotation = XMMatrixRotationQuaternion(XMLoadFloat4(&camera_transform.rotation_local));
-        XMVECTOR move_rot = XMVector3TransformNormal(move, camera_rotation);
-        XMFLOAT3 _move;
-        XMStoreFloat3(&_move, move_rot);
-        camera_transform.Translate(_move);
+        XMMATRIX cameraRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&camera_transform.rotation_local));
+        XMVECTOR rotatedMove = XMVector3TransformNormal(move, cameraRotation);
+        XMFLOAT3 rotatedMoveStored;
+        XMStoreFloat3(&rotatedMoveStored, rotatedMove);
+        camera_transform.Translate(rotatedMoveStored);
         camera_transform.RotateRollPitchYaw(XMFLOAT3(yDif, xDif, 0));
     }
 
     camera_transform.UpdateTransform();
+    XMStoreFloat3(&m_cameraMove, move);
 }
 
 

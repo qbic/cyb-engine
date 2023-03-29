@@ -25,9 +25,7 @@ namespace cyb::hli
 		}
 
 		profiler::BeginFrame();
-
-		delta_time = static_cast<float>(timer.ElapsedSeconds());
-		timer.Record();
+		delta_time = static_cast<float>(timer.RecordElapsedSeconds());
 
 		// Wake up the events that need to be executed on the main thread, in thread safe manner:
 		eventsystem::FireEvent(eventsystem::kEvent_ThreadSafePoint, 0);

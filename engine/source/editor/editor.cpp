@@ -10,7 +10,6 @@
 #include "systems/event-system.h"
 #include "editor/editor.h"
 #include "editor/imgui-backend.h"
-#include "imgui.h"
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui_internal.h"
 #include "backends/imgui_impl_win32.h"
@@ -58,10 +57,8 @@ namespace cyb::editor
 
     void InspectTransformComponent(scene::TransformComponent* transform)
     {
-        if (ui::EditTransformComponent("Translation", &transform->translation_local.x, transform))
-            transform->SetDirty();
-        if (ui::EditTransformComponent("Scale", &transform->scale_local.x, transform))
-            transform->SetDirty();
+        ui::EditTransformComponent("Translation", &transform->translation_local.x, transform);
+        ui::EditTransformComponent("Scale", &transform->scale_local.x, transform);
     }
 
     void InspectHierarchyComponent(scene::HierarchyComponent* hierarchy)
@@ -911,25 +908,23 @@ namespace cyb::editor
 
     static void DrawGizmo()
     {
+        const ImGuiIO& io = ImGui::GetIO();
+        const ImGuizmo::MODE mode = guizmo_world_mode ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
         scene::Scene& scene = scene::GetScene();
-        const scene::CameraComponent& camera = scene::GetCamera();
+        scene::CameraComponent& camera = scene::GetCamera();
 
         const ecs::Entity entity = scenegraph_view.SelectedEntity();
         scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
         if (transform) 
         {
-            XMFLOAT4X4& world_matrix = transform->world;
-
-            const ImGuiIO& io = ImGui::GetIO();
+            XMFLOAT4X4& world = transform->world;
             ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-            ImGuizmo::SetOrthographic(true);
-            const ImGuizmo::MODE mode = guizmo_world_mode ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
             ImGuizmo::Manipulate(
                 &camera.view._11,
                 &camera.projection._11,
                 guizmo_operation,
                 mode,
-                &world_matrix._11);
+                &world._11);
 
             if (ImGuizmo::IsUsing())
             {
@@ -941,16 +936,19 @@ namespace cyb::editor
                 {
                     const scene::TransformComponent* parent_transform = scene.transforms.GetComponent(hierarchy->parentID);
                     if (parent_transform != nullptr)
-                    {
                         transform->MatrixTransform(XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent_transform->world)));
-                    }
                 }
             }
 
-            if (ImGuizmo::FinishedDragging())
+            if (ImGui::IsItemActivated())
+                CYB_TRACE("guizmo activateed");
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                CYB_TRACE("guizmo deactivated");
+
+            //if (ImGuizmo::FinishedDragging())
             {
-                XMFLOAT4X4 drag_matrix = {};
-                ImGuizmo::GetFinishedDragMatrix(&drag_matrix._11);
+                //XMFLOAT4X4 drag_matrix = {};
+                //ImGuizmo::GetFinishedDragMatrix(&drag_matrix._11);
 
                 //serializer::Archive& ar = AdvanceHistory();
                 //ar << (int)HistoryOpType::TRANSFORM;
@@ -958,6 +956,16 @@ namespace cyb::editor
                 //ar << entity;
             }
         }
+
+#if 0
+        ImVec2 viewManipPos(io.DisplaySize.x - 190, 40);
+        ImGuizmo::ViewManipulate(
+            &camera.view._11,
+            &camera.projection._11, 
+            guizmo_operation,
+            mode, &camera.view._11,
+            10.0f, viewManipPos, ImVec2(150, 150), IM_COL32(0, 0, 0, 0));
+#endif
     }
 
     static math::Ray GetPickRay(float cursorX, float cursorY)
@@ -1004,6 +1012,18 @@ namespace cyb::editor
         translate_icon = resourcemanager::Load("assets/move.png", resourcemanager::LoadFlags::FlipImageBit);
         rotate_icon = resourcemanager::Load("assets/rotate.png",  resourcemanager::LoadFlags::FlipImageBit);
         scale_icon = resourcemanager::Load("assets/resize.png", resourcemanager::LoadFlags::FlipImageBit);
+
+#if 1
+        // ImGuizmo style
+        ImGuizmo::Style& style = ImGuizmo::GetStyle();
+        style.TranslationLineThickness = 6.0f;
+        style.TranslationLineArrowSize = 12.0f;
+        style.RotationLineThickness = 5.0f;
+        style.RotationOuterLineThickness = 6.0f;
+        style.Colors[ImGuizmo::PLANE_X].w = 0.6f;
+        style.Colors[ImGuizmo::PLANE_Y].w = 0.6f;
+        style.Colors[ImGuizmo::PLANE_Z].w = 0.6f;
+#endif
 
         initialized = true;
     }

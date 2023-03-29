@@ -71,6 +71,8 @@ namespace cyb::ui
             m_isComplete = isComplete;
         }
 
+        virtual void OnValueChange() {}
+
     private:
         T* m_dataPtr;
         T m_oldValue[N];
@@ -84,9 +86,9 @@ namespace cyb::ui
         using value_type = scene::TransformComponent;
 
         EditorAction_ModifyTransform(scene::TransformComponent* dataPtr) :
-            EditorAction_ModifyValue(dataPtr)
+            EditorAction_ModifyValue(dataPtr),
+            m_transform(dataPtr)
         {
-            m_transform = dataPtr;
         }
 
         void Undo() const override

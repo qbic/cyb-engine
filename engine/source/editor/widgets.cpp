@@ -164,8 +164,12 @@ namespace cyb::ui
 
     bool EditTransformComponent(const char* label, float component[3], scene::TransformComponent* transform)
     {
+        // Componenet must reside within transform!
+        assert((uint8_t*)component >= (uint8_t*)transform && (uint8_t*)component < ((uint8_t*)transform + sizeof(*transform)));
         WidgetScopedLayout widget(label);
         bool change = ImGui::DragFloat3("", component, 0.1f);
+        if (change)
+            transform->SetDirty();
         SaveChangeToUndoManager<ui::EditorAction_ModifyTransform>(transform);
         
         return change;

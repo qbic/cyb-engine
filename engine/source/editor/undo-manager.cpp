@@ -10,7 +10,10 @@ namespace cyb::ui
         m_history.push_back(action);
 
         if (!action->IsComplete())
+        {
+            //assert(m_incompleteAction == nullptr && "incomplete action is in use");
             m_incompleteAction = action;
+        }
     }
 
     void ActionHistory::CommitIncompleteAction()

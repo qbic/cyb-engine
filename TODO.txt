@@ -10,3 +10,8 @@ TODO FEATURES:
  * Editor function to setup the camera to look at an entity
  * gpu profiling
  * Write/Read pso cache off disk
+
+Small stuff:
+editor.cpp: bool vsync_enabled = true;      	// FIXME: initial value has to be synced with SwapChainDesc::vsync
+editor.cpp: void OpenDialog_Open()			// TODO: Add a dialog to prompt user about unsaved progress
+    

@@ -1,6 +1,5 @@
 BUGS:
 !* Shader reload is crashing. Probably need to clear pso cache before reloading.
- * Terrain and gltf loader is ordering indexes in CW order to not get back-clipped, some lefthand / righthand mismatch?
  * Depth buffer only goes from 0 - 0.01 according to renderdoc
 
 TODO FEATURES:
@@ -10,6 +9,7 @@ TODO FEATURES:
  * Editor function to setup the camera to look at an entity
  * gpu profiling
  * Write/Read pso cache off disk
+ * ImGuizmo transform undo
 
 Small stuff:
 editor.cpp: bool vsync_enabled = true;      	// FIXME: initial value has to be synced with SwapChainDesc::vsync

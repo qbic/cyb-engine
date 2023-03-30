@@ -10,43 +10,17 @@ namespace cyb::renderer
 {
     struct ImportState
     {
-        bool transformToLH = false;
-        int indexRemap[3];
         tinygltf::Model gltfModel;
         scene::Scene* scene = nullptr;
         std::unordered_map<size_t, ecs::Entity> materialMap;   // gltfModel index -> entity
-
-        ImportState()
-        {
-            CreateIndexRemapTable(transformToLH);
-        }
-
-        void CreateIndexRemapTable(bool useLH)
-        {
-            transformToLH = useLH;
-
-            if (transformToLH)
-            {
-                indexRemap[0] = 0;
-                indexRemap[1] = 1;
-                indexRemap[2] = 2;
-            }
-            else
-            {
-                indexRemap[0] = 0;
-                indexRemap[1] = 2;
-                indexRemap[2] = 1;
-            }
-        }
     };
 
     // Recursively loads nodes and resolves hierarchy
     ecs::Entity LoadNode(ImportState& state, uint32_t mesh_offset, int node_index, ecs::Entity parent)
     {
         if (node_index < 0)
-        {
             return ecs::InvalidEntity;
-        }
+
         const auto& node = state.gltfModel.nodes[node_index];
         ecs::Entity entity = ecs::InvalidEntity;
 
@@ -54,11 +28,7 @@ namespace cyb::renderer
         {
             assert(node.mesh < (int)state.scene->meshes.Size());
 
-            if (node.skin >= 0)
-            {
-                // This node is an armature:
-            }
-            else
+            if (node.skin < 0)
             {
                 // This node is a mesh instance:
                 entity = state.scene->CreateObject(node.name);
@@ -76,29 +46,19 @@ namespace cyb::renderer
 
         scene::TransformComponent* transform = state.scene->transforms.GetComponent(entity);
         if (!node.scale.empty())
-        {
             transform->scale_local = XMFLOAT3((float)node.scale[0], (float)node.scale[1], (float)node.scale[2]);
-        }
         if (!node.rotation.empty())
-        {
             transform->rotation_local = XMFLOAT4((float)node.rotation[0], (float)node.rotation[1], (float)node.rotation[2], (float)node.rotation[3]);
-        }
         if (!node.translation.empty())
-        {
             transform->translation_local = XMFLOAT3((float)node.translation[0], (float)node.translation[1], (float)node.translation[2]);
-        }
 
         if (parent != ecs::InvalidEntity)
-        {
             state.scene->ComponentAttach(entity, parent);
-        }
 
         if (!node.children.empty())
         {
             for (int child : node.children)
-            {
                 LoadNode(state, mesh_offset, child, entity);
-            }
         }
 
         return entity;
@@ -150,15 +110,11 @@ namespace cyb::renderer
 
             const auto& roughnessFactor = x.values.find("roughnessFactor");
             if (roughnessFactor != x.values.end())
-            {
                 material->roughness = static_cast<float>(roughnessFactor->second.Factor());
-            }
 
             const auto& metallicFactor = x.values.find("metallicFactor");
             if (metallicFactor != x.values.end())
-            {
                 material->metalness = static_cast<float>(metallicFactor->second.Factor());
-            }
         }
 
         // Create meshes:
@@ -192,24 +148,27 @@ namespace cyb::renderer
                 const uint32_t vertexOffset = (uint32_t)mesh->vertex_positions.size();
                 const unsigned char* indexData = indexBuffer.data.data() + indexAccessor.byteOffset + indexBufferView.byteOffset;
 
+                // gltf uses right-handed coordinate system, so we need to remap the
+                // indices to work on our left-hand system
+                const size_t indexRemap[] = { 0, 2, 1 };
                 for (size_t i = 0; i < indexCount; i += 3)
                 {
                     switch (indexStride)
                     {
                     case 1:
-                        mesh->indices[indexOffset + i + 0] = vertexOffset + indexData[i + state.indexRemap[0]];
-                        mesh->indices[indexOffset + i + 1] = vertexOffset + indexData[i + state.indexRemap[1]];
-                        mesh->indices[indexOffset + i + 2] = vertexOffset + indexData[i + state.indexRemap[2]];
+                        mesh->indices[indexOffset + i + 0] = vertexOffset + indexData[i + indexRemap[0]];
+                        mesh->indices[indexOffset + i + 1] = vertexOffset + indexData[i + indexRemap[1]];
+                        mesh->indices[indexOffset + i + 2] = vertexOffset + indexData[i + indexRemap[2]];
                         break;
                     case 2:
-                        mesh->indices[indexOffset + i + 0] = vertexOffset + ((uint16_t*)indexData)[i + state.indexRemap[0]];
-                        mesh->indices[indexOffset + i + 1] = vertexOffset + ((uint16_t*)indexData)[i + state.indexRemap[1]];
-                        mesh->indices[indexOffset + i + 2] = vertexOffset + ((uint16_t*)indexData)[i + state.indexRemap[2]];
+                        mesh->indices[indexOffset + i + 0] = vertexOffset + ((uint16_t*)indexData)[i + indexRemap[0]];
+                        mesh->indices[indexOffset + i + 1] = vertexOffset + ((uint16_t*)indexData)[i + indexRemap[1]];
+                        mesh->indices[indexOffset + i + 2] = vertexOffset + ((uint16_t*)indexData)[i + indexRemap[2]];
                         break;
                     case 4:
-                        mesh->indices[indexOffset + i + 0] = vertexOffset + ((uint32_t*)indexData)[i + state.indexRemap[0]];
-                        mesh->indices[indexOffset + i + 1] = vertexOffset + ((uint32_t*)indexData)[i + state.indexRemap[1]];
-                        mesh->indices[indexOffset + i + 2] = vertexOffset + ((uint32_t*)indexData)[i + state.indexRemap[2]];
+                        mesh->indices[indexOffset + i + 0] = vertexOffset + ((uint32_t*)indexData)[i + indexRemap[0]];
+                        mesh->indices[indexOffset + i + 1] = vertexOffset + ((uint32_t*)indexData)[i + indexRemap[1]];
+                        mesh->indices[indexOffset + i + 2] = vertexOffset + ((uint32_t*)indexData)[i + indexRemap[2]];
                         break;
                     default:
                         assert(0 && "invalid index stride!");
@@ -236,25 +195,20 @@ namespace cyb::renderer
                         assert(vertexStride == 12);
                         mesh->vertex_positions.resize(vertexOffset + vertexCount);
                         for (size_t i = 0; i < vertexCount; ++i)
-                        {
                             mesh->vertex_positions[vertexOffset + i] = ((XMFLOAT3*)vertexData)[i];
-                        }
                     }
                     else if (!attr_name.compare("NORMAL"))
                     {
                         assert(vertexStride == 12);
                         mesh->vertex_normals.resize(vertexOffset + vertexCount);
                         for (size_t i = 0; i < vertexCount; ++i)
-                        {
                             mesh->vertex_normals[vertexOffset + i] = ((XMFLOAT3*)vertexData)[i];
-                        }
                     }
                     else if (!attr_name.compare("COLOR_0"))
                     {
                         if (material != nullptr)
-                        {
                             material->SetUseVertexColors(true);
-                        }
+
                         mesh->vertex_colors.resize(vertexOffset + vertexCount);
                         for (size_t i = 0; i < vertexCount; ++i)
                         {
@@ -272,9 +226,7 @@ namespace cyb::renderer
             {
                 mesh->vertex_colors.resize(mesh->vertex_positions.size());
                 for (auto& color : mesh->vertex_colors)
-                {
                     color = math::StoreColor_RGBA(XMFLOAT4(1, 1, 1, 1));
-                }
             }
 
             mesh->CreateRenderData();
@@ -284,9 +236,7 @@ namespace cyb::renderer
         ecs::Entity rootEntity = ecs::InvalidEntity;
         const tinygltf::Scene& glftScene = state.gltfModel.scenes[state.gltfModel.defaultScene];
         for (size_t i = 0; i < glftScene.nodes.size(); i++)
-        {
             rootEntity = LoadNode(state, mesh_offset, glftScene.nodes[i], ecs::InvalidEntity);
-        }
 
         CYB_TRACE("Imported model (filename={0}) in {1:.2f} milliseconds", filename, timer.ElapsedMilliseconds());
         return rootEntity;

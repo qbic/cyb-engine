@@ -11,7 +11,6 @@ namespace cyb::ui
 
         if (!action->IsComplete())
         {
-            //assert(m_incompleteAction == nullptr && "incomplete action is in use");
             m_incompleteAction = action;
         }
     }

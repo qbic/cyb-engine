@@ -176,7 +176,7 @@ namespace cyb::platform
 		assert(SUCCEEDED(ar));
 
 		// Enable high dpi awareness
-		SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+		SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 	}
 
 	Instance GetInstance()

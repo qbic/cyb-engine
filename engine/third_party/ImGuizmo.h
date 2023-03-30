@@ -116,7 +116,7 @@ void EditTransform(const Camera& camera, matrix_t& matrix)
 #endif
 
 // stops ImGuizmo from capturing input when hovering any gizmo control
-//#define IMGUIZMO_NO_MOUSE_CAPTURE_ON_HOVER
+#define IMGUIZMO_NO_MOUSE_CAPTURE_ON_HOVER
 
 namespace IMGUIZMO_NAMESPACE
 {

@@ -25,6 +25,7 @@ namespace cyb::ui
     {
     public:
         using value_type = T;
+        static constexpr int num = N;
 
         EditorAction_ModifyValue(T* dataPtr) :
             m_newValue()

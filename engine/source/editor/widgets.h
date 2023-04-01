@@ -64,10 +64,19 @@ namespace cyb::ui
             ui::GetUndoManager()->CommitIncompleteAction();
     }
 
-    // These are just ImGui wrappers wich to the following:
-    //  * Puts the label to the left
-    //  * Adds some custom styling
-    //  * TODO - Adds Undo/Redo functionality
+    template <class T>
+    void SaveChangeToUndoManager2(typename T::value_type* v, const typename T::value_type* newValue)
+    {
+        if (ImGui::IsItemActivated())
+        {
+            auto action = std::make_shared<T>(v, newValue);
+            ui::GetUndoManager()->PushAction(action);
+        }
+    }
+
+    // These are just ImGui wrappers wich will do the following:
+    //  * Put the label to the left
+    //  * Save changes to the undo manager
     bool Checkbox(const char* label, bool* v);
     bool DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
     bool DragFloat3(const char* label, float v[3], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.2f", ImGuiSliderFlags flags = 0);
@@ -103,6 +112,10 @@ namespace cyb::ui
                 const bool isSelected = (key == value);
                 if (ImGui::Selectable(name.c_str(), isSelected))
                 {
+                    const T tempValue[1] = { key };
+                    auto action = std::make_shared<ui::EditorAction_ModifyValue<T, 1>>(&value, tempValue);
+                    ui::GetUndoManager()->PushAction(action);
+
                     value = key;
                     valueChange = true;
                 }
@@ -114,7 +127,6 @@ namespace cyb::ui
             ImGui::EndCombo();
         }
 
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<T, 1>>(&value);
         return valueChange;
     }
 

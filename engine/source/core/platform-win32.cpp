@@ -12,7 +12,7 @@ namespace cyb::platform
 	Instance applicationInstance = nullptr;
 	const TCHAR* windowClassName = TEXT("CybEngineWindow");
 
-	class LogOutputModule_VisualStudio : public logger::LogOutputModule
+	class LogOutputModule_VisualStudio final : public logger::LogOutputModule
 	{
 	public:
 		void Write(const logger::LogMessage& log) override
@@ -21,7 +21,7 @@ namespace cyb::platform
 		}
 	};
 
-	class Window_Win32 : public Window
+	class Window_Win32 final : public Window
 	{
 	private:
 		HWND handle;

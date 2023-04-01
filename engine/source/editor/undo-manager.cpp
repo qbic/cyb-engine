@@ -1,4 +1,5 @@
 #include "editor/undo-manager.h"
+#include "core/logger.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 
@@ -11,6 +12,7 @@ namespace cyb::ui
 
         if (!action->IsComplete())
         {
+            CYB_CWARNING(m_incompleteAction != nullptr, "Overwriting non-null incomplete action");
             m_incompleteAction = action;
         }
     }
@@ -74,7 +76,7 @@ namespace cyb::ui
         if (!window)
             return m_windowActions[0];
 
-        // Get to the toplevel window
+        // Get the toplevel window
         while (window->ParentWindow != nullptr)
             window = window->ParentWindow;
 

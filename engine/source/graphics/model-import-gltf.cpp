@@ -28,9 +28,10 @@ namespace cyb::renderer
         {
             assert(node.mesh < (int)state.scene->meshes.Size());
 
+            // (node.skin < 0):  mesh instance
+            // (node.skin >= 0): armature
             if (node.skin < 0)
             {
-                // This node is a mesh instance:
                 entity = state.scene->CreateObject(node.name);
                 scene::ObjectComponent* object = state.scene->objects.GetComponent(entity);
                 object->meshID = state.scene->meshes.GetEntity(node.mesh + mesh_offset);

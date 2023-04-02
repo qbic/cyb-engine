@@ -5,71 +5,55 @@
 
 namespace cyb::ui
 {
-    void ActionHistory::PushAction(const std::shared_ptr<EditorAction>& action)
+    void UndoManager::PushAction(const std::shared_ptr<EditorAction>& action)
     {
-        m_redoStack.clear();
-        m_history.push_back(action);
+        WindowActionHistory& history = GetHistoryForActiveWindow();
+        
+        history.redoStack.clear();
+        history.actionBuffer.push_back(action);
 
         if (!action->IsComplete())
         {
-            CYB_CWARNING(m_incompleteAction != nullptr, "Overwriting non-null incomplete action");
-            m_incompleteAction = action;
+            CYB_CWARNING(history.incompleteAction != nullptr, "Overwriting non-null incomplete action");
+            history.incompleteAction = action;
         }
-    }
-
-    void ActionHistory::CommitIncompleteAction()
-    {
-        m_incompleteAction->Complete(true);
-        m_incompleteAction.reset();
-    }
-
-    void ActionHistory::Undo()
-    {
-        if (m_history.empty())
-            return;
-
-        std::shared_ptr<EditorAction> action = m_history.back();
-        m_history.pop_back();
-        action->Undo();
-        m_redoStack.push_back(std::move(action));
-    }
-
-    void ActionHistory::Redo()
-    {
-        if (m_redoStack.empty())
-            return;
-
-        std::shared_ptr<EditorAction> action = m_redoStack.back();
-        m_redoStack.pop_back();
-        action->Redo();
-        m_history.push_back(std::move(action));
-    }
-
-    void UndoManager::PushAction(const std::shared_ptr<EditorAction>& action)
-    {
-        ActionHistory& history = GetHistoryForActiveWindow();
-        history.PushAction(action);
     }
 
     void UndoManager::CommitIncompleteAction()
     {
-        ActionHistory& history = GetHistoryForActiveWindow();
-        history.CommitIncompleteAction();
+        WindowActionHistory& history = GetHistoryForActiveWindow();
+        
+        history.incompleteAction->Complete(true);
+        history.incompleteAction.reset();
     }
 
     void UndoManager::Undo()
     {
-        ActionHistory& history = GetHistoryForActiveWindow();
-        history.Undo();
+        WindowActionHistory& history = GetHistoryForActiveWindow();
+        
+        if (history.actionBuffer.empty())
+            return;
+
+        std::shared_ptr<EditorAction> action = history.actionBuffer.back();
+        history.actionBuffer.pop_back();
+        action->OnUndo();
+        history.redoStack.push_back(std::move(action));
     }
 
     void UndoManager::Redo()
     {
-        ActionHistory& history = GetHistoryForActiveWindow();
-        history.Redo();
+        WindowActionHistory& history = GetHistoryForActiveWindow();
+        
+        if (history.redoStack.empty())
+            return;
+
+        std::shared_ptr<EditorAction> action = history.redoStack.back();
+        history.redoStack.pop_back();
+        action->OnRedo();
+        history.actionBuffer.push_back(std::move(action));
     }
 
-    ActionHistory& UndoManager::GetHistoryForActiveWindow()
+    UndoManager::WindowActionHistory& UndoManager::GetHistoryForActiveWindow()
     {
         const ImGuiContext* g = ImGui::GetCurrentContext();
         ImGuiWindow* window = g->CurrentWindow;

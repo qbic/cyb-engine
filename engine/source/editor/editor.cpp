@@ -773,9 +773,9 @@ namespace cyb::editor
             if (ImGui::BeginMenu("Edit"))
             {
                 if (ImGui::MenuItem("Undo", "CTRL+Z"))
-                    ui::GetUndoManager()->Undo();
+                    ui::GetUndoManager().Undo();
                 if (ImGui::MenuItem("Redo", "CTRL+Y"))
-                    ui::GetUndoManager()->Redo();
+                    ui::GetUndoManager().Redo();
 
                 ImGui::Separator();
 

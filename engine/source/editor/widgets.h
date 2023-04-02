@@ -57,21 +57,11 @@ namespace cyb::ui
         if (ImGui::IsItemActivated())
         {
             auto action = std::make_shared<T>(v);
-            ui::GetUndoManager()->PushAction(action);
+            ui::GetUndoManager().PushAction(action);
         }
 
         if (ImGui::IsItemDeactivatedAfterEdit())
-            ui::GetUndoManager()->CommitIncompleteAction();
-    }
-
-    template <class T>
-    void SaveChangeToUndoManager2(typename T::value_type* v, const typename T::value_type* newValue)
-    {
-        if (ImGui::IsItemActivated())
-        {
-            auto action = std::make_shared<T>(v, newValue);
-            ui::GetUndoManager()->PushAction(action);
-        }
+            ui::GetUndoManager().CommitIncompleteAction();
     }
 
     // These are just ImGui wrappers wich will do the following:
@@ -114,7 +104,7 @@ namespace cyb::ui
                 {
                     const T tempValue[1] = { key };
                     auto action = std::make_shared<ui::EditorAction_ModifyValue<T, 1>>(&value, tempValue);
-                    ui::GetUndoManager()->PushAction(action);
+                    ui::GetUndoManager().PushAction(action);
 
                     value = key;
                     valueChange = true;

@@ -5,7 +5,6 @@
 #include <functional>
 #include <optional>
 #include "imgui/imgui.h"
-#include "core/serializer.h"
 #include "systems/scene.h"
 
 namespace cyb::ui
@@ -13,8 +12,8 @@ namespace cyb::ui
     class EditorAction
     {
     public:
-        virtual void Undo() const = 0;
-        virtual void Redo() const = 0;
+        virtual void OnUndo() const = 0;
+        virtual void OnRedo() const = 0;
 
         virtual bool IsComplete() const { return true; }
         virtual void Complete(bool isComplete) {}
@@ -49,13 +48,13 @@ namespace cyb::ui
             m_isComplete = true;
         }
 
-        virtual void Undo() const override
+        virtual void OnUndo() const override
         {
             for (int i = 0; i < N; ++i)
                 m_dataPtr[i] = m_oldValue[i];
         }
 
-        virtual void Redo() const override
+        virtual void OnRedo() const override
         {
             for (int i = 0; i < N; ++i)
                 m_dataPtr[i] = m_newValue[i];
@@ -92,15 +91,15 @@ namespace cyb::ui
         {
         }
 
-        void Undo() const override
+        void OnUndo() const override
         {
-            EditorAction_ModifyValue::Undo();
+            EditorAction_ModifyValue::OnUndo();
             m_transform->SetDirty();
         }
 
-        void Redo() const override
+        void OnRedo() const override
         {
-            EditorAction_ModifyValue::Redo();
+            EditorAction_ModifyValue::OnRedo();
             m_transform->SetDirty();
         }
 
@@ -108,21 +107,7 @@ namespace cyb::ui
         scene::TransformComponent* m_transform;
     };
 
-    class ActionHistory
-    {
-    public:
-        void PushAction(const std::shared_ptr<EditorAction>& action);
-        void CommitIncompleteAction();
-
-        void Undo();
-        void Redo();
-
-    private:
-        std::shared_ptr<EditorAction> m_incompleteAction;
-        std::vector<std::shared_ptr<EditorAction>> m_history;
-        std::vector<std::shared_ptr<EditorAction>> m_redoStack;
-    };
-
+    // NOTE: All top-level windows has their own action history
     class UndoManager
     {
     public:
@@ -133,14 +118,21 @@ namespace cyb::ui
         void Redo();
 
     private:
-        ActionHistory& GetHistoryForActiveWindow();
+        struct WindowActionHistory
+        {
+            std::shared_ptr<EditorAction> incompleteAction;
+            std::vector<std::shared_ptr<EditorAction>> actionBuffer;
+            std::vector<std::shared_ptr<EditorAction>> redoStack;
+        };
 
-        std::unordered_map<ImGuiID, ActionHistory> m_windowActions;
+        WindowActionHistory& GetHistoryForActiveWindow();
+
+        std::unordered_map<ImGuiID, WindowActionHistory> m_windowActions;
     };
 
-    inline UndoManager* GetUndoManager()
+    inline UndoManager& GetUndoManager()
     {
         static UndoManager undoManager;
-        return &undoManager;
+        return undoManager;
     }
 }

@@ -278,10 +278,7 @@ namespace cyb::editor
             { scene::LightType::Point,       "Point"       }
         };
 
-        scene::LightType light_type = light->GetType();
-        if (ui::ComboBox("Type", light_type, lightTypeNames))
-            light->SetType(light_type);
-
+        ui::ComboBox("Type", light->type, lightTypeNames);
         ui::ColorEdit3("Color", &light->color.x);
         ui::DragFloat("Energy", &light->energy, 0.02f);
         ui::DragFloat("Range", &light->range, 1.2f, 0.0f, FLT_MAX);

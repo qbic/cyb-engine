@@ -1,10 +1,12 @@
 #include <algorithm>
 #include "core/noise.h"
 #include "core/profiler.h"
+#include "core/filesystem.h"
 #include "editor/editor.h"
 #include "editor/terrain-generator.h"
 #include "editor/icons_font_awesome6.h"
-
+#include "json.hpp"
+#include <fstream>
 // needed for CalcItemSize()
 // TODO: get this removed
 #include "imgui/imgui_internal.h"
@@ -666,6 +668,122 @@ namespace cyb::editor
         {
             UpdateHeightmapAndTextures();
             m_initialized = true;
+        }
+
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("Save Settings", ""))
+                {
+                    filesystem::SaveDialog("JSON (*.json)\0*.json\0", [&](std::string filename) {
+                        nlohmann::ordered_json json;
+                        auto& terrain = json["terrain_settings"];
+                        terrain["mesh"]["size"] = m_meshDesc.size;
+                        terrain["mesh"]["maxAltitude"] = m_meshDesc.maxAltitude;
+                        terrain["mesh"]["minAltitude"] = m_meshDesc.minAltitude;
+                        terrain["mesh"]["numChunks"] = m_meshDesc.numChunks;
+                        terrain["mesh"]["maxError"] = m_meshDesc.maxError;
+
+                        terrain["heightmap"]["width"] = m_heightmapDesc.width;
+                        terrain["heightmap"]["height"] = m_heightmapDesc.height;
+                        terrain["heightmap"]["combineType"] = m_heightmapDesc.combineType;
+                        terrain["heightmap"]["combineStrength"] = m_heightmapDesc.combineStrength;
+                        terrain["heightmap"]["exponent"] = m_heightmapDesc.exponent;
+
+                        auto& input1 = terrain["heightmap"]["input1"];
+                        input1["noise"]["noiseType"] = m_heightmapDesc.device1.noise.noiseType;
+                        input1["noise"]["seed"] = m_heightmapDesc.device1.noise.seed;
+                        input1["noise"]["frequency"] = m_heightmapDesc.device1.noise.frequency;
+                        input1["noise"]["octaves"] = m_heightmapDesc.device1.noise.octaves;
+                        input1["noise"]["lacunarity"] = m_heightmapDesc.device1.noise.lacunarity;
+                        input1["noise"]["gain"] = m_heightmapDesc.device1.noise.gain;
+                        input1["noise"]["cellularReturnType"] = m_heightmapDesc.device1.noise.cellularReturnType;
+                        input1["noise"]["cellularJitterModifier"] = m_heightmapDesc.device1.noise.cellularJitterModifier;
+                        input1["strataOp"] = m_heightmapDesc.device1.strataOp;
+                        input1["strata"] = m_heightmapDesc.device1.strata;
+                        input1["blur"] = m_heightmapDesc.device1.blur;
+
+                        auto& input2 = terrain["heightmap"]["input2"];
+                        input2["noise"]["noiseType"] = m_heightmapDesc.device2.noise.noiseType;
+                        input2["noise"]["seed"] = m_heightmapDesc.device2.noise.seed;
+                        input2["noise"]["frequency"] = m_heightmapDesc.device2.noise.frequency;
+                        input2["noise"]["octaves"] = m_heightmapDesc.device2.noise.octaves;
+                        input2["noise"]["lacunarity"] = m_heightmapDesc.device2.noise.lacunarity;
+                        input2["noise"]["gain"] = m_heightmapDesc.device2.noise.gain;
+                        input2["noise"]["cellularReturnType"] = m_heightmapDesc.device2.noise.cellularReturnType;
+                        input2["noise"]["cellularJitterModifier"] = m_heightmapDesc.device2.noise.cellularJitterModifier;
+                        input2["strataOp"] = m_heightmapDesc.device2.strataOp;
+                        input2["strata"] = m_heightmapDesc.device2.strata;
+                        input2["blur"] = m_heightmapDesc.device2.blur;
+
+                        if (!filesystem::FileHasExtension(filename, "json"))
+                            filename += ".json";
+
+                        std::ofstream o(filename);
+                        o << std::setw(4) << json << std::endl;
+                        });
+                }
+                if (ImGui::MenuItem("Load Settings", ""))
+                {
+                    filesystem::OpenDialog("JSON (*.json)\0*.json\0", [&](std::string filename) {
+                        std::ifstream f(filename);
+
+                        nlohmann::json json = nlohmann::json::parse(f);
+
+                        auto& terrain = json["terrain_settings"];
+                        m_meshDesc.size = terrain["mesh"]["size"];
+                        m_meshDesc.maxAltitude = terrain["mesh"]["maxAltitude"];
+                        m_meshDesc.minAltitude = terrain["mesh"]["minAltitude"];
+                        m_meshDesc.numChunks = terrain["mesh"]["numChunks"];
+                        m_meshDesc.maxError = terrain["mesh"]["maxError"];
+                        m_heightmapDesc.width = terrain["heightmap"]["width"];
+                        m_heightmapDesc.height = terrain["heightmap"]["height"];
+                        m_heightmapDesc.combineType = terrain["heightmap"]["combineType"];
+                        m_heightmapDesc.combineStrength = terrain["heightmap"]["combineStrength"];
+                        m_heightmapDesc.exponent = terrain["heightmap"]["exponent"];
+
+                        auto& input1 = terrain["heightmap"]["input1"];
+                        m_heightmapDesc.device1.noise.noiseType = input1["noise"]["noiseType"];
+                        m_heightmapDesc.device1.noise.seed = input1["noise"]["seed"];
+                        m_heightmapDesc.device1.noise.frequency = input1["noise"]["frequency"];
+                        m_heightmapDesc.device1.noise.octaves = input1["noise"]["octaves"];
+                        m_heightmapDesc.device1.noise.lacunarity = input1["noise"]["lacunarity"];
+                        m_heightmapDesc.device1.noise.gain = input1["noise"]["gain"];
+                        m_heightmapDesc.device1.noise.cellularReturnType = input1["noise"]["cellularReturnType"];
+                        m_heightmapDesc.device1.noise.cellularJitterModifier = input1["noise"]["cellularJitterModifier"];
+                        m_heightmapDesc.device1.strataOp = input1["strataOp"];
+                        m_heightmapDesc.device1.strata = input1["strata"];
+                        m_heightmapDesc.device1.blur = input1["blur"];
+
+                        auto& input2 = terrain["heightmap"]["input2"];
+                        m_heightmapDesc.device2.noise.noiseType = input2["noise"]["noiseType"];
+                        m_heightmapDesc.device2.noise.seed = input2["noise"]["seed"];
+                        m_heightmapDesc.device2.noise.frequency = input2["noise"]["frequency"];
+                        m_heightmapDesc.device2.noise.octaves = input2["noise"]["octaves"];
+                        m_heightmapDesc.device2.noise.lacunarity = input2["noise"]["lacunarity"];
+                        m_heightmapDesc.device2.noise.gain = input2["noise"]["gain"];
+                        m_heightmapDesc.device2.noise.cellularReturnType = input2["noise"]["cellularReturnType"];
+                        m_heightmapDesc.device2.noise.cellularJitterModifier = input2["noise"]["cellularJitterModifier"];
+                        m_heightmapDesc.device2.strataOp = input2["strataOp"];
+                        m_heightmapDesc.device2.strata = input2["strata"];
+                        m_heightmapDesc.device2.blur = input2["blur"];
+
+                        UpdateHeightmapAndTextures();
+                        });
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Edit"))
+            {
+                if (ImGui::MenuItem("Undo", "CTRL+Z"))
+                    ui::GetUndoManager().Undo();
+                if (ImGui::MenuItem("Redo", "CTRL+Y"))
+                    ui::GetUndoManager().Redo();
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenuBar();
         }
 
         if (ImGui::BeginTable("TerrainGenerator", 2,  ImGuiTableFlags_SizingFixedFit))

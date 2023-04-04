@@ -9,17 +9,17 @@ using DirectX::XMFLOAT4X4;
 
 namespace cyb::serializer
 {
-    enum { kArchiveVersion = 4 };
-    enum { kLeastUupportedVersion = 3 };
-    enum { kArchiveInitSize = 128 };
+    enum { ArchiveVersion = 4 };
+    enum { LeastUupportedVersion = 3 };
+    enum { ArchiveInitSize = 128 };
 
     class Archive
     {
     public:
         enum Access
         {
-            kRead,
-            kWrite
+            Read,
+            Write
         };
 
         Archive();                              // Open empty archive for writing
@@ -38,7 +38,7 @@ namespace cyb::serializer
 
         bool IsOpen() const;
         uint64_t GetVersion() const { return m_version; }
-        bool IsReadMode() const { return m_mode == Access::kRead; }
+        bool IsReadMode() const { return m_mode == Access::Read; }
         bool SaveFile(const std::string filename);
 
         //=============================================================
@@ -131,7 +131,7 @@ namespace cyb::serializer
 
      private:
         uint64_t m_version = 0;
-        Access m_mode = Access::kWrite;
+        Access m_mode = Access::Write;
         size_t m_pos = 0;
         std::vector<uint8_t> m_data;
         const uint8_t* m_dataPtr = nullptr;

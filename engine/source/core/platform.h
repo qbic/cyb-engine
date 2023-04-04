@@ -1,9 +1,10 @@
 #pragma once
-#include "core/mathlib.h"
-#include "core/enum-flags.h"
+#include <functional>
 #include <mutex>
 #include <string>
 #include <assert.h>
+#include "core/mathlib.h"
+#include "core/enum-flags.h"
 
 #if CYB_DEBUG_BUILD
 #ifdef _WIN32
@@ -48,10 +49,19 @@ namespace cyb::platform
 	std::shared_ptr<Window> CreateNewWindow(const WindowCreateDescription& desc);
 
 	// The main window for the application that the renderer will use.
-	// Áll user created windows should use this as parent.
+	// All user-created windows should use this as parent.
 	inline std::shared_ptr<Window> main_window;
 	void CreateMainWindow(const WindowCreateDescription& desc);
 	
 	void Exit(int exit_code = 0);
 	void CreateMessageWindow(const std::string& msg, const std::string& windowTitle = "Warning!");
+
+	enum class FileDialogMode
+	{
+		Open,
+		Save
+	};
+
+	[[nodiscard]] bool FileDialog(FileDialogMode mode, const std::string& filters, std::string& output);
+
 }

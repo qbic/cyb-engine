@@ -1,6 +1,7 @@
+#include <unordered_set>
 #include "core/logger.h"
-#include "core/helper.h"
 #include "core/platform.h"
+#include "core/hash.h"
 #include "graphics/graphics-device-vulkan.h"
 #include "volk.h"
 #define VMA_IMPLEMENTATION
@@ -1043,7 +1044,7 @@ namespace cyb::graphics
 
         const PipelineState* pso = commandList.active_pso;
         size_t pipeline_hash = commandList.prev_pipeline_hash;
-        helper::HashCombine(pipeline_hash, commandList.vertexbuffer_hash);
+        hash::HashCombine(pipeline_hash, commandList.vertexbuffer_hash);
         auto internal_state = ToInternal(pso);
 
         VkPipeline pipeline = VK_NULL_HANDLE;
@@ -1792,7 +1793,7 @@ namespace cyb::graphics
         
         for (uint32_t i = 0; i < count; ++i)
         {
-            helper::HashCombine(hash, strides[i]);
+            hash::HashCombine(hash, strides[i]);
             commandList.vertexbuffer_strides[i] = strides[i];
 
             auto internal_state = ToInternal(vertexBuffers[i]);
@@ -2369,13 +2370,13 @@ namespace cyb::graphics
         pso->desc = *desc;
 
         pso->hash = 0;
-        helper::HashCombine(pso->hash, desc->vs);
-        helper::HashCombine(pso->hash, desc->gs);
-        helper::HashCombine(pso->hash, desc->fs);
-        helper::HashCombine(pso->hash, desc->rs);
-        helper::HashCombine(pso->hash, desc->dss);
-        helper::HashCombine(pso->hash, desc->il);
-        helper::HashCombine(pso->hash, desc->pt);
+        hash::HashCombine(pso->hash, desc->vs);
+        hash::HashCombine(pso->hash, desc->gs);
+        hash::HashCombine(pso->hash, desc->fs);
+        hash::HashCombine(pso->hash, desc->rs);
+        hash::HashCombine(pso->hash, desc->dss);
+        hash::HashCombine(pso->hash, desc->il);
+        hash::HashCombine(pso->hash, desc->pt);
 
         // Create bindings:
         {
@@ -2439,11 +2440,11 @@ namespace cyb::graphics
         uint32_t i = 0;
         for (auto& x : internal_state->layout_bindings)
         {
-            helper::HashCombine(internal_state->binding_hash, x.binding);
-            helper::HashCombine(internal_state->binding_hash, x.descriptorCount);
-            helper::HashCombine(internal_state->binding_hash, x.descriptorType);
-            helper::HashCombine(internal_state->binding_hash, x.stageFlags);
-            helper::HashCombine(internal_state->binding_hash, internal_state->imageview_types[i++]);
+            hash::HashCombine(internal_state->binding_hash, x.binding);
+            hash::HashCombine(internal_state->binding_hash, x.descriptorCount);
+            hash::HashCombine(internal_state->binding_hash, x.descriptorType);
+            hash::HashCombine(internal_state->binding_hash, x.stageFlags);
+            hash::HashCombine(internal_state->binding_hash, internal_state->imageview_types[i++]);
         }
 
         pso_layout_cache_mutex.lock();
@@ -2687,9 +2688,9 @@ namespace cyb::graphics
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
 
         size_t pipeline_hash = 0;
-        helper::HashCombine(pipeline_hash, pso->hash);
+        hash::HashCombine(pipeline_hash, pso->hash);
         if (commandlist.active_renderpass != nullptr)
-            helper::HashCombine(pipeline_hash, commandlist.active_renderpass->hash);
+            hash::HashCombine(pipeline_hash, commandlist.active_renderpass->hash);
         if (pipeline_hash == commandlist.prev_pipeline_hash)
             return;
         commandlist.prev_pipeline_hash = pipeline_hash;
@@ -2719,13 +2720,13 @@ namespace cyb::graphics
         renderpass->desc = *desc;
 
         renderpass->hash = 0;
-        helper::HashCombine(renderpass->hash, desc->attachments.size());
+        hash::HashCombine(renderpass->hash, desc->attachments.size());
         for (const auto& attachment : desc->attachments)
         {
             if (attachment.type == RenderPassAttachment::Type::RenderTarget ||
                 attachment.type == RenderPassAttachment::Type::DepthStencil)
             {
-                helper::HashCombine(renderpass->hash, attachment.texture->desc.format);
+                hash::HashCombine(renderpass->hash, attachment.texture->desc.format);
             }
         }
 
@@ -3161,7 +3162,7 @@ namespace cyb::graphics
             return;
 
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        const uint64_t hash = helper::StringHash(name);
+        const uint64_t hash = hash::StringHash(name);
 
         VkDebugUtilsLabelEXT label = { VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT };
         label.pLabelName = name;

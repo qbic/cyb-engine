@@ -3,7 +3,7 @@
 #include "core/logger.h"
 #include "core/timer.h"
 #include "core/profiler.h"
-#include "core/helper.h"
+#include "core/filesystem.h"
 #include "core/mathlib.h"
 #include "graphics/renderer.h"
 #include "graphics/model-import.h"
@@ -500,7 +500,7 @@ namespace cyb::editor
 
     bool GuiTool::PreDraw()
     {
-        return ImGui::Begin(GetWindowTitle(), &show_window, ImGuiWindowFlags_HorizontalScrollbar);
+        return ImGui::Begin(GetWindowTitle(), &m_showWindow, m_windowFlags);
     }
 
     void GuiTool::PostDraw()
@@ -613,7 +613,11 @@ namespace cyb::editor
     public:
         TerrainGenerator generator;
 
-        using GuiTool::GuiTool;
+        Tool_TerrainGeneration(const std::string& windowTitle) :
+            GuiTool(windowTitle, ImGuiWindowFlags_MenuBar)
+        {
+        }
+        
         virtual void Draw() override
         {
             generator.DrawGui(scenegraph_view.SelectedEntity());
@@ -673,7 +677,7 @@ namespace cyb::editor
     // TODO: Add a dialog to prompt user about unsaved progress
     void OpenDialog_Open()
     {
-        helper::FileDialog(helper::FileOp::OPEN, FILE_FILTER_SCENE, [](std::string filename) {
+        filesystem::OpenDialog(FILE_FILTER_SCENE, [](std::string filename) {
             eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t) {
                 scene::GetScene().Clear();
                 scene::LoadModel(filename);
@@ -685,14 +689,12 @@ namespace cyb::editor
     // it will be automaticly selected in the scene graph view.
     void OpenDialog_ImportModel(const std::string filter)
     {
-        helper::FileDialog(helper::FileOp::OPEN, filter, [](std::string filename) {
+        filesystem::OpenDialog(filter, [](std::string filename) {
             eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t) {
-                std::string extension = helper::ToUpper(helper::GetExtensionFromFileName(filename));
-                if (extension.compare("CBS") == 0)
-                {
+                const std::string extension = filesystem::GetFileExtension(filename);
+                if (filesystem::FileHasExtension(filename, "csb"))
                     scene::LoadModel(filename);
-                }
-                else if (extension.compare("GLB") == 0 || extension.compare("GLTF") == 0)
+                else if (filesystem::FileHasExtension(filename, "glb") || filesystem::FileHasExtension(filename, "gltf"))
                 {
                     ecs::Entity entity = renderer::ImportModel_GLTF(filename, scene::GetScene());
                     SetSceneGraphViewSelection(entity);
@@ -703,11 +705,9 @@ namespace cyb::editor
 
     void OpenDialog_SaveAs()
     {
-        helper::FileDialog(helper::FileOp::SAVE, FILE_FILTER_SCENE, [](std::string filename) {
-            if (helper::GetExtensionFromFileName(filename) != "cbs")
-            {
+        filesystem::SaveDialog(FILE_FILTER_SCENE, [](std::string filename) {
+            if (!filesystem::FileHasExtension(filename, "csb"))
                 filename += ".cbs";
-            }
 
             serializer::Archive ar;
             Timer timer;

@@ -1,7 +1,6 @@
 #include "core/logger.h"
 #include "core/serializer.h"
-#include "core/helper.h"
-#include <fstream>
+#include "core/filesystem.h"
 
 namespace cyb::serializer
 {
@@ -11,25 +10,22 @@ namespace cyb::serializer
     }
 
     Archive::Archive(const std::string& filename) :
-        m_mode(Access::kRead)
+        m_mode(Access::Read)
     {
-        if (helper::FileRead(filename, m_data))
+        if (filesystem::ReadFile(filename, m_data))
         {
             m_dataPtr = m_data.data();
             (*this) >> m_version;
-            if (m_version < kLeastUupportedVersion)
-            {
-                CYB_ERROR("Unsupported version file={} version={} least_supported_version={}", filename, m_version, kLeastUupportedVersion);
-            }
+            CYB_CERROR(m_version < LeastUupportedVersion, "Unsupported version file={} version={} LeastUupportedVersion={}", filename, m_version, LeastUupportedVersion);
         }
     }
 
     void Archive::CreateEmpty()
     {
-        m_version = kArchiveVersion;
-        m_data.resize(kArchiveInitSize);
+        m_version = ArchiveVersion;
+        m_data.resize(ArchiveInitSize);
         m_dataPtr = m_data.data();
-        SetAccessModeAndResetPos(kWrite);
+        SetAccessModeAndResetPos(Write);
     }
 
     void Archive::SetAccessModeAndResetPos(Access mode)
@@ -59,7 +55,7 @@ namespace cyb::serializer
 
     bool Archive::SaveFile(const std::string filename)
     {
-        return helper::FileWrite(filename, m_dataPtr, m_pos);
+        return filesystem::WriteFile(filename, m_dataPtr, m_pos);
     }
 
     Archive& Archive::operator<<(char data)

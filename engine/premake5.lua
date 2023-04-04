@@ -21,6 +21,7 @@ project "engine"
 
 		-- Add staticly linked third party libraries
 		"third_party/*.h",
+		"third_party/*.hpp",
 		"third_party/*.cpp",
 		"third_party/*.c",
 		"third_party/fmt/*.h",

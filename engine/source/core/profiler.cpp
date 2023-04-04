@@ -1,7 +1,7 @@
-#include "core/profiler.h"
-#include "core/helper.h"
 #include <mutex>
 #include <algorithm>
+#include "core/profiler.h"
+#include "core/hash.h"
 
 namespace cyb::profiler
 {
@@ -39,7 +39,7 @@ namespace cyb::profiler
 
     EntryID BeginCpuEntry(const char* name)
     {
-        EntryID id = helper::StringHash(name);
+        EntryID id = hash::StringHash(name);
         assert(!profiler_entries[id].in_use);
 
         profiler_entries[id].in_use = true;

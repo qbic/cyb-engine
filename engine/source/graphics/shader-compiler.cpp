@@ -1,11 +1,12 @@
-#include "core/logger.h"
-#include "core/helper.h"
-#include "core/timer.h"
-#include "graphics/shader-compiler.h"
 #include <array>
 #include <sstream>
 #include <filesystem>
 #include <shaderc/shaderc.hpp>
+#include "core/logger.h"
+#include "core/filesystem.h"
+#include "core/hash.h"
+#include "core/timer.h"
+#include "graphics/shader-compiler.h"
 
 namespace cyb::graphics
 {
@@ -63,7 +64,7 @@ namespace cyb::graphics
             size_t include_depth)
         {
             auto userdata = new ReadFileResult;
-            const std::string fullpath = helper::GetBasePath(requesting_source) + requested_source;
+            const std::string fullpath = std::filesystem::path(requesting_source).parent_path().string() + "/" + requested_source;
 #if 0
             // Debugging:
             CYB_TRACE("GetInclude():");
@@ -72,7 +73,7 @@ namespace cyb::graphics
             CYB_TRACE(" requesting_source={0}", requesting_source);
             CYB_TRACE(" include_depth={0}", include_depth);
 #endif
-            if (helper::FileRead(fullpath, userdata->content, true))
+            if (filesystem::ReadFile(fullpath, userdata->content))
                 userdata->name = fullpath;
 
             auto result = new shaderc_include_result;
@@ -133,7 +134,7 @@ namespace cyb::graphics
         output->internal_state = internal_state;
         output->shaderdata = (uint8_t*)internal_state.get()->data();
         output->shadersize = sizeof(uint32_t) * internal_state.get()->size();
-        output->shaderhash = helper::StringHash(preprocessed_source.c_str());
+        output->shaderhash = hash::StringHash(preprocessed_source.c_str());
 
         CYB_TRACE("Compiled GLSL -> SPIR-V (filename={0}) in {1:.2f}ms", input->name, timer.ElapsedMilliseconds());
         return true;

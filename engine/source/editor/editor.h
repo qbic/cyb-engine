@@ -17,12 +17,17 @@ namespace cyb::editor
     class GuiTool
     {
     public:
-        GuiTool(const std::string& name) { Init();  window_title = name; }
+        GuiTool(const std::string& name, int windowFlags = 0) :
+            m_windowFlags(windowFlags),
+            m_windowTitle(name)
+        {
+            Init();
+        }
         virtual ~GuiTool() = default;
 
-        const char* GetWindowTitle() const { return window_title.c_str(); }
-        void ShowWindow(bool show = true) { show_window = show; }
-        bool IsShown() const { return show_window; }
+        const char* GetWindowTitle() const { return m_windowTitle.c_str(); }
+        void ShowWindow(bool show = true) { m_showWindow = show; }
+        bool IsShown() const { return m_showWindow; }
 
         virtual bool PreDraw();
         virtual void PostDraw();
@@ -31,8 +36,9 @@ namespace cyb::editor
         virtual void Draw() = 0;
 
     private:
-        std::string window_title;
-        bool show_window = false;
+        std::string m_windowTitle;
+        bool m_showWindow = false;
+        int m_windowFlags;
     };
 
     class SceneGraphView

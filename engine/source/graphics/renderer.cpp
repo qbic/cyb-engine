@@ -1,4 +1,4 @@
-#include "core/helper.h"
+#include "core/filesystem.h"
 #include "core/profiler.h"
 #include "systems/scene.h"
 #include "graphics/renderer.h"
@@ -118,11 +118,10 @@ namespace cyb::renderer
     {
         const std::string fullPath = SHADERPATH + filename;
         std::vector<uint8_t> fileData;
-        if (!helper::FileRead(fullPath, fileData))
+        if (!filesystem::ReadFile(fullPath, fileData))
             return false;
 
-        const std::string extension = helper::GetExtensionFromFileName(filename);
-        if (extension != "spv")
+        if (!filesystem::FileHasExtension(filename, "spv"))
         {
             ShaderCompilerInput input = {};
             input.format = ShaderFormat::GLSL;
@@ -409,9 +408,7 @@ namespace cyb::renderer
         {
             const math::AxisAlignedBox& aabb = scene->aabb_objects[i];
             if (frustum.IntersectBoundingBox(aabb))
-            {
-                visibleObjects[i] = helper::SafeTruncateToU32(i);
-            }
+                visibleObjects[i] = static_cast<uint32_t>(i);
         }
 
         // TODO: Perform aabb light culling

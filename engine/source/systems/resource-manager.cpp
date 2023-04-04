@@ -1,5 +1,5 @@
 #include "core/logger.h"
-#include "core/helper.h"
+#include "core/filesystem.h"
 #include "core/timer.h"
 #include "graphics/renderer.h"
 #define STB_RECT_PACK_IMPLEMENTATION
@@ -16,8 +16,6 @@
 #define STBI_NO_PNM
 #define STBI_FAILURE_USERMSG
 #include "stb_image.h"
-#include <unordered_map>
-#include <mutex>
 
 namespace cyb
 {
@@ -83,10 +81,10 @@ namespace cyb::resourcemanager
     DataType GetResourceTypeByExtension(const std::string& extension)
     {
         static const std::unordered_map<std::string, DataType> types = {
-            std::make_pair("JPG", DataType::Image),
-            std::make_pair("PNG", DataType::Image),
-            std::make_pair("DDS", DataType::Image),
-            std::make_pair("TGA", DataType::Image)
+            std::make_pair("jpg", DataType::Image),
+            std::make_pair("png", DataType::Image),
+            std::make_pair("dds", DataType::Image),
+            std::make_pair("tga", DataType::Image)
         };
 
         auto it = types.find(extension);
@@ -126,7 +124,7 @@ namespace cyb::resourcemanager
         // Load filedata if none was appointed
         if (filedata == nullptr || filesize == 0)
         {
-            if (!helper::FileRead(name, resource->data))
+            if (!filesystem::ReadFile(name, resource->data))
             {
                 resource.reset();
                 return Resource();
@@ -136,7 +134,7 @@ namespace cyb::resourcemanager
             filesize = resource->data.size();
         }
 
-        const std::string extension = helper::ToUpper(helper::GetExtensionFromFileName(name));
+        const std::string extension = filesystem::GetFileExtension(name);
         const DataType type = GetResourceTypeByExtension(extension);
         if (type == DataType::Unknown)
         {

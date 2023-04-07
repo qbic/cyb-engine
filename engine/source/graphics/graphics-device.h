@@ -559,7 +559,7 @@ namespace cyb::graphics
     {
     protected:
         static const uint32_t BUFFERCOUNT = 2;
-        const bool VALIDATION_MODE_ENABLED = false;
+        const bool VALIDATION_MODE_ENABLED = true;
         uint64_t frameCount = 0;
         uint64_t timestampFrequency = 0;
 
@@ -578,6 +578,7 @@ namespace cyb::graphics
         virtual CommandList BeginCommandList(QueueType queue = QueueType::Graphics) = 0;
         virtual void SubmitCommandList() {}
         virtual void SetName(GPUResource* resource, const char* name) { }
+        virtual void SetName(Shader* shader, const char* name) { }
 
         constexpr uint64_t GetFrameCount() const { return frameCount; }
         static constexpr uint32_t GetBufferCount() { return BUFFERCOUNT; }
@@ -672,7 +673,7 @@ namespace cyb::graphics
                 allocator.alignment = GetMinOffsetAlignment(&desc);
                 desc.size = AlignTo((allocator.buffer.desc.size + dataSize) * 2, allocator.alignment);
                 CreateBuffer(&desc, nullptr, &allocator.buffer);
-                SetName(&allocator.buffer, "cyb::FrameAlloc");
+                SetName(&allocator.buffer, "FrameAllocationBuffer");
                 allocator.offset = 0;
             }
 

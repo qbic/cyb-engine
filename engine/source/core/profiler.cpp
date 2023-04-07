@@ -105,7 +105,9 @@ namespace cyb::profiler
     EntryID BeginCpuEntry(const char* name)
     {
         EntryID id = hash::StringHash(name);
-        assert(!context.entries[id].inUse);
+        size_t differentiator = 0;
+        while (context.entries[id].inUse)
+            hash::HashCombine(id, differentiator++);
 
         context.entries[id].inUse = true;
         context.entries[id].name = name;
@@ -117,7 +119,9 @@ namespace cyb::profiler
     EntryID BeginGpuEntry(const char* name, graphics::CommandList cmd)
     {
         EntryID id = hash::StringHash(name);
-        assert(!context.entries[id].inUse);
+        size_t differentiator = 0;
+        while (context.entries[id].inUse)
+            hash::HashCombine(id, differentiator++);
 
         context.entries[id].inUse = true;
         context.entries[id].name = name;

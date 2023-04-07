@@ -227,6 +227,7 @@ namespace cyb::graphics
         virtual void SubmitCommandList() override;
 
         void SetName(GPUResource* pResource, const char* name) override;
+        void SetName(Shader* shader, const char* name) override;
 
         MemoryUsage GetMemoryUsage() const override;
 

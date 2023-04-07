@@ -52,7 +52,7 @@ namespace cyb::hli
                     RenderPassAttachment::LoadOp::Clear,
                     RenderPassAttachment::StoreOp::Store,
                     ResourceState::DepthStencil_ReadOnlyBit,
-                    ResourceState::DepthStencilBit,
+                    ResourceState::DepthStencil_ReadOnlyBit,
                     ResourceState::DepthStencil_ReadOnlyBit));
 
             device->CreateRenderPass(&desc, &renderPass_Main);

@@ -520,7 +520,7 @@ namespace cyb::editor
             const auto& gpuFrame = profilerContext.entries.find(profilerContext.gpuFrame);
 
             ImGui::Text("Frame counter: %u", graphics::GetDevice()->GetFrameCount());
-            ImGui::Text("Avarage FPS (over %d frames): %d", _countof(deltatimes), avgFps);
+            ImGui::Text("Average FPS (over %d frames): %d", _countof(deltatimes), avgFps);
             graphics::GraphicsDevice::MemoryUsage vram = graphics::GetDevice()->GetMemoryUsage();
             ImGui::Text("VRAM usage: %dMB / %dMB", vram.usage / 1024 / 1024, vram.budget / 1024 / 1024);
 

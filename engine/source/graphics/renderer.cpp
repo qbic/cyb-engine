@@ -141,7 +141,10 @@ namespace cyb::renderer
                 return false;
             }
 
-            return GetDevice()->CreateShader(stage, output.shaderdata, output.shadersize, &shader);
+            bool success = GetDevice()->CreateShader(stage, output.shaderdata, output.shadersize, &shader);
+            if (success)
+                GetDevice()->SetName(&shader, filename.c_str());
+            return success;
         }
         
         return GetDevice()->CreateShader(stage, fileData.data(), fileData.size(), &shader);
@@ -527,25 +530,21 @@ namespace cyb::renderer
                 }
 
                 const TransformComponent& transform = view.scene->transforms[object.transformIndex];
-                {
-                    MiscCB cb = {};
-                    XMMATRIX W = XMLoadFloat4x4(&transform.world);
-                    XMStoreFloat4x4(&cb.g_xModelMatrix, XMMatrixTranspose(W));
-                    XMStoreFloat4x4(&cb.g_xTransform, XMMatrixTranspose(W * view.camera->GetViewProjection()));
-                    device->BindDynamicConstantBuffer(cb, CBSLOT_MISC, cmd);
-                }
+                MiscCB cb = {};
+                XMMATRIX W = XMLoadFloat4x4(&transform.world);
+                XMStoreFloat4x4(&cb.g_xModelMatrix, XMMatrixTranspose(W));
+                XMStoreFloat4x4(&cb.g_xTransform, XMMatrixTranspose(W * view.camera->GetViewProjection()));
+                device->BindDynamicConstantBuffer(cb, CBSLOT_MISC, cmd);
 
                 for (const auto& subset : mesh->subsets)
                 {
                     // Setup Object constant buffer
                     const MaterialComponent* material = view.scene->materials.GetComponent(subset.materialID);
-                    {
-                        MaterialCB material_cb;
-                        material_cb.baseColor = material->baseColor;
-                        material_cb.roughness = material->roughness;
-                        material_cb.metalness = material->metalness;
-                        device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
-                    }
+                    MaterialCB material_cb;
+                    material_cb.baseColor = material->baseColor;
+                    material_cb.roughness = material->roughness;
+                    material_cb.metalness = material->metalness;
+                    device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
 
                     PipelineState* pso = &pso_object[material->shaderType];
                     device->BindPipelineState(pso, cmd);

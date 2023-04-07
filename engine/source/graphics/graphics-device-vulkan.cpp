@@ -2,6 +2,7 @@
 #include "core/logger.h"
 #include "core/platform.h"
 #include "core/hash.h"
+#include "core/profiler.h"
 #include "graphics/graphics-device-vulkan.h"
 #include "volk.h"
 #define VMA_IMPLEMENTATION
@@ -3171,6 +3172,7 @@ namespace cyb::graphics
     void GraphicsDevice_Vulkan::DrawIndexed(uint32_t index_count, uint32_t start_index_location, int32_t base_vertex_location, CommandList cmd)
     {
         PreDraw(cmd);
+
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         vkCmdDrawIndexed(commandlist.GetCommandBuffer(), index_count, 1, start_index_location, base_vertex_location, 0);
     }
@@ -3245,7 +3247,7 @@ namespace cyb::graphics
 
     void GraphicsDevice_Vulkan::SetName(GPUResource* resource, const char* name)
     {
-        if (!debugUtils)
+        if (!debugUtils || resource == nullptr || !resource->IsValid())
             return;
 
         VkDebugUtilsObjectNameInfoEXT info = {};
@@ -3261,6 +3263,24 @@ namespace cyb::graphics
             info.objectType = VK_OBJECT_TYPE_IMAGE;
             info.objectHandle = (uint64_t)ToInternal((const Texture*)resource)->resource;
         }
+
+        if (info.objectHandle == (uint64_t)VK_NULL_HANDLE)
+            return;
+
+        VkResult res = vkSetDebugUtilsObjectNameEXT(device, &info);
+        assert(res == VK_SUCCESS);
+    }
+
+    void GraphicsDevice_Vulkan::SetName(Shader* shader, const char* name)
+    {
+        if (!debugUtils || shader == nullptr || !shader->IsValid())
+            return;
+
+        VkDebugUtilsObjectNameInfoEXT info = {};
+        info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        info.objectType = VK_OBJECT_TYPE_SHADER_MODULE;
+        info.objectHandle = (uint64_t)ToInternal(shader)->shadermodule;
+        info.pObjectName = name;
 
         if (info.objectHandle == (uint64_t)VK_NULL_HANDLE)
             return;

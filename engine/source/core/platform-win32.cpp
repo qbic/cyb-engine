@@ -26,7 +26,7 @@ namespace cyb::platform
 		HWND handle;
 
 	public:
-		explicit Window_Win32(const WindowCreateDescription& desc);
+		explicit Window_Win32(const WindowDesc& desc);
 		~Window_Win32() = default;
 
 		virtual LRESULT WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -59,18 +59,19 @@ namespace cyb::platform
 		return str;
 	}
 
-	Window_Win32::Window_Win32(const WindowCreateDescription& desc)
+	Window_Win32::Window_Win32(const WindowDesc& desc)
 	{
+		assert(applicationInstance);
+
 		// Register a log output for visual studio's output window
 		logger::RegisterOutputModule(std::make_shared<LogOutputModule_VisualStudio>());
 
-		assert(applicationInstance);
 		DWORD style = WS_POPUP | WS_OVERLAPPED | WS_SYSMENU | WS_BORDER | WS_CAPTION;
 		DWORD exStyle = WS_EX_APPWINDOW;
 
-		if (HasFlag(desc.flags, WindowCreateFlags::AllowMinimizeBit))
+		if (HasFlag(desc.flags, WindowFlags::AllowMinimizeBit))
 			style |= WS_MINIMIZEBOX;
-		if (HasFlag(desc.flags, WindowCreateFlags::AllowMaximizeBit))
+		if (HasFlag(desc.flags, WindowFlags::AllowMaximizeBit))
 			style |= WS_MAXIMIZEBOX;
 
 		// Adjust window size and positions to take into account window border
@@ -183,12 +184,12 @@ namespace cyb::platform
 		return applicationInstance;
 	}
 
-	std::shared_ptr<Window> CreateNewWindow(const WindowCreateDescription& settings)
+	std::shared_ptr<Window> CreateNewWindow(const WindowDesc& settings)
 	{
 		return std::make_shared<Window_Win32>(settings);
 	}
 
-	void CreateMainWindow(const WindowCreateDescription& settings)
+	void CreateMainWindow(const WindowDesc& settings)
 	{
 		platform::main_window = CreateNewWindow(settings);
 	}
@@ -208,10 +209,9 @@ namespace cyb::platform
 	{
 		char szFile[MAX_PATH] = {};
 
-		OPENFILENAMEA ofn;
-		ZeroMemory(&ofn, sizeof(ofn));
+		OPENFILENAMEA ofn = {};
 		ofn.lStructSize = sizeof(ofn);
-		ofn.hwndOwner = nullptr;
+		ofn.hwndOwner = (HWND)main_window->GetNativePtr();
 		ofn.lpstrFile = szFile;
 		ofn.lpstrFile[0] = '\0';
 		ofn.nMaxFile = sizeof(szFile);

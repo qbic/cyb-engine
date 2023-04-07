@@ -5,33 +5,24 @@ namespace cyb::math
 {
     struct AxisAlignedBox
     {
-        XMFLOAT3 min;
-        XMFLOAT3 max;
+        AxisAlignedBox();
+        AxisAlignedBox(const XMFLOAT3& min, const XMFLOAT3& max);
+        AxisAlignedBox(float min, float max);
 
-        explicit AxisAlignedBox()
-        {
-            min = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
-            max = XMFLOAT3(-FLT_MAX, -FLT_MAX, FLT_MAX);
-        }
-
-        AxisAlignedBox(const XMFLOAT3& inMin, const XMFLOAT3& inMax) :
-            min(inMin),
-            max(inMax)
-        {
-        }
-
-        AxisAlignedBox TransformBy(const XMMATRIX& mat) const;
+        AxisAlignedBox Transform(const XMMATRIX& transform) const;
         XMMATRIX GetAsBoxMatrix() const;
         bool IsInside(const XMFLOAT3& p) const;
-    };
 
-    // Utility function to construct a new AABB from position and half width.
-    AxisAlignedBox AABBFromHalfWidth(const XMFLOAT3& origin, const XMFLOAT3& extent);
+        XMFLOAT3 min;
+        XMFLOAT3 max;
+    };
 
     struct Ray
     {
-        explicit Ray(const XMVECTOR& inOrigin, const XMVECTOR& inDirection);
-        bool IntersectBoundingBox(const AxisAlignedBox& aabb) const;
+        Ray() = default;
+        Ray(const XMVECTOR& inOrigin, const XMVECTOR& inDirection);
+        
+        bool IntersectsBoundingBox(const AxisAlignedBox& aabb) const;
 
         XMFLOAT3 origin;
         XMFLOAT3 direction;
@@ -40,9 +31,10 @@ namespace cyb::math
 
     struct Frustum
     {
-        explicit Frustum() { }
-        explicit Frustum(const XMMATRIX& viewProjection);
-        bool IntersectBoundingBox(const AxisAlignedBox& aabb) const;
+        Frustum() = default;
+        Frustum(const XMMATRIX& viewProjection);
+
+        bool IntersectsBoundingBox(const AxisAlignedBox& aabb) const;
 
         XMFLOAT4 planes[6];
     };

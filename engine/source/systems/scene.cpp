@@ -1,5 +1,6 @@
-#include "Core/Profiler.h"
-#include "Systems/Scene.h"
+#include "core/profiler.h"
+#include "core/logger.h"
+#include "systems/scene.h"
 
 namespace cyb::scene
 {
@@ -155,7 +156,7 @@ namespace cyb::scene
 
     void MeshComponent::CreateRenderData()
     {
-        graphics::GraphicsDevice* device = renderer::GetDevice();
+        graphics::GraphicsDevice* device = graphics::GetDevice();
 
         // Create index buffer gpu data
         {
@@ -471,7 +472,8 @@ namespace cyb::scene
             return;
         }
 
-        aabb = math::AABBFromHalfWidth(XMFLOAT3(0, 0, 0), XMFLOAT3(range, range, range));
+        const float halfRange = range * 0.5f;
+        aabb = math::AxisAlignedBox(-halfRange, halfRange);
     }
 
     void CameraComponent::CreatePerspective(float newAspect, float newNear, float newFar, float newFOV)
@@ -658,20 +660,15 @@ namespace cyb::scene
     {
         const HierarchyComponent* parent = hierarchy.GetComponent(entity);
         if (parent == nullptr)
-        {
             return;
-        }
 
         TransformComponent* transform = transforms.GetComponent(entity);
         transform->ApplyTransform();
         hierarchy.Remove(entity);
     }
 
-    void Scene::Update(float dt)
+    void Scene::Update([[maybe_unused]] float dt)
     {
-        CYB_PROFILE_FUNCTION();
-
-        (void)dt;   // Unused
         jobsystem::Context ctx;
         RunTransformUpdateSystem(ctx);
         jobsystem::Wait(ctx);               // Dependencies
@@ -795,7 +792,7 @@ namespace cyb::scene
                         object.transformIndex = (int32_t)transforms.GetIndex(entity);
                         const TransformComponent& transform = transforms[object.transformIndex];
 
-                        aabb = mesh->aabb.TransformBy(XMLoadFloat4x4(&transform.world));
+                        aabb = mesh->aabb.Transform(XMLoadFloat4x4(&transform.world));
                     }
                 }
             });
@@ -814,7 +811,7 @@ namespace cyb::scene
                     light.UpdateLight();
 
                     math::AxisAlignedBox& aabb = aabb_lights[i];
-                    aabb = light.aabb.TransformBy(XMLoadFloat4x4(&transform->world));
+                    aabb = light.aabb.Transform(XMLoadFloat4x4(&transform->world));
                 }
             });
     }
@@ -869,7 +866,7 @@ namespace cyb::scene
         {
             const math::AxisAlignedBox& aabb = scene.aabb_objects[i];
 
-            if (!ray.IntersectBoundingBox(aabb))
+            if (!ray.IntersectsBoundingBox(aabb))
                 continue;
 
             const ObjectComponent& object = scene.objects[i];

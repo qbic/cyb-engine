@@ -1,6 +1,7 @@
 #include <algorithm>
 #include "core/noise.h"
 #include "core/profiler.h"
+#include "core/logger.h"
 #include "core/filesystem.h"
 #include "editor/editor.h"
 #include "editor/terrain-generator.h"
@@ -1028,7 +1029,7 @@ namespace cyb::editor
         subresourceData.mem = image.data.data();
         subresourceData.rowPitch = desc.width * graphics::GetFormatStride(graphics::Format::R32_Float);
         
-        renderer::GetDevice()->CreateTexture(&desc, &subresourceData, &texture);
+        graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &texture);
     }
 
     void TerrainGenerator::UpdateTextures()

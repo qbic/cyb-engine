@@ -12,6 +12,7 @@ TODO FEATURES:
  * ImGuizmo transform undo
 
 Small stuff:
+move profile from core to tools sence it uses graphics device
 editor.cpp: bool vsync_enabled = true;      	// FIXME: initial value has to be synced with SwapChainDesc::vsync
 editor.cpp: void OpenDialog_Open()			// TODO: Add a dialog to prompt user about unsaved progress
     

@@ -28,10 +28,13 @@ namespace cyb::hli
         if (input::WasPressed(input::key::KB_F1))
             show_editor = !show_editor;
 
-        ImGui_Impl_CybEngine_Update();
-        editor::PushFrameTime(dt);
-        if (show_editor)
-            editor::Update();
+        {
+            CYB_PROFILE_SCOPE("GUI Update");
+            editor::UpdateFPSCounter(dt);
+            ImGui_Impl_CybEngine_Update();
+            if (show_editor)
+                editor::Update();
+        }
 #endif
     }
 
@@ -46,10 +49,13 @@ namespace cyb::hli
     void RenderPath2D::Compose(graphics::CommandList cmd) const
     {
 #ifndef NO_EDITOR
-        renderer::GetDevice()->BeginEvent("GUI", cmd);
-        //editor::Render(cmd);
-        ImGui_Impl_CybEngine_Compose(cmd);
-        renderer::GetDevice()->EndEvent(cmd);
+        {
+            CYB_PROFILE_SCOPE("GUI Render");
+            graphics::GetDevice()->BeginEvent("GUI", cmd);
+            //editor::Render(cmd);
+            ImGui_Impl_CybEngine_Compose(cmd);
+            graphics::GetDevice()->EndEvent(cmd);
+        }
 #endif
     }
 }

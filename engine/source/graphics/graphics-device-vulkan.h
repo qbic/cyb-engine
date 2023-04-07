@@ -215,6 +215,7 @@ namespace cyb::graphics
 
         bool CreateSwapChain(const SwapChainDesc* desc, platform::Window* window, SwapChain* swapchain) const override;
         bool CreateBuffer(const GPUBufferDesc* desc, const void* init_data, GPUBuffer* buffer) const override;
+        bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const override;
         bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const override;
         bool CreateShader(ShaderStage stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const override;
         bool CreateSampler(const SamplerDesc* desc, Sampler* sampler) const override;
@@ -250,6 +251,11 @@ namespace cyb::graphics
         void Draw(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd) override;
         void DrawIndexed(uint32_t index_count, uint32_t start_index_location, int32_t base_vertex_location, CommandList cmd) override;
 
+        void BeginQuery(const GPUQuery* query, uint32_t index, CommandList cmd) override;
+        void EndQuery(const GPUQuery* query, uint32_t index, CommandList cmd) override;
+        void ResolveQuery(const GPUQuery* query, uint32_t index, uint32_t count, const GPUBuffer* dest, uint64_t destOffset, CommandList cmd) override;
+        void ResetQuery(const GPUQuery* query, uint32_t index, uint32_t count, CommandList cmd) override;
+
         void BeginEvent(const char* name, CommandList cmd) override;
         void EndEvent(CommandList cmd) override;
 
@@ -272,6 +278,7 @@ namespace cyb::graphics
             std::deque<std::pair<VkImageView, uint64_t>> destroyer_imageviews;
             std::deque<std::pair<std::pair<VkBuffer, VmaAllocation>, uint64_t>> destroyer_buffers;
             std::deque<std::pair<VkBufferView, uint64_t>> destroyer_bufferviews;
+            std::deque<std::pair<VkQueryPool, uint64_t>> destroyer_querypools;
             std::deque<std::pair<VkSampler, uint64_t>> destroyer_samplers;
             std::deque<std::pair<VkDescriptorPool, uint64_t>> destroyer_descriptorPools;
             std::deque<std::pair<VkShaderModule, uint64_t>> destroyer_shadermodules;
@@ -339,6 +346,19 @@ namespace cyb::graphics
                         auto& item = destroyer_bufferviews.front();
                         destroyer_bufferviews.pop_front();
                         vkDestroyBufferView(device, item.first, nullptr);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                while (!destroyer_querypools.empty())
+                {
+                    if (destroyer_querypools.front().second + BUFFERCOUNT < frameCount)
+                    {
+                        auto& item = destroyer_querypools.front();
+                        destroyer_querypools.pop_front();
+                        vkDestroyQueryPool(device, item.first, nullptr);
                     }
                     else
                     {

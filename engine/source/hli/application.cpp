@@ -47,23 +47,23 @@ namespace cyb::hli
 
 		Compose(cmd);
 		graphics_device->EndRenderPass(cmd);
-		graphics_device->SubmitCommandList();
 
-		profiler::EndFrame();
+		profiler::EndFrame(cmd);
+		graphics_device->SubmitCommandList();
 	}
 
 	void Application::Initialize()
 	{
 		// Create a new vulkan render device and set it as default
 		graphics_device = std::make_unique<graphics::GraphicsDevice_Vulkan>();
-		renderer::GetDevice() = graphics_device.get();
-		graphics::GraphicsDevice* device = renderer::GetDevice();
+		graphics::GetDevice() = graphics_device.get();
+		graphics::GraphicsDevice* device = graphics::GetDevice();
 
 		graphics::SwapChainDesc desc = {};
 		XMINT2 physical_window_size = window->GetClientSize();
 		desc.width = physical_window_size.x;
 		desc.height = physical_window_size.y;
-		renderer::GetDevice()->CreateSwapChain(&desc, window.get(), &swapchain);
+		graphics::GetDevice()->CreateSwapChain(&desc, window.get(), &swapchain);
 
 		change_vsyc_event = eventsystem::Subscribe(eventsystem::kEvent_SetVSync, [this](uint64_t userdata) {
 			SwapChainDesc desc = swapchain.desc;
@@ -80,7 +80,7 @@ namespace cyb::hli
 
 	void Application::Update(float dt)
 	{
-		CYB_PROFILE_FUNCTION();
+		CYB_PROFILE_SCOPE("Update");
 		if (active_path != nullptr)
 			active_path->Update(dt);
 		input::Update();
@@ -88,14 +88,14 @@ namespace cyb::hli
 
 	void Application::Render()
 	{
-		CYB_PROFILE_FUNCTION();
+		CYB_PROFILE_SCOPE("Render");
 		if (active_path != nullptr)
 			active_path->Render();
 	}
 
 	void Application::Compose(graphics::CommandList cmd)
 	{
-		CYB_PROFILE_FUNCTION();
+		CYB_PROFILE_SCOPE("Compose");
 		if (active_path != nullptr)
 			active_path->Compose(cmd);
 	}

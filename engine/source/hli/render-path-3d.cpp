@@ -1,4 +1,5 @@
 #include "core/platform.h"
+#include "core/profiler.h"
 #include "graphics/graphics-device.h"
 #include "systems/scene.h"
 #include "hli/render-path-3d.h"
@@ -10,7 +11,7 @@ namespace cyb::hli
 {
     void RenderPath3D::ResizeBuffers()
     {
-        GraphicsDevice* device = cyb::renderer::GetDevice();
+        GraphicsDevice* device = cyb::graphics::GetDevice();
         XMUINT2 internal_resolution = GetInternalResolution();
 
         // Render targets:
@@ -87,7 +88,7 @@ namespace cyb::hli
 
     void RenderPath3D::Render() const
     {
-        auto device = cyb::renderer::GetDevice();
+        auto device = cyb::graphics::GetDevice();
 
         // Prepare the frame:
         auto cmd = device->BeginCommandList();
@@ -95,27 +96,32 @@ namespace cyb::hli
         renderer::UpdateRenderData(sceneViewMain, frameCB, cmd);
 
         device->BeginEvent("Opaque Scene", cmd);
-
         Viewport viewport;
         viewport.width = (float)renderTarget_Main.GetDesc().width;
         viewport.height = (float)renderTarget_Main.GetDesc().height;
         device->BindViewports(&viewport, 1, cmd);
 
-        device->BeginRenderPass(&renderPass_Main, cmd);
-        renderer::DrawScene(sceneViewMain, cmd);
-        renderer::DrawSky(sceneViewMain.camera, cmd);
-        device->EndEvent(cmd);
+        {
+            CYB_PROFILE_GPU_SCOPE("Opaque Scene", cmd);
+            device->BeginRenderPass(&renderPass_Main, cmd);
+            renderer::DrawScene(sceneViewMain, cmd);
+            renderer::DrawSky(sceneViewMain.camera, cmd);
+            device->EndEvent(cmd);
+        }
 
-        renderer::DrawDebugScene(sceneViewMain, cmd);
-        device->EndEvent(cmd);
-        device->EndRenderPass(cmd);
+        {
+            CYB_PROFILE_GPU_SCOPE("Debug Scene", cmd);
+            renderer::DrawDebugScene(sceneViewMain, cmd);
+            device->EndEvent(cmd);
+            device->EndRenderPass(cmd);
+        }
 
         RenderPath2D::Render();
     }
 
     void RenderPath3D::Compose(CommandList cmd) const
     {
-        GraphicsDevice* device = renderer::GetDevice();
+        GraphicsDevice* device = graphics::GetDevice();
         renderer::ImageParams params;
         params.fullscreen = true;
 

@@ -3,15 +3,33 @@
 
 namespace cyb::math
 {
-    AxisAlignedBox AxisAlignedBox::TransformBy(const XMMATRIX& mat) const
+    AxisAlignedBox::AxisAlignedBox() :
+        min(FLT_MAX, FLT_MAX, FLT_MAX),
+        max(-FLT_MAX, -FLT_MAX, -FLT_MAX)
+    {
+    }
+
+    AxisAlignedBox::AxisAlignedBox(const XMFLOAT3& min, const XMFLOAT3& max) :
+        min(min),
+        max(max)
+    {
+    }
+
+    AxisAlignedBox::AxisAlignedBox(float min, float max) :
+        min(min, min, min),
+        max(max, max, max)
+    {
+    }
+
+    AxisAlignedBox AxisAlignedBox::Transform(const XMMATRIX& transform) const
     {
         const XMVECTOR vMin = XMLoadFloat3(&min);
         const XMVECTOR vMax = XMLoadFloat3(&max);
 
-        const XMVECTOR& m0 = mat.r[0];
-        const XMVECTOR& m1 = mat.r[1];
-        const XMVECTOR& m2 = mat.r[2];
-        const XMVECTOR& m3 = mat.r[3];
+        const XMVECTOR& m0 = transform.r[0];
+        const XMVECTOR& m1 = transform.r[1];
+        const XMVECTOR& m2 = transform.r[2];
+        const XMVECTOR& m3 = transform.r[3];
 
         const XMVECTOR vHalf = XMVectorReplicate(0.5f);
         const XMVECTOR vCenter = XMVectorMultiply(XMVectorAdd(vMax, vMin), vHalf);
@@ -68,7 +86,7 @@ namespace cyb::math
         XMStoreFloat3(&invDirection, XMVectorReciprocal(inDirection));
     }
 
-    bool Ray::IntersectBoundingBox(const AxisAlignedBox& aabb) const
+    bool Ray::IntersectsBoundingBox(const AxisAlignedBox& aabb) const
     {
         if (aabb.IsInside(origin))
             return true;
@@ -120,7 +138,7 @@ namespace cyb::math
         XMStoreFloat4(&planes[5], XMPlaneNormalize(mat.r[3] + mat.r[1]));
     }
 
-    bool Frustum::IntersectBoundingBox(const AxisAlignedBox& aabb) const
+    bool Frustum::IntersectsBoundingBox(const AxisAlignedBox& aabb) const
     {
         XMVECTOR min = XMLoadFloat3(&aabb.min);
         XMVECTOR max = XMLoadFloat3(&aabb.max);

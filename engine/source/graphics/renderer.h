@@ -129,12 +129,6 @@ namespace cyb::renderer
         void Update(const scene::Scene* scene, const scene::CameraComponent* camera);
     };
 
-    inline graphics::GraphicsDevice*& GetDevice()
-    {
-        static graphics::GraphicsDevice* device = nullptr;
-        return device;
-    }
-
     const graphics::Shader* GetShader(SHADERTYPE id);
     const graphics::Sampler* GetSamplerState(SSLOT id);
     const graphics::RasterizerState* GetRasterizerState(RSTYPES id);

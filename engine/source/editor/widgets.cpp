@@ -17,10 +17,10 @@ namespace cyb::ui
         ImGui::PushStyleColor(id, color);
     }
 
-    ColorScopeGuard::ColorScopeGuard(ImGuiCol id, ImU32 color) :
+    ColorScopeGuard::ColorScopeGuard(ImGuiCol id, ImColor color) :
         m_numColors(1)
     {
-        ImGui::PushStyleColor(id, color);
+        ImGui::PushStyleColor(id, color.Value);
     }
 
     ColorScopeGuard::ColorScopeGuard(const std::initializer_list<std::pair<ImGuiCol, ImVec4>> colors) :

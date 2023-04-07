@@ -5,7 +5,7 @@
 int WINAPI WinMain(HINSTANCE _In_ hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
     cyb::platform::Initialize(hInstance);
-    cyb::platform::WindowCreateDescription windowDesc;
+    cyb::platform::WindowDesc windowDesc;
     windowDesc.title = L"CybEngine Demo";
     windowDesc.size = XMFLOAT2(1920, 1080);
     cyb::platform::CreateMainWindow(windowDesc);

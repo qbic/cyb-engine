@@ -170,7 +170,7 @@ namespace cyb::resourcemanager
             subresourceData.mem = rawImage;
             subresourceData.rowPitch = width * channels;
             
-            renderer::GetDevice()->CreateTexture(&desc, &subresourceData, &resource->texture);
+            graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &resource->texture);
             stbi_image_free(rawImage);
         } break;
         };

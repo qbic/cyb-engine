@@ -14,7 +14,7 @@ namespace cyb::ui
     {
     public:
         ColorScopeGuard(ImGuiCol id, const ImVec4& color);
-        ColorScopeGuard(ImGuiCol id, ImU32 color);
+        ColorScopeGuard(ImGuiCol id, ImColor color);
         explicit ColorScopeGuard(const std::initializer_list<std::pair<ImGuiCol, ImVec4>> colors);
         explicit ColorScopeGuard(const std::initializer_list<std::pair<ImGuiCol, ImU32>> colors);
         ~ColorScopeGuard();

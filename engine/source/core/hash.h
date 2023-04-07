@@ -13,11 +13,11 @@ namespace cyb::hash
 
 	constexpr size_t StringHash(const char* input)
 	{
-		assert(input != nullptr);
 		// https://stackoverflow.com/questions/2111667/compile-time-string-hashing
 		size_t hash = sizeof(size_t) == 8 ? 0xcbf29ce484222325 : 0x811c9dc5;
 		const size_t prime = sizeof(size_t) == 8 ? 0x00000100000001b3 : 0x01000193;
 
+		assert(input != nullptr);
 		while (*input)
 		{
 			hash ^= static_cast<size_t>(*input);

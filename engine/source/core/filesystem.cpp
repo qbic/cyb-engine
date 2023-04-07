@@ -12,7 +12,7 @@ namespace cyb::filesystem
     {
         const size_t index = filename.rfind('.');
         if (index == std::string::npos)
-            return std::string();       // no extension was found
+            return std::string();   // no extension was found
 
         std::string ext = filename.substr(index + 1);
         std::transform(ext.cbegin(), ext.cend(), ext.begin(), ::tolower);
@@ -23,11 +23,11 @@ namespace cyb::filesystem
     {
         const std::string fileExtension = GetFileExtension(filename);
         if (fileExtension.empty() || fileExtension.size() > extension.size())
-            return false;       // size mismatch
+            return false;           // size mismatch
 
         for (size_t i = 0; i < fileExtension.size(); ++i)
             if (std::tolower(fileExtension[i] != extension[i]))
-                return false;   // char mismatch
+                return false;       // char mismatch
 
         return true;
     }

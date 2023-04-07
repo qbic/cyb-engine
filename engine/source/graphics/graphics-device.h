@@ -198,6 +198,13 @@ namespace cyb::graphics
     };
     CYB_ENABLE_BITMASK_OPERATORS(ResourceState);
 
+    enum class GPUQueryType
+    {
+        Timestamp,			                // retrieve time point of gpu execution
+        Occlusion,			                // how many samples passed depth test?
+        OcclusionBinary 	                // depth test passed or not?
+    };
+
     struct GPUBufferDesc
     {
         uint64_t size = 0;
@@ -205,6 +212,12 @@ namespace cyb::graphics
         BindFlags bindFlags = BindFlags::None;
         ResourceMiscFlag miscFlags = ResourceMiscFlag::None;
         uint32_t stride = 0;                // Needed for struct buffer types
+    };
+
+    struct GPUQueryDesc
+    {
+        GPUQueryType type = GPUQueryType::Timestamp;
+        uint32_t queryCount = 0;
     };
 
     struct Viewport
@@ -462,6 +475,11 @@ namespace cyb::graphics
         const GPUBufferDesc& GetDesc() const { return desc; }
     };
 
+    struct GPUQuery : public GPUResource
+    {
+        GPUQueryDesc desc;
+    };
+
     struct Texture final : public GPUResource
     {
         TextureDesc desc;
@@ -541,14 +559,16 @@ namespace cyb::graphics
     {
     protected:
         static const uint32_t BUFFERCOUNT = 2;
-        const bool VALIDATION_MODE_ENABLED = true;
+        const bool VALIDATION_MODE_ENABLED = false;
         uint64_t frameCount = 0;
+        uint64_t timestampFrequency = 0;
 
     public:
         virtual ~GraphicsDevice() = default;
 
         virtual bool CreateSwapChain(const SwapChainDesc* desc, platform::Window* window, SwapChain* swapchain) const = 0;
         virtual bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const = 0;
+        virtual bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const = 0;
         virtual bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const = 0;
         virtual bool CreateShader(ShaderStage stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const = 0;
         virtual bool CreateSampler(const SamplerDesc* desc, Sampler* sampler) const = 0;
@@ -560,7 +580,9 @@ namespace cyb::graphics
         virtual void SetName(GPUResource* resource, const char* name) { }
 
         constexpr uint64_t GetFrameCount() const { return frameCount; }
+        static constexpr uint32_t GetBufferCount() { return BUFFERCOUNT; }
         constexpr uint32_t GetBufferIndex() const { return GetFrameCount() % BUFFERCOUNT; }
+        constexpr uint64_t GetTimestampFrequency() const { return timestampFrequency; }
 
         // Returns the minimum required alignment for buffer offsets when creating subresources
         virtual uint64_t GetMinOffsetAlignment(const GPUBufferDesc* desc) const = 0;
@@ -598,6 +620,11 @@ namespace cyb::graphics
 
         virtual void Draw(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd) = 0;
         virtual void DrawIndexed(uint32_t index_count, uint32_t start_index_location, int32_t base_vertex_location, CommandList cmd) = 0;
+
+        virtual void BeginQuery(const GPUQuery* query, uint32_t index, CommandList cmd) = 0;
+        virtual void EndQuery(const GPUQuery* query, uint32_t index, CommandList cmd) = 0;
+        virtual void ResolveQuery(const GPUQuery* query, uint32_t index, uint32_t count, const GPUBuffer* dest, uint64_t destOffset, CommandList cmd) = 0;
+        virtual void ResetQuery(const GPUQuery* query, uint32_t index, uint32_t count, CommandList cmd) = 0;
 
         virtual void BeginEvent(const char* name, CommandList cmd) = 0;
         virtual void EndEvent(CommandList cmd) = 0;
@@ -720,6 +747,12 @@ namespace cyb::graphics
         }
 
         return 16u;
+    }
+
+    inline graphics::GraphicsDevice*& GetDevice()
+    {
+        static graphics::GraphicsDevice* device = nullptr;
+        return device;
     }
 }
 

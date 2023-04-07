@@ -6,7 +6,7 @@
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
 
-// This will couse CYB_ERROR to teminate the application
+// CYB_ERRORS_ARE_FATAL couses CYB_ERROR(...) to teminate the application
 #if CYB_DEBUG_BUILD
 #define CYB_ERRORS_ARE_FATAL	0
 #else

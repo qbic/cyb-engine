@@ -29,8 +29,6 @@ namespace cyb::editor
     const std::string FILE_FILTER_GLTF = "GLTF Files (*.gltf; *.glb)\0*.gltf;*.glb\0"s;
     const std::string FILE_FILTER_IMPORT_MODEL = FILE_FILTER_GLTF + FILE_FILTER_SCENE + FILE_FILTER_ALL;
 
-    const size_t PROFILER_FRAME_COUNT = 80;
-
     bool initialized = false;
     bool vsync_enabled = true;      // FIXME: initial value has to be synced with SwapChainDesc::vsync
     Resource import_icon;
@@ -42,9 +40,12 @@ namespace cyb::editor
     Resource scale_icon;
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::BOUNDS;
     bool guizmo_world_mode = true;
-    std::vector<float> g_frameTimes;
     SceneGraphView scenegraph_view;
 
+    // fps counter data
+    float deltatimes[30] = {};
+    uint32_t fpsAgvCounter = 0;
+    uint32_t avgFps = 0;
 
     //------------------------------------------------------------------------------
     // Component inspectors
@@ -514,38 +515,46 @@ namespace cyb::editor
         using GuiTool::GuiTool;
         virtual void Draw() override
         {
-            ImGui::SetNextItemWidth(-1);
+            const auto& profilerContext = profiler::GetContext();
+            const auto& cpuFrame = profilerContext.entries.find(profilerContext.cpuFrame);
+            const auto& gpuFrame = profilerContext.entries.find(profilerContext.gpuFrame);
 
-            const float totalFrameTime = std::accumulate(g_frameTimes.begin(), g_frameTimes.end(), 0.0f);
-            std::string avgFrameTime = std::string("avg. time: ") + std::to_string(totalFrameTime / PROFILER_FRAME_COUNT);
-            ImGui::PlotHistogram("##FrameTimes", &g_frameTimes[0], (uint32_t)g_frameTimes.size(), 0, avgFrameTime.c_str(), 0.0f, 0.02f, ImVec2(0, 80.0f));
-            ImGui::Text("Frame counter: %u", renderer::GetDevice()->GetFrameCount());
-            ImGui::Text("Avarage FPS (Over %d frames): %.1f", PROFILER_FRAME_COUNT, PROFILER_FRAME_COUNT / totalFrameTime);
-
-            graphics::GraphicsDevice::MemoryUsage vram = renderer::GetDevice()->GetMemoryUsage();
+            ImGui::Text("Frame counter: %u", graphics::GetDevice()->GetFrameCount());
+            ImGui::Text("Avarage FPS (over %d frames): %d", _countof(deltatimes), avgFps);
+            graphics::GraphicsDevice::MemoryUsage vram = graphics::GetDevice()->GetMemoryUsage();
             ImGui::Text("VRAM usage: %dMB / %dMB", vram.usage / 1024 / 1024, vram.budget / 1024 / 1024);
 
-            // Display profiler entries sorted by their cpu time
-            const auto& profiler_entries = profiler::GetData();
-            float max_time = 10.0f;
-            std::vector<std::pair<std::string_view, float>> sorted_entries;
-            sorted_entries.reserve(profiler_entries.size());
-            for (auto& it : profiler_entries)
-            {
-                max_time = std::max(max_time, it.second.time);
-                sorted_entries.emplace_back(std::pair< std::string_view, float>(it.second.name, it.second.time));
-            }
+            ImGui::BeginTable("CPU/GPU Profiling", 2, ImGuiTableFlags_Borders);
+            ImGui::TableNextColumn();
+            ui::ColorScopeGuard cpuFrameLineColor(ImGuiCol_PlotLines, ImColor(255, 0, 0));
+            const std::string cpuOverlayText = fmt::format("CPU Frame: {:.1f}ms", cpuFrame->second.time);
+            ImGui::SetNextItemWidth(-1);
+            ImGui::PlotLines("##CPUFrame", profilerContext.cpuFrameGraph, profiler::FRAME_GRAPH_ENTRIES, 0, cpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
+            ImGui::Spacing();
+            ImGui::Text("CPU Frame: %.2f", cpuFrame->second.time);
+            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8);
+            ImGui::Indent();
+            for (auto& [entryID, entry] : profilerContext.entries)
+                if (entry.IsCPUEntry() && entryID != cpuFrame->first)
+                    ImGui::Text("%s: %.2fms", entry.name.c_str(), entry.time);
+            ImGui::Unindent();
+            ImGui::PopStyleVar();
 
-            std::sort(sorted_entries.begin(), sorted_entries.end(), [=](std::pair<std::string_view, float>& a, std::pair<std::string_view, float>& b)
-                {
-                    return a.second > b.second;
-                });
-
-            for (auto& it : sorted_entries)
-            {
-                ImGui::SetNextItemWidth(-1);
-                ui::FilledBar(it.first.data(), it.second, 0, max_time, "{:.3f}ms");
-            }
+            ImGui::TableNextColumn();
+            ui::ColorScopeGuard gpuFrameLineColor(ImGuiCol_PlotLines, ImColor(0, 0, 255));
+            const std::string gpuOverlayText = fmt::format("GPU Frame: {:.1f}ms", gpuFrame->second.time);
+            ImGui::SetNextItemWidth(-1);
+            ImGui::PlotLines("##GPUFrame", profilerContext.gpuFrameGraph, profiler::FRAME_GRAPH_ENTRIES, 0, gpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
+            ImGui::Separator();
+            ImGui::Text("GPU Frame: %.2f", gpuFrame->second.time);
+            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8);
+            ImGui::Indent();
+            for (auto& [entryID, entry] : profilerContext.entries)
+                if (!entry.IsCPUEntry() && entryID != gpuFrame->first)
+                    ImGui::Text("%s: %.2fms", entry.name.c_str(), entry.time);
+            ImGui::Unindent();
+            ImGui::PopStyleVar();
+            ImGui::EndTable();
         }
     };
 
@@ -990,13 +999,6 @@ namespace cyb::editor
     // PUBLIC API
     //------------------------------------------------------------------------------
 
-    void PushFrameTime(const float t)
-    {
-        g_frameTimes.push_back(t);
-        while (g_frameTimes.size() > PROFILER_FRAME_COUNT)
-            g_frameTimes.erase(g_frameTimes.begin());
-    }
-
     void Initialize()
     {        
         // Attach built-in tools
@@ -1031,7 +1033,6 @@ namespace cyb::editor
 
     void Update()
     {
-        CYB_PROFILE_FUNCTION();
         if (!initialized)
             return;
 
@@ -1093,6 +1094,16 @@ namespace cyb::editor
         }
 
         DrawTools();
+    }
+
+    void UpdateFPSCounter(float dt)
+    {
+        deltatimes[fpsAgvCounter++ % _countof(deltatimes)] = dt;
+        if (fpsAgvCounter > _countof(deltatimes))
+        {
+            float avgTime = std::accumulate(std::begin(deltatimes), std::end(deltatimes), 0.0f) / _countof(deltatimes);
+            avgFps = (uint32_t)std::round(1.0f / avgTime);
+        }
     }
 
     bool WantInput()

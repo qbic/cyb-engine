@@ -74,7 +74,7 @@ void GameRenderer::CameraControl(float dt)
     // if dt > 100 millisec, don't allow the camera to jump too far...
     const float clampedDt = std::min(dt, 0.1f);
 
-    const float speed = (input::IsDown('F') ? 3.0f : 1.0f) * m_moveSpeed;
+    const float speed = (input::IsDown('F') ? 3.0f : 1.0f) * 10.0f * m_moveSpeed * clampedDt;
     XMVECTOR move = XMLoadFloat3(&m_cameraMove);
     XMVECTOR moveNew = XMVectorSet(0, 0, 0, 0);
 
@@ -92,8 +92,11 @@ void GameRenderer::CameraControl(float dt)
         moveNew += XMVectorSet(0, 1, 0, 0);
     moveNew = XMVector3Normalize(moveNew) * speed;
 
-    move = XMVectorLerp(move, moveNew, m_moveAcceleration * clampedDt / 0.0166f); // smooth the movement a bit
+    move = XMVectorLerp(move, moveNew, math::Min(0.1f, m_moveAcceleration * clampedDt / 0.0166f)); // smooth the movement a bit
     const float moveLength = XMVectorGetX(XMVector3Length(move));
+
+    if (moveLength < 0.0001f)
+        move = XMVectorSet(0, 0, 0, 0);
     
     if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f)
     {

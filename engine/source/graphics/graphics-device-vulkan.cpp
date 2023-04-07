@@ -194,6 +194,22 @@ namespace cyb::graphics::vulkan_internal
         }
     };
 
+    struct Query_Vulkan
+    {
+        std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
+        VkQueryPool pool = VK_NULL_HANDLE;
+
+        ~Query_Vulkan()
+        {
+            if (allocationhandler == nullptr)
+                return;
+            allocationhandler->destroylocker.lock();
+            uint64_t framecount = allocationhandler->framecount;
+            if (pool) allocationhandler->destroyer_querypools.push_back(std::make_pair(pool, framecount));
+            allocationhandler->destroylocker.unlock();
+        }
+    };
+
     struct Texture_Vulkan
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
@@ -1533,6 +1549,8 @@ namespace cyb::graphics
             }
         }
 
+        timestampFrequency = uint64_t(1.0 / double(properties2.properties.limits.timestampPeriod) * 1000 * 1000 * 1000);
+
         // Dynamic PSO states:
         pso_dynamic_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
         pso_dynamic_states.push_back(VK_DYNAMIC_STATE_SCISSOR);
@@ -1541,7 +1559,6 @@ namespace cyb::graphics
         dynamic_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
         dynamic_state_info.dynamicStateCount = (uint32_t)pso_dynamic_states.size();
         dynamic_state_info.pDynamicStates = pso_dynamic_states.data();
-
 
         // Create pipeline cache
         // TODO: Load pipeline cache from disk
@@ -1780,6 +1797,34 @@ namespace cyb::graphics
         }
 
         return R_SUCCESS;
+    }
+
+    bool GraphicsDevice_Vulkan::CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const
+    {
+        auto internal_state = std::make_shared<Query_Vulkan>();
+        internal_state->allocationhandler = allocationhandler;
+        query->internal_state = internal_state;
+        query->desc = *desc;
+
+        VkQueryPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+        poolInfo.queryCount = desc->queryCount;
+
+        switch (desc->type)
+        {
+        case GPUQueryType::Timestamp:
+            poolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+            break;
+        case GPUQueryType::Occlusion:
+        case GPUQueryType::OcclusionBinary:
+            poolInfo.queryType = VK_QUERY_TYPE_OCCLUSION;
+            break;
+        }
+
+        VkResult res = vkCreateQueryPool(device, &poolInfo, nullptr, &internal_state->pool);
+        assert(res == VK_SUCCESS);
+
+        return (res == VK_SUCCESS);
     }
 
     void GraphicsDevice_Vulkan::BindVertexBuffers(const GPUBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets, CommandList cmd)
@@ -3128,6 +3173,74 @@ namespace cyb::graphics
         PreDraw(cmd);
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         vkCmdDrawIndexed(commandlist.GetCommandBuffer(), index_count, 1, start_index_location, base_vertex_location, 0);
+    }
+
+    void GraphicsDevice_Vulkan::BeginQuery(const GPUQuery* query, uint32_t index, CommandList cmd)
+    {
+        CommandList_Vulkan& commandlist = GetCommandList(cmd);
+        auto internal_state = static_cast<Query_Vulkan*>(query->internal_state.get());
+
+        switch (query->desc.type)
+        {
+        case GPUQueryType::OcclusionBinary:
+            vkCmdBeginQuery(commandlist.GetCommandBuffer(), internal_state->pool, index, 0);
+            break;
+        case GPUQueryType::Occlusion:
+            vkCmdBeginQuery(commandlist.GetCommandBuffer(), internal_state->pool, index, VK_QUERY_CONTROL_PRECISE_BIT);
+            break;
+        case GPUQueryType::Timestamp:
+            break;
+        }
+    }
+
+    void GraphicsDevice_Vulkan::EndQuery(const GPUQuery* query, uint32_t index, CommandList cmd)
+    {
+        CommandList_Vulkan& commandlist = GetCommandList(cmd);
+        auto internal_state = static_cast<Query_Vulkan*>(query->internal_state.get());
+
+        switch (query->desc.type)
+        {
+        case GPUQueryType::OcclusionBinary:
+        case GPUQueryType::Occlusion:
+            vkCmdEndQuery(commandlist.GetCommandBuffer(), internal_state->pool, index);
+            break;
+        case GPUQueryType::Timestamp:
+            vkCmdWriteTimestamp(commandlist.GetCommandBuffer(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, internal_state->pool, index);
+            break;
+        }
+    }
+
+    void GraphicsDevice_Vulkan::ResolveQuery(const GPUQuery* query, uint32_t index, uint32_t count, const GPUBuffer* dest, uint64_t destOffset, CommandList cmd)
+    {
+        CommandList_Vulkan& commandlist = GetCommandList(cmd);
+        auto internal_state = static_cast<Query_Vulkan*>(query->internal_state.get());
+        auto dst_internal = static_cast<Buffer_Vulkan*>(dest->internal_state.get());
+
+        VkQueryResultFlags flags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT;
+        if (query->desc.type == GPUQueryType::OcclusionBinary)
+            flags |= VK_QUERY_RESULT_PARTIAL_BIT;
+
+        vkCmdCopyQueryPoolResults(
+            commandlist.GetCommandBuffer(),
+            internal_state->pool,
+            index,
+            count,
+            dst_internal->resource,
+            destOffset,
+            sizeof(uint64_t),
+            flags);
+    }
+
+    void GraphicsDevice_Vulkan::ResetQuery(const GPUQuery* query, uint32_t index, uint32_t count, CommandList cmd)
+    {
+        CommandList_Vulkan& commandlist = GetCommandList(cmd);
+        auto internal_state = static_cast<Query_Vulkan*>(query->internal_state.get());
+
+        vkCmdResetQueryPool(
+            commandlist.GetCommandBuffer(),
+            internal_state->pool,
+            index,
+            count);
     }
 
     void GraphicsDevice_Vulkan::SetName(GPUResource* resource, const char* name)

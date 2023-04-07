@@ -1,5 +1,6 @@
 #include "core/filesystem.h"
 #include "core/profiler.h"
+#include "core/logger.h"
 #include "systems/scene.h"
 #include "graphics/renderer.h"
 #include "graphics/shader-compiler.h"
@@ -391,7 +392,6 @@ namespace cyb::renderer
 
     void SceneView::Update(const scene::Scene* scene, const scene::CameraComponent* camera)
     {
-        CYB_PROFILE_FUNCTION();
         assert(scene);
         assert(camera);
         assert(visibleObjects.empty());
@@ -400,24 +400,30 @@ namespace cyb::renderer
         this->scene = scene;
         this->camera = camera;
 
-        // Perform camera frustum culling to all objects aabb and
-        // store all visible objects in the view
-        const math::Frustum& frustum = camera->frustum;
-        visibleObjects.resize(scene->aabb_objects.Size());
-        for (size_t i = 0; i < scene->aabb_objects.Size(); ++i)
         {
-            const math::AxisAlignedBox& aabb = scene->aabb_objects[i];
-            if (frustum.IntersectBoundingBox(aabb))
-                visibleObjects[i] = static_cast<uint32_t>(i);
-        }
+            CYB_PROFILE_SCOPE("Frustum Culling");
+            // Perform camera frustum culling to all objects aabb and
+            // store all visible objects in the view
+            const math::Frustum& frustum = camera->frustum;
+            visibleObjects.resize(scene->aabb_objects.Size());
+            size_t visibleObjectsCount = 0;
+            for (size_t i = 0; i < scene->aabb_objects.Size(); ++i)
+            {
+                const math::AxisAlignedBox& aabb = scene->aabb_objects[i];
+                if (frustum.IntersectsBoundingBox(aabb))
+                {
+                    visibleObjects[visibleObjectsCount] = static_cast<uint32_t>(i);
+                    visibleObjectsCount++;
+                }
+            }
+            visibleObjects.resize(visibleObjectsCount);
 
-        // TODO: Perform aabb light culling
+            // TODO: Perform aabb light culling
+        }
     }
 
     void UpdatePerFrameData(const SceneView& view, float time, FrameCB& frameCB)
     {
-        CYB_PROFILE_FUNCTION();
-
         frameCB.time = time;
         frameCB.gamma = GAMMA;
 
@@ -457,7 +463,6 @@ namespace cyb::renderer
 
     void UpdateRenderData(const SceneView& view, const FrameCB& frameCB, graphics::CommandList cmd)
     {
-        CYB_PROFILE_FUNCTION();
         GraphicsDevice* device = GetDevice();
         device->BeginEvent("UpdateRenderData", cmd);
         GetDevice()->UpdateBuffer(&constantbuffers[CBTYPE_FRAME], &frameCB, cmd);
@@ -482,7 +487,6 @@ namespace cyb::renderer
 
     void DrawScene(const SceneView& view, CommandList cmd)
     {
-        CYB_PROFILE_FUNCTION();
         GraphicsDevice* device = GetDevice();
 
         device->BeginEvent("DrawScene", cmd);
@@ -580,7 +584,6 @@ namespace cyb::renderer
 
     void DrawDebugScene(const SceneView& view, CommandList cmd)
     {
-        CYB_PROFILE_FUNCTION();
         static GPUBuffer wirecube_vb;
         static GPUBuffer wirecube_ib;
 

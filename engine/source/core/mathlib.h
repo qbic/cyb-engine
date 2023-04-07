@@ -40,7 +40,7 @@ namespace cyb::math
     }
 
     template <typename Tfloat>
-    static int Round(Tfloat f)
+    constexpr int Round(Tfloat f)
     {
         return f >= 0 ? (int)(f + 0.5f) : (int)(f - 0.5f);
     }

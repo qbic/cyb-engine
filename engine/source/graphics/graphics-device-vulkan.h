@@ -29,12 +29,13 @@ namespace cyb::graphics
         VkPhysicalDeviceProperties2 properties2 = {};
         VkPhysicalDeviceVulkan11Properties properties_1_1 = {};
         VkPhysicalDeviceVulkan12Properties properties_1_2 = {};
-        VkPhysicalDeviceDriverProperties driver_properties = {};
+        VkPhysicalDeviceVulkan13Properties properties_1_3 = {};
         VkPhysicalDeviceMemoryProperties2 memory_properties_2 = {};
 
         VkPhysicalDeviceFeatures2 features2 = {};
         VkPhysicalDeviceVulkan11Features features_1_1 = {};
         VkPhysicalDeviceVulkan12Features features_1_2 = {};
+        VkPhysicalDeviceVulkan13Features features_1_3 = {};
 
         std::vector<VkDynamicState> pso_dynamic_states;
         VkPipelineDynamicStateCreateInfo dynamic_state_info = {};
@@ -67,7 +68,7 @@ namespace cyb::graphics
                 VkCommandPool commandpool = VK_NULL_HANDLE;
                 VkCommandBuffer commandbuffer = VK_NULL_HANDLE;
                 uint64_t target = 0;
-                GPUBuffer uploadbuffer;
+                GPUBuffer uploadBuffer;
             };
 
             std::vector<CopyCMD> freelist;              // Available
@@ -148,14 +149,17 @@ namespace cyb::graphics
             DescriptorBinderPool binder_pools[BUFFERCOUNT];
             GPULinearAllocator frame_allocators[BUFFERCOUNT];
 
+            std::vector<std::pair<size_t, VkPipeline>> pipelinesWorker;
             size_t prev_pipeline_hash = 0;
             std::vector<SwapChain> prev_swapchains;
 
-            const RenderPass* active_renderpass = nullptr;
             const PipelineState* active_pso = nullptr;
             uint32_t vertexbuffer_strides[8] = {};
             size_t vertexbuffer_hash = 0;
             bool dirty_pso = false;
+            RenderPassInfo renderpassInfo = {};
+            std::vector<VkImageMemoryBarrier> renderpassBarriersBegin;
+            std::vector<VkImageMemoryBarrier> renderpassBarriersEnd;
 
             inline VkCommandPool GetCommandPool() const
             {
@@ -173,7 +177,6 @@ namespace cyb::graphics
                 binder_pools[buffer_index].Reset();
                 frame_allocators[buffer_index].Reset();
                 prev_pipeline_hash = 0;
-                active_renderpass = nullptr;
                 active_pso = nullptr;
                 vertexbuffer_hash = 0;
                 for (int i = 0; i < _countof(vertexbuffer_strides); ++i)
@@ -220,7 +223,6 @@ namespace cyb::graphics
         bool CreateShader(ShaderStage stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const override;
         bool CreateSampler(const SamplerDesc* desc, Sampler* sampler) const override;
         bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const override;
-        bool CreateRenderPass(const RenderPassDesc* desc, RenderPass* renderpass) const override;
         void CreateSubresource(Texture* texture, SubresourceType type) const;
 
         virtual CommandList BeginCommandList(QueueType queue) override;
@@ -234,7 +236,7 @@ namespace cyb::graphics
         /////////////// Thread-sensitive ////////////////////////
 
         void BeginRenderPass(const SwapChain* swapchain, CommandList cmd) override;
-        void BeginRenderPass(const RenderPass* renderpass, CommandList cmd) override;
+        void BeginRenderPass(const RenderPassImage* images, uint32_t imageCount, CommandList cmd) override;
         void EndRenderPass(CommandList cmd) override;
 
         void BindScissorRects(const Rect* rects, uint32_t rectCount, CommandList cmd) override;
@@ -285,8 +287,6 @@ namespace cyb::graphics
             std::deque<std::pair<VkShaderModule, uint64_t>> destroyer_shadermodules;
             std::deque<std::pair<VkPipelineLayout, uint64_t>> destroyer_pipelineLayouts;
             std::deque<std::pair<VkPipeline, uint64_t>> destroyer_pipelines;
-            std::deque<std::pair<VkRenderPass, uint64_t>> destroyer_renderpasses;
-            std::deque<std::pair<VkFramebuffer, uint64_t>> destroyer_framebuffers;
             std::deque<std::pair<VkSwapchainKHR, uint64_t>> destroyer_swapchains;
             std::deque<std::pair<VkSurfaceKHR, uint64_t>> destroyer_surfaces;
             std::deque<std::pair<VkSemaphore, uint64_t>> destroyer_semaphores;
@@ -425,32 +425,6 @@ namespace cyb::graphics
                         auto& item = destroyer_pipelines.front();
                         destroyer_pipelines.pop_front();
                         vkDestroyPipeline(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_renderpasses.empty())
-                {
-                    if (destroyer_renderpasses.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_renderpasses.front();
-                        destroyer_renderpasses.pop_front();
-                        vkDestroyRenderPass(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_framebuffers.empty())
-                {
-                    if (destroyer_framebuffers.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_framebuffers.front();
-                        destroyer_framebuffers.pop_front();
-                        vkDestroyFramebuffer(device, item.first, nullptr);
                     }
                     else
                     {

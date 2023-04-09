@@ -25,37 +25,16 @@ namespace cyb::hli
             device->SetName(&renderTarget_Main, "renderTarget_Main");
         }
 
-        depthBuffer_Main.internal_state = std::make_shared<int>();
-
         // Depth stencil buffer:
         {
             TextureDesc desc;
-            desc.format = Format::D32_Float_S8_Uint;
-            desc.bindFlags = BindFlags::ShaderResourceBit | BindFlags::DepthStencilBit;
             desc.layout = ResourceState::DepthStencil_ReadOnlyBit;
+            desc.format = Format::D32_Float_S8_Uint;
+            desc.bindFlags = BindFlags::DepthStencilBit;
             desc.width = internal_resolution.x;
             desc.height = internal_resolution.y;
             device->CreateTexture(&desc, nullptr, &depthBuffer_Main);
             device->SetName(&depthBuffer_Main, "depthBuffer_Main");
-        }
-
-        // Render pass:
-        {
-            RenderPassDesc desc;
-            desc.attachments.push_back(
-                RenderPassAttachment::RenderTarget(
-                    &renderTarget_Main,
-                    RenderPassAttachment::LoadOp::DontCare));
-            desc.attachments.push_back(
-                RenderPassAttachment::DepthStencil(
-                    &depthBuffer_Main,
-                    RenderPassAttachment::LoadOp::Clear,
-                    RenderPassAttachment::StoreOp::Store,
-                    ResourceState::DepthStencil_ReadOnlyBit,
-                    ResourceState::DepthStencil_ReadOnlyBit,
-                    ResourceState::DepthStencil_ReadOnlyBit));
-
-            device->CreateRenderPass(&desc, &renderPass_Main);
         }
 
         RenderPath2D::ResizeBuffers();
@@ -101,9 +80,24 @@ namespace cyb::hli
         viewport.height = (float)renderTarget_Main.GetDesc().height;
         device->BindViewports(&viewport, 1, cmd);
 
+        RenderPassImage renderPassImages[] = {
+                    RenderPassImage::RenderTarget(
+                        &renderTarget_Main,
+                        RenderPassImage::LoadOp::DontCare),
+                    RenderPassImage::DepthStencil(
+                        &depthBuffer_Main,
+                        RenderPassImage::LoadOp::Clear,
+                        RenderPassImage::StoreOp::Store,
+                        ResourceState::DepthStencil_ReadOnlyBit,
+                        ResourceState::DepthStencilBit,
+                        ResourceState::DepthStencil_ReadOnlyBit
+                    )
+        };
+        device->BeginRenderPass(renderPassImages, _countof(renderPassImages), cmd);
+
         {
             CYB_PROFILE_GPU_SCOPE("Opaque Scene", cmd);
-            device->BeginRenderPass(&renderPass_Main, cmd);
+            //device->BeginRenderPass(&renderPass_Main, cmd);
             renderer::DrawScene(sceneViewMain, cmd);
             renderer::DrawSky(sceneViewMain.camera, cmd);
             device->EndEvent(cmd);

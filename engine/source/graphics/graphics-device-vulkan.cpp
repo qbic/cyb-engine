@@ -32,7 +32,6 @@ namespace cyb::graphics::vulkan_internal
         case Format::R32G32B32_Float:           return VK_FORMAT_R32G32B32_SFLOAT;
         }
 
-        assert(0);
         return VK_FORMAT_UNDEFINED;
     }
 
@@ -89,25 +88,25 @@ namespace cyb::graphics::vulkan_internal
         return VK_STENCIL_OP_KEEP;
     }
 
-    constexpr VkAttachmentLoadOp _ConvertLoadOp(RenderPassAttachment::LoadOp loadOp)
+    constexpr VkAttachmentLoadOp _ConvertLoadOp(RenderPassImage::LoadOp loadOp)
     {
         switch (loadOp)
         {
-        case RenderPassAttachment::LoadOp::Load: return VK_ATTACHMENT_LOAD_OP_LOAD;
-        case RenderPassAttachment::LoadOp::Clear: return VK_ATTACHMENT_LOAD_OP_CLEAR;
-        case RenderPassAttachment::LoadOp::DontCare: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        case RenderPassImage::LoadOp::Load: return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case RenderPassImage::LoadOp::Clear: return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case RenderPassImage::LoadOp::DontCare: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         }
 
         assert(0);
         return VK_ATTACHMENT_LOAD_OP_LOAD;
     }
- 
-    constexpr VkAttachmentStoreOp _ConvertStoreOp(RenderPassAttachment::StoreOp storeOp)
+
+    constexpr VkAttachmentStoreOp _ConvertStoreOp(RenderPassImage::StoreOp storeOp)
     {
         switch (storeOp)
         {
-        case RenderPassAttachment::StoreOp::Store: return VK_ATTACHMENT_STORE_OP_STORE;
-        case RenderPassAttachment::StoreOp::DontCare: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        case RenderPassImage::StoreOp::Store: return VK_ATTACHMENT_STORE_OP_STORE;
+        case RenderPassImage::StoreOp::DontCare: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
         }
 
         assert(0);
@@ -298,25 +297,6 @@ namespace cyb::graphics::vulkan_internal
         VkPipelineDepthStencilStateCreateInfo depthstencil = {};
     };
 
-    struct RenderPass_Vulkan
-    {
-        std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
-        VkRenderPass renderpass = VK_NULL_HANDLE;
-        VkFramebuffer framebuffer = VK_NULL_HANDLE;
-        VkRenderPassBeginInfo begin_info = {};
-        VkClearValue clear_values[9] = {};
-
-        ~RenderPass_Vulkan()
-        {
-            assert(allocationhandler != nullptr);
-            allocationhandler->destroylocker.lock();
-            uint64_t framecount = allocationhandler->framecount;
-            if (renderpass) allocationhandler->destroyer_renderpasses.push_back(std::make_pair(renderpass, framecount));
-            if (framebuffer) allocationhandler->destroyer_framebuffers.push_back(std::make_pair(framebuffer, framecount));
-            allocationhandler->destroylocker.unlock();
-        }
-    };
-
     struct SwapChain_Vulkan
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
@@ -324,13 +304,11 @@ namespace cyb::graphics::vulkan_internal
         VkFormat image_format;
         VkExtent2D extent;
         std::vector<VkImage> images;
-        std::vector<VkImageView> imageviews;
-        std::vector<VkFramebuffer> framebuffers;
+        std::vector<VkImageView> imageViews;
 
-        RenderPass renderpass;
         VkSurfaceKHR surface = VK_NULL_HANDLE;
 
-        uint32_t image_index = 0;
+        uint32_t imageIndex = 0;
         VkSemaphore semaphore_aquire = VK_NULL_HANDLE;
         VkSemaphore semaphore_release = VK_NULL_HANDLE;
 
@@ -343,12 +321,7 @@ namespace cyb::graphics::vulkan_internal
             allocationhandler->destroylocker.lock();
             uint64_t framecount = allocationhandler->framecount;
 
-            for (auto framebuffer : framebuffers)
-            {
-                allocationhandler->destroyer_framebuffers.push_back(std::make_pair(framebuffer, framecount));
-            }
-
-            for (auto imageView : imageviews)
+            for (auto imageView : imageViews)
             {
                 allocationhandler->destroyer_imageviews.push_back(std::make_pair(imageView, framecount));
             }
@@ -384,11 +357,6 @@ namespace cyb::graphics::vulkan_internal
     PipelineState_Vulkan* ToInternal(const PipelineState* param)
     {
         return static_cast<PipelineState_Vulkan*>(param->internal_state.get());
-    }
-
-    RenderPass_Vulkan* ToInternal(const RenderPass* param)
-    {
-        return static_cast<RenderPass_Vulkan*>(param->internal_state.get());
     }
 
     SwapChain_Vulkan* ToInternal(const SwapChain* param)
@@ -464,11 +432,11 @@ namespace cyb::graphics::vulkan_internal
         std::vector<VkSurfaceFormatKHR> formats(formatCount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, internal_state->surface, &formatCount, formats.data());
 
-        uint32_t present_mode_count;
-        vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, internal_state->surface, &present_mode_count, nullptr);
+        uint32_t presentModeCount;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, internal_state->surface, &presentModeCount, nullptr);
 
-        std::vector<VkPresentModeKHR> present_modes(present_mode_count);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, internal_state->surface, &present_mode_count, present_modes.data());
+        std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, internal_state->surface, &presentModeCount, presentModes.data());
 
         VkSurfaceFormatKHR surfaceFormat = {};
         surfaceFormat.format = _ConvertFormat(internal_state->desc.format);
@@ -506,9 +474,7 @@ namespace cyb::graphics::vulkan_internal
 
         uint32_t imageCount = std::max(internal_state->desc.bufferCount, capabilities.minImageCount);
         if ((capabilities.maxImageCount > 0) && (imageCount > capabilities.maxImageCount))
-        {
             imageCount = capabilities.maxImageCount;
-        }
 
         VkSwapchainCreateInfoKHR createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -526,7 +492,7 @@ namespace cyb::graphics::vulkan_internal
         createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR; // The only one that is always supported
         if (!internal_state->desc.vsync)
         {
-            for (auto& present_mode : present_modes)
+            for (auto& present_mode : presentModes)
             {
                 if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR)
                 {
@@ -560,54 +526,8 @@ namespace cyb::graphics::vulkan_internal
         vkGetSwapchainImagesKHR(device, internal_state->swapchain, &imageCount, internal_state->images.data());
         internal_state->image_format = surfaceFormat.format;
 
-        // Create default render pass:
-        {
-            VkAttachmentDescription colorAttachment = {};
-            colorAttachment.format = internal_state->image_format;
-            colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-            VkAttachmentReference colorAttachmentRef = {};
-            colorAttachmentRef.attachment = 0;
-            colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-            VkSubpassDescription subpass = {};
-            subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-            subpass.colorAttachmentCount = 1;
-            subpass.pColorAttachments = &colorAttachmentRef;
-
-            VkSubpassDependency dependency = {};
-            dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-            dependency.dstSubpass = 0;
-            dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependency.srcAccessMask = 0;
-            dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-            VkRenderPassCreateInfo renderPassInfo = {};
-            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-            renderPassInfo.attachmentCount = 1;
-            renderPassInfo.pAttachments = &colorAttachment;
-            renderPassInfo.subpassCount = 1;
-            renderPassInfo.pSubpasses = &subpass;
-            renderPassInfo.dependencyCount = 1;
-            renderPassInfo.pDependencies = &dependency;
-
-            auto renderpass_internal = std::make_shared<RenderPass_Vulkan>();
-            renderpass_internal->allocationhandler = allocationHandler;
-            internal_state->renderpass.internal_state = renderpass_internal;
-            
-            vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderpass_internal->renderpass);
-        }
-
         // Create swap chain render targets:
-        internal_state->imageviews.resize(internal_state->images.size());
-        internal_state->framebuffers.resize(internal_state->images.size());
+        internal_state->imageViews.resize(internal_state->images.size());
         for (size_t i = 0; i < internal_state->images.size(); ++i)
         {
             VkImageViewCreateInfo createInfo = {};
@@ -625,32 +545,15 @@ namespace cyb::graphics::vulkan_internal
             createInfo.subresourceRange.baseArrayLayer = 0;
             createInfo.subresourceRange.layerCount = 1;
 
-            res = vkCreateImageView(device, &createInfo, nullptr, &internal_state->imageviews[i]);
-            if (res != VK_SUCCESS)
+            if (internal_state->imageViews[i] != VK_NULL_HANDLE)
             {
-                platform::CreateMessageWindow("vkCreateImageView failed! Error: " + std::to_string(res), "Error!");
-                platform::Exit(1);
+                allocationHandler->destroylocker.lock();
+                allocationHandler->destroyer_imageviews.push_back(std::make_pair(internal_state->imageViews[i], allocationHandler->framecount));
+                allocationHandler->destroylocker.unlock();
             }
 
-            const VkImageView attachments[] = {
-                internal_state->imageviews[i]
-            };
-
-            VkFramebufferCreateInfo framebufferInfo = {};
-            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = ToInternal(&internal_state->renderpass)->renderpass;
-            framebufferInfo.attachmentCount = 1;
-            framebufferInfo.pAttachments = attachments;
-            framebufferInfo.width = internal_state->extent.width;
-            framebufferInfo.height = internal_state->extent.height;
-            framebufferInfo.layers = 1;
-
-            if (internal_state->framebuffers[i] != VK_NULL_HANDLE)
-            {
-                vkDestroyFramebuffer(device, internal_state->framebuffers[i], nullptr);
-            }
-            
-            vkCreateFramebuffer(device, &framebufferInfo, nullptr, &internal_state->framebuffers[i]);
+            res = vkCreateImageView(device, &createInfo, nullptr, &internal_state->imageViews[i]);
+            assert(res == VK_SUCCESS);
         }
 
         VkSemaphoreCreateInfo semaphoreInfo = {};
@@ -735,12 +638,12 @@ namespace cyb::graphics
         }
 
         CopyCMD cmd = freelist.back();
-        if (cmd.uploadbuffer.desc.size < staging_size)
+        if (cmd.uploadBuffer.desc.size < staging_size)
         {
             // Try to search for a staging buffer that can fit the request:
             for (size_t i = 0; i < freelist.size(); ++i)
             {
-                if (freelist[i].uploadbuffer.desc.size >= staging_size)
+                if (freelist[i].uploadBuffer.desc.size >= staging_size)
                 {
                     cmd = freelist[i];
                     std::swap(freelist[i], freelist.back());
@@ -752,13 +655,14 @@ namespace cyb::graphics
         locker.unlock();
 
         // If no buffer was found that fits the data, create one:
-        if (cmd.uploadbuffer.desc.size < staging_size)
+        if (cmd.uploadBuffer.desc.size < staging_size)
         {
             GPUBufferDesc uploaddesc;
             uploaddesc.size = math::GetNextPowerOfTwo(staging_size);
             uploaddesc.usage = MemoryAccess::Upload;
-            bool upload_success = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadbuffer);
+            bool upload_success = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadBuffer);
             assert(upload_success);
+            device->SetName(&cmd.uploadBuffer, "CopyAllocator::uploadBuffer");
         }
 
         // begin command list in valid state:
@@ -1055,122 +959,152 @@ namespace cyb::graphics
 
     void GraphicsDevice_Vulkan::ValidatePSO(CommandList cmds)
     {
-        CommandList_Vulkan& commandList = GetCommandList(cmds);
-        if (!commandList.dirty_pso)
+        CommandList_Vulkan& commandlist = GetCommandList(cmds);
+        if (!commandlist.dirty_pso)
             return;
 
-        const PipelineState* pso = commandList.active_pso;
-        size_t pipeline_hash = commandList.prev_pipeline_hash;
-        hash::HashCombine(pipeline_hash, commandList.vertexbuffer_hash);
-        auto internal_state = ToInternal(pso);
+        const PipelineState* pso = commandlist.active_pso;
+        size_t pipeline_hash = commandlist.prev_pipeline_hash;
+        hash::HashCombine(pipeline_hash, commandlist.vertexbuffer_hash);
+        PipelineState_Vulkan* pipelineStateInternal = ToInternal(pso);
 
         VkPipeline pipeline = VK_NULL_HANDLE;
         auto it = pipelines_global.find(pipeline_hash);
         if (it == pipelines_global.end())
         {
-            // Multisample:
-            VkPipelineMultisampleStateCreateInfo multisampling = {};
-            multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-            multisampling.sampleShadingEnable = VK_FALSE;
-            multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-            // Color blending:
-            VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-            colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-            colorBlendAttachment.blendEnable = VK_TRUE;
-            colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-            colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-            colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-            colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-            VkPipelineColorBlendStateCreateInfo colorBlending = {};
-            colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-            colorBlending.logicOpEnable = VK_FALSE;
-            colorBlending.logicOp = VK_LOGIC_OP_COPY;
-            colorBlending.attachmentCount = 1;
-            colorBlending.pAttachments = &colorBlendAttachment;
-            colorBlending.blendConstants[0] = 0.0f;
-            colorBlending.blendConstants[1] = 0.0f;
-            colorBlending.blendConstants[2] = 0.0f;
-            colorBlending.blendConstants[3] = 0.0f;
-
-            // Vertex layout:
-            VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
-            vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
-            std::vector<VkVertexInputBindingDescription> bindings;
-            std::vector<VkVertexInputAttributeDescription> attributes;
-            if (pso->desc.il != nullptr)
+            for (auto& x : commandlist.pipelinesWorker)
             {
-                uint32_t binding_prev = 0xFFFFFFFF;
-                for (auto& x : pso->desc.il->elements)
+                if (pipeline_hash == x.first)
                 {
-                    if (x.inputSlot == binding_prev)
-                        continue;
-
-                    binding_prev = x.inputSlot;
-                    VkVertexInputBindingDescription& bind = bindings.emplace_back();
-                    bind.binding = x.inputSlot;
-                    bind.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-                    bind.stride = commandList.vertexbuffer_strides[x.inputSlot];
+                    pipeline = x.second;
+                    break;
                 }
-
-                uint32_t offset = 0;
-                uint32_t i = 0;
-                binding_prev = 0xFFFFFFFF;
-                for (auto& x : pso->desc.il->elements)
-                {
-                    VkVertexInputAttributeDescription attr = {};
-                    attr.binding = x.inputSlot;
-                    if (attr.binding != binding_prev)
-                    {
-                        binding_prev = attr.binding;
-                        offset = 0;
-                    }
-                    attr.format = _ConvertFormat(x.format);
-                    attr.location = i;
-
-                    attr.offset = x.alignedByteOffset;
-                    if (attr.offset == VertexInputLayout::AppendAlignedElement)
-                    {
-                        // need to manually resolve this from the format spec.
-                        attr.offset = offset;
-                        offset += GetFormatStride(x.format);
-                    }
-
-                    attributes.push_back(attr);
-                    i++;
-                }
-
-                vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindings.size());
-                vertexInputInfo.pVertexBindingDescriptions = bindings.data();
-                vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributes.size());
-                vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
             }
 
-            // Create pipeline state
-            VkGraphicsPipelineCreateInfo pipeline_info = internal_state->pipelineInfo; // make a copy here
-            pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-            pipeline_info.renderPass = ToInternal(commandList.active_renderpass)->renderpass;
-            pipeline_info.subpass = 0;
-            pipeline_info.pMultisampleState = &multisampling;
-            pipeline_info.pColorBlendState = &colorBlending;
-            pipeline_info.pVertexInputState = &vertexInputInfo;
+            if (pipeline == VK_NULL_HANDLE)
+            {
+                // Multisample:
+                VkPipelineMultisampleStateCreateInfo multisampling = {};
+                multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+                multisampling.sampleShadingEnable = VK_FALSE;
+                multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-            VkResult res = vkCreateGraphicsPipelines(device, pipeline_cache, 1, &pipeline_info, nullptr, &pipeline);
-            assert(res == VK_SUCCESS);
+                // Color blending:
+                VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+                colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+                colorBlendAttachment.blendEnable = VK_TRUE;
+                colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+                colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+                colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+                colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
-            pipelines_global.insert(std::make_pair(pipeline_hash, pipeline));
+                VkPipelineColorBlendStateCreateInfo colorBlending = {};
+                colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+                colorBlending.logicOpEnable = VK_FALSE;
+                colorBlending.logicOp = VK_LOGIC_OP_COPY;
+                colorBlending.attachmentCount = 1;
+                colorBlending.pAttachments = &colorBlendAttachment;
+                colorBlending.blendConstants[0] = 0.0f;
+                colorBlending.blendConstants[1] = 0.0f;
+                colorBlending.blendConstants[2] = 0.0f;
+                colorBlending.blendConstants[3] = 0.0f;
+
+                // Vertex layout:
+                VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+                vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+                std::vector<VkVertexInputBindingDescription> bindings;
+                std::vector<VkVertexInputAttributeDescription> attributes;
+                if (pso->desc.il != nullptr)
+                {
+                    uint32_t binding_prev = 0xFFFFFFFF;
+                    for (auto& x : pso->desc.il->elements)
+                    {
+                        if (x.inputSlot == binding_prev)
+                            continue;
+
+                        binding_prev = x.inputSlot;
+                        VkVertexInputBindingDescription& bind = bindings.emplace_back();
+                        bind.binding = x.inputSlot;
+                        bind.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+                        bind.stride = commandlist.vertexbuffer_strides[x.inputSlot];
+                    }
+
+                    uint32_t offset = 0;
+                    uint32_t i = 0;
+                    binding_prev = 0xFFFFFFFF;
+                    for (auto& x : pso->desc.il->elements)
+                    {
+                        VkVertexInputAttributeDescription attr = {};
+                        attr.binding = x.inputSlot;
+                        if (attr.binding != binding_prev)
+                        {
+                            binding_prev = attr.binding;
+                            offset = 0;
+                        }
+                        attr.format = _ConvertFormat(x.format);
+                        attr.location = i;
+
+                        attr.offset = x.alignedByteOffset;
+                        if (attr.offset == VertexInputLayout::AppendAlignedElement)
+                        {
+                            // need to manually resolve this from the format spec.
+                            attr.offset = offset;
+                            offset += GetFormatStride(x.format);
+                        }
+
+                        attributes.push_back(attr);
+                        i++;
+                    }
+
+                    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindings.size());
+                    vertexInputInfo.pVertexBindingDescriptions = bindings.data();
+                    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributes.size());
+                    vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
+                }
+
+                // Create pipeline state
+                VkGraphicsPipelineCreateInfo pipelineInfo = pipelineStateInternal->pipelineInfo; // make a copy here
+                pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+                pipelineInfo.renderPass = VK_NULL_HANDLE;       // use VkPipelineRenderingCreateInfo instead
+                pipelineInfo.subpass = 0;
+                pipelineInfo.pMultisampleState = &multisampling;
+                pipelineInfo.pColorBlendState = &colorBlending;
+                pipelineInfo.pVertexInputState = &vertexInputInfo;
+
+                VkPipelineRenderingCreateInfo renderingInfo = {};
+                renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+                renderingInfo.viewMask = 0;
+                renderingInfo.colorAttachmentCount = commandlist.renderpassInfo.rtCount;
+                VkFormat formats[8] = {};
+                for (uint32_t i = 0; i < commandlist.renderpassInfo.rtCount; ++i)
+                {
+                    formats[i] = _ConvertFormat(commandlist.renderpassInfo.rtFormats[i]);
+                }
+                renderingInfo.pColorAttachmentFormats = formats;
+                renderingInfo.depthAttachmentFormat = _ConvertFormat(commandlist.renderpassInfo.dsFormat);
+                if (IsFormatStencilSupport(commandlist.renderpassInfo.dsFormat))
+                {
+                    renderingInfo.stencilAttachmentFormat = renderingInfo.depthAttachmentFormat;
+                }
+                pipelineInfo.pNext = &renderingInfo;
+
+                VkResult res = vkCreateGraphicsPipelines(device, pipeline_cache, 1, &pipelineInfo, nullptr, &pipeline);
+                assert(res == VK_SUCCESS);
+
+                commandlist.pipelinesWorker.push_back(std::make_pair(pipeline_hash, pipeline));
+            }
         }
         else
         {
             pipeline = it->second;
         }
 
-        vkCmdBindPipeline(commandList.GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-        commandList.dirty_pso = false;
+        assert(pipeline != VK_NULL_HANDLE);
+        vkCmdBindPipeline(commandlist.GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+        commandlist.dirty_pso = false;
     }
 
     void GraphicsDevice_Vulkan::PreDraw(CommandList cmd)
@@ -1189,16 +1123,28 @@ namespace cyb::graphics
             platform::Exit(1);
         }
 
+        // Fill out application info
+        VkApplicationInfo applicationInfo = {};
+        applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+        applicationInfo.pApplicationName = "CybEngine Application";
+        applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+        applicationInfo.pEngineName = "CybEngine";
+        applicationInfo.apiVersion = VK_API_VERSION_1_3;
+
         // Enumerate available layers and extensions:
         uint32_t instanceLayerCount;
-        vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
+        res = vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
+        assert(res == VK_SUCCESS);
         std::vector<VkLayerProperties> availableInstanceLayers(instanceLayerCount);
-        vkEnumerateInstanceLayerProperties(&instanceLayerCount, availableInstanceLayers.data());
+        res = vkEnumerateInstanceLayerProperties(&instanceLayerCount, availableInstanceLayers.data());
+        assert(res == VK_SUCCESS);
 
         uint32_t extensionCount = 0;
-        vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+        res = vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+        assert(res == VK_SUCCESS);
         std::vector<VkExtensionProperties> availableInstanceExtensions(extensionCount);
-        vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableInstanceExtensions.data());
+        res = vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableInstanceExtensions.data());
+        assert(res == VK_SUCCESS);
 
         std::vector<const char*> instanceLayers;
         std::vector<const char*> instanceExtensions;
@@ -1255,31 +1201,21 @@ namespace cyb::graphics
                 if (ValidateLayers(validationLayers, availableInstanceLayers))
                 {
                     for (auto& x : validationLayers)
-                    {
                         instanceLayers.push_back(x);
-                    }
                     break;
                 }
             }
         }
 
-        // Fill out application info
-        VkApplicationInfo app_info = {};
-        app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        app_info.pApplicationName = "CybEngine Application";
-        app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-        app_info.pEngineName = "CybEngine";
-        app_info.apiVersion = VK_API_VERSION_1_2;
-
         // Create instance:
         {
-            VkInstanceCreateInfo instance_info = {};
-            instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-            instance_info.pApplicationInfo = &app_info;
-            instance_info.enabledLayerCount = static_cast<uint32_t>(instanceLayers.size());
-            instance_info.ppEnabledLayerNames = instanceLayers.data();
-            instance_info.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
-            instance_info.ppEnabledExtensionNames = instanceExtensions.data();
+            VkInstanceCreateInfo instanceInfo = {};
+            instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+            instanceInfo.pApplicationInfo = &applicationInfo;
+            instanceInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayers.size());
+            instanceInfo.ppEnabledLayerNames = instanceLayers.data();
+            instanceInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
+            instanceInfo.ppEnabledExtensionNames = instanceExtensions.data();
 
             VkDebugUtilsMessengerCreateInfoEXT debugUtilsCreateInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
 
@@ -1288,11 +1224,11 @@ namespace cyb::graphics
                 debugUtilsCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
                 debugUtilsCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
                 debugUtilsCreateInfo.pfnUserCallback = DebugUtilsMessengerCallback;
-                instance_info.pNext = &debugUtilsCreateInfo;
+                instanceInfo.pNext = &debugUtilsCreateInfo;
                 CYB_WARNING("Vulkan is running with validation layers enabled. This will heavily impact performace.");
             }
 
-            res = vkCreateInstance(&instance_info, nullptr, &instance);
+            res = vkCreateInstance(&instanceInfo, nullptr, &instance);
             if (res != VK_SUCCESS)
             {
                 platform::CreateMessageWindow("vkCreateInstance failed! Error: " + std::to_string(res), "Error!");
@@ -1337,32 +1273,37 @@ namespace cyb::graphics
                 for (auto& requiredExtension : requiredDeviceExtensions)
                 {
                     if (!CheckExtensionSupport(requiredExtension, availableDeviceExtensions))
-                    {
                         suitable = false;
-                    }
                 }
                 if (!suitable)
                     continue;
                 enabledDeviceExtensions = requiredDeviceExtensions;
-                
+
+                features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+                features_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+                features_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+                features_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+                features2.pNext = &features_1_1;
+                features_1_1.pNext = &features_1_2;
+                features_1_2.pNext = &features_1_3;
+
                 properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
                 properties_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES;
                 properties_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES;
-                driver_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+                properties_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES;
                 properties2.pNext = &properties_1_1;
                 properties_1_1.pNext = &properties_1_2;
-                properties_1_2.pNext = &driver_properties;
+                properties_1_2.pNext = &properties_1_3;
                 vkGetPhysicalDeviceProperties2(dev, &properties2);
 
                 bool discreteGPU = properties2.properties.deviceType == VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
                 if (discreteGPU || physicalDevice == VK_NULL_HANDLE)
                 {
                     physicalDevice = dev;
+
+                    // if this is discrete GPU, look no further (prioritize discrete GPU)
                     if (discreteGPU)
-                    {
-                        // if this is discrete GPU, look no further (prioritize discrete GPU)
                         break;
-                    }
                 }
             }
 
@@ -1372,16 +1313,21 @@ namespace cyb::graphics
                 platform::Exit(1);
             }
 
-            features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-            features_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-            features_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-            features2.pNext = &features_1_1;
-            features_1_1.pNext = &features_1_2;
+            auto checkFeature = [](bool expr, const char* name)
+            {
+                if (!expr)
+                {
+                    std::string error = fmt::format("Failed to initialize!\nNo hardware support for {}", name);
+                    platform::CreateMessageWindow(error, "Error!");
+                    platform::Exit(1);
+                }
+            };
 
             vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
-            assert(features2.features.geometryShader == VK_TRUE);
-            assert(features2.features.samplerAnisotropy == VK_TRUE);
-
+            checkFeature(features2.features.geometryShader == VK_TRUE, "geometryShader");
+            checkFeature(features2.features.samplerAnisotropy == VK_TRUE, "samplerAnisotropy");
+            checkFeature(features_1_3.dynamicRendering == VK_TRUE, "dynamicRendering");
+            
             // Find queue families:
             uint32_t queueFamilyCount = 0;
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
@@ -1496,13 +1442,13 @@ namespace cyb::graphics
         vma_vulkan_func.vkDestroyImage = vkDestroyImage;
         vma_vulkan_func.vkCmdCopyBuffer = vkCmdCopyBuffer;
 
-        VmaAllocatorCreateInfo alloc_info = {};
-        alloc_info.physicalDevice = physicalDevice;
-        alloc_info.device = device;
-        alloc_info.instance = instance;
-        alloc_info.pVulkanFunctions = &vma_vulkan_func;
+        VmaAllocatorCreateInfo allocatorInfo = {};
+        allocatorInfo.physicalDevice = physicalDevice;
+        allocatorInfo.device = device;
+        allocatorInfo.instance = instance;
+        allocatorInfo.pVulkanFunctions = &vma_vulkan_func;
 
-        res = vmaCreateAllocator(&alloc_info, &allocationhandler->allocator);
+        res = vmaCreateAllocator(&allocatorInfo, &allocationhandler->allocator);
         if (res != VK_SUCCESS)
         {
             platform::CreateMessageWindow("vmaCreateAllocator failed! ERROR: " + std::to_string(res), "Error!");
@@ -1576,7 +1522,7 @@ namespace cyb::graphics
 
         CYB_INFO("Initialized Vulkan {0}.{1}", VK_API_VERSION_MAJOR(properties2.properties.apiVersion), VK_API_VERSION_MINOR(properties2.properties.apiVersion));
         CYB_INFO("Using {0}", properties2.properties.deviceName);
-        CYB_INFO("Driver {0} {1}", driver_properties.driverName, driver_properties.driverInfo);;
+        CYB_INFO("Driver {0} {1}", properties_1_2.driverName, properties_1_2.driverInfo);;
     }
     
     GraphicsDevice_Vulkan::~GraphicsDevice_Vulkan()
@@ -1740,7 +1686,7 @@ namespace cyb::graphics
         {
             auto cmd = copy_allocator.Allocate(desc->size);
 
-            std::memcpy(cmd.uploadbuffer.mappedData, init_data, buffer->desc.size);
+            std::memcpy(cmd.uploadBuffer.mappedData, init_data, buffer->desc.size);
 
             VkBufferMemoryBarrier barrier = {};
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -1769,7 +1715,7 @@ namespace cyb::graphics
 
             vkCmdCopyBuffer(
                 cmd.commandbuffer,
-                ToInternal(&cmd.uploadbuffer)->resource,
+                ToInternal(&cmd.uploadBuffer)->resource,
                 internal_state->resource,
                 1,
                 &copyRegion
@@ -2092,7 +2038,7 @@ namespace cyb::graphics
                     const uint32_t src_slicepitch = subresourceData.slicePitch;
                     for (uint32_t z = 0; z < depth; ++z)
                     {
-                        uint8_t* dst_slice = (uint8_t*)cmd.uploadbuffer.mappedData + copy_offset + dst_slicepitch * z;
+                        uint8_t* dst_slice = (uint8_t*)cmd.uploadBuffer.mappedData + copy_offset + dst_slicepitch * z;
                         uint8_t* src_slice = (uint8_t*)subresourceData.mem + src_slicepitch * z;
                         for (uint32_t y = 0; y < num_blocks_y; ++y)
                         {
@@ -2158,7 +2104,7 @@ namespace cyb::graphics
 
                 vkCmdCopyBufferToImage(
                     cmd.commandbuffer,
-                    ToInternal(&cmd.uploadbuffer)->resource,
+                    ToInternal(&cmd.uploadBuffer)->resource,
                     internal_state->resource,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     (uint32_t)copy_regions.size(),
@@ -2527,7 +2473,7 @@ namespace cyb::graphics
         viewport.width = 65535;
         viewport.height = 65535;
         viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
+        viewport.maxDepth = 0.1f;
 
         VkRect2D& scissor = internal_state->scissor;
         scissor.extent.width = 65535;
@@ -2566,15 +2512,6 @@ namespace cyb::graphics
             depthstencil.back.passOp = _ConvertStencilOp(pso->desc.dss->backFace.stencilPassOp);
             depthstencil.back.failOp = _ConvertStencilOp(pso->desc.dss->backFace.stencilFailOp);
             depthstencil.back.depthFailOp = _ConvertStencilOp(pso->desc.dss->backFace.stencilDepthFailOp);
-
-            if (0 /*CheckCapability(GraphicsDeviceCapability::DEPTH_BOUNDS_TEST)*/)
-            {
-                depthstencil.depthBoundsTestEnable = pso->desc.dss->depthBoundsTestEnable ? VK_TRUE : VK_FALSE;
-            }
-            else
-            {
-                depthstencil.depthBoundsTestEnable = VK_FALSE;
-            }
         }
 
         // Primitive type:
@@ -2735,8 +2672,6 @@ namespace cyb::graphics
 
         size_t pipeline_hash = 0;
         hash::HashCombine(pipeline_hash, pso->hash);
-        if (commandlist.active_renderpass != nullptr)
-            hash::HashCombine(pipeline_hash, commandlist.active_renderpass->hash);
         if (pipeline_hash == commandlist.prev_pipeline_hash)
             return;
         commandlist.prev_pipeline_hash = pipeline_hash;
@@ -2756,138 +2691,6 @@ namespace cyb::graphics
 
         commandlist.active_pso = pso;
         commandlist.dirty_pso = true;
-    }
-
-    bool GraphicsDevice_Vulkan::CreateRenderPass(const RenderPassDesc* desc, RenderPass* renderpass) const
-    {
-        auto internal_state = std::make_shared<RenderPass_Vulkan>();
-        internal_state->allocationhandler = allocationhandler;
-        renderpass->internal_state = internal_state;
-        renderpass->desc = *desc;
-
-        renderpass->hash = 0;
-        hash::HashCombine(renderpass->hash, desc->attachments.size());
-        for (const auto& attachment : desc->attachments)
-        {
-            if (attachment.type == RenderPassAttachment::Type::RenderTarget ||
-                attachment.type == RenderPassAttachment::Type::DepthStencil)
-            {
-                hash::HashCombine(renderpass->hash, attachment.texture->desc.format);
-            }
-        }
-
-        VkImageView attachments[8] = {};
-        VkAttachmentDescription attachmentDescriptions[8] = {};
-        VkAttachmentReference colorAttachmentRefs[6] = {};
-        VkAttachmentReference depthAttachmentRef = {};
-
-        VkSubpassDescription subpass = {};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-
-        uint32_t validAttachmentCount = 0;
-        for (auto& attachment : renderpass->desc.attachments)
-        {
-            const Texture* texture = attachment.texture;
-            const TextureDesc& texdesc = texture->desc;
-            auto textureInternalState = ToInternal(texture);
-
-            VkAttachmentDescription& attachmentDesc = attachmentDescriptions[validAttachmentCount];
-            attachmentDesc.format = _ConvertFormat(texdesc.format);
-            attachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;
-            attachmentDesc.loadOp = _ConvertLoadOp(attachment.loadOp);
-            attachmentDesc.storeOp = _ConvertStoreOp(attachment.storeOp);
-            attachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            attachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            attachmentDesc.initialLayout = _ConvertImageLayout(attachment.initialLayout);
-            attachmentDesc.finalLayout = _ConvertImageLayout(attachment.finalLayout);
-
-            switch (attachment.type)
-            {
-            case RenderPassAttachment::Type::RenderTarget:
-            {
-                attachments[validAttachmentCount] = textureInternalState->rtv;
-                colorAttachmentRefs[subpass.colorAttachmentCount].attachment = validAttachmentCount;
-                colorAttachmentRefs[subpass.colorAttachmentCount].layout = _ConvertImageLayout(attachment.subpassLayout);
-                subpass.colorAttachmentCount++;
-                subpass.pColorAttachments = colorAttachmentRefs;
-            } break;
-            case RenderPassAttachment::Type::DepthStencil:
-            {
-                attachments[validAttachmentCount] = textureInternalState->dsv;
-                depthAttachmentRef.attachment = validAttachmentCount;
-                depthAttachmentRef.layout = _ConvertImageLayout(attachment.subpassLayout);
-                subpass.pDepthStencilAttachment = &depthAttachmentRef;
-            } break;
-            default: assert(0);
-            }
-
-            if (attachments[validAttachmentCount] == VK_NULL_HANDLE)
-            {
-                continue;
-            }
-
-            validAttachmentCount++;
-        }
-        assert(renderpass->desc.attachments.size() == validAttachmentCount);
-
-        VkRenderPassCreateInfo renderPassInfo = {};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = validAttachmentCount;
-        renderPassInfo.pAttachments = attachmentDescriptions;
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-        vkCreateRenderPass(device, &renderPassInfo, nullptr, &internal_state->renderpass);
-        
-        // Create framebuffer:
-        const TextureDesc& texdesc = renderpass->desc.attachments[0].texture->desc;
-        auto textureInternal = ToInternal(renderpass->desc.attachments[0].texture);
-
-        VkFramebufferCreateInfo framebufferInfo = {};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = internal_state->renderpass;
-        framebufferInfo.attachmentCount = validAttachmentCount;
-        framebufferInfo.pAttachments = attachments;
-        framebufferInfo.width = texdesc.width;
-        framebufferInfo.height = texdesc.height;
-        framebufferInfo.layers = 1;
-
-        VkResult res = vkCreateFramebuffer(device, &framebufferInfo, nullptr, &internal_state->framebuffer);
-        assert(res == VK_SUCCESS);
-
-        // Setup beginInfo:
-        internal_state->begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        internal_state->begin_info.renderPass = internal_state->renderpass;
-        internal_state->begin_info.framebuffer = internal_state->framebuffer;
-        internal_state->begin_info.renderArea.offset = { 0, 0 };
-        internal_state->begin_info.renderArea.extent.width = framebufferInfo.width;
-        internal_state->begin_info.renderArea.extent.height = framebufferInfo.height;
-
-        internal_state->begin_info.clearValueCount = validAttachmentCount;
-        internal_state->begin_info.pClearValues = internal_state->clear_values;
-
-        int i = 0;
-        for (auto& attachment : renderpass->desc.attachments)
-        {
-            if (renderpass->desc.attachments[i].type == RenderPassAttachment::Type::RenderTarget)
-            {
-                internal_state->clear_values[i].color.float32[0] = 0.0f;
-                internal_state->clear_values[i].color.float32[1] = 0.0f;
-                internal_state->clear_values[i].color.float32[2] = 0.0f;
-                internal_state->clear_values[i].color.float32[3] = 0.0f;
-            }
-            else if (renderpass->desc.attachments[i].type == RenderPassAttachment::Type::DepthStencil)
-            {
-                internal_state->clear_values[i].depthStencil.depth = 0.0f;
-                internal_state->clear_values[i].depthStencil.stencil = 0;
-            }
-            else
-            {
-                assert(0);
-            }
-            i++;
-        }
-
-        return R_SUCCESS;
     }
 
     CommandList GraphicsDevice_Vulkan::BeginCommandList(QueueType queue)
@@ -3056,13 +2859,28 @@ namespace cyb::graphics
                 {
                     auto swapchain_internal = ToInternal(&swapchain);
                     queue.submit_swapchains.push_back(swapchain_internal->swapchain);
-                    queue.submit_swapChainImageIndices.push_back(swapchain_internal->image_index);
+                    queue.submit_swapChainImageIndices.push_back(swapchain_internal->imageIndex);
                     queue.submit_waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
                     queue.submit_waitSemaphores.push_back(swapchain_internal->semaphore_aquire);
                     queue.submit_waitValues.push_back(0);   // Not a timeline semaphore
                     queue.submit_signalSemaphores.push_back(swapchain_internal->semaphore_release);
                     queue.submit_signalValues.push_back(0); // Not a timeline semaphore
                 }
+
+                for (auto& x : commandlist.pipelinesWorker)
+                {
+                    if (pipelines_global.count(x.first) == 0)
+                    {
+                        pipelines_global[x.first] = x.second;
+                    }
+                    else
+                    {
+                        allocationhandler->destroylocker.lock();
+                        allocationhandler->destroyer_pipelines.push_back(std::make_pair(x.second, frameCount));
+                        allocationhandler->destroylocker.unlock();
+                    }
+                }
+                commandlist.pipelinesWorker.clear();
             }
 
             for (uint32_t i = 0; i < static_cast<uint32_t>(QueueType::_Count); ++i)
@@ -3113,7 +2931,6 @@ namespace cyb::graphics
     {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         auto internal_state = ToInternal(swapchain);
-        commandlist.active_renderpass = &internal_state->renderpass;
         commandlist.prev_swapchains.push_back(*swapchain);
 
         VkResult res = vkAcquireNextImageKHR(
@@ -3122,44 +2939,243 @@ namespace cyb::graphics
             UINT64_MAX, 
             internal_state->semaphore_aquire,
             VK_NULL_HANDLE, 
-            &internal_state->image_index);
+            &internal_state->imageIndex);
         assert(res == VK_SUCCESS);
 
-        VkClearValue clearColor = {
-            swapchain->desc.clearColor[0],
-            swapchain->desc.clearColor[1],
-            swapchain->desc.clearColor[2],
-            swapchain->desc.clearColor[3],
-        };
+        VkRenderingInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        info.renderArea.offset.x = 0;
+        info.renderArea.offset.y = 0;
+        info.renderArea.extent.width = swapchain->desc.width;
+        info.renderArea.extent.height = swapchain->desc.height;
+        info.layerCount = 1;
 
-        VkRenderPassBeginInfo renderPassInfo = {};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = ToInternal(&internal_state->renderpass)->renderpass;
-        renderPassInfo.framebuffer = internal_state->framebuffers[internal_state->image_index];
-        renderPassInfo.renderArea.offset = { 0, 0 };
-        renderPassInfo.renderArea.extent = internal_state->extent;
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
+        VkRenderingAttachmentInfo color_attachment = {};
+        color_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        color_attachment.imageView = internal_state->imageViews[internal_state->imageIndex];
+        color_attachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color_attachment.clearValue.color.float32[0] = swapchain->desc.clearColor[0];
+        color_attachment.clearValue.color.float32[1] = swapchain->desc.clearColor[1];
+        color_attachment.clearValue.color.float32[2] = swapchain->desc.clearColor[2];
+        color_attachment.clearValue.color.float32[3] = swapchain->desc.clearColor[3];
 
-        vkCmdBeginRenderPass(commandlist.GetCommandBuffer(), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        info.colorAttachmentCount = 1;
+        info.pColorAttachments = &color_attachment;
+
+        VkImageMemoryBarrier barrier = {};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.image = internal_state->images[internal_state->imageIndex];
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_NONE;
+        barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        vkCmdPipelineBarrier(
+            commandlist.GetCommandBuffer(),
+            VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+            VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+        barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_NONE;
+        commandlist.renderpassBarriersEnd.push_back(barrier);
+
+        vkCmdBeginRendering(commandlist.GetCommandBuffer(), &info);
+
+        commandlist.renderpassInfo = RenderPassInfo::GetFrom(swapchain->desc);
     }
 
-    void GraphicsDevice_Vulkan::BeginRenderPass(const RenderPass* renderpass, CommandList cmd)
+    void GraphicsDevice_Vulkan::BeginRenderPass(const RenderPassImage* images, uint32_t imageCount, CommandList cmd)
     {
+        assert(images != nullptr);
+        assert(imageCount > 0);
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        commandlist.active_renderpass = renderpass;
+        commandlist.renderpassBarriersBegin.clear();
+        commandlist.renderpassBarriersEnd.clear();
 
-        auto internal_state = ToInternal(renderpass);
-        vkCmdBeginRenderPass(commandlist.GetCommandBuffer(), &internal_state->begin_info, VK_SUBPASS_CONTENTS_INLINE);
+        VkRenderingInfo renderingInfo = {};
+        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        renderingInfo.layerCount = 1;
+        renderingInfo.renderArea.offset.x = 0;
+        renderingInfo.renderArea.offset.y = 0;
+
+        VkRenderingAttachmentInfo colorAttachments[8] = {};
+        VkRenderingAttachmentInfo depthAttachment = {};
+        VkRenderingAttachmentInfo stencilAttachment = {};
+        bool hasColor = false;
+        bool hasDepth = false;
+        bool hasStencil = false;
+
+        for (uint32_t i = 0; i < imageCount; ++i)
+        {
+            const RenderPassImage& image = images[i];
+            const Texture* texture = image.texture;
+            Texture_Vulkan* textureInternal = ToInternal(texture);
+
+            renderingInfo.renderArea.extent.width = std::max(renderingInfo.renderArea.extent.width, texture->desc.width);
+            renderingInfo.renderArea.extent.height = std::max(renderingInfo.renderArea.extent.height, texture->desc.height);
+
+            VkAttachmentLoadOp loadOp = _ConvertLoadOp(image.loadOp);
+            VkAttachmentStoreOp storeOp = _ConvertStoreOp(image.storeOp);
+
+            switch (image.type)
+            {
+            case RenderPassImage::Type::RenderTarget:
+            {
+                VkRenderingAttachmentInfo& colorAttachment = colorAttachments[renderingInfo.colorAttachmentCount++];
+                colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+                colorAttachment.imageView = textureInternal->rtv;
+                colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                colorAttachment.loadOp = loadOp;
+                colorAttachment.storeOp = storeOp;
+                colorAttachment.clearValue.color.float32[0] = texture->desc.clear.color[0];
+                colorAttachment.clearValue.color.float32[1] = texture->desc.clear.color[1];
+                colorAttachment.clearValue.color.float32[2] = texture->desc.clear.color[2];
+                colorAttachment.clearValue.color.float32[3] = texture->desc.clear.color[3];
+                hasColor = true;
+            } break;
+            case RenderPassImage::Type::DepthStencil:
+            {
+                depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+                depthAttachment.imageView = textureInternal->dsv;
+                if (image.layout == ResourceState::DepthStencil_ReadOnlyBit)
+                    depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+                else
+                    depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+                depthAttachment.loadOp = loadOp;
+                depthAttachment.storeOp = storeOp;
+                depthAttachment.clearValue.depthStencil.depth = texture->desc.clear.depthStencil.depth;
+                hasDepth = true;
+
+                if (IsFormatStencilSupport(texture->desc.format))
+                {
+                    stencilAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+                    stencilAttachment.imageView = textureInternal->dsv;
+                    if (image.layout == ResourceState::DepthStencil_ReadOnlyBit)
+                        stencilAttachment.imageLayout = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;
+                    else
+                        stencilAttachment.imageLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+                    stencilAttachment.loadOp = loadOp;
+                    stencilAttachment.storeOp = storeOp;
+                    stencilAttachment.clearValue.depthStencil.stencil = texture->desc.clear.depthStencil.stencil;
+                    hasStencil = true;
+                }
+            } break;
+
+            default: break;
+            }
+
+            if (image.prePassLayout != image.layout)
+            {
+                VkImageMemoryBarrier& barrier = commandlist.renderpassBarriersBegin.emplace_back();
+                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                barrier.image = textureInternal->resource;
+                barrier.oldLayout = _ConvertImageLayout(image.prePassLayout);
+                barrier.newLayout = _ConvertImageLayout(image.layout);
+                barrier.srcAccessMask = _ParseResourceState(image.prePassLayout);
+                barrier.dstAccessMask = _ParseResourceState(image.layout);
+                if (IsFormatDepthSupport(texture->desc.format))
+                {
+                    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+                    if (IsFormatStencilSupport(texture->desc.format))
+                        barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+                }
+                else
+                {
+                    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                }
+                barrier.subresourceRange.baseMipLevel = 0;
+                barrier.subresourceRange.levelCount = 1;
+                barrier.subresourceRange.baseArrayLayer = 0;
+                barrier.subresourceRange.layerCount = 1;
+                barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            }
+
+            if (image.layout != image.postPassLayout)
+            {
+                VkImageMemoryBarrier& barrier = commandlist.renderpassBarriersEnd.emplace_back();
+                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                barrier.image = textureInternal->resource;
+                barrier.oldLayout = _ConvertImageLayout(image.layout);
+                barrier.newLayout = _ConvertImageLayout(image.postPassLayout);
+                barrier.srcAccessMask = _ParseResourceState(image.layout);
+                barrier.dstAccessMask = _ParseResourceState(image.postPassLayout);
+                if (IsFormatDepthSupport(texture->desc.format))
+                {
+                    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+                    if (IsFormatStencilSupport(texture->desc.format))
+                        barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+                }
+                else
+                {
+                    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                }
+                barrier.subresourceRange.baseMipLevel = 0;
+                barrier.subresourceRange.levelCount = 1;
+                barrier.subresourceRange.baseArrayLayer = 0;
+                barrier.subresourceRange.layerCount = 1;
+                barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            }
+
+            renderingInfo.layerCount = std::min(texture->desc.arraySize, renderingInfo.layerCount);
+            //renderingInfo.layerCount = std::min(texture->desc.arraySize, std::max(renderingInfo.layerCount, descriptor.sliceCount));
+        }
+        renderingInfo.pColorAttachments = hasColor ? colorAttachments : nullptr;
+        renderingInfo.pDepthAttachment = hasDepth ? &depthAttachment : nullptr;
+        renderingInfo.pStencilAttachment = hasStencil ? &stencilAttachment : nullptr;
+
+        if (!commandlist.renderpassBarriersBegin.empty())
+        {
+            vkCmdPipelineBarrier(
+                commandlist.GetCommandBuffer(),
+                VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                0,
+                0, nullptr,
+                0, nullptr,
+                (uint32_t)commandlist.renderpassBarriersBegin.size(), commandlist.renderpassBarriersBegin.data()
+            );
+        }
+
+        vkCmdBeginRendering(commandlist.GetCommandBuffer(), &renderingInfo);
+        commandlist.renderpassInfo = RenderPassInfo::GetFrom(images, imageCount);
     }
 
     void GraphicsDevice_Vulkan::EndRenderPass(CommandList cmd)
     {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        assert(commandlist.active_renderpass != nullptr);
+        vkCmdEndRendering(commandlist.GetCommandBuffer());
 
-        vkCmdEndRenderPass(commandlist.GetCommandBuffer());
-        commandlist.active_renderpass = nullptr;
+        if (!commandlist.renderpassBarriersEnd.empty())
+        {
+            vkCmdPipelineBarrier(
+                commandlist.GetCommandBuffer(),
+                VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                0,
+                0, nullptr,
+                0, nullptr,
+                (uint32_t)commandlist.renderpassBarriersEnd.size(), commandlist.renderpassBarriersEnd.data()
+            );
+            commandlist.renderpassBarriersEnd.clear();
+        }
+
+        commandlist.renderpassInfo = {};
     }
 
     void GraphicsDevice_Vulkan::Draw(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd)

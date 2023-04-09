@@ -18,7 +18,6 @@ namespace cyb::hli
 
         graphics::Texture renderTarget_Main;
         graphics::Texture depthBuffer_Main;
-        graphics::RenderPass renderPass_Main;
 
         float runtime = 0.0f;                       // Accumilated delta times
 

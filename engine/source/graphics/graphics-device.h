@@ -74,7 +74,7 @@ namespace cyb::graphics
         R32_Float,                          // Single-component, 32-bit floating-point format swizzeled to { r, r, r, 1 }
         R16_Float,                          // Single-component, 16-bit floating-point format swizzeled to { r, r, r, 1 }
         D32_Float,                          // Single-component, 32-bit floating-point format for depth
-        D32_Float_S8_Uint,                  // Depth (32-bit) + stencil (8-bit)
+        D32_Float_S8_Uint,                  // Two-component, Depth (32-bit) + stencil (8-bit)
         B8G8R8A8_Unorm,
         R32G32B32_Float
     };
@@ -273,6 +273,18 @@ namespace cyb::graphics
         TextureComponentSwizzle a = TextureComponentSwizzle::Identity;
     };
 
+    union ClearValue
+    {
+        struct ClearDepthStencil
+        {
+            float depth;
+            uint32_t stencil;
+        };
+
+        float color[4];
+        ClearDepthStencil depthStencil;
+    };
+
     struct TextureDesc
     {
         enum class Type
@@ -290,6 +302,7 @@ namespace cyb::graphics
         TextureComponentMapping components;
         uint32_t mipLevels = 1;
         BindFlags bindFlags = BindFlags::None;
+        ClearValue clear = {};
         ResourceState layout = ResourceState::ShaderResourceBit;
     };
 
@@ -322,80 +335,6 @@ namespace cyb::graphics
         bool depthBoundsTestEnable = false;
     };
 
-    struct RenderPassAttachment
-    {
-        enum class Type
-        {
-            RenderTarget,
-            DepthStencil
-        };
-
-        enum class LoadOp
-        {
-            Load,
-            Clear,
-            DontCare
-        };
-        
-        enum class StoreOp
-        {
-            Store,
-            DontCare
-        };
-
-        Type type = Type::RenderTarget;
-        LoadOp loadOp = LoadOp::Load;
-        StoreOp storeOp = StoreOp::Store;
-        ResourceState initialLayout = ResourceState::Undefined;	    // layout before the render pass
-        ResourceState subpassLayout = ResourceState::Undefined;	    // layout within the render pass
-        ResourceState finalLayout = ResourceState::Undefined;		// layout after the render pass
-        const Texture* texture = nullptr;
-
-        static RenderPassAttachment RenderTarget(
-            const Texture* resource = nullptr,
-            LoadOp load_op = LoadOp::Load,
-            StoreOp store_op = StoreOp::Store,
-            ResourceState initial_layout = ResourceState::ShaderResourceBit,
-            ResourceState subpass_layout = ResourceState::RenderTargetBit,
-            ResourceState final_layout = ResourceState::ShaderResourceBit)
-        {
-            RenderPassAttachment attachment;
-            attachment.type = Type::RenderTarget;
-            attachment.texture = resource;
-            attachment.loadOp = load_op;
-            attachment.storeOp = store_op;
-            attachment.initialLayout = initial_layout;
-            attachment.subpassLayout = subpass_layout;
-            attachment.finalLayout = final_layout;
-            return attachment;
-        }
-
-        static RenderPassAttachment DepthStencil(
-            const Texture* resource = nullptr,
-            LoadOp load_op = LoadOp::Load,
-            StoreOp store_op = StoreOp::Store,
-            ResourceState initial_layout = ResourceState::DepthStencilBit,
-            ResourceState subpass_layout = ResourceState::DepthStencilBit,
-            ResourceState final_layout = ResourceState::DepthStencilBit)
-        {
-            RenderPassAttachment attachment;
-            attachment.type = Type::DepthStencil;
-            attachment.texture = resource;
-            attachment.loadOp = load_op;
-            attachment.storeOp = store_op;
-            attachment.initialLayout = initial_layout;
-            attachment.subpassLayout = subpass_layout;
-            attachment.finalLayout = final_layout;
-
-            return attachment;
-        }
-    };
-
-    struct RenderPassDesc
-    {
-        std::vector<RenderPassAttachment> attachments;
-    };
-
     struct SwapChainDesc
     {
         uint32_t width = 0;
@@ -405,15 +344,6 @@ namespace cyb::graphics
         bool fullscreen = false;
         bool vsync = true;
         float clearColor[4] = { .4f, .4f, .4f, 1.0f };
-    };
-
-    struct FramebufferDesc
-    {
-        Texture* colorAttachment0 = nullptr;
-        Texture* colorAttachment1 = nullptr;
-        Texture* colorAttachment2 = nullptr;
-        Texture* colorAttachment3 = nullptr;
-        Texture* depthAttachment = nullptr;
     };
 
     struct PipelineStateDesc
@@ -486,6 +416,115 @@ namespace cyb::graphics
         const TextureDesc& GetDesc() const { return desc; }
     };
 
+    struct RenderPassImage
+    {
+        enum class Type
+        {
+            RenderTarget,
+            DepthStencil
+        };
+
+        enum class LoadOp
+        {
+            Load,
+            Clear,
+            DontCare
+        };
+
+        enum class StoreOp
+        {
+            Store,
+            DontCare
+        };
+
+        enum class DepthResolveMode
+        {
+            Min,
+            Max,
+        };
+
+        Type type = Type::RenderTarget;
+        LoadOp loadOp = LoadOp::Load;
+        StoreOp storeOp = StoreOp::Store;
+        const Texture* texture = nullptr;
+        ResourceState prePassLayout = ResourceState::Undefined;	    // layout before the render pass
+        ResourceState layout = ResourceState::Undefined;	        // layout within the render pass
+        ResourceState postPassLayout = ResourceState::Undefined;	// layout after the render pass
+        DepthResolveMode depthDesolveMode = DepthResolveMode::Min;
+
+        static RenderPassImage RenderTarget(
+            const Texture* resource,
+            LoadOp loadOp = LoadOp::Load,
+            StoreOp storeOp = StoreOp::Store,
+            ResourceState prePassLayout = ResourceState::ShaderResourceBit,
+            ResourceState postPassLayout = ResourceState::ShaderResourceBit)
+        {
+            RenderPassImage image;
+            image.type = Type::RenderTarget;
+            image.texture = resource;
+            image.loadOp = loadOp;
+            image.storeOp = storeOp;
+            image.prePassLayout = prePassLayout;
+            image.layout = ResourceState::RenderTargetBit;
+            image.postPassLayout = postPassLayout;
+            return image;
+        }
+
+        static RenderPassImage DepthStencil(
+            const Texture* resource,
+            LoadOp loadOp = LoadOp::Load,
+            StoreOp storeOp = StoreOp::Store,
+            ResourceState prePassLayout = ResourceState::DepthStencilBit,
+            ResourceState layout = ResourceState::DepthStencilBit,
+            ResourceState postPassLayout = ResourceState::DepthStencilBit)
+        {
+            RenderPassImage image;
+            image.type = Type::DepthStencil;
+            image.texture = resource;
+            image.loadOp = loadOp;
+            image.storeOp = storeOp;
+            image.prePassLayout = prePassLayout;
+            image.layout = layout;
+            image.postPassLayout = postPassLayout;
+            return image;
+        }
+    };
+
+    struct RenderPassInfo
+    {
+        Format rtFormats[8];
+        uint32_t rtCount = 0;
+        Format dsFormat;        // DepthStencil format
+
+        static constexpr RenderPassInfo GetFrom(const RenderPassImage* images, uint32_t imageCount)
+        {
+            RenderPassInfo info;
+            for (uint32_t i = 0; i < imageCount; ++i)
+            {
+                const RenderPassImage& image = images[i];
+                const TextureDesc& desc = image.texture->GetDesc();
+                switch (image.type)
+                {
+                case RenderPassImage::Type::RenderTarget:
+                    info.rtFormats[info.rtCount++] = desc.format;
+                    break;
+                case RenderPassImage::Type::DepthStencil:
+                    info.dsFormat = desc.format;
+                    break;
+                }
+            }
+            return info;
+        }
+
+        static constexpr RenderPassInfo GetFrom(const SwapChainDesc& swapchainDesc)
+        {
+            RenderPassInfo info;
+            info.rtCount = 1;
+            info.rtFormats[0] = swapchainDesc.format;
+            return info;
+        }
+    };
+
     struct Shader final : public RenderDeviceChild
     {
         ShaderStage stage = ShaderStage::VS;
@@ -503,12 +542,6 @@ namespace cyb::graphics
         size_t hash = 0;
         PipelineStateDesc desc;
         const PipelineStateDesc& GetDesc() const { return desc; }
-    };
-
-    struct RenderPass final : public RenderDeviceChild
-    {
-        size_t hash = 0;
-        RenderPassDesc desc;
     };
 
     struct SwapChain final : public RenderDeviceChild
@@ -573,7 +606,6 @@ namespace cyb::graphics
         virtual bool CreateShader(ShaderStage stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const = 0;
         virtual bool CreateSampler(const SamplerDesc* desc, Sampler* sampler) const = 0;
         virtual bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const = 0;
-        virtual bool CreateRenderPass(const RenderPassDesc* desc, RenderPass* renderpass) const = 0;
 
         virtual CommandList BeginCommandList(QueueType queue = QueueType::Graphics) = 0;
         virtual void SubmitCommandList() {}
@@ -604,7 +636,7 @@ namespace cyb::graphics
         //	- These are not thread safe, only a single thread should use a single CommandList at one time
 
         virtual void BeginRenderPass(const SwapChain* swapchain, CommandList cmd) = 0;
-        virtual void BeginRenderPass(const RenderPass* renderpass, CommandList cmd) = 0;
+        virtual void BeginRenderPass(const RenderPassImage* images, uint32_t imageCount, CommandList cmd) = 0;
         virtual void EndRenderPass(CommandList cmd) = 0;
 
         virtual void BindScissorRects(const Rect* rects, uint32_t rectCount, CommandList cmd) = 0;
@@ -714,6 +746,29 @@ namespace cyb::graphics
             BindConstantBuffer(&allocation.buffer, slot, cmd, allocation.offset);
         }
     };
+
+    constexpr bool IsFormatDepthSupport(Format format)
+    {
+        switch (format)
+        {
+        case Format::D32_Float:
+        case Format::D32_Float_S8_Uint:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    constexpr bool IsFormatStencilSupport(Format format)
+    {
+        switch (format)
+        {
+        case Format::D32_Float_S8_Uint:
+            return true;
+        default:
+            return false;
+        }
+    }
 
     constexpr uint32_t GetFormatStride(Format format)
     {

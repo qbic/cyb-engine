@@ -200,9 +200,9 @@ namespace cyb::graphics
 
     enum class GPUQueryType
     {
-        Timestamp,			                // retrieve time point of gpu execution
-        Occlusion,			                // how many samples passed depth test?
-        OcclusionBinary 	                // depth test passed or not?
+        Timestamp,			                // Retrieve time point of gpu execution
+        Occlusion,			                // How many samples passed depth test?
+        OcclusionBinary 	                // Depth test passed or not?
     };
 
     struct GPUBufferDesc
@@ -686,7 +686,7 @@ namespace cyb::graphics
         };
 
         // Allocates temporary memory that the CPU can write and GPU can read. 
-        //	It is only alive for one frame and automatically invalidated after that.
+        // Allocation is only alive for one frame and automatically invalidated after that.
         GPUAllocation AllocateGPU(uint64_t dataSize, CommandList cmd)
         {
             GPUAllocation allocation;
@@ -735,7 +735,7 @@ namespace cyb::graphics
             CopyBuffer(buffer, offset, &allocation.buffer, allocation.offset, size, cmd);
         }
 
-        // Helper util to bind a constant buffer with data for a specific command list:
+        // Bind a constant buffer with data for a specific command list
         // This will be done on the CPU to an UPLOAD buffer, so this can be used inside a RenderPass
         // But this will be only visible on the command list it was bound to
         template<typename T>

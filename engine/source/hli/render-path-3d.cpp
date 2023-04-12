@@ -97,7 +97,6 @@ namespace cyb::hli
 
         {
             CYB_PROFILE_GPU_SCOPE("Opaque Scene", cmd);
-            //device->BeginRenderPass(&renderPass_Main, cmd);
             renderer::DrawScene(sceneViewMain, cmd);
             renderer::DrawSky(sceneViewMain.camera, cmd);
             device->EndEvent(cmd);
@@ -107,9 +106,9 @@ namespace cyb::hli
             CYB_PROFILE_GPU_SCOPE("Debug Scene", cmd);
             renderer::DrawDebugScene(sceneViewMain, cmd);
             device->EndEvent(cmd);
-            device->EndRenderPass(cmd);
         }
 
+        device->EndRenderPass(cmd);
         RenderPath2D::Render();
     }
 

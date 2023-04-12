@@ -82,7 +82,7 @@ namespace cyb::graphics
             void Submit(CopyCMD cmd);
             uint64_t Flush();
         };
-        mutable CopyAllocator copy_allocator;
+        mutable CopyAllocator m_copyAllocator;
 
         struct FrameResources
         {
@@ -90,11 +90,11 @@ namespace cyb::graphics
             VkCommandPool init_commandpool;
             VkCommandBuffer init_commandbuffer;
         };
-        mutable std::mutex init_locker;
-        mutable bool init_submits = false;
-        struct FrameResources frame_resources[BUFFERCOUNT];
-        const FrameResources& GetFrameResources() const { return frame_resources[GetBufferIndex()]; }
-        FrameResources& GetFrameResources() { return frame_resources[GetBufferIndex()]; }
+        mutable std::mutex m_initLocker;
+        mutable bool m_initSubmits = false;
+        struct FrameResources m_frameResources[BUFFERCOUNT];
+        const FrameResources& GetFrameResources() const { return m_frameResources[GetBufferIndex()]; }
+        FrameResources& GetFrameResources() { return m_frameResources[GetBufferIndex()]; }
 
         struct DescriptorBinder
         {
@@ -188,9 +188,9 @@ namespace cyb::graphics
             }
         };
 
-        std::vector<std::unique_ptr<CommandList_Vulkan>> commandlists;
-        uint32_t cmd_count = 0;
-        SpinLock cmd_locker;
+        std::vector<std::unique_ptr<CommandList_Vulkan>> m_commandlists;
+        uint32_t m_cmdCount = 0;
+        SpinLock m_cmdLocker;
 
         constexpr CommandList_Vulkan& GetCommandList(CommandList cmd) const
         {
@@ -203,11 +203,11 @@ namespace cyb::graphics
             VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
             VkDescriptorSetLayout descriptorset_layout = VK_NULL_HANDLE;
         };
-        mutable std::unordered_map<size_t, PSOLayout> pso_layout_cache;
-        mutable std::mutex pso_layout_cache_mutex;
+        mutable std::unordered_map<size_t, PSOLayout> m_psoLayoutCache;
+        mutable std::mutex m_psoLayoutCacheMutex;
 
-        VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
-        std::unordered_map<size_t, VkPipeline> pipelines_global;
+        VkPipelineCache m_pipelineCache = VK_NULL_HANDLE;
+        std::unordered_map<size_t, VkPipeline> m_pipelinesGlobal;
 
         void ValidatePSO(CommandList cmds);
         void PreDraw(CommandList cmds);
@@ -223,7 +223,8 @@ namespace cyb::graphics
         bool CreateShader(ShaderStage stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const override;
         bool CreateSampler(const SamplerDesc* desc, Sampler* sampler) const override;
         bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const override;
-        void CreateSubresource(Texture* texture, SubresourceType type) const;
+        void CreateSubresource(Texture* texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const;
+
 
         virtual CommandList BeginCommandList(QueueType queue) override;
         virtual void SubmitCommandList() override;
@@ -475,6 +476,6 @@ namespace cyb::graphics
             }
         };
 
-        std::shared_ptr<AllocationHandler> allocationhandler;
+        std::shared_ptr<AllocationHandler> m_allocationHandler;
     };
 }

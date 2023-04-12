@@ -5,14 +5,14 @@
 namespace cyb::scene
 {
     void TransformComponent::SetDirty(bool value)
-    { 
+    {
         if (value)
-            flags |= Flags::DirtyBit; 
+            flags |= Flags::DirtyBit;
         else
             flags &= ~Flags::DirtyBit;
     }
-    
-    bool TransformComponent::IsDirty() const 
+
+    bool TransformComponent::IsDirty() const
     {
         return HasFlag(flags, Flags::DirtyBit);
     }
@@ -140,8 +140,8 @@ namespace cyb::scene
             flags &= ~Flags::UseVertexColorsBit;
     }
 
-    bool MaterialComponent::IsUsingVertexColors() const 
-    { 
+    bool MaterialComponent::IsUsingVertexColors() const
+    {
         return HasFlag(flags, Flags::UseVertexColorsBit);
     }
 
@@ -467,7 +467,7 @@ namespace cyb::scene
     {
         // Skip directional lights as they affects the whole scene and 
         // doesen't really have a AABB.
-        if (type == LightType::Directional) 
+        if (type == LightType::Directional)
         {
             return;
         }
@@ -490,7 +490,7 @@ namespace cyb::scene
     {
         // NOTE: reverse zbuffer!
         XMMATRIX _P = XMMatrixPerspectiveFovLH(fov, aspect, zFarPlane, zNearPlane);
-        
+
         XMVECTOR _Eye = XMLoadFloat3(&pos);
         XMVECTOR _At = XMLoadFloat3(&target);
         XMVECTOR _Up = XMLoadFloat3(&up);
@@ -635,7 +635,7 @@ namespace cyb::scene
     void Scene::ComponentAttach(ecs::Entity entity, ecs::Entity parent)
     {
         assert(entity != parent);
-        
+
         if (hierarchy.Contains(entity))
         {
             ComponentDetach(entity);
@@ -729,23 +729,23 @@ namespace cyb::scene
         weathers.Remove(entity);
     }
 
-    void Scene::Serialize(serializer::Archive& ar)
+    void Scene::Serialize(serializer::Archive& archive)
     {
         ecs::SerializeEntityContext serialize;
 
-        names.Serialize(ar, serialize);
-        transforms.Serialize(ar, serialize);
-        if (ar.GetVersion() >= 4)
-            groups.Serialize(ar, serialize);
-        hierarchy.Serialize(ar, serialize);
-        materials.Serialize(ar, serialize);
-        meshes.Serialize(ar, serialize);
-        objects.Serialize(ar, serialize);
-        aabb_objects.Serialize(ar, serialize);
-        lights.Serialize(ar, serialize);
-        aabb_lights.Serialize(ar, serialize);
-        cameras.Serialize(ar, serialize);
-        weathers.Serialize(ar, serialize);
+        names.Serialize(archive, serialize);
+        transforms.Serialize(archive, serialize);
+        if (archive.GetVersion() >= 4)
+            groups.Serialize(archive, serialize);
+        hierarchy.Serialize(archive, serialize);
+        materials.Serialize(archive, serialize);
+        meshes.Serialize(archive, serialize);
+        objects.Serialize(archive, serialize);
+        aabb_objects.Serialize(archive, serialize);
+        lights.Serialize(archive, serialize);
+        aabb_lights.Serialize(archive, serialize);
+        cameras.Serialize(archive, serialize);
+        weathers.Serialize(archive, serialize);
     }
 
     const uint32_t small_subtask_groupsize = 64;
@@ -912,199 +912,199 @@ namespace cyb::scene
 
         return result;
     }
+}
 
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-    // Scene struct serializers:
-
-    void SerializeComponent(NameComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& state)
+// Scene component serializers
+namespace cyb::ecs
+{
+    void SerializeComponent(scene::NameComponent& x, serializer::Archive& archive, SerializeEntityContext& entitySerializer)
     {
-        if (ar.IsReadMode())
+        if (archive.IsReadMode())
         {
-            ar >> x.name;
+            archive >> x.name;
         }
         else
         {
-            ar << x.name;
+            archive << x.name;
         }
     }
 
-    void SerializeComponent(TransformComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(scene::TransformComponent& x, serializer::Archive& archive, ecs::SerializeEntityContext& entitySerializer)
     {
-        if (ar.IsReadMode())
+        if (archive.IsReadMode())
         {
-            ar.UnsafeRead(x.flags);
-            ar >> x.scale_local;
-            ar >> x.rotation_local;
-            ar >> x.translation_local;
+            archive.UnsafeRead(x.flags);
+            archive >> x.scale_local;
+            archive >> x.rotation_local;
+            archive >> x.translation_local;
 
             x.SetDirty();
-            jobsystem::Execute(serialize.ctx, [&x](jobsystem::JobArgs) { x.UpdateTransform(); });
+            jobsystem::Execute(entitySerializer.ctx, [&x](jobsystem::JobArgs) { x.UpdateTransform(); });
         }
         else
         {
-            ar << (uint32_t)x.flags;
-            ar << x.scale_local;
-            ar << x.rotation_local;
-            ar << x.translation_local;
+            archive << (uint32_t)x.flags;
+            archive << x.scale_local;
+            archive << x.rotation_local;
+            archive << x.translation_local;
         }
     }
 
-    void SerializeComponent(GroupComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(scene::GroupComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
     {
     }
 
-    void SerializeComponent(HierarchyComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(scene::HierarchyComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
     {
-        ecs::SerializeEntity(ar, x.parentID, serialize);
+        ecs::SerializeEntity(x.parentID, arhive, entitySerializer);
     }
 
-    void SerializeComponent(MaterialComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(scene::MaterialComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
     {
-        if (ar.IsReadMode())
+        if (arhive.IsReadMode())
         {
-            ar.UnsafeRead(x.flags);
-            if (ar.GetVersion() >= 4)
-                ar >> (uint32_t&)x.shaderType;
-            ar >> x.baseColor;
-            ar >> x.roughness;
-            ar >> x.metalness;
+            arhive.UnsafeRead(x.flags);
+            if (arhive.GetVersion() >= 4)
+                arhive >> (uint32_t&)x.shaderType;
+            arhive >> x.baseColor;
+            arhive >> x.roughness;
+            arhive >> x.metalness;
         }
         else
         {
-            ar << (uint32_t)x.flags;
-            if (ar.GetVersion() >= 4)
-                ar << (uint32_t&)x.shaderType;
-            ar << x.baseColor;
-            ar << x.roughness;
-            ar << x.metalness;
+            arhive << (uint32_t)x.flags;
+            if (arhive.GetVersion() >= 4)
+                arhive << (uint32_t&)x.shaderType;
+            arhive << x.baseColor;
+            arhive << x.roughness;
+            arhive << x.metalness;
         }
     }
 
-    void SerializeComponent(MeshComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(scene::MeshComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
     {
-        if (ar.IsReadMode())
+        if (arhive.IsReadMode())
         {
             size_t subsetCount;
-            ar >> subsetCount;
+            arhive >> subsetCount;
             x.subsets.resize(subsetCount);
             for (size_t i = 0; i < subsetCount; ++i)
             {
-                ecs::SerializeEntity(ar, x.subsets[i].materialID, serialize);
-                ar >> x.subsets[i].indexOffset;
-                ar >> x.subsets[i].indexCount;
+                ecs::SerializeEntity(x.subsets[i].materialID, arhive, entitySerializer);
+                arhive >> x.subsets[i].indexOffset;
+                arhive >> x.subsets[i].indexCount;
             }
 
-            ar >> x.vertex_positions;
-            ar >> x.vertex_normals;
-            ar >> x.vertex_colors;
-            ar >> x.indices;
+            arhive >> x.vertex_positions;
+            arhive >> x.vertex_normals;
+            arhive >> x.vertex_colors;
+            arhive >> x.indices;
 
-            jobsystem::Execute(serialize.ctx, [&x](jobsystem::JobArgs) { x.CreateRenderData(); });
+            jobsystem::Execute(entitySerializer.ctx, [&x](jobsystem::JobArgs) { x.CreateRenderData(); });
         }
         else
         {
-            ar << x.subsets.size();
+            arhive << x.subsets.size();
             for (size_t i = 0; i < x.subsets.size(); ++i)
             {
-                ecs::SerializeEntity(ar, x.subsets[i].materialID, serialize);
-                ar << x.subsets[i].indexOffset;
-                ar << x.subsets[i].indexCount;
+                ecs::SerializeEntity(x.subsets[i].materialID, arhive, entitySerializer);
+                arhive << x.subsets[i].indexOffset;
+                arhive << x.subsets[i].indexCount;
             }
 
-            ar << x.vertex_positions;
-            ar << x.vertex_normals;
-            ar << x.vertex_colors;
-            ar << x.indices;
+            arhive << x.vertex_positions;
+            arhive << x.vertex_normals;
+            arhive << x.vertex_colors;
+            arhive << x.indices;
         }
     }
 
-    void SerializeComponent(ObjectComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(scene::ObjectComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
     {
-        if (ar.IsReadMode())
+        if (arhive.IsReadMode())
         {
-            ar.UnsafeRead(x.flags);
-            ecs::SerializeEntity(ar, x.meshID, serialize);
+            arhive.UnsafeRead(x.flags);
+            ecs::SerializeEntity(x.meshID, arhive, entitySerializer);
         }
         else
         {
-            ar << (uint32_t)x.flags;
-            ecs::SerializeEntity(ar, x.meshID, serialize);
+            arhive << (uint32_t)x.flags;
+            ecs::SerializeEntity(x.meshID, arhive, entitySerializer);
         }
     }
 
-    void SerializeComponent(LightComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(scene::LightComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
     {
-        if (ar.IsReadMode())
+        if (arhive.IsReadMode())
         {
-            ar >> (uint32_t&)x.flags;
-            ar >> x.color;
-            ar >> (uint32_t&)x.type;
-            ar >> x.energy;
-            ar >> x.range;
+            arhive >> (uint32_t&)x.flags;
+            arhive >> x.color;
+            arhive >> (uint32_t&)x.type;
+            arhive >> x.energy;
+            arhive >> x.range;
         }
         else
         {
-            ar << (uint32_t)x.flags;
-            ar << x.color;
-            ar << (uint32_t&)x.type;
-            ar << x.energy;
-            ar << x.range;
+            arhive << (uint32_t)x.flags;
+            arhive << x.color;
+            arhive << (uint32_t&)x.type;
+            arhive << x.energy;
+            arhive << x.range;
         }
     }
 
-    void SerializeComponent(CameraComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(scene::CameraComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
     {
-        if (ar.IsReadMode())
+        if (arhive.IsReadMode())
         {
-            ar >> x.aspect;
-            ar >> x.zNearPlane;
-            ar >> x.zFarPlane;
-            ar >> x.fov;
-            ar >> x.pos;
-            ar >> x.target;
-            ar >> x.up;
+            arhive >> x.aspect;
+            arhive >> x.zNearPlane;
+            arhive >> x.zFarPlane;
+            arhive >> x.fov;
+            arhive >> x.pos;
+            arhive >> x.target;
+            arhive >> x.up;
         }
         else
         {
-            ar << x.aspect;
-            ar << x.zNearPlane;
-            ar << x.zFarPlane;
-            ar << x.fov;
-            ar << x.pos;
-            ar << x.target;
-            ar << x.up;
+            arhive << x.aspect;
+            arhive << x.zNearPlane;
+            arhive << x.zFarPlane;
+            arhive << x.fov;
+            arhive << x.pos;
+            arhive << x.target;
+            arhive << x.up;
         }
     }
 
-    void SerializeComponent(WeatherComponent& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(scene::WeatherComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
     {
-        if (ar.IsReadMode())
+        if (arhive.IsReadMode())
         {
-            ar >> x.horizon;
-            ar >> x.zenith;
+            arhive >> x.horizon;
+            arhive >> x.zenith;
         }
         else
         {
-            ar << x.horizon;
-            ar << x.zenith;
+            arhive << x.horizon;
+            arhive << x.zenith;
         }
     }
 
-    void SerializeComponent(math::AxisAlignedBox& x, serializer::Archive& ar, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(math::AxisAlignedBox& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
     {
-        if (ar.IsReadMode())
+        if (arhive.IsReadMode())
         {
             XMFLOAT3 min;
             XMFLOAT3 max;
-            ar >> min;
-            ar >> max;
+            arhive >> min;
+            arhive >> max;
             x = math::AxisAlignedBox(min, max);
         }
         else
         {
-            ar << x.min;
-            ar << x.max;
+            arhive << x.min;
+            arhive << x.max;
         }
     }
 }

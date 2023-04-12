@@ -1,7 +1,7 @@
 #pragma once
+#include <vector>
 #include "core/platform.h"
 #include "core/mathlib.h"
-#include <vector>
 
 namespace cyb::graphics
 {
@@ -612,6 +612,8 @@ namespace cyb::graphics
         virtual void SetName(GPUResource* resource, const char* name) { }
         virtual void SetName(Shader* shader, const char* name) { }
 
+        virtual void ClearPipelineStateCache() = 0;
+
         constexpr uint64_t GetFrameCount() const { return frameCount; }
         static constexpr uint32_t GetBufferCount() { return BUFFERCOUNT; }
         constexpr uint32_t GetBufferIndex() const { return GetFrameCount() % BUFFERCOUNT; }
@@ -719,7 +721,7 @@ namespace cyb::graphics
             return allocation;
         }
 
-        // Updates a MemoryAccess::DEFAULT buffer data
+        // Update a MemoryAccess::Default buffer data
         // Since it uses a GPU Copy operation, appropriate synchronization is expected
         // And it cannot be used inside a RenderPass
         void UpdateBuffer(const GPUBuffer* buffer, const void* data, CommandList cmd, uint64_t size = ~0, uint64_t offset = 0)

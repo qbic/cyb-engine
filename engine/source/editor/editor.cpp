@@ -687,7 +687,7 @@ namespace cyb::editor
     void OpenDialog_Open()
     {
         filesystem::OpenDialog(FILE_FILTER_SCENE, [](std::string filename) {
-            eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t) {
+            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
                 scene::GetScene().Clear();
                 scene::LoadModel(filename);
                 });
@@ -699,7 +699,7 @@ namespace cyb::editor
     void OpenDialog_ImportModel(const std::string filter)
     {
         filesystem::OpenDialog(filter, [](std::string filename) {
-            eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t) {
+            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
                 const std::string extension = filesystem::GetFileExtension(filename);
                 if (filesystem::FileHasExtension(filename, "csb"))
                     scene::LoadModel(filename);
@@ -734,7 +734,7 @@ namespace cyb::editor
 
     static void DeleteSelectedEntity()
     {
-        eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t)
+        eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t)
             {
                 scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity());
                 scenegraph_view.SelectEntity(ecs::InvalidEntity);
@@ -752,7 +752,7 @@ namespace cyb::editor
             if (ImGui::BeginMenu("File"))
             {
                 if (ImGui::MenuItem("New"))
-                    eventsystem::Subscribe_Once(eventsystem::kEvent_ThreadSafePoint, [=](uint64_t)
+                    eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t)
                         {
                             scene::GetScene().Clear(); 
                         });
@@ -823,7 +823,7 @@ namespace cyb::editor
                     renderer::SetDebugLightsourcesAABB(debug_lightsources_abb);
 
                 if (ImGui::Checkbox("Enable VSync", &vsync_enabled))
-                    eventsystem::FireEvent(eventsystem::kEvent_SetVSync, vsync_enabled ? 1ull : 0ull);
+                    eventsystem::FireEvent(eventsystem::Event_SetVSync, vsync_enabled ? 1ull : 0ull);
 
                 ImGui::EndMenu();
             }

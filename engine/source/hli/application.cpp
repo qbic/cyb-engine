@@ -28,7 +28,7 @@ namespace cyb::hli
 		delta_time = static_cast<float>(timer.RecordElapsedSeconds());
 
 		// Wake up the events that need to be executed on the main thread, in thread safe manner:
-		eventsystem::FireEvent(eventsystem::kEvent_ThreadSafePoint, 0);
+		eventsystem::FireEvent(eventsystem::Event_ThreadSafePoint, 0);
 
 		// Update the game components
 		// TODO: Add a fixed-time update routine
@@ -65,7 +65,7 @@ namespace cyb::hli
 		desc.height = physical_window_size.y;
 		graphics::GetDevice()->CreateSwapChain(&desc, window.get(), &swapchain);
 
-		change_vsyc_event = eventsystem::Subscribe(eventsystem::kEvent_SetVSync, [this](uint64_t userdata) {
+		change_vsyc_event = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this](uint64_t userdata) {
 			SwapChainDesc desc = swapchain.desc;
 			desc.vsync = userdata != 0;
 			bool success = graphics_device->CreateSwapChain(&desc, nullptr, &swapchain);

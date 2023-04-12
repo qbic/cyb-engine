@@ -799,7 +799,6 @@ namespace cyb::graphics
             }
             assert(res == VK_SUCCESS);
 
-
             descriptor_writes.clear();
             buffer_infos.clear();
             image_infos.clear();
@@ -2261,9 +2260,7 @@ namespace cyb::graphics
             assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
             std::vector<SpvReflectDescriptorBinding*> bindings(binding_count);
-            result = spvReflectEnumerateDescriptorBindings(
-                &module, &binding_count, bindings.data()
-            );
+            result = spvReflectEnumerateDescriptorBindings(&module, &binding_count, bindings.data());
             assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
             for (auto& x : bindings)
@@ -2927,6 +2924,48 @@ namespace cyb::graphics
 
         m_initSubmits = false;
         m_initLocker.unlock();
+    }
+
+    void GraphicsDevice_Vulkan::ClearPipelineStateCache()
+    {
+        m_allocationHandler->destroylocker.lock();
+        
+        m_psoLayoutCacheMutex.lock();
+        for (auto& it : m_psoLayoutCache)
+        {
+            if (it.second.pipeline_layout)
+                m_allocationHandler->destroyer_pipelineLayouts.push_back(std::make_pair(it.second.pipeline_layout, frameCount));
+            if (it.second.descriptorset_layout) 
+                m_allocationHandler->destroyer_descriptorSetLayouts.push_back(std::make_pair(it.second.descriptorset_layout, frameCount));
+
+        }
+        m_psoLayoutCache.clear();
+        m_psoLayoutCacheMutex.unlock();
+
+        for (auto& it : m_pipelinesGlobal)
+            m_allocationHandler->destroyer_pipelines.push_back(std::make_pair(it.second, frameCount));
+        m_pipelinesGlobal.clear();
+
+        for (auto& x : m_commandlists)
+        {
+            for (auto&y : x->pipelinesWorker)
+                m_allocationHandler->destroyer_pipelines.push_back(std::make_pair(y.second, frameCount));
+            x->pipelinesWorker.clear();
+        }
+        m_allocationHandler->destroylocker.unlock();
+
+        // Destroy vulkan pipeline cache
+        vkDestroyPipelineCache(device, m_pipelineCache, nullptr);
+        m_pipelineCache = VK_NULL_HANDLE;
+
+        VkPipelineCacheCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+        createInfo.initialDataSize = 0;
+        createInfo.pInitialData = nullptr;
+
+        // Create Vulkan pipeline cache
+        VkResult res = vkCreatePipelineCache(device, &createInfo, nullptr, &m_pipelineCache);
+        assert(res == VK_SUCCESS);
     }
 
     void GraphicsDevice_Vulkan::BeginRenderPass(const SwapChain* swapchain, CommandList cmd)

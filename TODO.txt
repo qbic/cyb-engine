@@ -1,6 +1,6 @@
 BUGS:
-!* Shader reload is crashing. Probably need to clear pso cache before reloading.
  * Depth buffer only goes from 0 - 0.01 according to renderdoc
+ * Crash when removing entity with heirarchy
 
 TODO FEATURES:
  * Editor default window layout

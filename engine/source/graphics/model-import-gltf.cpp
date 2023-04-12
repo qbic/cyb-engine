@@ -28,8 +28,8 @@ namespace cyb::renderer
         {
             assert(node.mesh < (int)state.scene->meshes.Size());
 
-            // (node.skin < 0):  mesh instance
-            // (node.skin >= 0): armature
+            // if (node.skin < 0):  mesh instance
+            // if (node.skin >= 0): armature
             if (node.skin < 0)
             {
                 entity = state.scene->CreateObject(node.name);

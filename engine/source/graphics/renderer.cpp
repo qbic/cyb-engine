@@ -2,6 +2,7 @@
 #include "core/profiler.h"
 #include "core/logger.h"
 #include "systems/scene.h"
+#include "systems/event-system.h"
 #include "graphics/renderer.h"
 #include "graphics/shader-compiler.h"
 #include "../../shaders/shader-interop.h"
@@ -213,8 +214,11 @@ namespace cyb::renderer
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::Load("assets/light_directional2.png"); });
     }
 
-    static void LoadShaders(jobsystem::Context& ctx)
+    static void LoadShaders()
     {
+        jobsystem::Context ctx = {};
+        GraphicsDevice* device = GetDevice();
+
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
             input_layouts[VLTYPE_FLAT_SHADING] =
             {
@@ -247,11 +251,8 @@ namespace cyb::renderer
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_IMAGE], "image.frag"); });
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_SKY], "sky.frag"); });
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
-    }
 
-    static void LoadPipelineStates()
-    {
-        GraphicsDevice* device = GetDevice();
+        jobsystem::Wait(ctx);
 
         {
             DepthStencilState dsd;
@@ -363,15 +364,14 @@ namespace cyb::renderer
             desc.pt = PrimitiveTopology::LineList;
             device->CreatePipelineState(&desc, &pso_debug[DEBUGRENDERING_CUBE]);
         }
+
+        jobsystem::Wait(ctx);
     }
 
     void ReloadShaders()
     {
-        jobsystem::Context ctx;
-        LoadShaders(ctx);
-        jobsystem::Wait(ctx);
-
-        LoadPipelineStates();
+        graphics::GetDevice()->ClearPipelineStateCache();
+        eventsystem::FireEvent(eventsystem::Event_ReloadShaders, 0);
     }
 
     void Initialize()
@@ -381,10 +381,13 @@ namespace cyb::renderer
         jobsystem::Context ctx;
         LoadBuiltinTextures(ctx);
         LoadBuffers(ctx);
-        LoadShaders(ctx);
+        LoadShaders();
         LoadSamplerStates();
+
         jobsystem::Wait(ctx);
-        LoadPipelineStates();
+
+        static eventsystem::Handle handle = eventsystem::Subscribe(eventsystem::Event_ReloadShaders, [](uint64_t userdata) { LoadShaders(); });
+
     }
 
     void SceneView::Clear()

@@ -225,13 +225,12 @@ namespace cyb::graphics
         bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const override;
         void CreateSubresource(Texture* texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const;
 
-
-        virtual CommandList BeginCommandList(QueueType queue) override;
-        virtual void SubmitCommandList() override;
-
+        CommandList BeginCommandList(QueueType queue) override;
+        void SubmitCommandList() override;
         void SetName(GPUResource* pResource, const char* name) override;
         void SetName(Shader* shader, const char* name) override;
 
+        void ClearPipelineStateCache() override;
         MemoryUsage GetMemoryUsage() const override;
 
         /////////////// Thread-sensitive ////////////////////////
@@ -285,6 +284,7 @@ namespace cyb::graphics
             std::deque<std::pair<VkQueryPool, uint64_t>> destroyer_querypools;
             std::deque<std::pair<VkSampler, uint64_t>> destroyer_samplers;
             std::deque<std::pair<VkDescriptorPool, uint64_t>> destroyer_descriptorPools;
+            std::deque<std::pair<VkDescriptorSetLayout, uint64_t>> destroyer_descriptorSetLayouts;
             std::deque<std::pair<VkShaderModule, uint64_t>> destroyer_shadermodules;
             std::deque<std::pair<VkPipelineLayout, uint64_t>> destroyer_pipelineLayouts;
             std::deque<std::pair<VkPipeline, uint64_t>> destroyer_pipelines;
@@ -387,6 +387,19 @@ namespace cyb::graphics
                         auto& item = destroyer_descriptorPools.front();
                         destroyer_descriptorPools.pop_front();
                         vkDestroyDescriptorPool(device, item.first, nullptr);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                while (!destroyer_descriptorSetLayouts.empty())
+                {
+                    if (destroyer_descriptorSetLayouts.front().second + BUFFERCOUNT < frameCount)
+                    {
+                        auto& item = destroyer_descriptorSetLayouts.front();
+                        destroyer_descriptorSetLayouts.pop_front();
+                        vkDestroyDescriptorSetLayout(device, item.first, nullptr);
                     }
                     else
                     {

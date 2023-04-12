@@ -1,4 +1,5 @@
 #include "core/logger.h"
+#include "systems/event-system.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include "imgui/imgui_freetype.h"
@@ -93,23 +94,6 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	// Store our identifier:
 	io.Fonts->SetTexID((ImTextureID)&bd->fontTexture);
 
-	bd->inputLayout.elements =
-	{
-		{ "in_position", 0, Format::R32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, pos) },
-		{ "in_uv",       0, Format::R32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, uv)  },
-		{ "in_color",    0, Format::R8G8B8A8_Unorm, (uint32_t)IM_OFFSETOF(ImDrawVert, col) }
-	};
-
-	// Create pipeline:
-	PipelineStateDesc desc;
-	desc.vs = &bd->vs;
-	desc.fs = &bd->fs;
-	desc.il = &bd->inputLayout;
-	desc.dss = GetDepthStencilState(DSSTYPE_DEFAULT);
-	desc.rs = GetRasterizerState(RSTYPE_DOUBLESIDED);
-	desc.pt = PrimitiveTopology::TriangleList;
-	GetDevice()->CreatePipelineState(&desc, &bd->pso);
-
 	// Get the index buffer format from ImDrawIdx size (can be overwrittern in imconfig.h)
 	assert(sizeof(ImDrawIdx) == 2 || sizeof(ImDrawIdx) == 4);
 	if (sizeof(ImDrawIdx) == 2)
@@ -147,6 +131,29 @@ static void SetupCustomStyle()
 	ImGui::GetStyle().GrabRounding = 4.0f;
 }
 
+static void LoadShaders()
+{
+	ImGui_Impl_Data* bd = ImGui_Impl_GetBackendData();
+	LoadShader(ShaderStage::VS, bd->vs, "imgui.vert");
+	LoadShader(ShaderStage::FS, bd->fs, "imgui.frag");
+
+	bd->inputLayout.elements =
+	{
+		{ "in_position", 0, Format::R32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, pos) },
+		{ "in_uv",       0, Format::R32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, uv)  },
+		{ "in_color",    0, Format::R8G8B8A8_Unorm, (uint32_t)IM_OFFSETOF(ImDrawVert, col) }
+	};
+
+	PipelineStateDesc desc;
+	desc.vs = &bd->vs;
+	desc.fs = &bd->fs;
+	desc.il = &bd->inputLayout;
+	desc.dss = GetDepthStencilState(DSSTYPE_DEFAULT);
+	desc.rs = GetRasterizerState(RSTYPE_DOUBLESIDED);
+	desc.pt = PrimitiveTopology::TriangleList;
+	GetDevice()->CreatePipelineState(&desc, &bd->pso);
+}
+
 void ImGui_Impl_CybEngine_Init()
 {
 	// Setup Dear ImGui context
@@ -165,9 +172,9 @@ void ImGui_Impl_CybEngine_Init()
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
 
 	// Compile shaders
-	LoadShader(ShaderStage::VS, bd->vs, "imgui.vert");
-	LoadShader(ShaderStage::FS, bd->fs, "imgui.frag");
-
+	LoadShaders();
+	static cyb::eventsystem::Handle handle = cyb::eventsystem::Subscribe(cyb::eventsystem::Event_ReloadShaders, [](uint64_t userdata) { LoadShaders(); });
+	
 	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
 	SetupCustomStyle();

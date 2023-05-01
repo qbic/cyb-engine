@@ -128,13 +128,13 @@ namespace cyb::editor
 
         ui::ComboBox("Shader Type", material->shaderType, shadertype_names);
         ui::ColorEdit4("BaseColor", &material->baseColor.x);
-        ui::SliderFloat("Roughness", &material->roughness, 0.0f, 1.0f);
-        ui::SliderFloat("Metalness", &material->metalness, 0.0f, 1.0f);
+        ui::SliderFloat("Roughness", &material->roughness, nullptr, 0.0f, 1.0f);
+        ui::SliderFloat("Metalness", &material->metalness, nullptr, 0.0f, 1.0f);
     }
 
     struct NameSortableEntityData
     {
-        ecs::Entity id = ecs::InvalidEntity;
+        ecs::Entity id = ecs::INVALID_ENTITY;
         std::string_view name;
 
         bool operator<(const NameSortableEntityData& a)
@@ -256,19 +256,18 @@ namespace cyb::editor
 
     void InspectObjectComponent(scene::ObjectComponent* object)
     {
-        ui::CheckboxFlags("Renderable (unimplemented)", &object->flags, scene::ObjectComponent::Flags::RenderableBit);
-        ui::CheckboxFlags("Cast shadow (unimplemented)", &object->flags, scene::ObjectComponent::Flags::CastShadowBit);
+        ui::CheckboxFlags("Renderable (unimplemented)", (uint32_t*)&object->flags, (uint32_t)scene::ObjectComponent::Flags::RenderableBit, nullptr);
+        ui::CheckboxFlags("Cast shadow (unimplemented)", (uint32_t*)&object->flags, (uint32_t)scene::ObjectComponent::Flags::CastShadowBit, nullptr);
     }
 
-    bool InspectCameraComponent(scene::CameraComponent& camera)
+    void InspectCameraComponent(scene::CameraComponent& camera)
     {
-        bool change = ui::SliderFloat("Z Near Plane", &camera.zNearPlane, 0.001f, 10.0f);
-        change |= ui::SliderFloat("Z Far Plane", &camera.zFarPlane, 10.0f, 1000.0f);
-        change |= ui::SliderFloat("FOV", &camera.fov, 0.0f, 3.0f);
-        change |= ui::DragFloat3("Position", &camera.pos.x);
-        change |= ui::DragFloat3("Target", &camera.target.x);
-        change |= ui::DragFloat3("Up", &camera.up.x);
-        return change;
+        ui::SliderFloat("Z Near Plane", &camera.zNearPlane, nullptr, 0.001f, 10.0f);
+        ui::SliderFloat("Z Far Plane", &camera.zFarPlane, nullptr, 10.0f, 1000.0f);
+        ui::SliderFloat("FOV", &camera.fov, nullptr, 0.0f, 3.0f);
+        ui::DragFloat3("Position", &camera.pos.x);
+        ui::DragFloat3("Target", &camera.target.x);
+        ui::DragFloat3("Up", &camera.up.x);
     }
 
     void InspectLightComponent(scene::LightComponent* light)
@@ -281,19 +280,24 @@ namespace cyb::editor
 
         ui::ComboBox("Type", light->type, lightTypeNames);
         ui::ColorEdit3("Color", &light->color.x);
-        ui::DragFloat("Energy", &light->energy, 0.02f);
-        ui::DragFloat("Range", &light->range, 1.2f, 0.0f, FLT_MAX);
-        ui::CheckboxFlags("Affects scene", &light->flags, scene::LightComponent::Flags::AffectsSceneBit);
-        ui::CheckboxFlags("Cast shadows", &light->flags, scene::LightComponent::Flags::CastShadowsBit);
+        ui::SliderFloat("Energy", &light->energy, nullptr, 0.2f, 5.0f);
+        ui::SliderFloat("Range", &light->range, nullptr, 1.0f, 300.0f);
+        ui::CheckboxFlags("Affects scene", (uint32_t*)&light->flags, (uint32_t)scene::LightComponent::Flags::AffectsSceneBit, nullptr);
+        ui::CheckboxFlags("Cast shadows", (uint32_t*)&light->flags, (uint32_t)scene::LightComponent::Flags::CastShadowsBit, nullptr);
     }
 
     void InspectWeatherComponent(scene::WeatherComponent* weather)
     {
         ui::ColorEdit3("Horizon Color", &weather->horizon.x);
         ui::ColorEdit3("Zenith Color", &weather->zenith.x);
+        ui::Checkbox("Draw Sun", &weather->drawSun, nullptr);
         ui::DragFloat("Fog Begin", &weather->fogStart);
         ui::DragFloat("Fog End", &weather->fogEnd);
         ui::DragFloat("Fog Height", &weather->fogHeight);
+        ui::SliderFloat("Cloudiness", &weather->cloudiness, nullptr, 0.0f, 1.0f);
+        ui::SliderFloat("Cloud Turbulence", &weather->cloudTurbulence, nullptr, 0.0f, 10.0f);
+        ui::SliderFloat("Cloud Height", &weather->cloudHeight, nullptr, 200.f, 1000.0f);
+        ui::SliderFloat("Wind Speed", &weather->windSpeed, nullptr, 0.0f, 150.0f);
     }
 
     //------------------------------------------------------------------------------
@@ -446,7 +450,7 @@ namespace cyb::editor
 
     void EditEntityComponents(ecs::Entity entityID)
     {
-        if (entityID == ecs::InvalidEntity)
+        if (entityID == ecs::INVALID_ENTITY)
             return;
 
         scene::Scene& scene = scene::GetScene();
@@ -637,7 +641,7 @@ namespace cyb::editor
 
     std::vector<std::unique_ptr<GuiTool>> tools;
 
-    void AttachToolToMenu(std::unique_ptr<GuiTool>&& tool)
+    void AttachToolToMenu(std::unique_ptr<GuiTool> tool)
     {
         tools.push_back(std::move(tool));
     }
@@ -737,7 +741,7 @@ namespace cyb::editor
         eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t)
             {
                 scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity());
-                scenegraph_view.SelectEntity(ecs::InvalidEntity);
+                scenegraph_view.SelectEntity(ecs::INVALID_ENTITY);
             });
     }
 
@@ -1088,7 +1092,7 @@ namespace cyb::editor
                     }
                 }
 
-                if (pick_result.entity != ecs::InvalidEntity)
+                if (pick_result.entity != ecs::INVALID_ENTITY)
                     scenegraph_view.SelectEntity(pick_result.entity);
             }
         }

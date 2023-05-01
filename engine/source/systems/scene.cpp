@@ -629,7 +629,7 @@ namespace cyb::scene
             }
         }
 
-        return ecs::InvalidEntity;
+        return ecs::INVALID_ENTITY;
     }
 
     void Scene::ComponentAttach(ecs::Entity entity, ecs::Entity parent)
@@ -784,7 +784,7 @@ namespace cyb::scene
 
                     aabb = math::AxisAlignedBox();
 
-                    if (object.meshID != ecs::InvalidEntity)
+                    if (object.meshID != ecs::INVALID_ENTITY)
                     {
                         const ecs::Entity entity = objects.GetEntity(i);
                         const MeshComponent* mesh = meshes.GetComponent(object.meshID);
@@ -870,7 +870,7 @@ namespace cyb::scene
                 continue;
 
             const ObjectComponent& object = scene.objects[i];
-            if (object.meshID == ecs::InvalidEntity)
+            if (object.meshID == ecs::INVALID_ENTITY)
                 continue;
 
             const ecs::Entity entity = scene.aabb_objects.GetEntity(i);

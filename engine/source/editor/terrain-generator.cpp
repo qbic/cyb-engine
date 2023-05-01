@@ -5,6 +5,7 @@
 #include "core/filesystem.h"
 #include "editor/editor.h"
 #include "editor/terrain-generator.h"
+#include "editor/undo-manager.h"
 #include "editor/icons_font_awesome6.h"
 #include "json.hpp"
 #include <fstream>
@@ -585,6 +586,30 @@ namespace cyb::editor
     }
 #endif
 
+    template <typename T, TerrainGenerator* gen>
+    class EditorAction_ModifyTerrainEditorValue : public ui::EditorAction_ModifyValue<T, 1>
+    {
+    public:
+        using value_type = T;
+
+        EditorAction_ModifyTerrainEditorValue(T* dataPtr) :
+            ui::EditorAction_ModifyValue(dataPtr)
+        {
+        }
+
+        void OnUndo() const override
+        {
+            EditorAction_ModifyValue::OnUndo();
+            gen->UpdateHeightmapAndTextures();
+        }
+
+        void OnRedo() const override
+        {
+            EditorAction_ModifyValue::OnRedo();
+            gen->UpdateHeightmapAndTextures();
+        }
+    };
+
     //=============================================================
     //  TerrainGenerator GUI
     //=============================================================
@@ -771,6 +796,7 @@ namespace cyb::editor
                         m_heightmapDesc.device2.blur = input2["blur"];
 
                         UpdateHeightmapAndTextures();
+                        ui::GetUndoManager().ClearActionHistory();
                         });
                 }
                 ImGui::EndMenu();
@@ -787,7 +813,9 @@ namespace cyb::editor
             ImGui::EndMenuBar();
         }
 
-        if (ImGui::BeginTable("TerrainGenerator", 2,  ImGuiTableFlags_SizingFixedFit))
+        const auto onChangeFunc = [this]() { UpdateHeightmapAndTextures(); };
+
+        if (ImGui::BeginTable("TerrainGenerator", 2, ImGuiTableFlags_SizingFixedFit))
         {
             ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_NoClip);
             ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch);
@@ -801,8 +829,8 @@ namespace cyb::editor
                 ui::DragFloat("Map Size", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
                 ui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
                 ui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
-                ui::SliderInt("Num Chunks", (int*)&m_meshDesc.numChunks, 1, 32, "%d^2");
-                ui::SliderFloat("Max Error", &m_meshDesc.maxError, 0.0001f, 0.01f, "%.4f");
+                ui::SliderInt("Num Chunks", (int*)&m_meshDesc.numChunks, nullptr, 1, 32, "%d^2");
+                ui::SliderFloat("Max Error", &m_meshDesc.maxError, onChangeFunc, 0.0001f, 0.01f, "%.4f");
             }
 
             if (ImGui::CollapsingHeader("Heightmap Settings", ImGuiTreeNodeFlags_DefaultOpen))
@@ -823,21 +851,16 @@ namespace cyb::editor
 #endif
                         NoiseDesc& noiseDesc = device.noise;
 
-                        if (ui::ComboBox("Noise Type", noiseDesc.noiseType, g_noiseTypeCombo))
-                            UpdateHeightmapAndTextures();
-                        ui::DragInt("Seed", (int*)&noiseDesc.seed, 1.0f, 0, std::numeric_limits<int>::max());
-                        UPDATE_HEIGHTMAP_ON_CHANGE();
-                        ui::SliderFloat("Frequency", &noiseDesc.frequency, 0.0f, 10.0f);
-                        UPDATE_HEIGHTMAP_ON_CHANGE();
+                        ui::ComboBox("Noise Type", noiseDesc.noiseType, g_noiseTypeCombo, onChangeFunc);
+                        ui::SliderInt("Seed", (int*)&noiseDesc.seed, onChangeFunc, 0, std::numeric_limits<int>::max() / 2);
+                        ui::SliderFloat("Frequency", &noiseDesc.frequency, onChangeFunc, 0.0f, 10.0f);
 
                         if (ImGui::TreeNode("Fractal"))
-                        {
-                            ui::SliderInt("Octaves", (int*)&noiseDesc.octaves, 1, 8);
+                        {                            
+                            ui::SliderInt("Octaves", (int*)&noiseDesc.octaves, onChangeFunc, 1, 8);
                             UPDATE_HEIGHTMAP_ON_CHANGE();
-                            ui::SliderFloat("Lacunarity", &noiseDesc.lacunarity, 0.0f, 4.0f);
-                            UPDATE_HEIGHTMAP_ON_CHANGE();
-                            ui::SliderFloat("Gain", &noiseDesc.gain, 0.0f, 4.0f);
-                            UPDATE_HEIGHTMAP_ON_CHANGE();
+                            ui::SliderFloat("Lacunarity", &noiseDesc.lacunarity, onChangeFunc, 0.0f, 4.0f);
+                            ui::SliderFloat("Gain", &noiseDesc.gain, onChangeFunc, 0.0f, 4.0f);
                             ImGui::TreePop();
                         }
 
@@ -845,50 +868,38 @@ namespace cyb::editor
                         {
                             if (ImGui::TreeNode("Cellular"))
                             {
-                                if (ui::ComboBox("Return", noiseDesc.cellularReturnType, g_cellularReturnTypeCombo))
-                                    UpdateHeightmapAndTextures();
-                                ui::SliderFloat("Jitter", &noiseDesc.cellularJitterModifier, 0.0f, 2.5f);
-                                UPDATE_HEIGHTMAP_ON_CHANGE();
-
+                                ui::ComboBox("Return", noiseDesc.cellularReturnType, g_cellularReturnTypeCombo, onChangeFunc);
+                                ui::SliderFloat("Jitter", &noiseDesc.cellularJitterModifier, onChangeFunc, 0.0f, 2.5f);
                                 ImGui::TreePop();
                             }
                         }
 
                         if (ImGui::TreeNode("Post Filter"))
                         {
-                            if (ui::ComboBox("Strata", device.strataOp, g_strataFuncCombo))
-                                UpdateHeightmapAndTextures();
+                            ui::ComboBox("Strata", device.strataOp, g_strataFuncCombo, onChangeFunc);
 
                             if (device.strataOp != HeightmapStrataOp::None)
-                            {
-                                ui::SliderFloat("Amount", &device.strata, 1.0f, 15.0f);
-                                UPDATE_HEIGHTMAP_ON_CHANGE();
-                            }
+                                ui::SliderFloat("Amount", &device.strata, onChangeFunc, 1.0f, 15.0f);
 
-                            ui::SliderFloat("Blur", &device.blur, 0.0f, 10.0f);
-                            UPDATE_HEIGHTMAP_ON_CHANGE();
+                            ui::SliderFloat("Blur", &device.blur, onChangeFunc, 0.0f, 10.0f);
                             ImGui::TreePop();
                         }
                     }
                 };
 
-                if (ui::DragInt("Resolution", (int*)&m_heightmapDesc.width, 1.0f, 1, 2048, "%dpx"))
+                ui::SliderInt("Resolution", (int*)&m_heightmapDesc.width, [=](void) {
                     m_heightmapDesc.height = m_heightmapDesc.width;
-                UPDATE_HEIGHTMAP_ON_CHANGE();
+                    onChangeFunc();
+                    }, 64, 2048, "%dpx");
 
                 editNoiseDesc("Heightmap Input A", m_heightmapDesc.device1, m_heightmapInputATex);
                 editNoiseDesc("Heightmap Input B", m_heightmapDesc.device2, m_heightmapInputBTex);
                 ImGui::Spacing();
-                if (ui::ComboBox("Combine Type", m_heightmapDesc.combineType, g_mixTypeCombo))
-                    UpdateHeightmapAndTextures();
+                ui::ComboBox("Combine Type", m_heightmapDesc.combineType, g_mixTypeCombo, onChangeFunc);
                 if (m_heightmapDesc.combineType == HeightmapCombineType::Lerp)
-                {
-                    ui::SliderFloat("Combine Strength", &m_heightmapDesc.combineStrength, 0.0f, 1.0f);
-                    UPDATE_HEIGHTMAP_ON_CHANGE();
-                }
+                    ui::SliderFloat("Combine Strength", &m_heightmapDesc.combineStrength, onChangeFunc, 0.0f, 1.0f);
 
-                ui::SliderFloat("Exponent", &m_heightmapDesc.exponent, 0.0f, 4.0f);
-                UPDATE_HEIGHTMAP_ON_CHANGE();
+                ui::SliderFloat("Exponent", &m_heightmapDesc.exponent, onChangeFunc, 0.0f, 4.0f);
             }
 
             ImGui::Spacing();
@@ -898,7 +909,7 @@ namespace cyb::editor
            if (ui::GradientButton("ColorBand", &m_biomeColorBand))
                UpdateHeightmapAndTextures();
 
-            ui::Checkbox("Use MoistureMap", &m_useMoistureMap);
+            ui::Checkbox("Use MoistureMap", &m_useMoistureMap, onChangeFunc);
             if (m_useMoistureMap)
             {
                 if (ui::GradientButton("Moisture Colors", &m_moistureBiomeColorBand))
@@ -912,7 +923,7 @@ namespace cyb::editor
             //ImGui::Checkbox("Draw Triangles", &m_drawTriangles);
             ui::ComboBox("Display", m_selectedMapType, g_mapCombo);
 
-            if (ImGui::Button("Set default params", ImVec2(-1, 0)))
+            if (ImGui::Button("Set Default Params", ImVec2(-1, 0)))
             {
                 SetDefaultHeightmapValues();
                 UpdateHeightmapAndTextures();

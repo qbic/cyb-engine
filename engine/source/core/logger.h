@@ -27,7 +27,7 @@ namespace cyb::logger
 	{
 		std::string message;
 		std::chrono::system_clock::time_point timestamp;
-		LogLevel severity;
+		LogLevel severity = LogLevel::Error;
 	};
 
 	class LogOutputModule

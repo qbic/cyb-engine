@@ -6,25 +6,25 @@ namespace cyb::serializer
 {
     Archive::Archive()
     {
+        m_mode = Access::Write;
         CreateEmpty();
     }
 
-    Archive::Archive(const std::string& filename) :
-        m_mode(Access::Read)
+    Archive::Archive(const std::string& filename)
     {
+        m_mode = Access::Read;
         if (filesystem::ReadFile(filename, m_data))
         {
-            m_dataPtr = m_data.data();
             (*this) >> m_version;
-            CYB_CERROR(m_version < LeastUupportedVersion, "Unsupported version file={} version={} LeastUupportedVersion={}", filename, m_version, LeastUupportedVersion);
+            CYB_CERROR(m_version < LEAST_SUPPORTED_VERSION, "Unsupported version file={} version={} LeastUupportedVersion={}", filename, m_version, LEAST_SUPPORTED_VERSION);
+            CYB_CWARNING(m_version < ARCHIVE_VERSION, "Old (but supported) version of file={} version={} currentVersion={}", filename, m_version, ARCHIVE_VERSION);
         }
     }
 
     void Archive::CreateEmpty()
     {
-        m_version = ArchiveVersion;
-        m_data.resize(ArchiveInitSize);
-        m_dataPtr = m_data.data();
+        m_version = ARCHIVE_VERSION;
+        m_data.resize(ARCHIVE_INIT_SIZE);
         SetAccessModeAndResetPos(Write);
     }
 
@@ -41,7 +41,7 @@ namespace cyb::serializer
 
     bool Archive::IsOpen() const
     {
-        return m_dataPtr != nullptr;
+        return m_mode != Access::Closed;
     }
 
     void Archive::Close()
@@ -51,11 +51,12 @@ namespace cyb::serializer
         //    SaveFile(fileName);
         //}
         m_data.clear();
+        m_mode = Access::Closed;
     }
 
     bool Archive::SaveFile(const std::string filename)
     {
-        return filesystem::WriteFile(filename, m_dataPtr, m_pos);
+        return filesystem::WriteFile(filename, m_data.data(), m_pos);
     }
 
     Archive& Archive::operator<<(char data)

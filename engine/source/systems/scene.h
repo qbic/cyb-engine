@@ -62,7 +62,7 @@ namespace cyb::scene
 
     struct HierarchyComponent
     {
-        ecs::Entity parentID = ecs::InvalidEntity;
+        ecs::Entity parentID = ecs::INVALID_ENTITY;
     };
 
     struct MaterialComponent
@@ -102,7 +102,7 @@ namespace cyb::scene
 
         struct MeshSubset
         {
-            ecs::Entity materialID = ecs::InvalidEntity;
+            ecs::Entity materialID = ecs::INVALID_ENTITY;
             uint32_t indexOffset = 0;
             uint32_t indexCount = 0;
         };
@@ -150,7 +150,7 @@ namespace cyb::scene
         };
 
         Flags flags = Flags::DefaultFlags;
-        ecs::Entity meshID = ecs::InvalidEntity;
+        ecs::Entity meshID = ecs::INVALID_ENTITY;
 
         // Non-serialized data
         int32_t transformIndex = -1;        // Only valid for a single frame
@@ -194,9 +194,15 @@ namespace cyb::scene
     {
         XMFLOAT3 horizon = XMFLOAT3(1, 1, 1);
         XMFLOAT3 zenith = XMFLOAT3(0, 0, 0);
-        float fogStart = 100.0f;
+        bool drawSun = true;
+        float fogStart = 650.0f;
         float fogEnd = 1000.0f;
         float fogHeight = 0.0f;
+
+        float cloudiness = 0.6f;
+        float cloudTurbulence = 0.9;
+        float cloudHeight = 500.0f;
+        float windSpeed = 10.0f;
     };
 
     struct CameraComponent
@@ -299,7 +305,7 @@ namespace cyb::scene
 
     struct PickResult
     {
-        ecs::Entity entity = ecs::InvalidEntity;
+        ecs::Entity entity = ecs::INVALID_ENTITY;
         XMFLOAT3 position = XMFLOAT3(0, 0, 0);
         float distance = FLT_MAX;
     };

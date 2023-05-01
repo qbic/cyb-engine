@@ -57,10 +57,48 @@ vec3 UnpackNormal(in uint value)
 	return result;
 }
 
-vec3 GetDynamicSkyColor(in vec3 V)
+// Compact, self-contained version of IQ's 3D value noise function.
+float noise(vec3 p)
+{
+	const vec3 s = vec3(7, 157, 113);
+	const vec3 i = floor(p);
+    vec4 h = vec4(0.0, s.yz, s.y + s.z) + dot(i, s);
+    p -= i; 
+    p = p*p*(3.0 - 2.0*p);
+    h = mix(fract(sin(h)*43758.5453), fract(sin(h + s.x)*43758.5453), p.x);
+    h.xy = mix(h.xz, h.yw, p.y);
+    return mix(h.x, h.y, p.z); // Range: [0, 1].
+}
+
+float fbm(in vec3 p)
+{
+    return noise(p)*.57 + 
+           noise(p*2.)*.28 + 
+           noise(p*4.)*.14 + 
+           noise(p*6.)*.05;
+}
+
+vec3 GetDynamicSkyColor(in vec3 V, bool drawSun)
 {
     float a = V.y * 0.5 + 0.5;
-    return mix(cbFrame.horizon, cbFrame.zenith, a);
+    vec3 color = mix(cbFrame.horizon, cbFrame.zenith, a);
+
+    if (drawSun)
+    {
+		vec3 sunDir = normalize(cbFrame.lights[cbFrame.mostImportantLightIndex].position.xyz);
+        float sundot = clamp(dot(V, sunDir), 0.0, 1.0);
+        color += 0.18 * vec3(1.0, 0.7, 0.4) * pow(sundot, 12.0);
+        color += 0.18 * vec3(1.0, 0.7, 0.4) * pow(sundot, 32.0);
+        color += 0.36 * vec3(1.0, 0.7, 0.4) * pow(sundot, 256.0);
+    }
+
+    float t = (cbFrame.cloudHeight - cbCamera.pos.y - .15)/(V.y + .15);
+    if (t > 0.0)
+    {
+        vec3 uv = (cbCamera.pos.xyz + t*V) + vec3(vec2(cbFrame.windSpeed * cbFrame.time), 0);
+        color = mix(color, vec3(2), smoothstep(1.0-cbFrame.cloudiness, 1.0, fbm(cbFrame.cloudTurbulence*uv/cbFrame.cloudHeight))*smoothstep(0.45, 0.65, V.y*0.5 + 0.5) * 0.4);
+    }
+    return color;
 }
 
 float GetFogAmount(float dist)

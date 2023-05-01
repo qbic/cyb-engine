@@ -173,7 +173,7 @@ namespace cyb::graphics::vulkan_internal
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
         VmaAllocation allocation = nullptr;
-        VkBuffer resource;
+        VkBuffer resource = VK_NULL_HANDLE;
 
         ~Buffer_Vulkan()
         {
@@ -298,7 +298,7 @@ namespace cyb::graphics::vulkan_internal
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
         VkSwapchainKHR swapchain = VK_NULL_HANDLE;
         VkFormat image_format;
-        VkExtent2D extent;
+        VkExtent2D extent = {};
         std::vector<VkImage> images;
         std::vector<VkImageView> imageViews;
 
@@ -959,7 +959,7 @@ namespace cyb::graphics
             return;
 
         const PipelineState* pso = commandlist.active_pso;
-        size_t pipeline_hash = commandlist.prev_pipeline_hash;
+        size_t pipeline_hash = commandlist.prevPipelineHash;
         hash::HashCombine(pipeline_hash, commandlist.vertexbuffer_hash);
         PipelineState_Vulkan* pipelineStateInternal = ToInternal(pso);
 
@@ -2671,11 +2671,14 @@ namespace cyb::graphics
     {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
 
-        size_t pipeline_hash = 0;
-        hash::HashCombine(pipeline_hash, pso->hash);
-        if (pipeline_hash == commandlist.prev_pipeline_hash)
+        size_t pipelineHash = 0;
+        hash::HashCombine(pipelineHash, pso->hash);
+        hash::HashCombine(pipelineHash, commandlist.renderpassInfo.GetHash());
+        if (pipelineHash == commandlist.prevPipelineHash)
             return;
-        commandlist.prev_pipeline_hash = pipeline_hash;
+
+        commandlist.prevPipelineHash = pipelineHash;
+        commandlist.dirty_pso = true;
 
         auto internal_state = ToInternal(pso);
 
@@ -2691,7 +2694,6 @@ namespace cyb::graphics
         }
 
         commandlist.active_pso = pso;
-        commandlist.dirty_pso = true;
     }
 
     CommandList GraphicsDevice_Vulkan::BeginCommandList(QueueType queue)

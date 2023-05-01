@@ -26,8 +26,9 @@ namespace cyb::ui
         using value_type = T;
         static constexpr int num = N;
 
-        EditorAction_ModifyValue(T* dataPtr) :
-            m_newValue()
+        EditorAction_ModifyValue(T* dataPtr, std::function<void()> onChange = nullptr) :
+            m_newValue(),
+            m_onChange(onChange)
         {
             assert(dataPtr);
             m_dataPtr = dataPtr;
@@ -36,7 +37,8 @@ namespace cyb::ui
             m_isComplete = false;
         }
 
-        EditorAction_ModifyValue(T* dataPtr, const T newValue[N])
+        EditorAction_ModifyValue(T* dataPtr, const T newValue[N], const std::function<void()>& onChange = nullptr) :
+            m_onChange(onChange)
         {
             assert(dataPtr != nullptr);
             m_dataPtr = dataPtr;
@@ -52,12 +54,18 @@ namespace cyb::ui
         {
             for (int i = 0; i < N; ++i)
                 m_dataPtr[i] = m_oldValue[i];
+
+            if (m_onChange)
+                m_onChange();
         }
 
         virtual void OnRedo() const override
         {
             for (int i = 0; i < N; ++i)
                 m_dataPtr[i] = m_newValue[i];
+
+            if (m_onChange)
+                m_onChange();
         }
 
         bool IsComplete() const override { return m_isComplete; }
@@ -71,9 +79,8 @@ namespace cyb::ui
             m_isComplete = isComplete;
         }
 
-        virtual void OnValueChange() {}
-
     private:
+        std::function<void()> m_onChange;
         T* m_dataPtr;
         T m_oldValue[N];
         T m_newValue[N];
@@ -111,8 +118,9 @@ namespace cyb::ui
     class UndoManager
     {
     public:
-        void PushAction(const std::shared_ptr<EditorAction>& action);
+        void Record(const std::shared_ptr<EditorAction>& action);
         void CommitIncompleteAction();
+        void ClearActionHistory();
 
         void Undo();
         void Redo();

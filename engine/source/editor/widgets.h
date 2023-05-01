@@ -10,6 +10,7 @@
 
 namespace cyb::ui
 {
+    // Set a color or colorscheme for imgui that will be reset when out of scope
     class ColorScopeGuard
     {
     public:
@@ -23,6 +24,7 @@ namespace cyb::ui
         uint32_t m_numColors;
     };
 
+    // Manually push an id to imgui that will be reset when out of scope
     class IdScopeGuard
     {
     public:
@@ -32,92 +34,40 @@ namespace cyb::ui
             ImGui::PushID(label);
         }
 
+        IdScopeGuard(const std::string& label)
+        {
+            ImGui::PushID(label.c_str());
+        }
+
         ~IdScopeGuard()
         {
             ImGui::PopID();
         }
     };
 
-    void ItemLabel(const std::string& title, bool isLeft = true);
-
-    // Helper class for ImGui wrapper functions
-    class WidgetScopedLayout
-    {
-    public:
-        WidgetScopedLayout(const char* label);
-        ~WidgetScopedLayout();
-
-    private:
-        IdScopeGuard m_idGuard;
-    };
-
-    template <class T>
-    void SaveChangeToUndoManager(typename T::value_type* v)
-    {
-        if (ImGui::IsItemActivated())
-        {
-            auto action = std::make_shared<T>(v);
-            ui::GetUndoManager().PushAction(action);
-        }
-
-        if (ImGui::IsItemDeactivatedAfterEdit())
-            ui::GetUndoManager().CommitIncompleteAction();
-    }
-
-    // These are just ImGui wrappers wich will do the following:
-    //  * Put the label to the left
-    //  * Save changes to the undo manager
-    bool Checkbox(const char* label, bool* v);
+    // These are basicly just ImGui wrappers wich uses left aligned labels, 
+    // and saves any change to the undo manager
+    void Checkbox(const char* label, bool* v, const std::function<void()> onChange);
+    void CheckboxFlags(const char* label, uint32_t* flags, uint32_t flagsValue, const std::function<void()> onChange);
     bool DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
     bool DragFloat3(const char* label, float v[3], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.2f", ImGuiSliderFlags flags = 0);
-    bool DragInt(const char* label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", ImGuiSliderFlags flags = 0);
-    bool SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
-    bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d", ImGuiSliderFlags flags = 0);
+    //bool DragInt(const char* label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", ImGuiSliderFlags flags = 0);
+    void SliderFloat(const char* label, float* v, const std::function<void()> onChange, float minValue, float maxValue, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+    void SliderInt(const char* label, int* v, const std::function<void()> onChange, int minValue, int maxValue, const char* format = "%d", ImGuiSliderFlags flags = 0);
     bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags = 0);
     bool ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flags = 0);
-
     bool EditTransformComponent(const char* label, float component[3], scene::TransformComponent* transform);
+    void ComboBox(const char* label, uint32_t& value, const std::unordered_map<uint32_t, std::string>& combo, const std::function<void()>& onChange = nullptr);
 
     template <typename T>
-    bool CheckboxFlags(const char* label, T* flags, T flags_value)
+    void ComboBox(const char* label, T& value, const std::unordered_map<T, std::string>& combo, const std::function<void()>& onChange = nullptr)
     {
-        WidgetScopedLayout widget(label);
-        bool change = ImGui::CheckboxFlags("", (unsigned int*)flags, (unsigned int)flags_value);
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<T, 1>>(flags);
-        return change;
-    }
-
-    template <typename T>
-    bool ComboBox(const char* label, T& value, const std::unordered_map<T, std::string>& combo)
-    {
-        WidgetScopedLayout widget(label);
-        bool valueChange = false;
-        const auto& selected = combo.find(value);
-        const std::string& name = selected != combo.end() ? selected->second : "";
-
-        if (ImGui::BeginCombo("", name.c_str()))
-        {
-            for (const auto& [key, name] : combo)
-            {
-                const bool isSelected = (key == value);
-                if (ImGui::Selectable(name.c_str(), isSelected))
-                {
-                    const T tempValue[1] = { key };
-                    auto action = std::make_shared<ui::EditorAction_ModifyValue<T, 1>>(&value, tempValue);
-                    ui::GetUndoManager().PushAction(action);
-
-                    value = key;
-                    valueChange = true;
-                }
-
-                if (isSelected)
-                    ImGui::SetItemDefaultFocus();
-            }
-
-            ImGui::EndCombo();
-        }
-
-        return valueChange;
+        // Copying the map and converting type is slow
+        // but it will be good ehough for now
+        std::unordered_map<uint32_t, std::string> mapCopy;
+        for (const auto& it : combo)
+            mapCopy[(uint32_t)it.first] = it.second;
+        ComboBox(label, (uint32_t&)value, mapCopy, onChange);
     }
 
     bool ListBox(const char* label, int* selectedIndex, std::vector<std::string_view>& values);
@@ -126,7 +76,7 @@ namespace cyb::ui
     struct GradientMark
     {
         ImColor color;
-        float position;     // [0..1] range
+        float position = 0.0f;     // [0..1] range
     };
 
     struct Gradient

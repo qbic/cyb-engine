@@ -13,7 +13,7 @@ namespace cyb::graphics
     {
     private:
         bool debugUtils = false;
-        VkInstance instance;
+        VkInstance instance = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
         VkDevice device = VK_NULL_HANDLE;
@@ -99,7 +99,7 @@ namespace cyb::graphics
         struct DescriptorBinder
         {
             DescriptorBindingTable table;
-            GraphicsDevice_Vulkan* device;
+            GraphicsDevice_Vulkan* device = nullptr;
 
             std::vector<VkWriteDescriptorSet> descriptor_writes;
             std::vector<VkDescriptorBufferInfo> buffer_infos;
@@ -150,7 +150,7 @@ namespace cyb::graphics
             GPULinearAllocator frame_allocators[BUFFERCOUNT];
 
             std::vector<std::pair<size_t, VkPipeline>> pipelinesWorker;
-            size_t prev_pipeline_hash = 0;
+            size_t prevPipelineHash = 0;
             std::vector<SwapChain> prev_swapchains;
 
             const PipelineState* active_pso = nullptr;
@@ -176,7 +176,7 @@ namespace cyb::graphics
                 binder.Reset();
                 binder_pools[buffer_index].Reset();
                 frame_allocators[buffer_index].Reset();
-                prev_pipeline_hash = 0;
+                prevPipelineHash = 0;
                 active_pso = nullptr;
                 vertexbuffer_hash = 0;
                 for (int i = 0; i < _countof(vertexbuffer_strides); ++i)
@@ -273,7 +273,7 @@ namespace cyb::graphics
         {
             VmaAllocator allocator = VK_NULL_HANDLE;
             VkDevice device = VK_NULL_HANDLE;
-            VkInstance instance;
+            VkInstance instance = VK_NULL_HANDLE;
             std::mutex destroylocker;
             uint64_t framecount = 0;
 

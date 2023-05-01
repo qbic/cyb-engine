@@ -60,8 +60,8 @@ namespace cyb::profiler
     struct Context
     {
         std::unordered_map<EntryID, Entry> entries;
-        EntryID cpuFrame;
-        EntryID gpuFrame;
+        EntryID cpuFrame = 0;
+        EntryID gpuFrame = 0;
         float cpuFrameGraph[FRAME_GRAPH_ENTRIES] = {};
         float gpuFrameGraph[FRAME_GRAPH_ENTRIES] = {};
     };

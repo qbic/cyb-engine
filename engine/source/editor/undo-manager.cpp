@@ -5,7 +5,7 @@
 
 namespace cyb::ui
 {
-    void UndoManager::PushAction(const std::shared_ptr<EditorAction>& action)
+    void UndoManager::Record(const std::shared_ptr<EditorAction>& action)
     {
         WindowActionHistory& history = GetHistoryForActiveWindow();
         
@@ -25,6 +25,14 @@ namespace cyb::ui
         
         history.incompleteAction->Complete(true);
         history.incompleteAction.reset();
+    }
+
+    void UndoManager::ClearActionHistory()
+    {
+        WindowActionHistory& windowHistory = GetHistoryForActiveWindow();
+        windowHistory.actionBuffer.clear();
+        windowHistory.redoStack.clear();
+        windowHistory.incompleteAction.reset();
     }
 
     void UndoManager::Undo()

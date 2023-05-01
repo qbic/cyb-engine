@@ -39,8 +39,8 @@ namespace cyb::editor
         ////
 
         //---- scene data ----
-        ecs::Entity materialID;
-        ecs::Entity groupID;
+        ecs::Entity materialID = ecs::INVALID_ENTITY;
+        ecs::Entity groupID = ecs::INVALID_ENTITY;
     };
 
     //=============================================================
@@ -62,6 +62,7 @@ namespace cyb::editor
         TerrainGenerator();
         void DrawGui(ecs::Entity selected_entity);
         const graphics::Texture* GetTerrainMapTexture(Map type) const;
+        void UpdateHeightmapAndTextures();
 
     private:
         bool m_initialized = false;
@@ -94,7 +95,6 @@ namespace cyb::editor
 
         void UpdateHeightmap();
         void UpdateTextures();
-        void UpdateHeightmapAndTextures();
 
         void GenerateTerrainMesh();
     };

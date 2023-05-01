@@ -2,22 +2,13 @@
 #include <unordered_set>
 #include "systems/scene.h"
 
-namespace cyb::editor::gui
-{
-    bool CheckBox(const std::string& label, bool& value);
-    bool DragFloat(const std::string& label, float& value, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.2f");
-    bool DragInt(const std::string& label, uint32_t& value, float v_speed = 1.0f, uint32_t v_min = 0, uint32_t v_max = 0, const char* format = "%d");
-    bool SliderFloat(const std::string& label, float& value, float v_min = 0.0f, float v_max = 0.0f);
-    bool SliderInt(const std::string& label, uint32_t& value, uint32_t v_min = 0.0f, uint32_t v_max = 0.0f, const char* format = "%d");
-    bool ComboBox(const std::string& label, uint32_t* selected_index, const std::vector<std::string>& combo_data);
-}
-
 namespace cyb::editor 
 {
     class GuiTool
     {
     public:
         GuiTool(const std::string& name, int windowFlags = 0) :
+            m_showWindow(false),
             m_windowFlags(windowFlags),
             m_windowTitle(name)
         {
@@ -37,7 +28,7 @@ namespace cyb::editor
 
     private:
         std::string m_windowTitle;
-        bool m_showWindow = false;
+        bool m_showWindow;
         int m_windowFlags;
     };
 
@@ -52,14 +43,14 @@ namespace cyb::editor
             {
             }
              
-            ecs::Entity entity = ecs::InvalidEntity;
+            ecs::Entity entity = ecs::INVALID_ENTITY;
             const std::string_view name;
             Node* parent = nullptr;
             std::vector<Node> children;
         };
 
         Node root;
-        std::atomic<ecs::Entity> selected_entity = ecs::InvalidEntity;
+        std::atomic<ecs::Entity> selected_entity = ecs::INVALID_ENTITY;
         std::unordered_set<ecs::Entity> added_entities;
 
         void AddNode(Node* parent, ecs::Entity entity, const std::string_view& name);

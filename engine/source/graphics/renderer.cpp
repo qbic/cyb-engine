@@ -434,21 +434,33 @@ namespace cyb::renderer
         frameCB.gamma = GAMMA;
 
         // Add weather:
+
+        // Find the most important light
+        frameCB.mostImportantLightIndex = 0;
+        for (size_t i = 0; i < view.scene->lights.Size(); ++i)
+        {
+            const ecs::Entity lightID = view.scene->lights.GetEntity(i);
+            const scene::LightComponent* light = view.scene->lights.GetComponent(lightID);
+            if (light->type != scene::LightType::Directional)
+                continue;
+
+        }
         const scene::WeatherComponent& weather = view.scene->active_weather;
         frameCB.horizon = weather.horizon;
         frameCB.zenith = weather.zenith;
+        frameCB.drawSun = weather.drawSun;
+        frameCB.mostImportantLightIndex = 0;
         frameCB.fog = XMFLOAT3(weather.fogStart, weather.fogEnd, weather.fogHeight);
+        frameCB.cloudiness = weather.cloudiness;
+        frameCB.cloudTurbulence = weather.cloudTurbulence;
+        frameCB.cloudHeight = weather.cloudHeight;
+        frameCB.windSpeed = weather.windSpeed;
 
         // Add lightsources:
         frameCB.numLights = 0;
+        float brightestLight = 0.0f;
         for (size_t i = 0; i < view.scene->lights.Size(); ++i)
         {
-            if (i >= SHADER_MAX_LIGHTSOURCES)
-            {
-                assert(0);
-                break;
-            }
-
             const ecs::Entity lightID = view.scene->lights.GetEntity(i);
             const scene::LightComponent* light = view.scene->lights.GetComponent(lightID);
             const scene::TransformComponent* transform = view.scene->transforms.GetComponent(lightID);
@@ -463,6 +475,12 @@ namespace cyb::renderer
                 cbLight.energy = light->energy;
                 cbLight.range = light->range;
                 ++frameCB.numLights;
+
+                if (light->GetType() == scene::LightType::Directional && light->energy > brightestLight)
+                {
+                    frameCB.mostImportantLightIndex = (int)i;
+                    brightestLight = light->energy;
+                }
             }
         }
     }
@@ -506,7 +524,7 @@ namespace cyb::renderer
         {
             const ObjectComponent& object = view.scene->objects[instanceIndex];
 
-            if (object.meshID != ecs::InvalidEntity)
+            if (object.meshID != ecs::INVALID_ENTITY)
             {
                 const MeshComponent* mesh = view.scene->meshes.GetComponent(object.meshID);
 

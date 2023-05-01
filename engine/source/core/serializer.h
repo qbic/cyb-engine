@@ -9,15 +9,16 @@ using DirectX::XMFLOAT4X4;
 
 namespace cyb::serializer
 {
-    enum { ArchiveVersion = 4 };
-    enum { LeastUupportedVersion = 3 };
-    enum { ArchiveInitSize = 128 };
+    enum { ARCHIVE_VERSION = 4 };
+    enum { LEAST_SUPPORTED_VERSION = 3 };
+    enum { ARCHIVE_INIT_SIZE = 128 };
 
     class Archive
     {
     public:
         enum Access
         {
+            Closed,
             Read,
             Write
         };
@@ -109,10 +110,7 @@ namespace cyb::serializer
             size_t size = sizeof(data);
             size_t right = m_pos + size;
             if (right > m_data.size())
-            {
                 m_data.resize(right * 2);
-                m_dataPtr = m_data.data();
-            }
 
             *(T*)(m_data.data() + m_pos) = data;
             m_pos = right;
@@ -124,16 +122,15 @@ namespace cyb::serializer
         inline void UnsafeRead(T& data)
         {
             assert(IsReadMode());
-            assert(m_dataPtr != nullptr);
-            data = *(const T*)(m_dataPtr + m_pos);
+            assert(m_data.size() >= m_pos + sizeof(data));
+            data = *(const T*)(m_data.data() + m_pos);
             m_pos += (size_t)(sizeof(data));
         }
 
      private:
         uint64_t m_version = 0;
-        Access m_mode = Access::Write;
+        Access m_mode = Access::Closed;
         size_t m_pos = 0;
         std::vector<uint8_t> m_data;
-        const uint8_t* m_dataPtr = nullptr;
     };
 }

@@ -496,6 +496,39 @@ namespace cyb::graphics
         uint32_t rtCount = 0;
         Format dsFormat;        // DepthStencil format
 
+        constexpr uint64_t GetHash() const
+        {
+            union Hasher
+            {
+                struct
+                {
+                    uint64_t rtFormat_0 : 6;
+                    uint64_t rtFormat_1 : 6;
+                    uint64_t rtFormat_2 : 6;
+                    uint64_t rtFormat_3 : 6;
+                    uint64_t rtFormat_4 : 6;
+                    uint64_t rtFormat_5 : 6;
+                    uint64_t rtFormat_6 : 6;
+                    uint64_t rtFormat_7 : 6;
+                    uint64_t dsFormat : 6;
+                } bits;
+                uint64_t value;
+            };
+            
+            Hasher hasher = {};
+            static_assert(sizeof(Hasher) == sizeof(uint64_t));
+            hasher.bits.rtFormat_0 = (uint64_t)rtFormats[0];
+            hasher.bits.rtFormat_1 = (uint64_t)rtFormats[1];
+            hasher.bits.rtFormat_2 = (uint64_t)rtFormats[2];
+            hasher.bits.rtFormat_3 = (uint64_t)rtFormats[3];
+            hasher.bits.rtFormat_4 = (uint64_t)rtFormats[4];
+            hasher.bits.rtFormat_5 = (uint64_t)rtFormats[5];
+            hasher.bits.rtFormat_6 = (uint64_t)rtFormats[6];
+            hasher.bits.rtFormat_7 = (uint64_t)rtFormats[7];
+            hasher.bits.dsFormat = (uint64_t)dsFormat;
+            return hasher.value;
+        }
+
         static constexpr RenderPassInfo GetFrom(const RenderPassImage* images, uint32_t imageCount)
         {
             RenderPassInfo info;

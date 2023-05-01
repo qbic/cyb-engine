@@ -9,6 +9,7 @@ using namespace DirectX;
 // Defining glsl builtin types instead of creating new types with typedef.
 // This enables us to undef them at the end of file and not having glsl's
 // builtin types clutter the global namespace.
+#define vec2 XMFLOAT2
 #define vec3 XMFLOAT3
 #define vec4 XMFLOAT4
 #define mat4 XMFLOAT4X4
@@ -51,13 +52,23 @@ CBUFFER(FrameCB, CBSLOT_FRAME)
 {
     vec3 horizon;
     float time;                 // game runtime in ms
+
     vec3 zenith;
     CBPADDING(1)
+    
     vec3 fog;                   // fog [start, end, height]
     float gamma;
 
+    float cloudiness;           // [0..1]
+    float cloudTurbulence;
+    float cloudHeight;
+    float windSpeed;
+
     int numLights;
-    CBPADDING(3)
+    int mostImportantLightIndex;
+    int drawSun;
+    CBPADDING(1)
+
     LightSource lights[SHADER_MAX_LIGHTSOURCES];
 } CBUFFER_NAME(cbFrame);
 
@@ -96,6 +107,7 @@ CBUFFER(MiscCB, CBSLOT_MISC)
 };
 
 #ifdef __cplusplus
+#undef vec2
 #undef vec3 
 #undef vec4 
 #undef mat4 

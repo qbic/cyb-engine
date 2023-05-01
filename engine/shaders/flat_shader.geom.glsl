@@ -17,6 +17,7 @@ layout(location = 0) in GS_IN_DATA
 layout(location = 0) out GS_OUT_DATA
 {
     vec3 pos;
+    vec3 viewDir;
     vec4 color;
 } gs_out;
 
@@ -61,13 +62,14 @@ void main()
 
     // add a slight sky color tint to the object, giving it the apperance 
     // of some object to sky reflectance (maybe add-in material property)
-    const vec3 sky_reflectance = mix(clamp(mix(cbFrame.horizon, cbFrame.zenith, 0.5) * 1.5, 0, 1), vec3(1.0), 0.8);
+    const vec3 sky_reflectance = mix(clamp(mix(cbFrame.horizon, cbFrame.zenith, vec3(0.5)) * 1.5, 0, 1), vec3(1.0), 0.8);
     final_color.rgb *= sky_reflectance;
 
     for (int i = 0; i < gl_in.length(); i++)
     {
         gl_Position = gl_in[i].gl_Position;
         gs_out.pos = gs_in[i].pos;
+        gs_out.viewDir = normalize(cbCamera.pos.xyz - gs_in[i].pos);
         gs_out.color = final_color;
         EmitVertex();
     }

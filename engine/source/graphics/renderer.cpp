@@ -376,7 +376,7 @@ namespace cyb::renderer
 
     void Initialize()
     {
-        GetCamera().CreatePerspective(1.78f, 0.1f, 1000.0f);
+        GetCamera().CreatePerspective(1.78f, 0.1f, 1000.0f, 70.0f);
 
         jobsystem::Context ctx;
         LoadBuiltinTextures(ctx);

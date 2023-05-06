@@ -19,6 +19,18 @@ namespace cyb::math
     constexpr float RAD2DEG = (180.f / M_PI);
     constexpr float DEG2RAD = (M_PI / 180.f);
 
+    template <typename T>
+    constexpr T DegreesToRadians(const T degrees)
+    {
+        return (degrees * M_PI) / T(180);
+    }
+
+    template <typename T>
+    constexpr T RadiansToDegrees(const T radians)
+    {
+        return (radians * T(180)) / M_PI;
+    }
+
     // Returns highest of 2 values
     template<class T>
     constexpr T Max(const T a, const T b)

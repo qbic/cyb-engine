@@ -2,6 +2,7 @@
 #include <vector>
 #include "core/platform.h"
 #include "core/mathlib.h"
+#include "core/logger.h"
 
 namespace cyb::graphics
 {
@@ -627,7 +628,7 @@ namespace cyb::graphics
         static const uint32_t BUFFERCOUNT = 2;
         const bool VALIDATION_MODE_ENABLED = true;
         uint64_t frameCount = 0;
-        uint64_t timestampFrequency = 0;
+        uint64_t gpuTimestampFrequency = 0;
 
     public:
         virtual ~GraphicsDevice() = default;
@@ -650,7 +651,7 @@ namespace cyb::graphics
         constexpr uint64_t GetFrameCount() const { return frameCount; }
         static constexpr uint32_t GetBufferCount() { return BUFFERCOUNT; }
         constexpr uint32_t GetBufferIndex() const { return GetFrameCount() % BUFFERCOUNT; }
-        constexpr uint64_t GetTimestampFrequency() const { return timestampFrequency; }
+        constexpr uint64_t GetTimestampFrequency() const { return gpuTimestampFrequency; }
 
         // Returns the minimum required alignment for buffer offsets when creating subresources
         virtual uint64_t GetMinOffsetAlignment(const GPUBufferDesc* desc) const = 0;
@@ -742,6 +743,8 @@ namespace cyb::graphics
                 CreateBuffer(&desc, nullptr, &allocator.buffer);
                 SetName(&allocator.buffer, "FrameAllocationBuffer");
                 allocator.offset = 0;
+
+                CYB_TRACE("Increasing GPU FrameAllocationBuffer[{}] to {:.1f}kb", GetBufferIndex(), desc.size / 1024.0f);
             }
 
             allocation.buffer = allocator.buffer;

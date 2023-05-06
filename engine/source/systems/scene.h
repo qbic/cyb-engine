@@ -210,7 +210,7 @@ namespace cyb::scene
         float aspect = 1.0f;
         float zNearPlane = 0.001f;
         float zFarPlane = 800.0f;
-        float fov = math::M_PI / 3.0f;
+        float fov = 90.0f;      // Angle in degrees
 
         XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
         XMFLOAT3 target = XMFLOAT3(0.0f, 0.0f, 1.0f);
@@ -223,7 +223,7 @@ namespace cyb::scene
         math::Frustum frustum;
 
         XMMATRIX GetViewProjection() const { return XMLoadFloat4x4(&VP); }
-        void CreatePerspective(float newAspect, float newNear, float newFar, float newFOV = math::M_PI / 3.0f);
+        void CreatePerspective(float newAspect, float newNear, float newFar, float newFOV);
         void UpdateCamera();
         void TransformCamera(const TransformComponent& transform);
     };
@@ -279,7 +279,7 @@ namespace cyb::scene
         void Serialize(serializer::Archive& archive);
 
         void RunTransformUpdateSystem(jobsystem::Context& ctx);
-        void RunHierarchyUpdateSystem();
+        void RunHierarchyUpdateSystem(jobsystem::Context& ctx);
         void RunObjectUpdateSystem(jobsystem::Context& ctx);
         void RunLightUpdateSystem(jobsystem::Context& ctx);
         void RunCameraUpdateSystem(jobsystem::Context& ctx);

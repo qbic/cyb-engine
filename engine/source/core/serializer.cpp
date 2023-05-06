@@ -16,8 +16,8 @@ namespace cyb::serializer
         if (filesystem::ReadFile(filename, m_data))
         {
             (*this) >> m_version;
-            CYB_CERROR(m_version < LEAST_SUPPORTED_VERSION, "Unsupported version file={} version={} LeastUupportedVersion={}", filename, m_version, LEAST_SUPPORTED_VERSION);
-            CYB_CWARNING(m_version < ARCHIVE_VERSION, "Old (but supported) version of file={} version={} currentVersion={}", filename, m_version, ARCHIVE_VERSION);
+            CYB_CERROR(m_version < LEAST_SUPPORTED_VERSION, "Unsupported archive version (file={} version={} LeastUupportedVersion={})", filename, m_version, LEAST_SUPPORTED_VERSION);
+            CYB_CWARNING(m_version < ARCHIVE_VERSION, "Old (but supported) archive version (file={} version={} currentVersion={})", filename, m_version, ARCHIVE_VERSION);
         }
     }
 

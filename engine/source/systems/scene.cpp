@@ -57,9 +57,9 @@ namespace cyb::scene
 
     XMMATRIX TransformComponent::GetLocalMatrix() const
     {
-        XMVECTOR S = XMVectorSet(scale_local.x, scale_local.y, scale_local.z, 0);
-        XMVECTOR R = XMVectorSet(rotation_local.x, rotation_local.y, rotation_local.z, rotation_local.w);
-        XMVECTOR T = XMVectorSet(translation_local.x, translation_local.y, translation_local.z, 0);
+        XMVECTOR S = XMLoadFloat3(&scale_local);
+        XMVECTOR R = XMLoadFloat4(&rotation_local);
+        XMVECTOR T = XMLoadFloat3(&translation_local);
         return XMMatrixScalingFromVector(S) *
             XMMatrixRotationQuaternion(R) *
             XMMatrixTranslationFromVector(T);
@@ -489,7 +489,7 @@ namespace cyb::scene
     void CameraComponent::UpdateCamera()
     {
         // NOTE: reverse zbuffer!
-        XMMATRIX _P = XMMatrixPerspectiveFovLH(fov, aspect, zFarPlane, zNearPlane);
+        XMMATRIX _P = XMMatrixPerspectiveFovLH(math::DegreesToRadians(fov), aspect, zFarPlane, zNearPlane);
 
         XMVECTOR _Eye = XMLoadFloat3(&pos);
         XMVECTOR _At = XMLoadFloat3(&target);
@@ -670,14 +670,20 @@ namespace cyb::scene
     void Scene::Update([[maybe_unused]] float dt)
     {
         jobsystem::Context ctx;
-        RunTransformUpdateSystem(ctx);
-        jobsystem::Wait(ctx);               // Dependencies
-        RunHierarchyUpdateSystem();         // Non-Threaded
 
+        // Run update systems with no dependency
+        RunTransformUpdateSystem(ctx);
+        RunWeatherUpdateSystem(ctx);
+
+        // Run update systems that only depends on local transform
+        jobsystem::Wait(ctx);
+        RunHierarchyUpdateSystem(ctx);
+
+        // Run update systems that is dependent on world transform
+        jobsystem::Wait(ctx);
         RunObjectUpdateSystem(ctx);
         RunLightUpdateSystem(ctx);
         RunCameraUpdateSystem(ctx);
-        RunWeatherUpdateSystem(ctx);
         jobsystem::Wait(ctx);
     }
 
@@ -748,29 +754,55 @@ namespace cyb::scene
         weathers.Serialize(archive, serialize);
     }
 
-    const uint32_t small_subtask_groupsize = 64;
+    const uint32_t SMALL_SUBTASK_GROUPSIZE = 64;
 
     void Scene::RunTransformUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)transforms.Size(), small_subtask_groupsize, [&](jobsystem::JobArgs args)
+        jobsystem::Dispatch(ctx, (uint32_t)transforms.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
             {
                 TransformComponent& transform = transforms[args.jobIndex];
                 transform.UpdateTransform();
             });
     }
 
-    void Scene::RunHierarchyUpdateSystem()
+    void Scene::RunHierarchyUpdateSystem(jobsystem::Context& ctx)
     {
-        // This needs serialized execution because there are dependencies enforced by component order!
-        for (size_t i = 0; i < hierarchy.Size(); ++i)
-        {
-            const HierarchyComponent& parentComponent = hierarchy[i];
-            ecs::Entity entity = hierarchy.GetEntity(i);
+        jobsystem::Dispatch(ctx, (uint32_t)hierarchy.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
+            {
+                const HierarchyComponent& hier = hierarchy[args.jobIndex];
+                ecs::Entity entity = hierarchy.GetEntity(args.jobIndex);
+                TransformComponent* transform = transforms.GetComponent(entity);
+                
+                XMMATRIX worldMatrix = {};
+                if (transform != nullptr)
+                {
+                    worldMatrix = transform->GetLocalMatrix();
+                }
 
-            TransformComponent* transformChild = transforms.GetComponent(entity);
-            const TransformComponent* transformParent = transforms.GetComponent(parentComponent.parentID);
-            transformChild->UpdateTransformParented(*transformParent);
-        }
+                ecs::Entity parentID = hier.parentID;
+                while (parentID != ecs::INVALID_ENTITY)
+                {
+                    const TransformComponent* transformParent = transforms.GetComponent(parentID);
+
+                    if (transform != nullptr && transformParent != nullptr)
+                        worldMatrix *= transformParent->GetLocalMatrix();
+
+                    const HierarchyComponent* hierRecursive = hierarchy.GetComponent(parentID);
+                    if (hierRecursive != nullptr)
+                    {
+                        parentID = hierRecursive->parentID;
+                    }
+                    else
+                    {
+                        parentID = ecs::INVALID_ENTITY;
+                    }
+                }
+
+                if (transform != nullptr)
+                {
+                    XMStoreFloat4x4(&transform->world, worldMatrix);
+                }
+            });
     }
 
     void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
@@ -818,7 +850,7 @@ namespace cyb::scene
 
     void Scene::RunCameraUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)cameras.Size(), small_subtask_groupsize, [&](jobsystem::JobArgs args)
+        jobsystem::Dispatch(ctx, (uint32_t)cameras.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
             {
                 CameraComponent& camera = cameras[args.jobIndex];
 

@@ -105,9 +105,9 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 static void SetupCustomStyle()
 {
 	ImVec4* colors = ImGui::GetStyle().Colors;
-	colors[ImGuiCol_WindowBg] = ImVec4(0.13f, 0.13f, 0.11f, 0.94f);
+	colors[ImGuiCol_WindowBg] = ImVec4(0.13f, 0.13f, 0.11f, 0.98f);
 	colors[ImGuiCol_FrameBg] = ImVec4(0.06f, 0.06f, 0.06f, 0.71f);
-	colors[ImGuiCol_FrameBgHovered] = ImVec4(0.10f, 0.10f, 0.10f, 0.71f);
+	colors[ImGuiCol_FrameBgHovered] = ImVec4(0.15f, 0.15f, 0.15f, 0.71f);
 	colors[ImGuiCol_FrameBgActive] = ImVec4(0.10f, 0.10f, 0.10f, 0.71f);
 	colors[ImGuiCol_TitleBg] = ImVec4(0.13f, 0.13f, 0.11f, 0.94f);
 	colors[ImGuiCol_TitleBgActive] = ImVec4(0.25f, 0.25f, 0.25f, 0.94f);

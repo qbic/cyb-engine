@@ -1491,7 +1491,7 @@ namespace cyb::graphics
             }
         }
 
-        timestampFrequency = uint64_t(1.0 / double(properties2.properties.limits.timestampPeriod) * 1000 * 1000 * 1000);
+        gpuTimestampFrequency = uint64_t(1.0 / double(properties2.properties.limits.timestampPeriod) * 1000 * 1000 * 1000);
 
         // Dynamic PSO states:
         pso_dynamic_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);

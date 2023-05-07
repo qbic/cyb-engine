@@ -628,9 +628,9 @@ namespace cyb::editor
         { HeightmapStrataOp::Smooth,                "Smooth"   }
     };
 
-    static const std::unordered_map<NoiseType, std::string> g_noiseTypeCombo = {
-        { NoiseType::Perlin,                        "Perlin"    },
-        { NoiseType::Cellular,                      "Cellular"  }
+    static const std::unordered_map<noise::Type, std::string> g_noiseTypeCombo = {
+        { noise::Type::Perlin,                      "Perlin"    },
+        { noise::Type::Cellular,                    "Cellular"  }
     };
 
     static const std::unordered_map<HeightmapCombineType, std::string> g_mixTypeCombo = {
@@ -640,14 +640,14 @@ namespace cyb::editor
         { HeightmapCombineType::Lerp,               "Lerp"      }
     };
 
-    static const std::unordered_map<CellularReturnType, std::string> g_cellularReturnTypeCombo = {
-        { CellularReturnType::CellValue,            "CellValue"     },
-        { CellularReturnType::Distance,             "Distance"      },
-        { CellularReturnType::Distance2,            "Distance2"     },
-        { CellularReturnType::Distance2Add,         "Distance2Add"  },
-        { CellularReturnType::Distance2Sub,         "Distance2Sub"  },
-        { CellularReturnType::Distance2Mul,         "Distance2Mul"  },
-        { CellularReturnType::Distance2Div,         "Distance2Div"  }
+    static const std::unordered_map<noise::CellularReturn, std::string> g_cellularReturnTypeCombo = {
+        { noise::CellularReturn::CellValue,     "CellValue"     },
+        { noise::CellularReturn::Distance,      "Distance"      },
+        { noise::CellularReturn::Distance2,     "Distance2"     },
+        { noise::CellularReturn::Distance2Add,  "Distance2Add"  },
+        { noise::CellularReturn::Distance2Sub,  "Distance2Sub"  },
+        { noise::CellularReturn::Distance2Mul,  "Distance2Mul"  },
+        { noise::CellularReturn::Distance2Div,  "Distance2Div"  }
     };
 
     TerrainGenerator::TerrainGenerator()
@@ -670,21 +670,21 @@ namespace cyb::editor
     {
         m_heightmapDesc = HeightmapDesc();
 
-        m_heightmapDesc.device1.noise = NoiseDesc();
-        m_heightmapDesc.device1.noise.noiseType = NoiseType::Perlin;
+        m_heightmapDesc.device1.noise = noise::Parameters();
+        m_heightmapDesc.device1.noise.type = noise::Type::Perlin;
         m_heightmapDesc.device1.noise.frequency = 1.389f;
         m_heightmapDesc.device1.noise.octaves = 4;
         m_heightmapDesc.device1.strataOp = HeightmapStrataOp::Smooth;
         m_heightmapDesc.device1.strata = 5.0f;
 
-        m_heightmapDesc.device2.noise.noiseType = NoiseType::Cellular;
+        m_heightmapDesc.device2.noise.type = noise::Type::Cellular;
         m_heightmapDesc.device2.noise.frequency = 1.859f;
         m_heightmapDesc.device2.noise.octaves = 4;
-        m_heightmapDesc.device2.noise.cellularReturnType = CellularReturnType::Distance;
+        m_heightmapDesc.device2.noise.cellularReturnType = noise::CellularReturn::Distance;
         m_heightmapDesc.device2.strataOp = HeightmapStrataOp::Smooth;
         m_heightmapDesc.device2.strata = 12.0f;
 
-        m_moisturemapNoise = NoiseDesc();
+        m_moisturemapNoise = noise::Parameters();
     }
 
     void TerrainGenerator::DrawGui(ecs::Entity selectedEntity)
@@ -718,7 +718,7 @@ namespace cyb::editor
                         terrain["heightmap"]["exponent"] = m_heightmapDesc.exponent;
 
                         auto& input1 = terrain["heightmap"]["input1"];
-                        input1["noise"]["noiseType"] = m_heightmapDesc.device1.noise.noiseType;
+                        input1["noise"]["type"] = m_heightmapDesc.device1.noise.type;
                         input1["noise"]["seed"] = m_heightmapDesc.device1.noise.seed;
                         input1["noise"]["frequency"] = m_heightmapDesc.device1.noise.frequency;
                         input1["noise"]["octaves"] = m_heightmapDesc.device1.noise.octaves;
@@ -731,7 +731,7 @@ namespace cyb::editor
                         input1["blur"] = m_heightmapDesc.device1.blur;
 
                         auto& input2 = terrain["heightmap"]["input2"];
-                        input2["noise"]["noiseType"] = m_heightmapDesc.device2.noise.noiseType;
+                        input2["noise"]["type"] = m_heightmapDesc.device2.noise.type;
                         input2["noise"]["seed"] = m_heightmapDesc.device2.noise.seed;
                         input2["noise"]["frequency"] = m_heightmapDesc.device2.noise.frequency;
                         input2["noise"]["octaves"] = m_heightmapDesc.device2.noise.octaves;
@@ -743,7 +743,7 @@ namespace cyb::editor
                         input2["strata"] = m_heightmapDesc.device2.strata;
                         input2["blur"] = m_heightmapDesc.device2.blur;
 
-                        if (!filesystem::FileHasExtension(filename, "json"))
+                        if (!filesystem::HasExtension(filename, "json"))
                             filename += ".json";
 
                         std::ofstream o(filename);
@@ -770,7 +770,7 @@ namespace cyb::editor
                         m_heightmapDesc.exponent = terrain["heightmap"]["exponent"];
 
                         auto& input1 = terrain["heightmap"]["input1"];
-                        m_heightmapDesc.device1.noise.noiseType = input1["noise"]["noiseType"];
+                        m_heightmapDesc.device1.noise.type = input1["noise"]["type"];
                         m_heightmapDesc.device1.noise.seed = input1["noise"]["seed"];
                         m_heightmapDesc.device1.noise.frequency = input1["noise"]["frequency"];
                         m_heightmapDesc.device1.noise.octaves = input1["noise"]["octaves"];
@@ -783,7 +783,7 @@ namespace cyb::editor
                         m_heightmapDesc.device1.blur = input1["blur"];
 
                         auto& input2 = terrain["heightmap"]["input2"];
-                        m_heightmapDesc.device2.noise.noiseType = input2["noise"]["noiseType"];
+                        m_heightmapDesc.device2.noise.type = input2["noise"]["type"];
                         m_heightmapDesc.device2.noise.seed = input2["noise"]["seed"];
                         m_heightmapDesc.device2.noise.frequency = input2["noise"]["frequency"];
                         m_heightmapDesc.device2.noise.octaves = input2["noise"]["octaves"];
@@ -849,27 +849,27 @@ namespace cyb::editor
                         ImVec2 drawPosStart = ImGui::GetCursorScreenPos();
                         ImGui::Image((ImTextureID)&texture, size, ImVec2(0, 0), ImVec2(1, 0.33f));
 #endif
-                        NoiseDesc& noiseDesc = device.noise;
+                        noise::Parameters &noiseParams = device.noise;
 
-                        ui::ComboBox("Noise Type", noiseDesc.noiseType, g_noiseTypeCombo, onChangeFunc);
-                        ui::SliderInt("Seed", (int*)&noiseDesc.seed, onChangeFunc, 0, std::numeric_limits<int>::max() / 2);
-                        ui::SliderFloat("Frequency", &noiseDesc.frequency, onChangeFunc, 0.0f, 10.0f);
+                        ui::ComboBox("Noise Type", noiseParams.type, g_noiseTypeCombo, onChangeFunc);
+                        ui::SliderInt("Seed", (int*)&noiseParams.seed, onChangeFunc, 0, std::numeric_limits<int>::max() / 2);
+                        ui::SliderFloat("Frequency", &noiseParams.frequency, onChangeFunc, 0.0f, 10.0f);
 
                         if (ImGui::TreeNode("Fractal"))
                         {                            
-                            ui::SliderInt("Octaves", (int*)&noiseDesc.octaves, onChangeFunc, 1, 8);
+                            ui::SliderInt("Octaves", (int*)&noiseParams.octaves, onChangeFunc, 1, 8);
                             UPDATE_HEIGHTMAP_ON_CHANGE();
-                            ui::SliderFloat("Lacunarity", &noiseDesc.lacunarity, onChangeFunc, 0.0f, 4.0f);
-                            ui::SliderFloat("Gain", &noiseDesc.gain, onChangeFunc, 0.0f, 4.0f);
+                            ui::SliderFloat("Lacunarity", &noiseParams.lacunarity, onChangeFunc, 0.0f, 4.0f);
+                            ui::SliderFloat("Gain", &noiseParams.gain, onChangeFunc, 0.0f, 4.0f);
                             ImGui::TreePop();
                         }
 
-                        if (noiseDesc.noiseType == NoiseType::Cellular)
+                        if (noiseParams.type == noise::Type::Cellular)
                         {
                             if (ImGui::TreeNode("Cellular"))
                             {
-                                ui::ComboBox("Return", noiseDesc.cellularReturnType, g_cellularReturnTypeCombo, onChangeFunc);
-                                ui::SliderFloat("Jitter", &noiseDesc.cellularJitterModifier, onChangeFunc, 0.0f, 2.5f);
+                                ui::ComboBox("Return", noiseParams.cellularReturnType, g_cellularReturnTypeCombo, onChangeFunc);
+                                ui::SliderFloat("Jitter", &noiseParams.cellularJitterModifier, onChangeFunc, 0.0f, 2.5f);
                                 ImGui::TreePop();
                             }
                         }
@@ -931,8 +931,8 @@ namespace cyb::editor
 
             if (ImGui::Button("Random seed", ImVec2(-1, 0)))
             {
-                m_heightmapDesc.device1.noise.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
-                m_heightmapDesc.device2.noise.seed = random::GenerateInteger(0, std::numeric_limits<int>::max());
+                m_heightmapDesc.device1.noise.seed = random::GetNumber<uint32_t>(0, std::numeric_limits<int>::max());
+                m_heightmapDesc.device2.noise.seed = random::GetNumber<uint32_t>(0, std::numeric_limits<int>::max());
                 UpdateHeightmapAndTextures();
             }
 

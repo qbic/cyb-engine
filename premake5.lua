@@ -22,7 +22,7 @@ workspace "cyb-engine"
       defines { "CYB_DEBUG_BUILD" }
 
    filter "configurations:Release"
-      defines { "CYB_RELEASE_BUILD" }
+      defines { "CYB_RELEASE_BUILD", "NDEBUG" }
    
    group "dependencies"
 	   include "engine/third_party/imgui"

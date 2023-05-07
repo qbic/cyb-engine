@@ -6,46 +6,47 @@
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
 
-// CYB_ERRORS_ARE_FATAL couses CYB_ERROR(...) to teminate the application
+// Enabling CYB_ERRORS_ARE_FATAL will couse CYB_ERROR(...) to teminate the application.
 #if CYB_DEBUG_BUILD
 #define CYB_ERRORS_ARE_FATAL	0
 #else
 #define CYB_ERRORS_ARE_FATAL	1
 #endif
 
-namespace cyb::logger 
+namespace cyb::logger
 {
-	enum class LogLevel
+	enum class Level
 	{
+		None,
 		Trace,
 		Info,
 		Warning,
 		Error
 	};
 
-	struct LogMessage
+	struct Message
 	{
 		std::string message;
 		std::chrono::system_clock::time_point timestamp;
-		LogLevel severity = LogLevel::Error;
+		Level severity = Level::None;
 	};
 
-	class LogOutputModule
+	class OutputModule
 	{
 	public:
-		virtual ~LogOutputModule() = default;
-		virtual void Write(const LogMessage& log) = 0;
+		virtual ~OutputModule() = default;
+		virtual void Write(const Message& log) = 0;
 	};
 
-	class LogOutputModule_StringBuffer : public LogOutputModule
+	class OutputModule_StringBuffer : public OutputModule
 	{
 	public:
-		LogOutputModule_StringBuffer(bool writeTimestamp = false) :
+		OutputModule_StringBuffer(bool writeTimestamp = false) :
 			m_writeTimestamp(writeTimestamp)
 		{
 		}
 
-		void Write(const logger::LogMessage& log) override
+		void Write(const logger::Message& log) override
 		{
 			if (m_writeTimestamp)
 			{
@@ -57,7 +58,7 @@ namespace cyb::logger
 			m_stringBuffer = m_logStream.str();
 		}
 
-		const std::string& GetStringBuffer() const
+		[[nodiscard]] const std::string& GetStringBuffer() const
 		{
 			return m_stringBuffer;
 		}
@@ -68,34 +69,34 @@ namespace cyb::logger
 		bool m_writeTimestamp;
 	};
 
-	void RegisterOutputModule(std::shared_ptr<LogOutputModule> output, bool writeHistory = true);
+	void RegisterOutputModule(std::shared_ptr<OutputModule> output, bool writeHistory = true);
 
 	// Prefixes the input message with a log level identifier and 
 	// sends a LogMessage to all registered output modules
-	void Post(LogLevel severity, const std::string& input);
+	void Post(Level severity, const std::string& input);
 
 	template <typename ...T>
 	void PostTrace(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LogLevel::Trace, fmt::format(fmt, std::forward<T>(args)...));
+		Post(Level::Trace, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostInfo(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LogLevel::Info, fmt::format(fmt, std::forward<T>(args)...));
+		Post(Level::Info, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostWarning(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LogLevel::Warning, fmt::format(fmt, std::forward<T>(args)...));
+		Post(Level::Warning, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostError(fmt::format_string<T...> fmt, T&&... args)
 	{
-		Post(LogLevel::Error, fmt::format(fmt, std::forward<T>(args)...));
+		Post(Level::Error, fmt::format(fmt, std::forward<T>(args)...));
 	}
 }
 

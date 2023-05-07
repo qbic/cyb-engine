@@ -25,7 +25,7 @@ namespace cyb::editor
 
     struct HeightmapDevice
     {
-        NoiseDesc noise;
+        noise::Parameters noise;
         HeightmapStrataOp strataOp = HeightmapStrataOp::None;
         float strata = 5.0f;
         float blur = 0.0f;

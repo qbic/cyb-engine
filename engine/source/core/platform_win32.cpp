@@ -11,10 +11,10 @@ namespace cyb::platform
 	Instance applicationInstance = nullptr;
 	const TCHAR* windowClassName = TEXT("CybEngineWindow");
 
-	class LogOutputModule_VisualStudio final : public logger::LogOutputModule
+	class LogOutputModule_VisualStudio final : public logger::OutputModule
 	{
 	public:
-		void Write(const logger::LogMessage& log) override
+		void Write(const logger::Message& log) override
 		{
 			OutputDebugStringA(log.message.c_str());
 		}

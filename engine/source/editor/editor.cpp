@@ -570,7 +570,7 @@ namespace cyb::editor
         Tool_LogDisplay(const std::string& name) :
             GuiTool(name)
         {
-            m_logOutput = std::make_shared<logger::LogOutputModule_StringBuffer>();
+            m_logOutput = std::make_shared<logger::OutputModule_StringBuffer>();
             logger::RegisterOutputModule(m_logOutput);
         }
 
@@ -584,7 +584,7 @@ namespace cyb::editor
         }
 
     private:
-        std::shared_ptr<logger::LogOutputModule_StringBuffer> m_logOutput;
+        std::shared_ptr<logger::OutputModule_StringBuffer> m_logOutput;
     };
 
     //------------------------------------------------------------------------------
@@ -704,10 +704,10 @@ namespace cyb::editor
     {
         filesystem::OpenDialog(filter, [](std::string filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
-                const std::string extension = filesystem::GetFileExtension(filename);
-                if (filesystem::FileHasExtension(filename, "csb"))
+                const std::string extension = filesystem::GetExtension(filename);
+                if (filesystem::HasExtension(filename, "csb"))
                     scene::LoadModel(filename);
-                else if (filesystem::FileHasExtension(filename, "glb") || filesystem::FileHasExtension(filename, "gltf"))
+                else if (filesystem::HasExtension(filename, "glb") || filesystem::HasExtension(filename, "gltf"))
                 {
                     ecs::Entity entity = renderer::ImportModel_GLTF(filename, scene::GetScene());
                     SetSceneGraphViewSelection(entity);
@@ -719,7 +719,7 @@ namespace cyb::editor
     void OpenDialog_SaveAs()
     {
         filesystem::SaveDialog(FILE_FILTER_SCENE, [](std::string filename) {
-            if (!filesystem::FileHasExtension(filename, "csb"))
+            if (!filesystem::HasExtension(filename, "csb"))
                 filename += ".cbs";
 
             serializer::Archive ar;

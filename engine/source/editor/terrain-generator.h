@@ -69,7 +69,7 @@ namespace cyb::editor
 
         HeightmapDesc m_heightmapDesc;
         HeightmapDesc m_moisturemapDesc;
-        NoiseDesc m_moisturemapNoise;
+        noise::Parameters m_moisturemapNoise;
         Heightmap m_heightmap;
         Heightmap m_moisturemap;
         std::vector<uint32_t> m_colormap;

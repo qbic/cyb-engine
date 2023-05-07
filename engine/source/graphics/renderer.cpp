@@ -123,7 +123,7 @@ namespace cyb::renderer
         if (!filesystem::ReadFile(fullPath, fileData))
             return false;
 
-        if (!filesystem::FileHasExtension(filename, "spv"))
+        if (!filesystem::HasExtension(filename, "spv"))
         {
             ShaderCompilerInput input = {};
             input.format = ShaderFormat::GLSL;
@@ -407,7 +407,7 @@ namespace cyb::renderer
         this->camera = camera;
 
         {
-            CYB_PROFILE_SCOPE("Frustum Culling");
+            CYB_PROFILE_CPU_SCOPE("Frustum Culling");
             // Perform camera frustum culling to all objects aabb and
             // store all visible objects in the view
             const math::Frustum& frustum = camera->frustum;

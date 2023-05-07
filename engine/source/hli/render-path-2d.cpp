@@ -29,7 +29,7 @@ namespace cyb::hli
             show_editor = !show_editor;
 
         {
-            CYB_PROFILE_SCOPE("GUI Update");
+            CYB_PROFILE_CPU_SCOPE("GUI Update");
             editor::UpdateFPSCounter(dt);
             ImGui_Impl_CybEngine_Update();
             if (show_editor)
@@ -50,7 +50,8 @@ namespace cyb::hli
     {
 #ifndef NO_EDITOR
         {
-            CYB_PROFILE_SCOPE("GUI Render");
+            CYB_PROFILE_CPU_SCOPE("GUI Render");
+            CYB_PROFILE_GPU_SCOPE("GUI", cmd);
             graphics::GetDevice()->BeginEvent("GUI", cmd);
             //editor::Render(cmd);
             ImGui_Impl_CybEngine_Compose(cmd);

@@ -102,12 +102,12 @@ namespace cyb::profiler
         context.gpuFrameGraph[FRAME_GRAPH_ENTRIES - 1] = context.entries[context.gpuFrame].time;
     }
 
-    EntryID BeginCpuEntry(const char* name)
+    EntryId BeginCpuEntry(const std::string& name)
     {
-        EntryID id = hash::StringHash(name);
+        EntryId id = hash::String(name);
         size_t differentiator = 0;
         while (context.entries[id].inUse)
-            hash::HashCombine(id, differentiator++);
+            hash::Combine(id, differentiator++);
 
         context.entries[id].inUse = true;
         context.entries[id].name = name;
@@ -116,12 +116,12 @@ namespace cyb::profiler
         return id;
     }
 
-    EntryID BeginGpuEntry(const char* name, graphics::CommandList cmd)
+    EntryId BeginGpuEntry(const std::string& name, graphics::CommandList cmd)
     {
-        EntryID id = hash::StringHash(name);
+        EntryId id = hash::String(name);
         size_t differentiator = 0;
         while (context.entries[id].inUse)
-            hash::HashCombine(id, differentiator++);
+            hash::Combine(id, differentiator++);
 
         context.entries[id].inUse = true;
         context.entries[id].name = name;
@@ -132,7 +132,7 @@ namespace cyb::profiler
         return id;
     }
 
-    void EndEntry(EntryID id)
+    void EndEntry(EntryId id)
     {
         auto it = context.entries.find(id);
         assert(it != context.entries.end());
@@ -149,7 +149,7 @@ namespace cyb::profiler
         }
     }
 
-    ScopedCpuEntry::ScopedCpuEntry(const char* name)
+    ScopedCpuEntry::ScopedCpuEntry(const std::string& name)
     {
         m_id = BeginCpuEntry(name);
     }
@@ -159,7 +159,7 @@ namespace cyb::profiler
         EndEntry(m_id);
     }
 
-    ScopedGpuEntry::ScopedGpuEntry(const char* name, graphics::CommandList cmd)
+    ScopedGpuEntry::ScopedGpuEntry(const std::string& name, graphics::CommandList cmd)
     {
         m_id = BeginGpuEntry(name, cmd);
     }

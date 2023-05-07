@@ -134,7 +134,7 @@ namespace cyb::resourcemanager
             filesize = resource->data.size();
         }
 
-        const std::string extension = filesystem::GetFileExtension(name);
+        const std::string extension = filesystem::GetExtension(name);
         const DataType type = GetResourceTypeByExtension(extension);
         if (type == DataType::Unknown)
         {

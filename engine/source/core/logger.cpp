@@ -11,12 +11,12 @@
 
 namespace cyb::logger
 {
-    std::list<std::shared_ptr<LogOutputModule>> outputModules;
-    std::deque<LogMessage> logHistory;
+    std::list<std::shared_ptr<OutputModule>> outputModules;
+    std::deque<Message> logHistory;
     SpinLock postLock;
-    LogLevel logLevelThreshold = LogLevel::Trace;
+    Level logLevelThreshold = Level::Trace;
 
-    void RegisterOutputModule(std::shared_ptr<LogOutputModule> output, bool writeHistory)
+    void RegisterOutputModule(std::shared_ptr<OutputModule> output, bool writeHistory)
     {
 #ifdef CYB_DEBUG_BUILD
         // In debug build, ensure there is only one instance of the output module so 
@@ -29,44 +29,40 @@ namespace cyb::logger
         }
 #endif
 
-        outputModules.push_back(output);
-
         if (writeHistory)
-        {
             for (const auto& log : logHistory)
-            {
                 output->Write(log);
-            }
-        }
+
+        outputModules.push_back(output);
     }
 
-    // Check if the log level is under the global log level threshold
-    inline bool IsUnderLogLevelThreshold(LogLevel level)
+    // Check if the log level is under the global log level threshold.
+    inline bool IsUnderLevelThreshold(Level level)
     {
-        return static_cast<std::underlying_type<LogLevel>::type>(level) <
-            static_cast<std::underlying_type<LogLevel>::type>(logLevelThreshold);
+        return static_cast<std::underlying_type<Level>::type>(level) <
+            static_cast<std::underlying_type<Level>::type>(logLevelThreshold);
     }
 
-    inline std::string GetLogLevelPrefix(LogLevel severity)
+    inline std::string GetLogLevelPrefix(Level severity)
     {
         switch (severity)
         {
-        case LogLevel::Trace:   return "[TRACE] ";
-        case LogLevel::Info:    return "[INFO] ";
-        case LogLevel::Warning: return "[WARNING] ";
-        case LogLevel::Error:   return "[ERROR] ";
+        case Level::Trace:   return "[TRACE] ";
+        case Level::Info:    return "[INFO] ";
+        case Level::Warning: return "[WARNING] ";
+        case Level::Error:   return "[ERROR] ";
         }
 
-        return "";
+        return {};
     }
 
-    void Post(LogLevel severity, const std::string& input)
+    void Post(Level severity, const std::string& input)
     {
-        if (IsUnderLogLevelThreshold(severity))
+        if (IsUnderLevelThreshold(severity))
             return;
         std::scoped_lock<SpinLock> lock(postLock);
         
-        LogMessage log;
+        Message log;
         log.message = fmt::format("{0}{1}\n", GetLogLevelPrefix(severity), input);
         log.timestamp = std::chrono::system_clock::now();
         log.severity = severity;
@@ -76,7 +72,7 @@ namespace cyb::logger
             output->Write(log);
 
 #if CYB_ERRORS_ARE_FATAL
-        if (severity == LogLevel::Error)
+        if (severity == Level::Error)
         {
             platform::CreateMessageWindow(input, "CybEngine Error");
             platform::Exit(1);

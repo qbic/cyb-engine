@@ -233,7 +233,7 @@ namespace cyb::editor
         return std::make_pair(maxPoint, maxError);
     }
 
-    static void CreateNoiseImage(jobsystem::Context& ctx, const NoiseDesc& noiseDesc, uint32_t width, uint32_t height, HeightmapImage& image)
+    static void CreateNoiseImage(jobsystem::Context& ctx, const noise::Parameters& noiseParams, uint32_t width, uint32_t height, HeightmapImage& image)
     {
         image.width = width;
         image.height = height;
@@ -242,7 +242,7 @@ namespace cyb::editor
 
         jobsystem::Dispatch(ctx, image.height, 256, [&](jobsystem::JobArgs args)
             {
-                NoiseGenerator noise(noiseDesc);
+                noise::Generator noise(noiseParams);
 
                 const uint32_t y = args.jobIndex;
                 for (uint32_t x = 0; x < image.width; ++x)

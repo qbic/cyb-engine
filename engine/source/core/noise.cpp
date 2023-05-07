@@ -1,8 +1,9 @@
 #include <numeric>
 #include <random>
 #include "core/noise.h"
+#include "core/mathlib.h"
 
-namespace cyb
+namespace cyb::noise
 {
     template <typename T>
     struct Lookup
@@ -35,66 +36,66 @@ namespace cyb
         return xd * xg + yd * yg;
     }
 
-    NoiseGenerator::NoiseGenerator(uint32_t seed)
+    Generator::Generator(uint32_t seed)
     {
         SetSeed(seed);
         CalculateFractalBounding();
     }
 
-    NoiseGenerator::NoiseGenerator(const NoiseDesc& noiseDesc)
+    Generator::Generator(const Parameters& noiseDesc)
     {
-        desc = noiseDesc;
+        m_params = noiseDesc;
         CalculateFractalBounding();
     }
 
-    void NoiseGenerator::CalculateFractalBounding()
+    void Generator::CalculateFractalBounding()
     {
-        float amp = desc.gain;
+        float amp = m_params.gain;
         float ampFractal = 1.0f;
-        for (uint32_t i = 1; i < desc.octaves; i++)
+        for (uint32_t i = 1; i < m_params.octaves; i++)
         {
             ampFractal += amp;
-            amp *= desc.gain;
+            amp *= m_params.gain;
         }
-        fractalBounding = 1.0f / ampFractal;
+        m_fractalBounding = 1.0f / ampFractal;
     }
 
-    float NoiseGenerator::GetNoise(float x, float y) const
+    float Generator::GetNoise(float x, float y) const
     {
-        x *= desc.frequency;
-        y *= desc.frequency;
+        x *= m_params.frequency;
+        y *= m_params.frequency;
 
         float sum = 0.0f;
         float amp = 1;
 
-        for (uint32_t i = 0; i < desc.octaves; ++i)
+        for (uint32_t i = 0; i < m_params.octaves; ++i)
         {
-            x *= desc.lacunarity;
-            y *= desc.lacunarity;
+            x *= m_params.lacunarity;
+            y *= m_params.lacunarity;
 
-            amp *= desc.gain;
-            sum += GetNoiseSingle(desc.seed + i, x, y) * amp;
+            amp *= m_params.gain;
+            sum += GetNoiseSingle(m_params.seed + i, x, y) * amp;
         }
 
-        return sum * fractalBounding;
+        return sum * m_fractalBounding;
     }
 
-    float NoiseGenerator::GetNoiseSingle(uint32_t seed, float x, float y) const
+    float Generator::GetNoiseSingle(uint32_t seed, float x, float y) const
     {
-        switch (desc.noiseType)
+        switch (m_params.type)
         {
-        case NoiseType::Perlin:
+        case Type::Perlin:  
             return SinglePerlin(seed, x, y);
-        case NoiseType::Cellular:
+        case Type::Cellular:
             return SingleCellular(seed, x, y);
         default:
             break;
         }
 
-        return 0;
+        return 0.0f;
     }
 
-    float NoiseGenerator::SinglePerlin(uint32_t seed, float x, float y) const
+    float Generator::SinglePerlin(uint32_t seed, float x, float y) const
     {
         int x0 = math::Floor(x);
         int y0 = math::Floor(y);
@@ -118,7 +119,7 @@ namespace cyb
         return math::Lerp(xf0, xf1, ys);
     }
 
-    float NoiseGenerator::SingleCellular(uint32_t seed, float x, float y) const
+    float Generator::SingleCellular(uint32_t seed, float x, float y) const
     {
         int xr = math::Round(x);
         int yr = math::Round(y);
@@ -127,7 +128,7 @@ namespace cyb
         float distance1 = 1e10f;
         int closestHash = 0;
 
-        float cellularJitter = 0.43701595f * desc.cellularJitterModifier;
+        float cellularJitter = 0.43701595f * m_params.cellularJitterModifier;
 
         int xPrimed = (xr - 1) * PrimeX;
         int yPrimedBase = (yr - 1) * PrimeY;
@@ -157,21 +158,21 @@ namespace cyb
             xPrimed += PrimeX;
         }
             
-        switch (desc.cellularReturnType)
+        switch (m_params.cellularReturnType)
         {
-        case CellularReturnType::CellValue:
+        case CellularReturn::CellValue:
             return closestHash * (1 / 2147483648.0f);
-        case CellularReturnType::Distance:
+        case CellularReturn::Distance:
             return distance0 - 1;
-        case CellularReturnType::Distance2:
+        case CellularReturn::Distance2:
             return distance1 - 1;
-        case CellularReturnType::Distance2Add:
+        case CellularReturn::Distance2Add:
             return (distance1 + distance0) * 0.5f - 1;
-        case CellularReturnType::Distance2Sub:
+        case CellularReturn::Distance2Sub:
             return distance1 - distance0 - 1;
-        case CellularReturnType::Distance2Mul:
+        case CellularReturn::Distance2Mul:
             return distance1 * distance0 * 0.5f - 1;
-        case CellularReturnType::Distance2Div:
+        case CellularReturn::Distance2Div:
             return distance0 / distance1 - 1;
         default:
             return 0;

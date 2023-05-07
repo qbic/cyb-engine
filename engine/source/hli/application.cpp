@@ -80,7 +80,7 @@ namespace cyb::hli
 
 	void Application::Update(float dt)
 	{
-		CYB_PROFILE_SCOPE("Update");
+		CYB_PROFILE_CPU_SCOPE("Update");
 		if (active_path != nullptr)
 			active_path->Update(dt);
 		input::Update();
@@ -88,14 +88,14 @@ namespace cyb::hli
 
 	void Application::Render()
 	{
-		CYB_PROFILE_SCOPE("Render");
+		CYB_PROFILE_CPU_SCOPE("Render");
 		if (active_path != nullptr)
 			active_path->Render();
 	}
 
 	void Application::Compose(graphics::CommandList cmd)
 	{
-		CYB_PROFILE_SCOPE("Compose");
+		CYB_PROFILE_CPU_SCOPE("Compose");
 		if (active_path != nullptr)
 			active_path->Compose(cmd);
 	}

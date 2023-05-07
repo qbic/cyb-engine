@@ -134,7 +134,7 @@ namespace cyb::graphics
         output->internal_state = internal_state;
         output->shaderdata = (uint8_t*)internal_state.get()->data();
         output->shadersize = sizeof(uint32_t) * internal_state.get()->size();
-        output->shaderhash = hash::StringHash(preprocessed_source.c_str());
+        output->shaderhash = hash::String(preprocessed_source.c_str());
 
         CYB_TRACE("Compiled GLSL -> SPIR-V (filename={0}) in {1:.2f}ms", input->name, timer.ElapsedMilliseconds());
         return true;

@@ -16,10 +16,10 @@
 #define CYB_FUNC_SIG "CYB_FUNC_SIG"
 #endif
 
-#define CYB_PROFILE_SCOPE_LINE2(name, line) cyb::profiler::ScopedCpuEntry scopedCPUProfileEntry##line(name)
-#define CYB_PROFILE_SCOPE_LINE(name, line) CYB_PROFILE_SCOPE_LINE2(name, line)
-#define CYB_PROFILE_SCOPE(name) CYB_PROFILE_SCOPE_LINE(name, __LINE__)
-#define CYB_PROFILE_FUNCTION() CYB_PROFILE_SCOPE(CYB_FUNC_SIG)
+#define CYB_PROFILE_CPU_SCOPE_LINE2(name, line) cyb::profiler::ScopedCpuEntry scopedCPUProfileEntry##line(name)
+#define CYB_PROFILE_CPU_SCOPE_LINE(name, line) CYB_PROFILE_CPU_SCOPE_LINE2(name, line)
+#define CYB_PROFILE_CPU_SCOPE(name) CYB_PROFILE_CPU_SCOPE_LINE(name, __LINE__)
+#define CYB_PROFILE_FUNCTION() CYB_PROFILE_CPU_SCOPE(CYB_FUNC_SIG)
 
 #define CYB_PROFILE_GPU_SCOPE_LINE2(name, cmd, line) cyb::profiler::ScopedGpuEntry scopedGPUPprofileEntry##line(name, cmd)
 #define CYB_PROFILE_GPU_SCOPE_LINE(name, cmd, line) CYB_PROFILE_GPU_SCOPE_LINE2(name, cmd, line)
@@ -29,15 +29,15 @@
 #define CYB_TIMED_FUNCTION_LINE(name, line) CYB_TIMED_FUNCTION_LINE2(name, line)
 #define CYB_TIMED_FUNCTION() CYB_TIMED_FUNCTION_LINE(CYB_FUNC_SIG, __LINE__)
 #else
-#define CYB_PROFILE_SCOOP(name) 
-#define CYB_PROFILE_FUNCTION()
+#define CYB_PROFILE_CPU_SCOPE(name)
 #define CYB_PROFILE_GPU_SCOPE(name, cmd)
+#define CYB_PROFILE_FUNCTION()
 #define CYB_TIMED_FUNCTION()
 #endif
 
 namespace cyb::profiler
 {
-    using EntryID = size_t;
+    using EntryId = size_t;
 
     constexpr uint32_t AVERAGE_COUNTER_SAMPLES = 20;
     constexpr uint32_t FRAME_GRAPH_ENTRIES = 144;
@@ -59,9 +59,9 @@ namespace cyb::profiler
 
     struct Context
     {
-        std::unordered_map<EntryID, Entry> entries;
-        EntryID cpuFrame = 0;
-        EntryID gpuFrame = 0;
+        std::unordered_map<EntryId, Entry> entries;
+        EntryId cpuFrame = 0;
+        EntryId gpuFrame = 0;
         float cpuFrameGraph[FRAME_GRAPH_ENTRIES] = {};
         float gpuFrameGraph[FRAME_GRAPH_ENTRIES] = {};
     };
@@ -69,29 +69,29 @@ namespace cyb::profiler
     void BeginFrame();
     void EndFrame(graphics::CommandList cmd);
 
-    EntryID BeginCpuEntry(const char* name);
-    EntryID BeginGpuEntry(const char* name, graphics::CommandList cmd);
+    [[nodiscard]] EntryId BeginCpuEntry(const std::string& name);
+    [[nodiscard]] EntryId BeginGpuEntry(const std::string& name, graphics::CommandList cmd);
 
-    void EndEntry(EntryID id);
+    void EndEntry(EntryId id);
 
     class ScopedCpuEntry
     {
     public:
-        ScopedCpuEntry(const char* name);
+        ScopedCpuEntry(const std::string& name);
         ~ScopedCpuEntry();
 
     private:
-        EntryID m_id;
+        EntryId m_id;
     };
 
     class ScopedGpuEntry
     {
     public:
-        ScopedGpuEntry(const char* name, graphics::CommandList cmd);
+        ScopedGpuEntry(const std::string& name, graphics::CommandList cmd);
         ~ScopedGpuEntry();
 
     private:
-        EntryID m_id;
+        EntryId m_id;
     };
 
     class ScopedTimedFunction

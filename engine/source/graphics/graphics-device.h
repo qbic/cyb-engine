@@ -93,10 +93,11 @@ namespace cyb::graphics
         DSV                                 // Depth stencil view
     };
 
-    enum class FillMode
+    enum class PolygonMode
     {
-        Whireframe,
-        Solid
+        Fill,
+        Line,
+        Point
     };
 
     enum class CullMode
@@ -309,7 +310,7 @@ namespace cyb::graphics
 
     struct RasterizerState
     {
-        FillMode fillMode = FillMode::Solid;
+        PolygonMode polygonMode = PolygonMode::Fill;
         CullMode cullMode = CullMode::None;
         FrontFace frontFace = FrontFace::CCW;
         float lineWidth = 1.0f;

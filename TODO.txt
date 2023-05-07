@@ -7,7 +7,6 @@ TODO FEATURES:
  * Water
  * Hide/Show button in entity select window
  * Editor function to setup the camera to look at an entity
- * gpu profiling
  * Write/Read pso cache off disk
  * ImGuizmo transform undo
 

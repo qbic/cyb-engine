@@ -278,32 +278,32 @@ namespace cyb::renderer
         }
         {
             RasterizerState rs;
-            rs.fillMode = FillMode::Solid;
+            rs.polygonMode = PolygonMode::Fill;
             rs.cullMode = CullMode::Back;
             rs.frontFace = FrontFace::CCW;
             rasterizers[RSTYPE_FRONT] = rs;
 
-            rs.fillMode = FillMode::Solid;
+            rs.polygonMode = PolygonMode::Fill;
             rs.cullMode = CullMode::Front;
             rs.frontFace = FrontFace::CCW;
             rasterizers[RSTYPE_BACK] = rs;
 
-            rs.fillMode = FillMode::Solid;
+            rs.polygonMode = PolygonMode::Fill;
             rs.cullMode = CullMode::None;
             rs.frontFace = FrontFace::CCW;
             rasterizers[RSTYPE_DOUBLESIDED] = rs;
 
-            rs.fillMode = FillMode::Whireframe;
+            rs.polygonMode = PolygonMode::Line;
             rs.cullMode = CullMode::Back;
             rs.frontFace = FrontFace::CCW;
             rasterizers[RSTYPE_WIRE] = rs;
 
-            rs.fillMode = FillMode::Whireframe;
+            rs.polygonMode = PolygonMode::Line;
             rs.cullMode = CullMode::None;
             rs.frontFace = FrontFace::CCW;
             rasterizers[RSTYPE_WIRE_DOUBLESIDED] = rs;
 
-            rs.fillMode = FillMode::Solid;
+            rs.polygonMode = PolygonMode::Fill;
             rs.cullMode = CullMode::None;
             rs.frontFace = FrontFace::CW;
             rasterizers[RSTYPE_IMAGE] = rs;

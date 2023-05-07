@@ -1,5 +1,4 @@
 #pragma once
-#include "core/core-defs.h"
 
 namespace cyb::input
 {

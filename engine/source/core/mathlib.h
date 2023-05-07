@@ -3,7 +3,6 @@
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
 #include <DirectXCollision.h>
-#include "core/core-defs.h"
 
 using namespace DirectX;
 using namespace DirectX::PackedVector;

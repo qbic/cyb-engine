@@ -1738,7 +1738,7 @@ namespace cyb::graphics
             m_copyAllocator.Submit(cmd);
         }
 
-        return R_SUCCESS;
+        return true;
     }
 
     bool GraphicsDevice_Vulkan::CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const
@@ -2181,7 +2181,7 @@ namespace cyb::graphics
         if (HasFlag(texture->desc.bindFlags, BindFlags::DepthStencilBit))
             CreateSubresource(texture, SubresourceType::DSV, 0, 1, 0, 1);
 
-        return R_SUCCESS;
+        return true;
     }
 
     GraphicsDevice::MemoryUsage GraphicsDevice_Vulkan::GetMemoryUsage() const
@@ -2294,7 +2294,7 @@ namespace cyb::graphics
             spvReflectDestroyShaderModule(&module);
         }
 
-        return R_SUCCESS;
+        return true;
     }
 
     bool GraphicsDevice_Vulkan::CreateSampler(const SamplerDesc* desc, Sampler* sampler) const
@@ -2353,7 +2353,7 @@ namespace cyb::graphics
         VkResult res = vkCreateSampler(device, &sampler_info, nullptr, &internal_state->resource);
         assert(res == VK_SUCCESS);
 
-        return R_SUCCESS;
+        return true;
     }
 
     bool GraphicsDevice_Vulkan::CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const
@@ -2555,15 +2555,18 @@ namespace cyb::graphics
         {
             const RasterizerState& rs = *pso->desc.rs;
 
-            switch (rs.fillMode)
+            switch (rs.polygonMode)
             {
-            case FillMode::Whireframe:
-                rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
-                break;
-            case FillMode::Solid:
-            default:
+            case PolygonMode::Fill:
                 rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
                 break;
+            case PolygonMode::Line:
+                rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+                break;
+            case PolygonMode::Point:
+                rasterizer.polygonMode = VK_POLYGON_MODE_POINT;
+                break;
+            default: assert(0); break;
             }
 
             switch (rs.cullMode)
@@ -2611,7 +2614,7 @@ namespace cyb::graphics
         if (shaderStageCount == 0)
         {
             CYB_ERROR("Pipeline has no valid shader attached!");
-            return R_FAIL;
+            return false;
         }
 
         // Setup pipeline create info:
@@ -2627,7 +2630,7 @@ namespace cyb::graphics
 
         pipeline_info.pDynamicState = &dynamic_state_info;
 
-        return R_SUCCESS;
+        return true;
     }
 
     void GraphicsDevice_Vulkan::BindScissorRects(const Rect* rects, uint32_t rectCount, CommandList cmd)

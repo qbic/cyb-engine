@@ -1,5 +1,5 @@
 #pragma once
-#include "core/enum-flags.h"
+#include "core/enum_flags.h"
 #include "graphics/graphics-device.h"
 
 namespace cyb::graphics

@@ -1,8 +1,8 @@
 #pragma once
-#include "graphics/graphics-device.h"
-#include <unordered_map>
-#include "core/enum-flags.h"
 #include <memory>
+#include <unordered_map>
+#include "graphics/graphics-device.h"
+#include "core/enum_flags.h"
 
 namespace cyb
 {

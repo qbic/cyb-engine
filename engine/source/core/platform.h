@@ -4,7 +4,7 @@
 #include <string>
 #include <assert.h>
 #include "core/mathlib.h"
-#include "core/enum-flags.h"
+#include "core/enum_flags.h"
 
 #if CYB_DEBUG_BUILD
 #ifdef _WIN32

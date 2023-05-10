@@ -180,7 +180,7 @@ namespace cyb::profiler
         CYB_TRACE("{0} finished in {1:.2f}ms", m_name, m_timer.ElapsedMilliseconds());
     }
 
-    const Context& GetContext()
+    const Context& GetContext() noexcept
     {
         return context;
     }

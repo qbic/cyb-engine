@@ -12,7 +12,7 @@ namespace cyb::hli
         virtual void PreUpdate() = 0;
 
         // Update once per frame
-        virtual void Update(float dt) = 0;
+        virtual void Update(double dt) = 0;
 
         // Executed after Update()
         virtual void PostUpdate() = 0;

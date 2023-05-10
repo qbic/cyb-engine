@@ -18,17 +18,6 @@ namespace cyb::logger
 
     void RegisterOutputModule(std::shared_ptr<OutputModule> output, bool writeHistory)
     {
-#ifdef CYB_DEBUG_BUILD
-        // In debug build, ensure there is only one instance of the output module so 
-        // that there are no accidental double outputs
-        const std::type_index outputIndex = std::type_index(typeid(*output));
-        for (const auto& it : outputModules)
-        {
-            const std::type_index itIndex = std::type_index(typeid(*it));
-            assert(itIndex != outputIndex);
-        }
-#endif
-
         if (writeHistory)
             for (const auto& log : logHistory)
                 output->Write(log);
@@ -47,10 +36,10 @@ namespace cyb::logger
     {
         switch (severity)
         {
-        case Level::Trace:   return "[TRACE] ";
-        case Level::Info:    return "[INFO] ";
-        case Level::Warning: return "[WARNING] ";
-        case Level::Error:   return "[ERROR] ";
+        case Level::Trace:   return "[TRACE]";
+        case Level::Info:    return "[INFO]";
+        case Level::Warning: return "[WARNING]";
+        case Level::Error:   return "[ERROR]";
         }
 
         return {};
@@ -63,7 +52,7 @@ namespace cyb::logger
         std::scoped_lock<SpinLock> lock(postLock);
         
         Message log;
-        log.message = fmt::format("{0}{1}\n", GetLogLevelPrefix(severity), input);
+        log.message = fmt::format("{0} {1}\n", GetLogLevelPrefix(severity), input);
         log.timestamp = std::chrono::system_clock::now();
         log.severity = severity;
         logHistory.push_back(log);

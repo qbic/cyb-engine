@@ -105,5 +105,5 @@ namespace cyb::profiler
         std::string m_name;
     };
 
-    const Context& GetContext();
+    const Context& GetContext() noexcept;
 }

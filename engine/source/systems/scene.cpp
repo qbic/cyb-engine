@@ -489,7 +489,7 @@ namespace cyb::scene
     void CameraComponent::UpdateCamera()
     {
         // NOTE: reverse zbuffer!
-        XMMATRIX _P = XMMatrixPerspectiveFovLH(math::DegreesToRadians(fov), aspect, zFarPlane, zNearPlane);
+        XMMATRIX _P = XMMatrixPerspectiveFovLH(math::ToRadians(fov), aspect, zFarPlane, zNearPlane);
 
         XMVECTOR _Eye = XMLoadFloat3(&pos);
         XMVECTOR _At = XMLoadFloat3(&target);
@@ -667,7 +667,7 @@ namespace cyb::scene
         hierarchy.Remove(entity);
     }
 
-    void Scene::Update([[maybe_unused]] float dt)
+    void Scene::Update([[maybe_unused]] double dt)
     {
         jobsystem::Context ctx;
 

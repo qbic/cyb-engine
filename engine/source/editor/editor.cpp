@@ -43,7 +43,7 @@ namespace cyb::editor
     SceneGraphView scenegraph_view;
 
     // fps counter data
-    float deltatimes[30] = {};
+    double deltatimes[30] = {};
     uint32_t fpsAgvCounter = 0;
     uint32_t avgFps = 0;
 
@@ -1100,13 +1100,13 @@ namespace cyb::editor
         DrawTools();
     }
 
-    void UpdateFPSCounter(float dt)
+    void UpdateFPSCounter(double dt)
     {
         deltatimes[fpsAgvCounter++ % _countof(deltatimes)] = dt;
         if (fpsAgvCounter > _countof(deltatimes))
         {
-            float avgTime = std::accumulate(std::begin(deltatimes), std::end(deltatimes), 0.0f) / _countof(deltatimes);
-            avgFps = (uint32_t)std::round(1.0f / avgTime);
+            double avgTime = std::accumulate(std::begin(deltatimes), std::end(deltatimes), 0.0) / _countof(deltatimes);
+            avgFps = (uint32_t)std::round(1.0 / avgTime);
         }
     }
 

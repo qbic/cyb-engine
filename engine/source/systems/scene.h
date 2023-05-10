@@ -29,7 +29,7 @@ namespace cyb::scene
         XMFLOAT3 translation_local = XMFLOAT3(0, 0, 0);
 
         // Non-serialized data
-        XMFLOAT4X4 world = math::IdentityMatrix;
+        XMFLOAT4X4 world = math::MATRIX_IDENTITY;
 
         void SetDirty(bool value = true);
         bool IsDirty() const;
@@ -245,7 +245,7 @@ namespace cyb::scene
 
         WeatherComponent active_weather;   // weathers[0] copy
 
-        void Update(float dt);
+        void Update(double dt);
         void Clear();
         void merge(Scene& other);
         void RemoveEntity(ecs::Entity entity);
@@ -265,9 +265,9 @@ namespace cyb::scene
         ecs::Entity CreateCamera(
             const std::string& name,
             float aspect,
-            float nearPlane = 0.01f,
-            float farPlane = 1000.0f,
-            float fov = math::M_PIDIV4
+            float nearPlane,
+            float farPlane,
+            float fov
         );
 
         ecs::Entity FindMaterial(const std::string& search_value);

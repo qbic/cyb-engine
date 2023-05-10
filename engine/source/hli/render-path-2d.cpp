@@ -22,7 +22,7 @@ namespace cyb::hli
     {
     }
 
-    void RenderPath2D::Update(float dt)
+    void RenderPath2D::Update(double dt)
     {
 #ifndef NO_EDITOR
         if (input::WasPressed(input::key::KB_F1))

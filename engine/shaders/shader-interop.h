@@ -33,7 +33,7 @@ using namespace DirectX;
 #define CBSLOT_MATERIAL                     4
 #define CBSLOT_IMAGE                        5
 
-#define SHADER_MAX_LIGHTSOURCES             256
+#define SHADER_MAX_LIGHTSOURCES             64
 #define LIGHTSOURCE_TYPE_DIRECTIONAL        0
 #define LIGHTSOURCE_TYPE_POINT              1
 

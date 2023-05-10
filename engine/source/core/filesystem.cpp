@@ -8,7 +8,7 @@
 
 namespace cyb::filesystem
 {
-    std::string GetExtension(const std::string& filename) noexcept
+    std::string GetExtension(const std::string& filename)
     {
         const size_t index = filename.rfind('.');
         if (index == std::string::npos)

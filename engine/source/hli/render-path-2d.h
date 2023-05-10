@@ -15,7 +15,7 @@ namespace cyb::hli
 
         void Load() override;
         void PreUpdate() override;
-        void Update(float dt) override;
+        void Update(double dt) override;
         void PostUpdate() override;
         void Render() const override;
         void Compose(graphics::CommandList cmd) const override;

@@ -47,7 +47,7 @@ void GameRenderer::Load()
     RenderPath3D::Load();
 }
 
-void GameRenderer::Update(float dt)
+void GameRenderer::Update(double dt)
 {
 #ifndef NO_EDITOR
     // Stop input from going though the editor
@@ -60,7 +60,7 @@ void GameRenderer::Update(float dt)
     RenderPath3D::Update(dt);
 }
 
-void GameRenderer::CameraControl(float dt)
+void GameRenderer::CameraControl(double dt)
 {
     float xDif = 0;
     float yDif = 0;
@@ -72,9 +72,9 @@ void GameRenderer::CameraControl(float dt)
     }
 
     // if dt > 100 millisec, don't allow the camera to jump too far...
-    const float clampedDt = std::min(dt, 0.1f);
+    const double clampedDt = std::min(dt, 0.1);
 
-    const float speed = (input::IsDown('F') ? 3.0f : 1.0f) * 10.0f * m_moveSpeed * clampedDt;
+    const double speed = (input::IsDown('F') ? 3.0 : 1.0) * 10.0 * m_moveSpeed * clampedDt;
     XMVECTOR move = XMLoadFloat3(&m_cameraMove);
     XMVECTOR moveNew = XMVectorSet(0, 0, 0, 0);
 
@@ -90,15 +90,15 @@ void GameRenderer::CameraControl(float dt)
         moveNew += XMVectorSet(0, -1, 0, 0);
     if (input::IsDown(input::key::KB_SPACE))
         moveNew += XMVectorSet(0, 1, 0, 0);
-    moveNew = XMVector3Normalize(moveNew) * speed;
+    moveNew = XMVector3Normalize(moveNew) * static_cast<float>(speed);
 
-    move = XMVectorLerp(move, moveNew, math::Min(0.1f, m_moveAcceleration * clampedDt / 0.0166f)); // smooth the movement a bit
+    move = XMVectorLerp(move, moveNew, static_cast<float>(math::Min(0.1, m_moveAcceleration * clampedDt / 0.0166))); // smooth the movement a bit
     const float moveLength = XMVectorGetX(XMVector3Length(move));
 
     if (moveLength < 0.0001f)
         move = XMVectorSet(0, 0, 0, 0);
-    
-    if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f)
+
+    //if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f)
     {
         XMMATRIX cameraRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&camera_transform.rotation_local));
         XMVECTOR rotatedMove = XMVector3TransformNormal(move, cameraRotation);

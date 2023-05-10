@@ -6,9 +6,9 @@ class GameRenderer : public cyb::hli::RenderPath3D
 {
 public:
     void Load() override;
-    void Update(float dt) override;
+    void Update(double dt) override;
 
-    void CameraControl(float dt);
+    void CameraControl(double dt);
 
 private:
     float m_mouseSensitivity = 0.15f;

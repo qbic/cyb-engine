@@ -203,7 +203,7 @@ namespace cyb::editor
 
                     // compute z using barycentric coordinates
                     const float z = z0 * w0 + z1 * w1 + z2 * w2;
-                    const float dz = math::Abs(z - GetHeightAt(x, y));
+                    const float dz = std::abs(z - GetHeightAt(x, y));
                     if (dz > maxError)
                     {
                         maxError = dz;
@@ -305,12 +305,12 @@ namespace cyb::editor
                 {
                 case HeightmapStrataOp::SharpSub:
                 {
-                    const float steps = -math::Abs(std::sin(value * device.strata * math::M_PI) * (0.1f / device.strata * math::M_PI));
+                    const float steps = -std::abs(std::sin(value * device.strata * math::PI) * (0.1f / device.strata * math::PI));
                     value = (value * 0.5f + steps * 0.5f);
                 } break;
                 case HeightmapStrataOp::SharpAdd:
                 {
-                    const float steps = math::Abs(std::sin(value * device.strata * math::M_PI) * (0.1f / device.strata * math::M_PI));
+                    const float steps = std::abs(std::sin(value * device.strata * math::PI) * (0.1f / device.strata * math::PI));
                     value = (value * 0.5f + steps * 0.5f);
 
                 } break;
@@ -322,7 +322,7 @@ namespace cyb::editor
                 case HeightmapStrataOp::Smooth:
                 {
                     const float strata = device.strata * 2.0f;
-                    const float steps = std::sin(value * strata * math::M_PI) * (0.1f / strata * math::M_PI);
+                    const float steps = std::sin(value * strata * math::PI) * (0.1f / strata * math::PI);
                     value = value * 0.5f + steps * 0.5f;
                 } break;
                 case HeightmapStrataOp::None:

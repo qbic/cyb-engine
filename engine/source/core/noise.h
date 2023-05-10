@@ -36,21 +36,21 @@ namespace cyb::noise
     class Generator
     {
     public:
-        Generator(uint32_t seed = 1337);
-        Generator(const Parameters& settings);
+        Generator(uint32_t seed = 1337) noexcept;
+        Generator(const Parameters& settings) noexcept;
 
-        void SetSeed(uint32_t seed) { m_params.seed = seed; }
-        void SetType(Type type) { m_params.type = type; }
-        void SetFrequency(float frequency) { m_params.frequency = frequency; }
-        void SetFractalOctaves(int octaves) { m_params.octaves = octaves; CalculateFractalBounding(); }
-        void SetCellularReturn(CellularReturn type) { m_params.cellularReturnType = type; }
-        [[nodiscard]] float GetNoise(float x, float y) const;
+        void SetSeed(uint32_t seed) noexcept { m_params.seed = seed; }
+        void SetType(Type type) noexcept { m_params.type = type; }
+        void SetFrequency(float frequency) noexcept { m_params.frequency = frequency; }
+        void SetFractalOctaves(int octaves) noexcept { m_params.octaves = octaves; CalculateFractalBounding(); }
+        void SetCellularReturn(CellularReturn type) noexcept { m_params.cellularReturnType = type; }
+        [[nodiscard]] float GetNoise(float x, float y) const noexcept;
 
     private:
-        void CalculateFractalBounding();
-        [[nodiscard]] float GetNoiseSingle(uint32_t seed, float x, float y) const;
-        [[nodiscard]] float SinglePerlin(uint32_t seed, float x, float y) const;
-        [[nodiscard]] float SingleCellular(uint32_t seed, float x, float y) const;
+        void CalculateFractalBounding() noexcept;
+        [[nodiscard]] float GetNoiseSingle(uint32_t seed, float x, float y) const noexcept;
+        [[nodiscard]] float SinglePerlin(uint32_t seed, float x, float y) const noexcept;
+        [[nodiscard]] float SingleCellular(uint32_t seed, float x, float y) const noexcept;
 
         Parameters m_params;
         float m_fractalBounding;

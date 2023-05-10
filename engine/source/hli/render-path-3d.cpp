@@ -45,9 +45,9 @@ namespace cyb::hli
         const XMINT2 client_size = cyb::platform::main_window->GetClientSize();
     }
 
-    void RenderPath3D::Update(float dt)
+    void RenderPath3D::Update(double dt)
     {
-        runtime += dt;
+        m_runtime += dt;
 
         UpdateViewport();
 
@@ -60,7 +60,7 @@ namespace cyb::hli
         sceneViewMain.Update(scene, camera);
 
         // Update per frame constant buffer
-        renderer::UpdatePerFrameData(sceneViewMain, runtime, frameCB);
+        renderer::UpdatePerFrameData(sceneViewMain, static_cast<float>(m_runtime), frameCB);
 
         RenderPath2D::Update(dt);
     }

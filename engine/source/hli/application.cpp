@@ -25,14 +25,14 @@ namespace cyb::hli
 		}
 
 		profiler::BeginFrame();
-		delta_time = static_cast<float>(timer.RecordElapsedSeconds());
+		m_deltaTime = timer.RecordElapsedSeconds();
 
 		// Wake up the events that need to be executed on the main thread, in thread safe manner:
 		eventsystem::FireEvent(eventsystem::Event_ThreadSafePoint, 0);
 
 		// Update the game components
 		// TODO: Add a fixed-time update routine
-		Update(delta_time);
+		Update(m_deltaTime);
 
 		// Render the scene
 		Render();
@@ -78,7 +78,7 @@ namespace cyb::hli
 		renderer::Initialize();
 	}
 
-	void Application::Update(float dt)
+	void Application::Update(double dt)
 	{
 		CYB_PROFILE_CPU_SCOPE("Update");
 		if (active_path != nullptr)

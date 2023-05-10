@@ -16,7 +16,7 @@ namespace cyb::noise
     static const int PrimeX = 501125321;
     static const int PrimeY = 1136930381;
 
-    static int Hash(int seed, int xPrimed, int yPrimed)
+    static int Hash(int seed, int xPrimed, int yPrimed) noexcept
     {
         int hash = seed ^ xPrimed ^ yPrimed;
 
@@ -24,7 +24,7 @@ namespace cyb::noise
         return hash;
     }
 
-    static float GradCoord(int seed, int xPrimed, int yPrimed, float xd, float yd)
+    static float GradCoord(int seed, int xPrimed, int yPrimed, float xd, float yd) noexcept
     {
         int hash = Hash(seed, xPrimed, yPrimed);
         hash ^= hash >> 15;
@@ -36,19 +36,19 @@ namespace cyb::noise
         return xd * xg + yd * yg;
     }
 
-    Generator::Generator(uint32_t seed)
+    Generator::Generator(uint32_t seed) noexcept
     {
         SetSeed(seed);
         CalculateFractalBounding();
     }
 
-    Generator::Generator(const Parameters& noiseDesc)
+    Generator::Generator(const Parameters& noiseDesc) noexcept
     {
         m_params = noiseDesc;
         CalculateFractalBounding();
     }
 
-    void Generator::CalculateFractalBounding()
+    void Generator::CalculateFractalBounding() noexcept
     {
         float amp = m_params.gain;
         float ampFractal = 1.0f;
@@ -60,7 +60,7 @@ namespace cyb::noise
         m_fractalBounding = 1.0f / ampFractal;
     }
 
-    float Generator::GetNoise(float x, float y) const
+    float Generator::GetNoise(float x, float y) const noexcept
     {
         x *= m_params.frequency;
         y *= m_params.frequency;
@@ -80,7 +80,7 @@ namespace cyb::noise
         return sum * m_fractalBounding;
     }
 
-    float Generator::GetNoiseSingle(uint32_t seed, float x, float y) const
+    float Generator::GetNoiseSingle(uint32_t seed, float x, float y) const noexcept
     {
         switch (m_params.type)
         {
@@ -95,21 +95,21 @@ namespace cyb::noise
         return 0.0f;
     }
 
-    float Generator::SinglePerlin(uint32_t seed, float x, float y) const
+    float Generator::SinglePerlin(uint32_t seed, float x, float y) const noexcept
     {
-        int x0 = math::Floor(x);
-        int y0 = math::Floor(y);
+        const float fx = std::floor(x);
+        const float fy = std::floor(y);
 
-        const float xd0 = x - (float)x0;
-        const float yd0 = y - (float)y0;
-        const float xd1 = xd0 - 1;
-        const float yd1 = yd0 - 1;
+        const float xd0 = x - fx;
+        const float yd0 = y - fy;
+        const float xd1 = xd0 - 1.0f;
+        const float yd1 = yd0 - 1.0f;
 
         const float xs = math::InterpQuinticFunc(xd0);
         const float ys = math::InterpQuinticFunc(yd0);
 
-        x0 *= PrimeX;
-        y0 *= PrimeY;
+        const int x0 = static_cast<int>(fx) * PrimeX;
+        const int y0 = static_cast<int>(fy) * PrimeY;
         const int x1 = x0 + PrimeX;
         const int y1 = y0 + PrimeY;
 
@@ -119,7 +119,7 @@ namespace cyb::noise
         return math::Lerp(xf0, xf1, ys);
     }
 
-    float Generator::SingleCellular(uint32_t seed, float x, float y) const
+    float Generator::SingleCellular(uint32_t seed, float x, float y) const noexcept
     {
         int xr = math::Round(x);
         int yr = math::Round(y);

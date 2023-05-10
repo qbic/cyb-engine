@@ -68,7 +68,7 @@ namespace cyb::editor
     void SetSceneGraphViewSelection(ecs::Entity entity);
     void Update();
 
-    void UpdateFPSCounter(float dt);
+    void UpdateFPSCounter(double dt);
 
     // Check whether the editor wants the input (key or mouse)
     bool WantInput();

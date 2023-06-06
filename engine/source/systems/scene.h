@@ -117,7 +117,8 @@ namespace cyb::scene
 
         void Clear();                       // Clear vertex and index data. GPUBuffer's will be left untouched
         void CreateRenderData();
-        void ComputeNormals();
+        void ComputeHardNormals();
+        void ComputeSmoothNormals();
 
         // Internal format for vertex_buffer_pos
         struct Vertex_Pos
@@ -248,7 +249,10 @@ namespace cyb::scene
         void Update(double dt);
         void Clear();
         void merge(Scene& other);
-        void RemoveEntity(ecs::Entity entity);
+
+        // Be careful removing non-recursive mode sence it might leave
+        // child entities without parent.
+        void RemoveEntity(ecs::Entity entity, bool recursive);
 
         ecs::Entity CreateGroup(const std::string& name);
         ecs::Entity CreateMaterial(const std::string& name);

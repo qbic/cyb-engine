@@ -567,7 +567,7 @@ namespace cyb::renderer
                     material_cb.metalness = material->metalness;
                     device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
 
-                    PipelineState* pso = &pso_object[material->shaderType];
+                    const PipelineState* pso = &pso_object[material->shaderType];
                     device->BindPipelineState(pso, cmd);
                     device->DrawIndexed(subset.indexCount, subset.indexOffset, 0, cmd);
                 }

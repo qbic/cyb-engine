@@ -100,10 +100,10 @@ namespace cyb::logger
 	}
 }
 
-#define CYB_TRACE(...)		::cyb::logger::PostTrace(__VA_ARGS__)
-#define CYB_INFO(...)		::cyb::logger::PostInfo(__VA_ARGS__)
-#define CYB_WARNING(...)	::cyb::logger::PostWarning(__VA_ARGS__)
-#define CYB_ERROR(...)		::cyb::logger::PostError(__VA_ARGS__)
+#define CYB_TRACE(...)		cyb::logger::PostTrace(__VA_ARGS__)
+#define CYB_INFO(...)		cyb::logger::PostInfo(__VA_ARGS__)
+#define CYB_WARNING(...)	cyb::logger::PostWarning(__VA_ARGS__)
+#define CYB_ERROR(...)		cyb::logger::PostError(__VA_ARGS__)
 
 #define CYB_CWARNING(expr, ...) { if (expr) { CYB_WARNING(__VA_ARGS__); }}
 #define CYB_CERROR(expr, ...)	{ if (expr) { CYB_ERROR(__VA_ARGS__); }}

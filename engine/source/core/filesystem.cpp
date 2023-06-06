@@ -37,7 +37,7 @@ namespace cyb::filesystem
         std::ifstream file(filename, std::ios::binary | std::ios::ate);
         if (!file.is_open())
         {
-            CYB_ERROR("Failed to read file (filename={0}): {1}", filename, strerror(errno));
+            CYB_ERROR("Failed to open file (filename={0}): {1}", filename, strerror(errno));
             return false;
         }
 

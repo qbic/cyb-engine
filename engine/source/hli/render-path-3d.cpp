@@ -80,7 +80,7 @@ namespace cyb::hli
         viewport.height = (float)renderTarget_Main.GetDesc().height;
         device->BindViewports(&viewport, 1, cmd);
 
-        RenderPassImage renderPassImages[] = {
+        const RenderPassImage renderPassImages[] = {
                     RenderPassImage::RenderTarget(
                         &renderTarget_Main,
                         RenderPassImage::LoadOp::DontCare),

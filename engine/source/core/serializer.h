@@ -37,10 +37,10 @@ namespace cyb::serializer
         void SetAccessModeAndResetPos(Access mode);
         void Close();
 
-        bool IsOpen() const;
-        uint64_t GetVersion() const { return m_version; }
-        bool IsReadMode() const { return m_mode == Access::Read; }
-        bool SaveFile(const std::string filename);
+        [[nodiscard]] bool IsOpen() const;
+        [[nodiscard]] uint64_t GetVersion() const { return m_version; }
+        [[nodiscard]] bool IsReadMode() const { return m_mode == Access::Read; }
+        [[nodiscard]] bool SaveFile(const std::string& filename);
 
         //=============================================================
         //  Write Operations

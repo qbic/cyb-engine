@@ -208,15 +208,12 @@ namespace cyb::scene
         aabb = math::AxisAlignedBox(_min, _max);
     }
 
-    void MeshComponent::ComputeNormals()
+    void MeshComponent::ComputeHardNormals()
     {
-        // Compute hard surface normals:
-        // Right now they are always computed even before smooth setting
-
-        std::vector<uint32_t> newIndexBuffer;
-        std::vector<XMFLOAT3> newPositionsBuffer;
-        std::vector<XMFLOAT3> newNormalsBuffer;
-        std::vector<uint32_t> newColorsBuffer;
+        std::vector<XMFLOAT3> newPositions;
+        std::vector<XMFLOAT3> newNormals;
+        std::vector<uint32_t> newColors;
+        std::vector<uint32_t> newIndices;
 
         for (size_t face = 0; face < indices.size() / 3; face++)
         {
@@ -230,200 +227,76 @@ namespace cyb::scene
 
             XMVECTOR U = XMLoadFloat3(&p2) - XMLoadFloat3(&p0);
             XMVECTOR V = XMLoadFloat3(&p1) - XMLoadFloat3(&p0);
-
-            XMVECTOR N = XMVector3Cross(U, V);
-            N = XMVector3Normalize(N);
+            XMVECTOR N = XMVector3Normalize(XMVector3Cross(U, V));
 
             XMFLOAT3 normal;
             XMStoreFloat3(&normal, N);
 
-            newPositionsBuffer.push_back(p0);
-            newPositionsBuffer.push_back(p1);
-            newPositionsBuffer.push_back(p2);
+            newPositions.push_back(p0);
+            newPositions.push_back(p1);
+            newPositions.push_back(p2);
 
-            newNormalsBuffer.push_back(normal);
-            newNormalsBuffer.push_back(normal);
-            newNormalsBuffer.push_back(normal);
+            newNormals.push_back(normal);
+            newNormals.push_back(normal);
+            newNormals.push_back(normal);
 
             if (!vertex_colors.empty())
             {
-                newColorsBuffer.push_back(vertex_colors[i0]);
-                newColorsBuffer.push_back(vertex_colors[i1]);
-                newColorsBuffer.push_back(vertex_colors[i2]);
+                newColors.push_back(vertex_colors[i0]);
+                newColors.push_back(vertex_colors[i1]);
+                newColors.push_back(vertex_colors[i2]);
             }
 
-            newIndexBuffer.push_back(static_cast<uint32_t>(newIndexBuffer.size()));
-            newIndexBuffer.push_back(static_cast<uint32_t>(newIndexBuffer.size()));
-            newIndexBuffer.push_back(static_cast<uint32_t>(newIndexBuffer.size()));
+            newIndices.push_back(static_cast<uint32_t>(newIndices.size()));
+            newIndices.push_back(static_cast<uint32_t>(newIndices.size()));
+            newIndices.push_back(static_cast<uint32_t>(newIndices.size()));
         }
 
         // For hard surface normals, we created a new mesh in the previous loop through faces, so swap data:
-        vertex_positions = newPositionsBuffer;
-        vertex_normals = newNormalsBuffer;
-        vertex_colors = newColorsBuffer;
-        indices = newIndexBuffer;
+        vertex_positions = newPositions;
+        vertex_normals = newNormals;
+        vertex_colors = newColors;
+        indices = newIndices;
 
-        // Compute smooth surface normals:
+        CreateRenderData();
+    }
 
-        // 1.) Zero normals, they will be averaged later
-        //for (size_t i = 0; i < vertex_normals.size(); i++)
-        //{
-        //    vertex_normals[i] = XMFLOAT3(0, 0, 0);
-       // }
+    void MeshComponent::ComputeSmoothNormals()
+    {
+        std::vector<XMFLOAT3> newNormals;
+        newNormals.resize(vertex_positions.size());
 
-        // 2.) Find identical vertices by POSITION, accumulate face normals
-#if 1
-        jobsystem::Context ctx;
-        jobsystem::Dispatch(ctx, (uint32_t)vertex_positions.size(), 512, [&](jobsystem::JobArgs args)
-            {
-                size_t i = args.jobIndex;
-                XMFLOAT3& v_search_pos = vertex_positions[i];
-
-                for (size_t ind = 0; ind < indices.size() / 3; ++ind)
-                {
-                    uint32_t i0 = indices[ind * 3 + 0];
-                    uint32_t i1 = indices[ind * 3 + 1];
-                    uint32_t i2 = indices[ind * 3 + 2];
-
-                    XMFLOAT3& v0 = vertex_positions[i0];
-                    XMFLOAT3& v1 = vertex_positions[i1];
-                    XMFLOAT3& v2 = vertex_positions[i2];
-
-                    bool match_pos0 =
-                        fabs(v_search_pos.x - v0.x) < FLT_EPSILON &&
-                        fabs(v_search_pos.y - v0.y) < FLT_EPSILON &&
-                        fabs(v_search_pos.z - v0.z) < FLT_EPSILON;
-
-                    bool match_pos1 =
-                        fabs(v_search_pos.x - v1.x) < FLT_EPSILON &&
-                        fabs(v_search_pos.y - v1.y) < FLT_EPSILON &&
-                        fabs(v_search_pos.z - v1.z) < FLT_EPSILON;
-
-                    bool match_pos2 =
-                        fabs(v_search_pos.x - v2.x) < FLT_EPSILON &&
-                        fabs(v_search_pos.y - v2.y) < FLT_EPSILON &&
-                        fabs(v_search_pos.z - v2.z) < FLT_EPSILON;
-
-                    if (match_pos0 || match_pos1 || match_pos2)
-                    {
-                        XMVECTOR U = XMLoadFloat3(&v2) - XMLoadFloat3(&v0);
-                        XMVECTOR V = XMLoadFloat3(&v1) - XMLoadFloat3(&v0);
-
-                        XMVECTOR N = XMVector3Cross(U, V);
-                        N = XMVector3Normalize(N);
-
-                        XMFLOAT3 normal;
-                        XMStoreFloat3(&normal, N);
-
-                        vertex_normals[i].x += normal.x;
-                        vertex_normals[i].y += normal.y;
-                        vertex_normals[i].z += normal.z;
-                    }
-                }
-            });
-        jobsystem::Wait(ctx);
-#else
-        for (long i = 0; i < vertex_positions.size(); i++)
+        for (size_t face = 0; face < indices.size() / 3; face++)
         {
-            XMFLOAT3& v_search_pos = vertex_positions[i];
+            const uint32_t i0 = indices[face * 3 + 0];
+            const uint32_t i1 = indices[face * 3 + 1];
+            const uint32_t i2 = indices[face * 3 + 2];
 
-            for (size_t ind = 0; ind < indices.size() / 3; ++ind)
-            {
-                uint32_t i0 = indices[ind * 3 + 0];
-                uint32_t i1 = indices[ind * 3 + 1];
-                uint32_t i2 = indices[ind * 3 + 2];
+            const XMFLOAT3& p0 = vertex_positions[i0];
+            const XMFLOAT3& p1 = vertex_positions[i1];
+            const XMFLOAT3& p2 = vertex_positions[i2];
 
-                XMFLOAT3& v0 = vertex_positions[i0];
-                XMFLOAT3& v1 = vertex_positions[i1];
-                XMFLOAT3& v2 = vertex_positions[i2];
+            const XMVECTOR U = XMLoadFloat3(&p2) - XMLoadFloat3(&p0);
+            const XMVECTOR V = XMLoadFloat3(&p1) - XMLoadFloat3(&p0);
+            const XMVECTOR N = XMVector3Normalize(XMVector3Cross(U, V));
 
-                bool match_pos0 =
-                    fabs(v_search_pos.x - v0.x) < FLT_EPSILON &&
-                    fabs(v_search_pos.y - v0.y) < FLT_EPSILON &&
-                    fabs(v_search_pos.z - v0.z) < FLT_EPSILON;
+            XMFLOAT3 normal;
+            XMStoreFloat3(&normal, N);
 
-                bool match_pos1 =
-                    fabs(v_search_pos.x - v1.x) < FLT_EPSILON &&
-                    fabs(v_search_pos.y - v1.y) < FLT_EPSILON &&
-                    fabs(v_search_pos.z - v1.z) < FLT_EPSILON;
+            newNormals[i0].x += normal.x;
+            newNormals[i0].y += normal.y;
+            newNormals[i0].z += normal.z;
 
-                bool match_pos2 =
-                    fabs(v_search_pos.x - v2.x) < FLT_EPSILON &&
-                    fabs(v_search_pos.y - v2.y) < FLT_EPSILON &&
-                    fabs(v_search_pos.z - v2.z) < FLT_EPSILON;
+            newNormals[i1].x += normal.x;
+            newNormals[i1].y += normal.y;
+            newNormals[i1].z += normal.z;
 
-                if (match_pos0 || match_pos1 || match_pos2)
-                {
-                    XMVECTOR U = XMLoadFloat3(&v2) - XMLoadFloat3(&v0);
-                    XMVECTOR V = XMLoadFloat3(&v1) - XMLoadFloat3(&v0);
-
-                    XMVECTOR N = XMVector3Cross(U, V);
-                    N = XMVector3Normalize(N);
-
-                    XMFLOAT3 normal;
-                    XMStoreFloat3(&normal, N);
-
-                    vertex_normals[i].x += normal.x;
-                    vertex_normals[i].y += normal.y;
-                    vertex_normals[i].z += normal.z;
-                }
-            }
+            newNormals[i2].x += normal.x;
+            newNormals[i2].y += normal.y;
+            newNormals[i2].z += normal.z;
         }
-#endif
-        // 3.) Find duplicated vertices by POSITION and UV0 and UV1 and ATLAS and SUBSET and remove them:
-        /*
-        for (auto& subset : subsets)
-        {
-            for (uint32_t i = 0; i < subset.indexCount - 1; i++)
-            {
-                uint32_t ind0 = indices[subset.indexOffset + (uint32_t)i];
-                const XMFLOAT3& p0 = vertex_positions[ind0];
 
-                for (uint32_t j = i + 1; j < subset.indexCount; j++)
-                {
-                    uint32_t ind1 = indices[subset.indexOffset + (uint32_t)j];
-
-                    if (ind1 == ind0)
-                    {
-                        continue;
-                    }
-
-                    const XMFLOAT3& p1 = vertex_positions[ind1];
-
-                    const bool duplicated_pos =
-                        fabs(p0.x - p1.x) < FLT_EPSILON &&
-                        fabs(p0.y - p1.y) < FLT_EPSILON &&
-                        fabs(p0.z - p1.z) < FLT_EPSILON;
-
-                    if (duplicated_pos)
-                    {
-                        // Erase vertices[ind1] because it is a duplicate:
-                        if (ind1 < vertex_positions.size())
-                        {
-                            vertex_positions.erase(vertex_positions.begin() + ind1);
-                        }
-                        if (ind1 < vertex_normals.size())
-                        {
-                            vertex_normals.erase(vertex_normals.begin() + ind1);
-                        }
-
-                        // The vertices[ind1] was removed, so each index after that needs to be updated:
-                        for (auto& index : indices)
-                        {
-                            if (index > ind1 && index > 0)
-                            {
-                                index--;
-                            }
-                            else if (index == ind1)
-                            {
-                                index = ind0;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        */
+        vertex_normals = newNormals;
         CreateRenderData(); // <- Normals will be normalized here
     }
 
@@ -719,8 +592,26 @@ namespace cyb::scene
         weathers.Merge(other.weathers);
     }
 
-    void Scene::RemoveEntity(ecs::Entity entity)
+    void Scene::RemoveEntity(ecs::Entity entity, bool recursive)
     {
+        if (recursive)
+        {
+            std::vector<ecs::Entity> removeList;
+            for (size_t i = 0; i < hierarchy.Size(); ++i)
+            {
+                const HierarchyComponent& hier = hierarchy[i];
+                if (hier.parentID == entity)
+                {
+                    ecs::Entity child = hierarchy.GetEntity(i);
+                    removeList.push_back(child);
+                }
+            }
+            for (auto& child : removeList)
+            {
+                RemoveEntity(child, true);
+            }
+        }
+
         names.Remove(entity);
         transforms.Remove(entity);
         groups.Remove(entity);
@@ -832,19 +723,15 @@ namespace cyb::scene
 
     void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Execute(ctx, [&](jobsystem::JobArgs)
+        jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
             {
-                for (size_t i = 0; i < lights.Size(); ++i)
-                {
-                    const ecs::Entity entity = lights.GetEntity(i);
-                    const TransformComponent* transform = transforms.GetComponent(entity);
+                const ecs::Entity entity = lights.GetEntity(args.jobIndex);
+                const TransformComponent* transform = transforms.GetComponent(entity);
 
-                    LightComponent& light = lights[i];
-                    light.UpdateLight();
+                LightComponent& light = lights[args.jobIndex];
+                light.UpdateLight();
 
-                    math::AxisAlignedBox& aabb = aabb_lights[i];
-                    aabb = light.aabb.Transform(XMLoadFloat4x4(&transform->world));
-                }
+                math::AxisAlignedBox& aabb = aabb_lights[args.jobIndex];
             });
     }
 
@@ -853,7 +740,6 @@ namespace cyb::scene
         jobsystem::Dispatch(ctx, (uint32_t)cameras.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
             {
                 CameraComponent& camera = cameras[args.jobIndex];
-
                 camera.UpdateCamera();
             });
     }
@@ -878,7 +764,6 @@ namespace cyb::scene
         Timer timer;
         timer.Record();
         serializer::Archive ar(filename);
-
         if (!ar.IsOpen())
             return;
 

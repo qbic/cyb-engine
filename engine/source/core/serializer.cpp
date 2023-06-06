@@ -10,11 +10,12 @@ namespace cyb::serializer
         CreateEmpty();
     }
 
-    Archive::Archive(const std::string& filename)
+    Archive::Archive(const std::string& filename) :
+        m_mode(Access::Closed)
     {
-        m_mode = Access::Read;
         if (filesystem::ReadFile(filename, m_data))
         {
+            m_mode = Access::Read;
             (*this) >> m_version;
             CYB_CERROR(m_version < LEAST_SUPPORTED_VERSION, "Unsupported archive version (file={} version={} LeastUupportedVersion={})", filename, m_version, LEAST_SUPPORTED_VERSION);
             CYB_CWARNING(m_version < ARCHIVE_VERSION, "Old (but supported) archive version (file={} version={} currentVersion={})", filename, m_version, ARCHIVE_VERSION);
@@ -54,7 +55,7 @@ namespace cyb::serializer
         m_mode = Access::Closed;
     }
 
-    bool Archive::SaveFile(const std::string filename)
+    bool Archive::SaveFile(const std::string& filename)
     {
         return filesystem::WriteFile(filename, m_data.data(), m_pos);
     }

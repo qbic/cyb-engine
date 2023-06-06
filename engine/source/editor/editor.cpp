@@ -110,8 +110,15 @@ namespace cyb::editor
 
         ImGui::EndTable();
 
-        if (ImGui::Button("Compute Normals"))
-            mesh->ComputeNormals();
+        if (ImGui::Button("Compute Smooth Normals"))
+        {
+            mesh->ComputeSmoothNormals();
+        }
+
+        if (ImGui::Button("Compute Hard Normals"))
+        {
+            mesh->ComputeHardNormals();
+        }
     }
 
     void InspectMaterialComponent(scene::MaterialComponent* material)
@@ -719,15 +726,20 @@ namespace cyb::editor
     void OpenDialog_SaveAs()
     {
         filesystem::SaveDialog(FILE_FILTER_SCENE, [](std::string filename) {
-            if (!filesystem::HasExtension(filename, "csb"))
+            if (!filesystem::HasExtension(filename, "cbs"))
+            {
                 filename += ".cbs";
+            }
 
-            serializer::Archive ar;
             Timer timer;
             timer.Record();
+
+            serializer::Archive ar;
             scene::GetScene().Serialize(ar);
-            ar.SaveFile(filename);
-            CYB_TRACE("Serialized and saved (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+            if (ar.SaveFile(filename))
+            {
+                CYB_TRACE("Serialized and saved (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+            }
             });
     }
 
@@ -740,7 +752,7 @@ namespace cyb::editor
     {
         eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t)
             {
-                scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity());
+                scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity(), true);
                 scenegraph_view.SelectEntity(ecs::INVALID_ENTITY);
             });
     }

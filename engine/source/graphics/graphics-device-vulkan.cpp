@@ -3097,7 +3097,7 @@ namespace cyb::graphics
             {
                 depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
                 depthAttachment.imageView = textureInternal->dsv.imageView;
-                if (image.layout == ResourceState::DepthStencil_ReadOnlyBit)
+                if (HasFlag(image.layout, ResourceState::DepthStencil_ReadOnlyBit))
                     depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
                 else
                     depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
@@ -3110,7 +3110,7 @@ namespace cyb::graphics
                 {
                     stencilAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
                     stencilAttachment.imageView = textureInternal->dsv.imageView;
-                    if (image.layout == ResourceState::DepthStencil_ReadOnlyBit)
+                    if (HasFlag(image.layout, ResourceState::DepthStencil_ReadOnlyBit))
                         stencilAttachment.imageLayout = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;
                     else
                         stencilAttachment.imageLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
@@ -3137,7 +3137,9 @@ namespace cyb::graphics
                 {
                     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
                     if (IsFormatStencilSupport(texture->desc.format))
+                    {
                         barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+                    }
                 }
                 else
                 {
@@ -3164,7 +3166,9 @@ namespace cyb::graphics
                 {
                     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
                     if (IsFormatStencilSupport(texture->desc.format))
+                    {
                         barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+                    }
                 }
                 else
                 {

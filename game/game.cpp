@@ -15,7 +15,7 @@ void Game::Initialize()
 void GameRenderer::Load()
 {
 #if 1
-    scene::LoadModel("../terrain_03.cbs");
+    scene::LoadModel("../terrain_04.cbs");
 #else
     editor::TerrainMeshDesc terrainDesc;
     terrainDesc.size = 1000;

@@ -1,8 +1,11 @@
 BUGS:
+ * Unlit flat shader doesent render anything
  * Depth buffer only goes from 0 - 0.01 according to renderdoc
- * Crash when removing entity with heirarchy
 
 TODO FEATURES:
+ * Terrain chunks
+ * LOD support
+ * Automatic LOD mesh generation (Fast-Quadric-Mesh-Simplification?)
  * Editor default window layout
  * Water
  * Hide/Show button in entity select window
@@ -13,5 +16,5 @@ TODO FEATURES:
 Small stuff:
 move profile from core to tools sence it uses graphics device
 editor.cpp: bool vsync_enabled = true;      	// FIXME: initial value has to be synced with SwapChainDesc::vsync
-editor.cpp: void OpenDialog_Open()			// TODO: Add a dialog to prompt user about unsaved progress
+editor.cpp: void OpenDialog_Open()		// TODO: Add a dialog to prompt user about unsaved progress
     

@@ -4,7 +4,8 @@
 // to be faster than suppling hard vertex normals, AND saves vram!
 #define COMPUTE_HARD_NORMALS
 
-// Only calculate lighting for one of the three vertices.
+// Use triangle centroid as vertex position, enabling this can save 
+// about 77% gpu-time on light compution.
 // Disable to use the average lighting of all three vertices.
 #define ONE_VERTEX_LIGHTING
 

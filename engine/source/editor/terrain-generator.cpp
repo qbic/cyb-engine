@@ -1056,34 +1056,68 @@ namespace cyb::editor
         UpdateTextures();
     }
 
-    // ========================= TEST =========================
-    void ColorizeMountains(scene::MeshComponent* mesh)
+    // Colorize vertical faces with rock color.
+    // Indices are re-ordered, first are the ground indices, then the rock indices.
+    // Returns the number of ground indices (offset for rock indices)
+    uint32_t ColorizeMountains(scene::MeshComponent* mesh)
     {
+        const uint32_t rockColor = math::StoreColor_RGBA(XMFLOAT4(0.6, 0.6, 0.6, 1));
+
         for (size_t i = 0; i < mesh->indices.size(); i += 3)
         {
-            uint32_t i0 = mesh->indices[i + 0];
-            uint32_t i1 = mesh->indices[i + 1];
-            uint32_t i2 = mesh->indices[i + 2];
+            const uint32_t i0 = mesh->indices[i + 0];
+            const uint32_t i1 = mesh->indices[i + 1];
+            const uint32_t i2 = mesh->indices[i + 2];
 
             const XMFLOAT3& p0 = mesh->vertex_positions[i0];
             const XMFLOAT3& p1 = mesh->vertex_positions[i1];
             const XMFLOAT3& p2 = mesh->vertex_positions[i2];
 
-            XMVECTOR U = XMLoadFloat3(&p2) - XMLoadFloat3(&p0);
-            XMVECTOR V = XMLoadFloat3(&p1) - XMLoadFloat3(&p0);
+            const XMVECTOR U = XMLoadFloat3(&p2) - XMLoadFloat3(&p0);
+            const XMVECTOR V = XMLoadFloat3(&p1) - XMLoadFloat3(&p0);
+            const XMVECTOR N = XMVector3Normalize(XMVector3Cross(U, V));
+            const XMVECTOR UP = XMVectorSet(0, 1, 0, 0);
 
-            XMVECTOR N = XMVector3Cross(U, V);
-            N = XMVector3Normalize(N);
-
-            XMVECTOR UP = XMVectorSet(0, 1, 0, 0);
-            float dp = XMVectorGetX(XMVector3Dot(UP, N));
-            if (dp < 0.55f)
+            if (XMVectorGetX(XMVector3Dot(UP, N)) < 0.55f)
             {
-                mesh->vertex_colors[i0] = math::StoreColor_RGBA(XMFLOAT4(0.6, 0.6, 0.6, 1));
-                mesh->vertex_colors[i1] = math::StoreColor_RGBA(XMFLOAT4(0.6, 0.6, 0.6, 1));
-                mesh->vertex_colors[i2] = math::StoreColor_RGBA(XMFLOAT4(0.6, 0.6, 0.6, 1));
+                mesh->vertex_colors[i0] = rockColor;
+                mesh->vertex_colors[i1] = rockColor;
+                mesh->vertex_colors[i2] = rockColor;
             }
         }
+
+        // Loop though all indices and seperate ground from rock indices
+        std::vector<uint32_t> groundIndices;
+        std::vector<uint32_t> rockIndices;
+
+        for (size_t i = 0; i < mesh->indices.size(); i += 3)
+        {
+            const uint32_t i0 = mesh->indices[i + 0];
+            const uint32_t i1 = mesh->indices[i + 1];
+            const uint32_t i2 = mesh->indices[i + 2];
+
+            uint32_t& c = mesh->vertex_colors[i0];
+            if (mesh->vertex_colors[i1] == mesh->vertex_colors[i2])
+                c = mesh->vertex_colors[i1];
+
+            if (c != rockColor)
+            {
+                groundIndices.push_back(i0);
+                groundIndices.push_back(i1);
+                groundIndices.push_back(i2);
+            }
+            else
+            {
+                rockIndices.push_back(i0);
+                rockIndices.push_back(i1);
+                rockIndices.push_back(i2);
+            }
+        }
+
+        // Merge all indices, first ground, than rock indices
+        mesh->indices = groundIndices;
+        mesh->indices.insert(mesh->indices.end(), rockIndices.begin(), rockIndices.end());
+        return (uint32_t)groundIndices.size();
     }
 
     void TerrainGenerator::GenerateTerrainMesh()
@@ -1126,19 +1160,30 @@ namespace cyb::editor
             mesh->indices.push_back(tri.y);
         }
 
-        ColorizeMountains(mesh);
+        uint32_t groundIndices = ColorizeMountains(mesh);
 
-        // Setup mesh subset and create render data:
+        // Setup ground subset:
         scene::MeshComponent::MeshSubset subset;
         subset.indexOffset = 0;
-        subset.indexCount = (uint32_t)mesh->indices.size();
+        subset.indexCount = (uint32_t)groundIndices;
         subset.materialID = scene.CreateMaterial("Terrain_Material");
         mesh->subsets.push_back(subset);
 
         scene::MaterialComponent* material = scene.materials.GetComponent(subset.materialID);
-        material->roughness = 0.82;
-        material->metalness = 0.24;
+        material->roughness = 0.85;
+        material->metalness = 0.04;
 
+        // Setup rock subset
+        subset.indexOffset = groundIndices;
+        subset.indexCount = (uint32_t)mesh->indices.size() - groundIndices;
+        subset.materialID = scene.CreateMaterial("Terrain_Material_Rock");
+        mesh->subsets.push_back(subset);
+
+        material = scene.materials.GetComponent(subset.materialID);
+        material->roughness = 0.95;
+        material->metalness = 0.215;
+
+        // Finalize to terrain mesh
         mesh->CreateRenderData();
     }
 }

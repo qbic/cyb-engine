@@ -48,12 +48,12 @@ void CreateFullscreenTriangleUV(uint vertexID, out vec4 pos, out vec2 uv)
 	uv.y = ((vertexID+1) % 2) * 2.0;	// Flip Y
 }
 
-vec3 UnpackNormal(in uint value)
+vec3 DecodeNormal(const in uint packedBits)
 {
 	vec3 result;
-	result.x = float((value >> 0u) & 0xFF) / 255.0 * 2.0 - 1.0;
-	result.y = float((value >> 8u) & 0xFF) / 255.0 * 2.0 - 1.0;
-	result.z = float((value >> 16u) & 0xFF) / 255.0 * 2.0 - 1.0;
+	result.x = float((packedBits >> 0u) & 0xFF) / 255.0 * 2.0 - 1.0;
+	result.y = float((packedBits >> 8u) & 0xFF) / 255.0 * 2.0 - 1.0;
+	result.z = float((packedBits >> 16u) & 0xFF) / 255.0 * 2.0 - 1.0;
 	return result;
 }
 

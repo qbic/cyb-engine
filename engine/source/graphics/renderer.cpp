@@ -222,8 +222,8 @@ namespace cyb::renderer
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
             input_layouts[VLTYPE_FLAT_SHADING] =
             {
-                { "in_position", 0, scene::MeshComponent::Vertex_Pos::kFormat },
-                { "in_color",    1, scene::MeshComponent::Vertex_Col::kFormat }
+                { "in_position", 0, scene::MeshComponent::Vertex_Pos::FORMAT },
+                { "in_color",    1, scene::MeshComponent::Vertex_Col::FORMAT }
             };
             LoadShader(ShaderStage::VS, shaders[VSTYPE_FLAT_SHADING], "flat_shader.vert");
             });
@@ -231,7 +231,7 @@ namespace cyb::renderer
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
             input_layouts[VLTYPE_SKY] =
             {
-                { "in_pos",   0, scene::MeshComponent::Vertex_Pos::kFormat }
+                { "in_pos",   0, scene::MeshComponent::Vertex_Pos::FORMAT }
             };
             LoadShader(ShaderStage::VS, shaders[VSTYPE_SKY], "sky.vert");
             });

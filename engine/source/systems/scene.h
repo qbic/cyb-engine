@@ -32,7 +32,7 @@ namespace cyb::scene
         XMFLOAT4X4 world = math::MATRIX_IDENTITY;
 
         void SetDirty(bool value = true);
-        bool IsDirty() const;
+        [[nodiscard]] bool IsDirty() const;
 
         XMFLOAT3 GetPosition() const;
         XMFLOAT4 GetRotation() const;
@@ -41,7 +41,7 @@ namespace cyb::scene
         XMVECTOR GetRotationV() const;
         XMVECTOR GetScaleV() const;
 
-        XMMATRIX GetLocalMatrix() const;
+        [[nodiscard]] XMMATRIX GetLocalMatrix() const;
 
         // Apply world matrix to local space, overwriting scale, rotation & translation
         void ApplyTransform();
@@ -123,19 +123,20 @@ namespace cyb::scene
         // Internal format for vertex_buffer_pos
         struct Vertex_Pos
         {
-            static constexpr graphics::Format kFormat = graphics::Format::R32G32B32A32_Float;
+            static constexpr graphics::Format FORMAT = graphics::Format::R32G32B32A32_Float;
             XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
             uint32_t normal = 0;
 
-            void Set(const XMFLOAT3& _pos, const XMFLOAT3& _nor);
-            void SetNormal(const XMFLOAT3& _nor);
-            XMFLOAT3 GetNormal() const;
+            void Set(const XMFLOAT3& pos, const XMFLOAT3& norm);
+            [[nodiscard]] uint32_t EncodeNormal(const XMFLOAT3& norm) const;
+            [[nodiscard]] XMFLOAT3 DecodeNormal() const;
+            [[nodiscard]] uint32_t DecodeMaterialIndex() const;
         };
 
         // Internal format for vertex_buffer_col
         struct Vertex_Col
         {
-            static constexpr graphics::Format kFormat = graphics::Format::R8G8B8A8_Unorm;
+            static constexpr graphics::Format FORMAT = graphics::Format::R8G8B8A8_Unorm;
             uint32_t color = 0;
         };
     };
@@ -158,7 +159,7 @@ namespace cyb::scene
     };
     CYB_ENABLE_BITMASK_OPERATORS(ObjectComponent::Flags);
 
-    // NOTE: Theese need to be synced with the LIGHTSOURCE_TYPE_* defines in shader_Interop.h
+    // NOTE: Theese need to be synced with the LIGHTSOURCE_TYPE_* defines in shader_interop.h
     enum class LightType
     {
         Directional,
@@ -181,7 +182,7 @@ namespace cyb::scene
         float range = 10.0f;
 
         // Non-serialized data
-        math::AxisAlignedBox aabb;
+        math::AxisAlignedBox aabb;          // Local space
 
         void SetffectingSceney(bool value);
         bool IsAffectingScene() const;
@@ -304,8 +305,8 @@ namespace cyb::scene
         return camera;
     }
 
-    void LoadModel(const std::string& filename);
-    void LoadModel(Scene& scene, const std::string& filename);
+    bool LoadModel(const std::string& filename);
+    bool LoadModel(Scene& scene, const std::string& filename);
 
     struct PickResult
     {

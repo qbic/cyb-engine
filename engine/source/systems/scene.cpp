@@ -300,27 +300,33 @@ namespace cyb::scene
         CreateRenderData(); // <- Normals will be normalized here
     }
 
-    void MeshComponent::Vertex_Pos::Set(const XMFLOAT3& _pos, const XMFLOAT3& _nor)
+    void MeshComponent::Vertex_Pos::Set(const XMFLOAT3& pos, const XMFLOAT3& norm)
     {
-        pos = _pos;
-        SetNormal(_nor);
+        this->pos = pos;
+        this->normal = EncodeNormal(norm);
     }
 
-    void MeshComponent::Vertex_Pos::SetNormal(const XMFLOAT3& _nor)
+    uint32_t MeshComponent::Vertex_Pos::EncodeNormal(const XMFLOAT3& norm) const
     {
-        normal = 0xFF000000;    // w = 0xFF
-        normal |= (uint32_t)((_nor.x * 0.5f + 0.5f) * 255.0f) << 0;
-        normal |= (uint32_t)((_nor.y * 0.5f + 0.5f) * 255.0f) << 8;
-        normal |= (uint32_t)((_nor.z * 0.5f + 0.5f) * 255.0f) << 16;
+        uint32_t n = 0xFF000000;
+        n |= (uint32_t)((norm.x * 0.5f + 0.5f) * 255.0f) << 0;
+        n |= (uint32_t)((norm.y * 0.5f + 0.5f) * 255.0f) << 8;
+        n |= (uint32_t)((norm.z * 0.5f + 0.5f) * 255.0f) << 16;
+        return n;
     }
 
-    XMFLOAT3 MeshComponent::Vertex_Pos::GetNormal() const
+    XMFLOAT3 MeshComponent::Vertex_Pos::DecodeNormal() const
     {
         XMFLOAT3 norm(0, 0, 0);
         norm.x = (float)((normal >> 0) & 0x000000FF) / 255.0f * 2.0f - 1.0f;
         norm.y = (float)((normal >> 8) & 0x000000FF) / 255.0f * 2.0f - 1.0f;
         norm.z = (float)((normal >> 16) & 0x000000FF) / 255.0f * 2.0f - 1.0f;
         return norm;
+    }
+
+    uint32_t MeshComponent::Vertex_Pos::DecodeMaterialIndex() const
+    {
+        return (normal >> 24) & 0x000000FF;
     }
 
     void LightComponent::SetffectingSceney(bool value)
@@ -732,6 +738,7 @@ namespace cyb::scene
                 light.UpdateLight();
 
                 math::AxisAlignedBox& aabb = aabb_lights[args.jobIndex];
+                aabb = light.aabb.Transform(XMLoadFloat4x4(&transform->world));
             });
     }
 
@@ -752,23 +759,27 @@ namespace cyb::scene
         }
     }
 
-    void LoadModel(const std::string& filename)
+    bool LoadModel(const std::string& filename)
     {
         Scene scene;
-        LoadModel(scene, filename);
+        if (!LoadModel(scene, filename))
+            return false;
+
         GetScene().merge(scene);
+        return true;
     }
 
-    void LoadModel(Scene& scene, const std::string& filename)
+    bool LoadModel(Scene& scene, const std::string& filename)
     {
         Timer timer;
         timer.Record();
         serializer::Archive ar(filename);
         if (!ar.IsOpen())
-            return;
+            return false;
 
         scene.Serialize(ar);
         CYB_TRACE("Loaded scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+        return true;
     }
 
     PickResult Pick(const Scene& scene, const math::Ray& ray)

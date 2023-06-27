@@ -388,7 +388,8 @@ namespace cyb::editor
         node_flags |= (node->children.empty()) ? ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen : 0;
         node_flags |= (node->entity == selected_entity) ? ImGuiTreeNodeFlags_Selected : 0;
 
-        bool is_open = ImGui::TreeNodeEx(node->name.data(), node_flags, node->name.data());
+        const void* nodeId = (void*)((size_t)node->entity);
+        bool is_open = ImGui::TreeNodeEx(nodeId, node_flags, node->name.data());
         if (ImGui::IsItemClicked())
             selected_entity = node->entity;
 
@@ -1067,12 +1068,17 @@ namespace cyb::editor
         ImGui::Text("Components:");
         const float componentChildHeight = math::Max(300.0f, ImGui::GetContentRegionAvail().y);
         ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), true);
-        EditEntityComponents(scenegraph_view.SelectedEntity());
+        const ecs::Entity selectedEntity = scenegraph_view.SelectedEntity();
+        EditEntityComponents(selectedEntity);
         ImGui::EndChild();
 
         ImGui::End();
 
-        DrawGizmo();
+        // Only draw gizmo with a valid entity containing transform component
+        if (scene::GetScene().transforms.GetComponent(selectedEntity))
+        {
+            DrawGizmo();
+        }
 
         // Pick on left mouse click
         if (guizmo_operation & ImGuizmo::BOUNDS)

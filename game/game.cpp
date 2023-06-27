@@ -14,7 +14,7 @@ void Game::Initialize()
 
 void GameRenderer::Load()
 {
-#if 1
+#if 1 
     scene::LoadModel("../terrain_04.cbs");
 #else
     editor::TerrainMeshDesc terrainDesc;

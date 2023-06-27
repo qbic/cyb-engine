@@ -17,5 +17,5 @@ void main()
     gl_Position = pos * g_xTransform;
     vs_out.pos = (pos * g_xModelMatrix).xyz;
     vs_out.col = in_color;
-    vs_out.normal = normalize(UnpackNormal(floatBitsToUint(in_position.w)) * mat3(g_xModelMatrix));
+    vs_out.normal = normalize(DecodeNormal(floatBitsToUint(in_position.w)) * mat3(g_xModelMatrix));
 }

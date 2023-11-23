@@ -1,8 +1,10 @@
 BUGS:
  * Unlit flat shader doesent render anything
  * Depth buffer only goes from 0 - 0.01 according to renderdoc
+ * Minimizing the game window crashes the engine (hotfixed by disabling the minimize button)
 
 TODO FEATURES:
+ * Resolution change (internal res is hardcoded in render-path.h)
  * Terrain chunks
  * LOD support
  * Automatic LOD mesh generation (Fast-Quadric-Mesh-Simplification?)

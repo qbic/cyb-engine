@@ -433,18 +433,8 @@ namespace cyb::renderer
         frameCB.time = time;
         frameCB.gamma = GAMMA;
 
-        // Add weather:
 
-        // Find the most important light
-        frameCB.mostImportantLightIndex = 0;
-        for (size_t i = 0; i < view.scene->lights.Size(); ++i)
-        {
-            const ecs::Entity lightID = view.scene->lights.GetEntity(i);
-            const scene::LightComponent* light = view.scene->lights.GetComponent(lightID);
-            if (light->type != scene::LightType::Directional)
-                continue;
-
-        }
+        // Setup weather
         const scene::WeatherComponent& weather = view.scene->active_weather;
         frameCB.horizon = weather.horizon;
         frameCB.zenith = weather.zenith;
@@ -456,7 +446,7 @@ namespace cyb::renderer
         frameCB.cloudHeight = weather.cloudHeight;
         frameCB.windSpeed = weather.windSpeed;
 
-        // Add lightsources:
+        // Setup lightsources
         frameCB.numLights = 0;
         float brightestLight = 0.0f;
         for (size_t i = 0; i < view.scene->lights.Size(); ++i)
@@ -483,6 +473,19 @@ namespace cyb::renderer
                 }
             }
         }
+
+        // TODO: Find the most important light
+        frameCB.mostImportantLightIndex = 0;
+#if 0
+        for (size_t i = 0; i < view.scene->lights.Size(); ++i)
+        {
+            const ecs::Entity lightID = view.scene->lights.GetEntity(i);
+            const scene::LightComponent* light = view.scene->lights.GetComponent(lightID);
+            if (light->type != scene::LightType::Directional)
+                continue;
+        }
+#endif
+
     }
 
     void UpdateRenderData(const SceneView& view, const FrameCB& frameCB, graphics::CommandList cmd)
@@ -677,10 +680,8 @@ namespace cyb::renderer
             device->EndEvent(cmd);
         }
 
-        //
         // Draw all the visible lightsources
         // FIXME: Currently draws all lightsources in the scene
-        //
         if (debug_lightsources)
         {
             device->BeginEvent("DebugLightsources", cmd);
@@ -713,9 +714,7 @@ namespace cyb::renderer
             device->EndEvent(cmd);
         }
 
-        //
         // Draw bounding boxes for all point lights
-        //
         if (debug_lightsources_aabb)
         {
             device->BeginEvent("DebugLightsourcesAABB", cmd);

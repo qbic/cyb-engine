@@ -754,7 +754,7 @@ namespace IMGUIZMO_NAMESPACE
 
       int mActualID = -1;
       int mEditingID = -1;
-      OPERATION mOperation = OPERATION(-1);
+      OPERATION mOperation = OPERATION::BOUNDS;
 
       bool mAllowAxisFlip = true;
       float mGizmoSizeClipSpace = 0.1f;
@@ -987,7 +987,7 @@ namespace IMGUIZMO_NAMESPACE
 
    bool IsOver()
    {
-      return (Intersects(gContext.mOperation, TRANSLATE) && GetMoveType(gContext.mOperation, NULL) != MT_NONE) ||
+       return (Intersects(gContext.mOperation, TRANSLATE) && GetMoveType(gContext.mOperation, NULL) != MT_NONE) ||
          (Intersects(gContext.mOperation, ROTATE) && GetRotateType(gContext.mOperation) != MT_NONE) ||
          (Intersects(gContext.mOperation, SCALE) && GetScaleType(gContext.mOperation) != MT_NONE) || IsUsing();
    }

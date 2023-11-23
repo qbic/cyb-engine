@@ -15,7 +15,7 @@ private:
     float m_moveSpeed = 12.0f;
     float m_moveAcceleration = 0.18f;
 
-    XMFLOAT3 m_cameraMove = XMFLOAT3(0, 0, 0);
+    XMFLOAT3 m_cameraVelocity = XMFLOAT3(0, 0, 0);
 };
 
 class Game : public cyb::hli::Application

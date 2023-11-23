@@ -42,7 +42,7 @@ namespace cyb::input
         key_remap_table[key::KB_RSHIFT] = VK_RSHIFT;
     }
 
-    void Update()
+    void Update(platform::WindowType window)
     {
         // Reset half transition count for all keys
         memset(keyHalfTransitionCount, 0, sizeof(keyHalfTransitionCount));
@@ -52,8 +52,7 @@ namespace cyb::input
 
         POINT p;
         GetCursorPos(&p);
-        HWND hwnd = (HWND)platform::main_window->GetNativePtr();
-        ScreenToClient(hwnd, &p);
+        ScreenToClient(window, &p);
         mousePos = XMFLOAT2((float)p.x, (float)p.y);
     }
 
@@ -80,10 +79,10 @@ namespace cyb::input
 
     bool IsDown(uint32_t button)
     {
-        if (!platform::main_window->IsActive())
-        {
-            return false;
-        }
+        //if (!platform::main_window->IsActive())
+        //{
+        //    return false;
+        //}
 
         uint32_t buttonIndex = GetMappedButtonIndex(button);
         assert(buttonIndex < _countof(keyDown));

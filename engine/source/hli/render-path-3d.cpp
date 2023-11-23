@@ -40,16 +40,9 @@ namespace cyb::hli
         RenderPath2D::ResizeBuffers();
     }
 
-    void RenderPath3D::UpdateViewport() const
-    {
-        const XMINT2 client_size = cyb::platform::main_window->GetClientSize();
-    }
-
     void RenderPath3D::Update(double dt)
     {
         m_runtime += dt;
-
-        UpdateViewport();
 
         scene->Update(dt);
         camera->TransformCamera(camera_transform);

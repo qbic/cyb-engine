@@ -46,7 +46,7 @@ namespace cyb::input
     void Initialize();
 
     // Call once per frame _AFTER_ user input is processed
-    void Update();
+    void Update(platform::WindowType window);
 
     // Check if a button is down
     bool IsDown(uint32_t button);

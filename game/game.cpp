@@ -75,7 +75,7 @@ void GameRenderer::CameraControl(double dt)
     const double clampedDt = std::min(dt, 0.1);
 
     const double speed = (input::IsDown('F') ? 3.0 : 1.0) * 10.0 * m_moveSpeed * clampedDt;
-    XMVECTOR move = XMLoadFloat3(&m_cameraMove);
+    XMVECTOR velocity = XMLoadFloat3(&m_cameraVelocity);
     XMVECTOR moveNew = XMVectorSet(0, 0, 0, 0);
 
     if (input::IsDown('A'))
@@ -92,16 +92,17 @@ void GameRenderer::CameraControl(double dt)
         moveNew += XMVectorSet(0, 1, 0, 0);
     moveNew = XMVector3Normalize(moveNew) * static_cast<float>(speed);
 
-    move = XMVectorLerp(move, moveNew, static_cast<float>(math::Min(0.1, m_moveAcceleration * clampedDt / 0.0166))); // smooth the movement a bit
-    const float moveLength = XMVectorGetX(XMVector3Length(move));
+    const double blend = m_moveAcceleration * clampedDt / 0.0166;
+    velocity = XMVectorLerp(velocity, moveNew, static_cast<float>(blend)); // smooth the movement a bit
+    const float moveLength = XMVectorGetX(XMVector3Length(velocity));
 
     if (moveLength < 0.0001f)
-        move = XMVectorSet(0, 0, 0, 0);
+        velocity = XMVectorSet(0, 0, 0, 0);
 
     //if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f)
     {
         XMMATRIX cameraRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&camera_transform.rotation_local));
-        XMVECTOR rotatedMove = XMVector3TransformNormal(move, cameraRotation);
+        XMVECTOR rotatedMove = XMVector3TransformNormal(velocity, cameraRotation);
         XMFLOAT3 rotatedMoveStored;
         XMStoreFloat3(&rotatedMoveStored, rotatedMove);
         camera_transform.Translate(rotatedMoveStored);
@@ -109,7 +110,7 @@ void GameRenderer::CameraControl(double dt)
     }
 
     camera_transform.UpdateTransform();
-    XMStoreFloat3(&m_cameraMove, move);
+    XMStoreFloat3(&m_cameraVelocity, velocity);
 }
 
 

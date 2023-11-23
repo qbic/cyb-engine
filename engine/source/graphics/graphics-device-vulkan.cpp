@@ -1447,7 +1447,7 @@ namespace cyb::graphics
         if (res != VK_SUCCESS)
         {
             platform::CreateMessageWindow("vmaCreateAllocator failed! ERROR: " + std::to_string(res), "Error!");
-            platform::Exit();
+            platform::Exit(1);
         }
 
         m_copyAllocator.Init(this);
@@ -1577,7 +1577,7 @@ namespace cyb::graphics
         }
     }
 
-    bool GraphicsDevice_Vulkan::CreateSwapChain(const SwapChainDesc* desc, platform::Window* window, SwapChain* swapchain) const
+    bool GraphicsDevice_Vulkan::CreateSwapChain(const SwapChainDesc* desc, platform::WindowType window, SwapChain* swapchain) const
     {
         auto internal_state = std::static_pointer_cast<SwapChain_Vulkan>(swapchain->internal_state);
         if (swapchain->internal_state == nullptr)
@@ -1595,8 +1595,8 @@ namespace cyb::graphics
 #ifdef _WIN32
             VkWin32SurfaceCreateInfoKHR create_info = {};
             create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-            create_info.hwnd = (HWND)window->GetNativePtr();
-            create_info.hinstance = (HINSTANCE)platform::GetInstance();
+            create_info.hwnd = window;
+            create_info.hinstance = GetModuleHandle(nullptr);
             vkCreateWin32SurfaceKHR(instance, &create_info, nullptr, &internal_state->surface);
 #else
 #error VULKAN DEVICE ERROR: PLATFORM NOT SUPPORTED

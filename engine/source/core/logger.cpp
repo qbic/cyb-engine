@@ -11,18 +11,14 @@
 
 namespace cyb::logger
 {
-    std::list<std::shared_ptr<OutputModule>> outputModules;
+    std::vector<std::unique_ptr<OutputModule>> outputModules;
     std::deque<Message> logHistory;
     SpinLock postLock;
     Level logLevelThreshold = Level::Trace;
 
-    void RegisterOutputModule(std::shared_ptr<OutputModule> output, bool writeHistory)
+    void priv::RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule)
     {
-        if (writeHistory)
-            for (const auto& log : logHistory)
-                output->Write(log);
-
-        outputModules.push_back(output);
+        outputModules.push_back(std::move(outputModule));
     }
 
     // Check if the log level is under the global log level threshold.

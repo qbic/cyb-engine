@@ -41,35 +41,37 @@ namespace cyb::logger
 	class OutputModule_StringBuffer : public OutputModule
 	{
 	public:
-		OutputModule_StringBuffer(bool writeTimestamp = false) :
-			m_writeTimestamp(writeTimestamp)
+		OutputModule_StringBuffer(std::string* output) :
+			m_stringBuffer(output)
 		{
 		}
 
 		void Write(const logger::Message& log) override
 		{
-			if (m_writeTimestamp)
-			{
-				const auto time = std::chrono::system_clock::to_time_t(log.timestamp);
-				m_logStream << std::put_time(std::localtime(&time), "%Y-%m-%d %X ");
-			}
-
 			m_logStream << log.message;
-			m_stringBuffer = m_logStream.str();
-		}
-
-		[[nodiscard]] const std::string& GetStringBuffer() const
-		{
-			return m_stringBuffer;
+			if (m_stringBuffer != nullptr)
+			{
+				*m_stringBuffer = m_logStream.str();
+			}
 		}
 
 	private:
 		std::stringstream m_logStream;
-		std::string m_stringBuffer;
+		std::string* m_stringBuffer;
 		bool m_writeTimestamp;
 	};
 
-	void RegisterOutputModule(std::shared_ptr<OutputModule> output, bool writeHistory = true);
+	namespace priv
+	{
+		void RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule);
+	}
+
+	template <typename T, typename ...Args>
+	void RegisterOutputModule(Args&&... args)
+	{
+		static_assert(std::is_base_of<cyb::logger::OutputModule, T>::value, "T must be derived from cyb::logger::OutputModule");
+		priv::RegisterOutputModule(std::make_unique<T>(std::forward<Args>(args)...));
+	}
 
 	// Prefixes the input message with a log level identifier and 
 	// sends a LogMessage to all registered output modules

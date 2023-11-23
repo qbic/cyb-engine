@@ -23,10 +23,7 @@ namespace cyb::hli
         // TODO: Change from hardcoded internal resolution
         XMUINT2 GetInternalResolution() const
         {
-            return XMUINT2(
-                uint32_t(1920),
-                uint32_t(1080)
-            );
+            return XMUINT2(1920u, 1080u);
         }
     };
 }

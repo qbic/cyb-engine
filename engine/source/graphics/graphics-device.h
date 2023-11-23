@@ -494,9 +494,9 @@ namespace cyb::graphics
 
     struct RenderPassInfo
     {
-        Format rtFormats[8];
-        uint32_t rtCount = 0;
-        Format dsFormat;        // DepthStencil format
+        Format rtFormats[8];    // Render target formats
+        uint32_t rtCount = 0;   // Number of render targets
+        Format dsFormat;        // Depth stencil format
 
         constexpr uint64_t GetHash() const
         {
@@ -602,9 +602,10 @@ namespace cyb::graphics
         constexpr bool IsValid() const { return internal_state != nullptr; }
     };
 
-    static constexpr uint32_t DESCRIPTORBINDER_CBV_COUNT = 14;
-    static constexpr uint32_t DESCRIPTORBINDER_SRV_COUNT = 16;
-    static constexpr uint32_t DESCRIPTORBINDER_SAMPLER_COUNT = 8;
+    constexpr uint32_t DESCRIPTORBINDER_CBV_COUNT = 14;
+    constexpr uint32_t DESCRIPTORBINDER_SRV_COUNT = 16;
+    constexpr uint32_t DESCRIPTORBINDER_SAMPLER_COUNT = 8;
+
     struct DescriptorBindingTable
     {
         GPUBuffer CBV[DESCRIPTORBINDER_CBV_COUNT];
@@ -634,7 +635,7 @@ namespace cyb::graphics
     public:
         virtual ~GraphicsDevice() = default;
 
-        virtual bool CreateSwapChain(const SwapChainDesc* desc, platform::Window* window, SwapChain* swapchain) const = 0;
+        virtual bool CreateSwapChain(const SwapChainDesc* desc, platform::WindowType window, SwapChain* swapchain) const = 0;
         virtual bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const = 0;
         virtual bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const = 0;
         virtual bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const = 0;

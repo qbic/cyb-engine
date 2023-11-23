@@ -139,46 +139,50 @@ namespace cyb::editor
         ui::SliderFloat("Metalness", &material->metalness, nullptr, 0.0f, 1.0f);
     }
 
-    struct NameSortableEntityData
+    struct SortableNameEntityData
     {
         ecs::Entity id = ecs::INVALID_ENTITY;
         std::string_view name;
 
-        bool operator<(const NameSortableEntityData& a)
+        bool operator<(const SortableNameEntityData& a)
         {
             return name < a.name;
         }
     };
 
     template <typename T>
-    void SelectEntityPopup(
-        ecs::ComponentManager<T>& components,
-        ecs::ComponentManager<scene::NameComponent>& names,
-        ecs::Entity& current_entity)
+    [[nodiscard]] ecs::Entity SelectEntityPopup(
+        const ecs::ComponentManager<T>& components,
+        const ecs::ComponentManager<scene::NameComponent>& names,
+        const ecs::Entity currentEntity)
     {
         static ImGuiTextFilter filter;
-        const int listBoxHeightInItems = 10;
+        constexpr int displayedEntitiesCount = 10;
+        ecs::Entity selectedEntity = ecs::INVALID_ENTITY;
 
         assert(components.Size() < INT32_MAX);
-        if (ImGui::ListBoxHeader("##lbhd", (int)components.Size(), listBoxHeightInItems))
+        if (ImGui::ListBoxHeader("##lbhd", (int)components.Size(), displayedEntitiesCount))
         {
-            std::vector<NameSortableEntityData> sorted_entities;
+            std::vector<SortableNameEntityData> sortedEntities;
             for (size_t i = 0; i < components.Size(); ++i)
             {
-                auto& back = sorted_entities.emplace_back();
+                auto& back = sortedEntities.emplace_back();
                 back.id = components.GetEntity(i);
                 back.name = names.GetComponent(back.id)->name;
             }
 
-            std::sort(sorted_entities.begin(), sorted_entities.end());
-            for (auto& entity : sorted_entities)
+            std::sort(sortedEntities.begin(), sortedEntities.end());
+            for (auto& entity : sortedEntities)
             {
                 ImGui::PushID(entity.id);
                 if (filter.PassFilter(entity.name.data()))
                 {
-                    const std::string label = fmt::format("{}##{}", entity.name, entity.id); // ImGui needs a uniqe label for each entity
-                    if (ImGui::Selectable(label.c_str(), current_entity == entity.id))
+                    // Create a uniqe label for each entity
+                    const std::string label = fmt::format("{}##{}", entity.name, entity.id);
+                    
+                    if (ImGui::Selectable(label.c_str(), currentEntity == entity.id))
                     {
+                        selectedEntity = entity.id;
                         filter.Clear();
                         ImGui::CloseCurrentPopup();
                     }
@@ -192,6 +196,7 @@ namespace cyb::editor
         ImGui::SameLine();
         ImGui::SetNextItemWidth(-1);
         filter.Draw("##filter");
+        return selectedEntity;
     }
 
     ecs::Entity SelectAndGetMaterialForMesh(scene::MeshComponent* mesh)
@@ -201,8 +206,8 @@ namespace cyb::editor
         std::vector<std::string_view> names;
         for (const auto& subset : mesh->subsets)
         {
-            std::string_view name = scene.names.GetComponent(subset.materialID)->name.c_str();
-            names.push_back(name);
+            const scene::NameComponent* comp = scene.names.GetComponent(subset.materialID);
+            names.push_back(comp->name);
         }
 
         static int selectedSubsetIndex = 0;
@@ -221,7 +226,12 @@ namespace cyb::editor
 
         if (ImGui::BeginPopup("MaterialSelectPopup"))
         {
-            SelectEntityPopup(scene.materials, scene.names, mesh->subsets[selectedSubsetIndex].materialID);
+            ecs::Entity selectedID = SelectEntityPopup(scene.materials, scene.names, mesh->subsets[selectedSubsetIndex].materialID);
+            if (selectedID != ecs::INVALID_ENTITY)
+            {
+                mesh->subsets[selectedSubsetIndex].materialID = selectedID;
+            }
+
             ImGui::EndPopup();
         }
 
@@ -254,7 +264,11 @@ namespace cyb::editor
 
         if (ImGui::BeginPopup("MeshSelectPopup"))
         {
-            SelectEntityPopup(scene.meshes, scene.names, object->meshID);
+            ecs::Entity selectedID = SelectEntityPopup(scene.meshes, scene.names, object->meshID);
+            if (selectedID != ecs::INVALID_ENTITY)
+            {
+                object->meshID = selectedID;
+            }
             ImGui::EndPopup();
         }
 
@@ -543,7 +557,7 @@ namespace cyb::editor
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##CPUFrame", profilerContext.cpuFrameGraph, profiler::FRAME_GRAPH_ENTRIES, 0, cpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
             ImGui::Spacing();
-            ImGui::Text("CPU Frame: %.2f", cpuFrame->second.time);
+            ImGui::Text("CPU Frame: %.2fms", cpuFrame->second.time);
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8);
             ImGui::Indent();
             for (auto& [entryID, entry] : profilerContext.entries)
@@ -558,7 +572,7 @@ namespace cyb::editor
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##GPUFrame", profilerContext.gpuFrameGraph, profiler::FRAME_GRAPH_ENTRIES, 0, gpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
             ImGui::Separator();
-            ImGui::Text("GPU Frame: %.2f", gpuFrame->second.time);
+            ImGui::Text("GPU Frame: %.2fms", gpuFrame->second.time);
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8);
             ImGui::Indent();
             for (auto& [entryID, entry] : profilerContext.entries)
@@ -578,21 +592,19 @@ namespace cyb::editor
         Tool_LogDisplay(const std::string& name) :
             GuiTool(name)
         {
-            m_logOutput = std::make_shared<logger::OutputModule_StringBuffer>();
-            logger::RegisterOutputModule(m_logOutput);
+            logger::RegisterOutputModule<logger::OutputModule_StringBuffer>(&logOutput);
         }
 
         void Draw() override
         {
-            const std::string& text = m_logOutput->GetStringBuffer();
-            ImGui::TextUnformatted((char*)text.c_str(), (char*)text.c_str() + text.size());
+            ImGui::TextUnformatted((char*)logOutput.c_str(), (char*)logOutput.c_str() + logOutput.size());
 
             if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
                 ImGui::SetScrollHereY(1.0f);
         }
 
     private:
-        std::shared_ptr<logger::OutputModule_StringBuffer> m_logOutput;
+        std::string logOutput;
     };
 
     //------------------------------------------------------------------------------
@@ -732,15 +744,8 @@ namespace cyb::editor
                 filename += ".cbs";
             }
 
-            Timer timer;
-            timer.Record();
-
-            serializer::Archive ar;
+            serializer::Archive ar(filename, serializer::Access::Write);
             scene::GetScene().Serialize(ar);
-            if (ar.SaveFile(filename))
-            {
-                CYB_TRACE("Serialized and saved (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
-            }
             });
     }
 

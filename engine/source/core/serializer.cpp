@@ -4,21 +4,34 @@
 
 namespace cyb::serializer
 {
-    Archive::Archive()
+    Archive::Archive() :
+        m_mode(Access::Write)
     {
-        m_mode = Access::Write;
         CreateEmpty();
     }
 
-    Archive::Archive(const std::string& filename) :
-        m_mode(Access::Closed)
+    Archive::Archive(const std::string& filename, Access mode) :
+        m_mode(mode),
+        m_filename(filename)
     {
-        if (filesystem::ReadFile(filename, m_data))
+        if (filename.empty())
         {
-            m_mode = Access::Read;
-            (*this) >> m_version;
-            CYB_CERROR(m_version < LEAST_SUPPORTED_VERSION, "Unsupported archive version (file={} version={} LeastUupportedVersion={})", filename, m_version, LEAST_SUPPORTED_VERSION);
-            CYB_CWARNING(m_version < ARCHIVE_VERSION, "Old (but supported) archive version (file={} version={} currentVersion={})", filename, m_version, ARCHIVE_VERSION);
+            return;
+        }
+
+        if (mode == Access::Read)
+        {
+            if (filesystem::ReadFile(filename, m_data))
+            {
+                m_dataPtr = m_data.data();
+                (*this) >> m_version;
+                CYB_CERROR(m_version < LEAST_SUPPORTED_VERSION, "Unsupported archive version (file={} version={} LeastUupportedVersion={})", filename, m_version, LEAST_SUPPORTED_VERSION);
+                CYB_CWARNING(m_version < ARCHIVE_VERSION, "Old (but supported) archive version (file={} version={} currentVersion={})", filename, m_version, ARCHIVE_VERSION);
+            }
+        }
+        else
+        {
+            CreateEmpty();
         }
     }
 
@@ -26,7 +39,8 @@ namespace cyb::serializer
     {
         m_version = ARCHIVE_VERSION;
         m_data.resize(ARCHIVE_INIT_SIZE);
-        SetAccessModeAndResetPos(Write);
+        m_dataPtr = m_data.data(),
+        SetAccessModeAndResetPos(Access::Write);
     }
 
     void Archive::SetAccessModeAndResetPos(Access mode)
@@ -35,24 +49,30 @@ namespace cyb::serializer
         m_pos = 0;
 
         if (IsReadMode())
+        {
             (*this) >> m_version;
+        }
         else
+        {
             (*this) << m_version;
+        }
     }
 
     bool Archive::IsOpen() const
     {
-        return m_mode != Access::Closed;
+        return m_dataPtr != nullptr;
     }
 
     void Archive::Close()
     {
-        //if (!readMode && !fileName.empty())
-        //{
-        //    SaveFile(fileName);
-        //}
+        if (!IsReadMode() && !m_filename.empty())
+        {
+            if (!SaveFile(m_filename))
+            {
+                CYB_WARNING("Failed to write archive (filename={})", m_filename);
+            }
+        }
         m_data.clear();
-        m_mode = Access::Closed;
     }
 
     bool Archive::SaveFile(const std::string& filename)

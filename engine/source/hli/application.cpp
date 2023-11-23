@@ -6,6 +6,8 @@
 #include "input/input.h"
 #include "hli/application.h"
 
+#include "editor/imgui-backend.h"
+
 using namespace cyb::graphics;
 
 namespace cyb::hli
@@ -36,7 +38,7 @@ namespace cyb::hli
 
 		// Render the scene
 		Render();
-				
+
 		// Compose the final image and and pass it to the swapchain for display
 		CommandList cmd = graphics_device->BeginCommandList();
 		graphics_device->BeginRenderPass(&swapchain, cmd);
@@ -60,17 +62,19 @@ namespace cyb::hli
 		graphics::GraphicsDevice* device = graphics::GetDevice();
 
 		graphics::SwapChainDesc desc = {};
-		XMINT2 physical_window_size = window->GetClientSize();
-		desc.width = physical_window_size.x;
-		desc.height = physical_window_size.y;
-		graphics::GetDevice()->CreateSwapChain(&desc, window.get(), &swapchain);
+		platform::WindowProperties windowProp = platform::GetWindowProperties(window);
+		desc.width = windowProp.width;
+		desc.height = windowProp.height;
+		graphics::GetDevice()->CreateSwapChain(&desc, window, &swapchain);
 
 		change_vsyc_event = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this](uint64_t userdata) {
 			SwapChainDesc desc = swapchain.desc;
-			desc.vsync = userdata != 0;
+			desc.vsync = (userdata != 0);
 			bool success = graphics_device->CreateSwapChain(&desc, nullptr, &swapchain);
 			assert(success);
 			});
+
+		ImGui_Impl_CybEngine_Init(window);
 
 		// Initialize 3d engine components
 		jobsystem::Initialize();
@@ -83,7 +87,7 @@ namespace cyb::hli
 		CYB_PROFILE_CPU_SCOPE("Update");
 		if (active_path != nullptr)
 			active_path->Update(dt);
-		input::Update();
+		input::Update(window);
 	}
 
 	void Application::Render()
@@ -100,9 +104,8 @@ namespace cyb::hli
 			active_path->Compose(cmd);
 	}
 
-	void Application::SetWindow(std::shared_ptr<platform::Window> window)
+	void Application::SetWindow(platform::WindowType window)
 	{
-		assert(window.get());
 		this->window = window;
 	}
 }

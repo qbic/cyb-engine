@@ -37,20 +37,14 @@ namespace cyb::filesystem
         std::ifstream file(filename, std::ios::binary | std::ios::ate);
         if (!file.is_open())
         {
-            CYB_ERROR("Failed to open file (filename={0}): {1}", filename, strerror(errno));
+            CYB_WARNING("Failed to open file (filename={0}): {1}", filename, strerror(errno));
             return false;
         }
 
         std::streampos size = file.tellg();
         file.seekg(0, file.beg);
         data.resize(size);
-        file.read((char*)data.data(), size);
-        if (!file)
-        {
-            CYB_ERROR("Failed to read whole file (filename={0}, size={1}, bytesRead={2})", filename, size, file.gcount());
-            return false;
-        }
-
+        file.read(reinterpret_cast<char*>(data.data()), size);
         return true;
     }
 

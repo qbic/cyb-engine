@@ -9,29 +9,26 @@ using DirectX::XMFLOAT4X4;
 
 namespace cyb::serializer
 {
-    enum { ARCHIVE_VERSION = 4 };
-    enum { LEAST_SUPPORTED_VERSION = 3 };
-    enum { ARCHIVE_INIT_SIZE = 128 };
+    constexpr uint64_t LEAST_SUPPORTED_VERSION = 3;
+    constexpr uint64_t ARCHIVE_VERSION = 4;
+    constexpr size_t ARCHIVE_INIT_SIZE = 128;
+
+    enum class Access
+    {
+        Read,
+        Write
+    };
 
     class Archive
     {
     public:
-        enum Access
-        {
-            Closed,
-            Read,
-            Write
-        };
+        Archive(const Archive&) = delete;
+        Archive(Archive&&) = delete;
+        Archive& operator=(const Archive&) = delete;
 
         Archive();                              // Open empty archive for writing
-        Archive(const Archive&) = default;
-        Archive(Archive&&) = default;
-
-        // Open existing archive for reading
-        Archive(const std::string& filename);
+        Archive(const std::string& filename, Access mode);
         ~Archive() { Close(); }
-        Archive& operator=(const Archive&) = default;
-        Archive& operator=(Archive&&) = default;
 
         void CreateEmpty();
         void SetAccessModeAndResetPos(Access mode);
@@ -100,8 +97,8 @@ namespace cyb::serializer
             return *this;
         }
 
-        // UnsafeWrite is used internally for serialization of custom
-        // data and should be used with coution, use operator << instead
+    private:
+        // Write data to archive at current position
         template <typename T>
         inline void UnsafeWrite(const T& data)
         {
@@ -110,27 +107,31 @@ namespace cyb::serializer
             size_t size = sizeof(data);
             size_t right = m_pos + size;
             if (right > m_data.size())
+            {
                 m_data.resize(right * 2);
+                m_dataPtr = m_data.data();
+            }
 
             *(T*)(m_data.data() + m_pos) = data;
             m_pos = right;
         }
 
-        // UnsafeRead is used internally for serialization of custom
-        // data and should be used with coution, use operator >> instead
+        // Read data from archive as current position
         template <typename T>
         inline void UnsafeRead(T& data)
         {
             assert(IsReadMode());
-            assert(m_data.size() >= m_pos + sizeof(data));
-            data = *(const T*)(m_data.data() + m_pos);
+            assert(m_dataPtr != nullptr);
+            data = *(const T*)(m_dataPtr + m_pos);
             m_pos += (size_t)(sizeof(data));
         }
 
      private:
         uint64_t m_version = 0;
-        Access m_mode = Access::Closed;
+        Access m_mode = Access::Write;
         size_t m_pos = 0;
         std::vector<uint8_t> m_data;
+        const uint8_t* m_dataPtr = nullptr;
+        std::string m_filename;             // Save to filename on close if not empty
     };
 }

@@ -16,6 +16,6 @@ namespace cyb::editor
     };
 }
 
-void ImGui_Impl_CybEngine_Init();
+void ImGui_Impl_CybEngine_Init(cyb::platform::WindowType window);
 void ImGui_Impl_CybEngine_Update();
 void ImGui_Impl_CybEngine_Compose(cyb::graphics::CommandList cmd);

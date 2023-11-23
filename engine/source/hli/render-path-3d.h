@@ -23,7 +23,6 @@ namespace cyb::hli
 
     public:
         void ResizeBuffers() override;
-        void UpdateViewport() const;
 
         void Update(double dt) override;
         void Render() const override;

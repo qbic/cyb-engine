@@ -17,45 +17,45 @@ namespace cyb::scene
         return HasFlag(flags, Flags::DirtyBit);
     }
 
-    XMFLOAT3 TransformComponent::GetPosition() const
+    XMFLOAT3 TransformComponent::GetPosition() const noexcept
     {
         return *((XMFLOAT3*)&world._41);
     }
 
-    XMFLOAT4 TransformComponent::GetRotation() const
+    XMFLOAT4 TransformComponent::GetRotation() const noexcept
     {
         XMFLOAT4 rotation;
         XMStoreFloat4(&rotation, GetRotationV());
         return rotation;
     }
 
-    XMFLOAT3 TransformComponent::GetScale() const
+    XMFLOAT3 TransformComponent::GetScale() const noexcept
     {
         XMFLOAT3 scale;
         XMStoreFloat3(&scale, GetScaleV());
         return scale;
     }
 
-    XMVECTOR TransformComponent::GetPositionV() const
+    XMVECTOR TransformComponent::GetPositionV() const noexcept
     {
         return XMLoadFloat3((XMFLOAT3*)&world._41);
     }
 
-    XMVECTOR TransformComponent::GetRotationV() const
+    XMVECTOR TransformComponent::GetRotationV() const noexcept
     {
         XMVECTOR S, R, T;
         XMMatrixDecompose(&S, &R, &T, XMLoadFloat4x4(&world));
         return R;
     }
 
-    XMVECTOR TransformComponent::GetScaleV() const
+    XMVECTOR TransformComponent::GetScaleV() const noexcept
     {
         XMVECTOR S, R, T;
         XMMatrixDecompose(&S, &R, &T, XMLoadFloat4x4(&world));
         return S;
     }
 
-    XMMATRIX TransformComponent::GetLocalMatrix() const
+    XMMATRIX TransformComponent::GetLocalMatrix() const noexcept
     {
         XMVECTOR S = XMLoadFloat3(&scale_local);
         XMVECTOR R = XMLoadFloat4(&rotation_local);
@@ -773,7 +773,7 @@ namespace cyb::scene
     {
         Timer timer;
         timer.Record();
-        serializer::Archive ar(filename);
+        serializer::Archive ar(filename, serializer::Access::Read);
         if (!ar.IsOpen())
             return false;
 
@@ -861,7 +861,7 @@ namespace cyb::ecs
     {
         if (archive.IsReadMode())
         {
-            archive.UnsafeRead(x.flags);
+            archive >> (uint32_t&)x.flags;
             archive >> x.scale_local;
             archive >> x.rotation_local;
             archive >> x.translation_local;
@@ -891,7 +891,7 @@ namespace cyb::ecs
     {
         if (arhive.IsReadMode())
         {
-            arhive.UnsafeRead(x.flags);
+            arhive >> (uint32_t&)x.flags;
             if (arhive.GetVersion() >= 4)
                 arhive >> (uint32_t&)x.shaderType;
             arhive >> x.baseColor;
@@ -902,7 +902,7 @@ namespace cyb::ecs
         {
             arhive << (uint32_t)x.flags;
             if (arhive.GetVersion() >= 4)
-                arhive << (uint32_t&)x.shaderType;
+                arhive << (uint32_t)x.shaderType;
             arhive << x.baseColor;
             arhive << x.roughness;
             arhive << x.metalness;
@@ -951,7 +951,7 @@ namespace cyb::ecs
     {
         if (arhive.IsReadMode())
         {
-            arhive.UnsafeRead(x.flags);
+            arhive >> (uint32_t&)x.flags;
             ecs::SerializeEntity(x.meshID, arhive, entitySerializer);
         }
         else
@@ -975,7 +975,7 @@ namespace cyb::ecs
         {
             arhive << (uint32_t)x.flags;
             arhive << x.color;
-            arhive << (uint32_t&)x.type;
+            arhive << (uint32_t)x.type;
             arhive << x.energy;
             arhive << x.range;
         }

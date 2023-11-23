@@ -1166,7 +1166,7 @@ namespace cyb::editor
         scene::MeshComponent::MeshSubset subset;
         subset.indexOffset = 0;
         subset.indexCount = (uint32_t)groundIndices;
-        subset.materialID = scene.CreateMaterial("Terrain_Material");
+        subset.materialID = scene.CreateMaterial("TerrainGround_Material");
         mesh->subsets.push_back(subset);
 
         scene::MaterialComponent* material = scene.materials.GetComponent(subset.materialID);
@@ -1176,7 +1176,7 @@ namespace cyb::editor
         // Setup rock subset
         subset.indexOffset = groundIndices;
         subset.indexCount = (uint32_t)mesh->indices.size() - groundIndices;
-        subset.materialID = scene.CreateMaterial("Terrain_Material_Rock");
+        subset.materialID = scene.CreateMaterial("TerrainRock_Material");
         mesh->subsets.push_back(subset);
 
         material = scene.materials.GetComponent(subset.materialID);

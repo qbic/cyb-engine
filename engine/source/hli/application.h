@@ -7,7 +7,6 @@ namespace cyb::hli
 {
     class Application
     {
-
     public:
         virtual ~Application() = default;
 
@@ -21,17 +20,16 @@ namespace cyb::hli
         virtual void Compose(graphics::CommandList cmd);
 
         // Call this before calling Run() or Initialize() if you want to render to a UWP window
-        void SetWindow(std::shared_ptr<platform::Window> window);
+        void SetWindow(platform::WindowType window);
 
     private:
         std::unique_ptr<graphics::GraphicsDevice> graphics_device;
         eventsystem::Handle change_vsyc_event;
         bool initialized = false;
         Timer timer;
-        double m_deltaTime = 0.0;
+        double m_deltaTime = 0.0; 
         RenderPath* active_path = nullptr;
-        std::shared_ptr<platform::Window> window;
+        platform::WindowType window;
         graphics::SwapChain swapchain;
-
     };
 }

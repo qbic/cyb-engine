@@ -120,7 +120,7 @@ static void SetupCustomStyle()
 	colors[ImGuiCol_Button] = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
 	colors[ImGuiCol_ButtonHovered] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
 	colors[ImGuiCol_ButtonActive] = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
-	colors[ImGuiCol_Header] = ImVec4(0.19f, 0.19f, 0.19f, 1.00f);
+	colors[ImGuiCol_Header] = ImVec4(0.26f, 0.26f, 0.26f, 1.00f);
 	colors[ImGuiCol_HeaderHovered] = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
 	colors[ImGuiCol_HeaderActive] = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
 	colors[ImGuiCol_Tab] = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
@@ -154,7 +154,7 @@ static void LoadShaders()
 	GetDevice()->CreatePipelineState(&desc, &bd->pso);
 }
 
-void ImGui_Impl_CybEngine_Init()
+void ImGui_Impl_CybEngine_Init(cyb::platform::WindowType window)
 {
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
@@ -180,7 +180,7 @@ void ImGui_Impl_CybEngine_Init()
 	SetupCustomStyle();
 
 #ifdef _WIN32
-	ImGui_ImplWin32_Init(cyb::platform::main_window->GetNativePtr());
+	ImGui_ImplWin32_Init(window);
 #elif defined(SDL2)
 	ImGui_ImplSDL2_InitForVulkan(window);
 #endif

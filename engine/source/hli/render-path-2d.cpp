@@ -14,7 +14,7 @@ namespace cyb::hli
     {
 #ifndef NO_EDITOR
         editor::Initialize();
-        ImGui_Impl_CybEngine_Init();
+        //ImGui_Impl_CybEngine_Init();
 #endif
     }
 

@@ -16,6 +16,41 @@ namespace cyb::logger
     SpinLock postLock;
     Level logLevelThreshold = Level::Trace;
 
+    OutputModule_StringBuffer::OutputModule_StringBuffer(std::string* output) :
+        m_stringBuffer(output)
+    {
+    }
+
+    void OutputModule_StringBuffer::Write(const logger::Message& log) 
+    {
+        m_logStream << log.message;
+        if (m_stringBuffer != nullptr)
+        {
+            *m_stringBuffer = m_logStream.str();
+        }
+    }
+
+    OutputModule_File::OutputModule_File(const std::filesystem::path& filename, bool timestampMessages) :
+        filename(filename),
+        timestampMessages(timestampMessages)
+    {
+        output.open(filename);
+    }
+
+    void OutputModule_File::Write(const logger::Message& log)
+    {
+        if (output.is_open())
+        {
+            if (timestampMessages)
+            {
+                const auto time = std::chrono::system_clock::to_time_t(log.timestamp);
+                output << std::put_time(std::localtime(&time), "%Y-%m-%d %X ");
+            }
+
+            output << log.message;
+        }
+    }
+
     void priv::RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule)
     {
         outputModules.push_back(std::move(outputModule));

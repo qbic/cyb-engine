@@ -1,5 +1,7 @@
 #pragma once
 #include <string>
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <chrono>
 #include <iomanip>
@@ -41,24 +43,24 @@ namespace cyb::logger
 	class OutputModule_StringBuffer : public OutputModule
 	{
 	public:
-		OutputModule_StringBuffer(std::string* output) :
-			m_stringBuffer(output)
-		{
-		}
-
-		void Write(const logger::Message& log) override
-		{
-			m_logStream << log.message;
-			if (m_stringBuffer != nullptr)
-			{
-				*m_stringBuffer = m_logStream.str();
-			}
-		}
+		OutputModule_StringBuffer(std::string* output);
+		void Write(const logger::Message& log) override;
 
 	private:
 		std::stringstream m_logStream;
 		std::string* m_stringBuffer;
-		bool m_writeTimestamp;
+	};
+
+	class OutputModule_File : public OutputModule
+	{
+	public:
+		OutputModule_File(const std::filesystem::path& filename, bool timestampMessages = true);
+		void Write(const logger::Message& log) override;
+
+	private:
+		std::ofstream output;
+		std::filesystem::path filename;
+		bool timestampMessages;
 	};
 
 	namespace priv

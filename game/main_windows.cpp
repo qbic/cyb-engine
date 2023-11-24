@@ -34,6 +34,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
 {
     // Register a log output for visual studio's output window
     cyb::logger::RegisterOutputModule<LogOutputModule_VisualStudio>();
+    cyb::logger::RegisterOutputModule<cyb::logger::OutputModule_File>("textlog.txt");
 
     BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     assert(dpiSuccess);

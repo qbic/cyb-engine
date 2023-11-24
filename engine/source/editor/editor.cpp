@@ -600,7 +600,9 @@ namespace cyb::editor
             ImGui::TextUnformatted((char*)logOutput.c_str(), (char*)logOutput.c_str() + logOutput.size());
 
             if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+            {
                 ImGui::SetScrollHereY(1.0f);
+            }
         }
 
     private:

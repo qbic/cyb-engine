@@ -37,3 +37,4 @@
 *.vcxproj.user
 *.vcxproj.filters
 *.sln
+/game/textlog.txt

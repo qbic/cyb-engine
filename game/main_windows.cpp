@@ -9,7 +9,6 @@ WCHAR szTitle[MAX_LOADSTRING];
 WCHAR szWindowClass[MAX_LOADSTRING];
 
 extern LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-extern LRESULT CALLBACK Win32_InputProcHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 ATOM RegisterWindowClass(HINSTANCE hInstance);
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow);
@@ -18,22 +17,13 @@ std::string GetLastErrorMessage();
 
 Game application;
 
-class LogOutputModule_VisualStudio final : public cyb::logger::OutputModule
-{
-public:
-    void Write(const cyb::logger::Message& log) override
-    {
-        OutputDebugStringA(log.message.c_str());
-    }
-};
-
 int WINAPI WinMain(_In_ HINSTANCE hInstance, 
     _In_opt_ HINSTANCE hPrevInstance, 
     _In_ LPSTR lpCmdLine,
     _In_ int nShowCmd)
 {
-    // Register a log output for visual studio's output window
-    cyb::logger::RegisterOutputModule<LogOutputModule_VisualStudio>();
+    // Setup logger output modules
+    cyb::logger::RegisterOutputModule<cyb::logger::LogOutputModule_VisualStudio>();
     cyb::logger::RegisterOutputModule<cyb::logger::OutputModule_File>("textlog.txt");
 
     BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -128,7 +118,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    Win32_InputProcHandler(hWnd, message, wParam, lParam);
     if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
     {
         // If ImGUI takes an input from the user we need to return
@@ -141,6 +130,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CLOSE:
     case WM_DESTROY:
         PostQuitMessage(0);
+        break;
+
+    case WM_INPUT:
+        cyb::input::rawinput::ParseMessage((HRAWINPUT)lParam);
         break;
 
     case WM_PAINT:

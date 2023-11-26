@@ -101,7 +101,6 @@ namespace cyb::resourcemanager
         size_t filesize)
     {
         Timer timer;
-        timer.Record();
 
         if (mode == Mode::DiscardFiledataAfterLoad)
             flags &= ~LoadFlags::RetainFiledataBit;

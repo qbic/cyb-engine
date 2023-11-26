@@ -1,67 +1,89 @@
 #pragma once
+#include "core/platform.h"
 
 namespace cyb::input
 {
-    namespace key
+    enum Button
     {
-        enum Button
+        BUTTON_NONE = 0,
+
+        MOUSE_BUTTON_LEFT,
+        MOUSE_BUTTON_RIGHT,
+        MOUSE_BUTTON_MIDDLE,
+
+        KEYBOARD_BUTTON_UP,
+        KEYBOARD_BUTTON_DOWN,
+        KEYBOARD_BUTTON_LEFT,
+        KEYBOARD_BUTTON_RIGHT,
+        KEYBOARD_BUTTON_SPACE,
+        KEYBOARD_BUTTON_F1,
+        KEYBOARD_BUTTON_F2,
+        KEYBOARD_BUTTON_F3,
+        KEYBOARD_BUTTON_F4,
+        KEYBOARD_BUTTON_F5,
+        KEYBOARD_BUTTON_F6,
+        KEYBOARD_BUTTON_F7,
+        KEYBOARD_BUTTON_F8,
+        KEYBOARD_BUTTON_F9,
+        KEYBOARD_BUTTON_F10,
+        KEYBOARD_BUTTON_F11,
+        KEYBOARD_BUTTON_F12,
+        KEYBOARD_BUTTON_ESCAPE,
+        KEYBOARD_BUTTON_ENTER,
+        KEYBOARD_BUTTON_LSHIFT,
+        KEYBOARD_BUTTON_RSHIFT,
+
+        SPECIAL_KEY_COUNT,
+
+        CHARACHTER_RANGE_START = 'A',       // 'A' == 65
+    };
+
+    struct ButtonState
+    {
+        bool isDown = false;
+        uint32_t halfTransitionCount = 0;
+
+        void RegisterKeyDown()
         {
-            kNone = 0,
+            isDown = true;
+            halfTransitionCount++;
+        }
 
-            // Mouse buttons
-            MB_LEFT,
-            MB_RIGHT2,
-            MB_MIDDLE,
+        void RegisterKeyUp()
+        {
+            isDown = false;
+        }
 
-            // Keyboard buttons
-            KB_UP,
-            KB_DOWN,
-            KB_LEFT,
-            KB_RIGHT,
-            KB_SPACE,
-            KB_F1,
-            KB_F2,
-            KB_F3,
-            KB_F4,
-            KB_F5,
-            KB_F6,
-            KB_F7,
-            KB_F8,
-            KB_F9,
-            KB_F10,
-            KB_F11,
-            KB_F12,
-            KB_ESCAPE,
-            KB_ENTER,
-            KB_LSHIFT,      // NOT WORKING
-            KB_RSHIFT,      // NOT WORKING
+        void Reset()
+        {
+            halfTransitionCount = 0;
+        }
+    };
 
-            SPECIAL_KEY_COUNT,
+    struct KeyboardState
+    {
+        ButtonState buttons[256] = {};
+    };
 
-            CHARACHTER_RANGE_START = 'A',       // 'A' == 65
-        };
-
-    }
+    struct MouseState
+    {
+        XMFLOAT2 position = XMFLOAT2(0, 0);
+        XMFLOAT2 deltaPosition = XMFLOAT2(0, 0);
+        float deltaWheel = 0;
+        ButtonState leftButton = {};
+        ButtonState middleButton = {};
+        ButtonState rightButton = {};
+    };
 
     void Initialize();
-
-    // Call once per frame _AFTER_ user input is processed
     void Update(platform::WindowType window);
+
+    [[nodiscard]] const KeyboardState GetKeyboardState();
+    [[nodiscard]] const MouseState& GetMouseState();
 
     // Check if a button is down
     bool IsDown(uint32_t button);
 
     // Check if a button is pressed once
     bool WasPressed(uint32_t button);
-
-    // Get pointer position (eg. mouse)
-    XMFLOAT2 GetMousePosition();
-
-    // Get pointer delta position from last frame
-    XMFLOAT2 GetMousePositionDelta();
-
-    // Set pointer visabliaty
-    void ShowMouseCursor(bool value);
-};
-
-//static_assert(cyb::input::key::SPECIAL_KEY_COUNT < cyb::input::key::CHARACHTER_RANGE_START);
+}

@@ -9,10 +9,10 @@ using namespace DirectX::PackedVector;
 
 namespace cyb::math
 {
-    constexpr float PI = 3.141592654f;
-    constexpr float PI2 = 6.283185307f;
-    constexpr float PIDIV2 = 1.570796327f;
-    constexpr float PIDIV4 = 0.785398163f;
+    constexpr float PI = 3.14159265358979323846f;
+    constexpr float PI2 = 6.28318530717958647692f;
+    constexpr float PIDIV2 = 1.57079632679489661923f;
+    constexpr float PIDIV4 = 0.78539816339744830962f;
 
     constexpr XMFLOAT4X4 MATRIX_IDENTITY = XMFLOAT4X4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 

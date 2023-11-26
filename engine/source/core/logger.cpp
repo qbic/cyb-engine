@@ -17,16 +17,17 @@ namespace cyb::logger
     Level logLevelThreshold = Level::Trace;
 
     OutputModule_StringBuffer::OutputModule_StringBuffer(std::string* output) :
-        m_stringBuffer(output)
+        stringBuffer(output)
     {
     }
 
     void OutputModule_StringBuffer::Write(const logger::Message& log) 
     {
-        m_logStream << log.message;
-        if (m_stringBuffer != nullptr)
+        logStream << log.message;
+        if (stringBuffer != nullptr)
         {
-            *m_stringBuffer = m_logStream.str();
+            // FIXME: This has bad performance on larger streams
+            *stringBuffer = logStream.str();
         }
     }
 

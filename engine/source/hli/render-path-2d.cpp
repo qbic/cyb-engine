@@ -25,8 +25,10 @@ namespace cyb::hli
     void RenderPath2D::Update(double dt)
     {
 #ifndef NO_EDITOR
-        if (input::WasPressed(input::key::KB_F1))
+        if (input::WasPressed(input::KEYBOARD_BUTTON_F1))
+        {
             show_editor = !show_editor;
+        }
 
         {
             CYB_PROFILE_CPU_SCOPE("GUI Update");

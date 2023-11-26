@@ -64,11 +64,11 @@ void GameRenderer::CameraControl(double dt)
 {
     float xDif = 0;
     float yDif = 0;
-    if (input::IsDown(input::key::MB_RIGHT2))
+    if (input::IsDown(input::MOUSE_BUTTON_RIGHT))
     {
-        const XMFLOAT2 mouseDelta = input::GetMousePositionDelta();
-        xDif = m_mouseSensitivity * mouseDelta.x * (1.0f / 60.0f);
-        yDif = m_mouseSensitivity * mouseDelta.y * (1.0f / 60.0f);
+        const input::MouseState& mouse = input::GetMouseState();
+        xDif = m_mouseSensitivity * mouse.deltaPosition.x * (1.0f / 60.0f);
+        yDif = m_mouseSensitivity * mouse.deltaPosition.y * (1.0f / 60.0f);
     }
 
     // if dt > 100 millisec, don't allow the camera to jump too far...
@@ -88,7 +88,7 @@ void GameRenderer::CameraControl(double dt)
         moveNew += XMVectorSet(0, 0, 1, 0);
     if (input::IsDown('C'))
         moveNew += XMVectorSet(0, -1, 0, 0);
-    if (input::IsDown(input::key::KB_SPACE))
+    if (input::IsDown(input::KEYBOARD_BUTTON_SPACE))
         moveNew += XMVectorSet(0, 1, 0, 0);
     moveNew = XMVector3Normalize(moveNew) * static_cast<float>(speed);
 

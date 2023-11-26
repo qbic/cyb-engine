@@ -7,13 +7,22 @@
 #include <iomanip>
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif // NOMINMAX
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif // _WIN32
 
 // Enabling CYB_ERRORS_ARE_FATAL will couse CYB_ERROR(...) to teminate the application.
 #if CYB_DEBUG_BUILD
 #define CYB_ERRORS_ARE_FATAL	0
 #else
 #define CYB_ERRORS_ARE_FATAL	1
-#endif
+#endif // CYB_DEBUG_BUILD
 
 namespace cyb::logger
 {
@@ -47,8 +56,8 @@ namespace cyb::logger
 		void Write(const logger::Message& log) override;
 
 	private:
-		std::stringstream m_logStream;
-		std::string* m_stringBuffer;
+		std::stringstream logStream;
+		std::string* stringBuffer;
 	};
 
 	class OutputModule_File : public OutputModule
@@ -63,6 +72,17 @@ namespace cyb::logger
 		bool timestampMessages;
 	};
 
+#ifdef _WIN32
+	class LogOutputModule_VisualStudio : public cyb::logger::OutputModule
+	{
+	public:
+		void Write(const cyb::logger::Message& log) override
+		{
+			OutputDebugStringA(log.message.c_str());
+		}
+	};
+#endif // _WIN32
+
 	namespace priv
 	{
 		void RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule);
@@ -71,7 +91,7 @@ namespace cyb::logger
 	template <typename T, typename ...Args>
 	void RegisterOutputModule(Args&&... args)
 	{
-		static_assert(std::is_base_of<cyb::logger::OutputModule, T>::value, "T must be derived from cyb::logger::OutputModule");
+		static_assert(std::is_base_of_v<cyb::logger::OutputModule, T>, "T must be derived from cyb::logger::OutputModule");
 		priv::RegisterOutputModule(std::make_unique<T>(std::forward<Args>(args)...));
 	}
 

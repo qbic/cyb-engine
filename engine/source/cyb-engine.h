@@ -8,6 +8,7 @@
 #include "core/noise.h"
 
 #include "input/input.h"
+#include "input/input-raw.h"
 
 #include "graphics/model-import.h"
 #include "graphics/renderer.h"

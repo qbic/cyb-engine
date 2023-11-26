@@ -12,16 +12,15 @@
 #endif // NOMINMAX
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
-#endif
+#endif // WIN32_LEAN_AND_MEAN
 #include <SDKDDKVer.h>
 #include <windows.h>
-#endif
-
-#if CYB_DEBUG_BUILD
-#ifdef _WIN32
+#ifdef CYB_DEBUG_BUILD
 #define CYB_DEBUGBREAK() __debugbreak()
-#endif
-#else
+#endif // CYB_DEBUG_BUILD
+#endif // _WIN32
+
+#ifndef CYB_DEBUG_BUILD
 #define CYB_DEBUGBREAK()
 #endif
 
@@ -52,8 +51,6 @@ namespace cyb::platform
 #endif // _WIN32
 		return prop;
 	}
-
-	
 	
 	void Exit(int exitCode);
 	void CreateMessageWindow(const std::string& msg, const std::string& windowTitle = "Warning!");

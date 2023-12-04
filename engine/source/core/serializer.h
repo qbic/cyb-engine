@@ -38,14 +38,12 @@ namespace cyb
         //=============================================================
 
         void Write(void* data, size_t length);
+        void WriteChar(char value);
+        void WriteByte(uint8_t value);
+        void WriteLong(uint32_t value);
+        void WriteLongLong(uint64_t value);
+        void WriteFloat(float value);
 
-        Archive& operator<<(char value);
-        Archive& operator<<(uint8_t value);
-        Archive& operator<<(int32_t value);
-        Archive& operator<<(uint32_t value);
-        Archive& operator<<(int64_t value);
-        Archive& operator<<(uint64_t value);
-        Archive& operator<<(float value);
         Archive& operator<<(const std::string& str);
         Archive& operator<<(const XMFLOAT3& value);
         Archive& operator<<(const XMFLOAT4& value);
@@ -65,13 +63,12 @@ namespace cyb
         //=============================================================
 
         size_t Read(void* data, size_t length) const;
-        const Archive& operator>>(char& value) const;
-        const Archive& operator>>(uint8_t& value) const;
-        const Archive& operator>>(int32_t& value) const;
-        const Archive& operator>>(uint32_t& value) const;
-        const Archive& operator>>(int64_t& value) const;
-        const Archive& operator>>(uint64_t& value) const;
-        const Archive& operator>>(float& value) const;
+        char ReadChar() const;
+        uint8_t ReadByte() const;
+        uint32_t ReadLong() const;
+        uint64_t ReadLongLong() const;
+        float ReadFloat() const;
+
         const Archive& operator>>(std::string& str) const;
         const Archive& operator>>(XMFLOAT3& value) const;
         const Archive& operator>>(XMFLOAT4& value) const;
@@ -109,6 +106,12 @@ namespace cyb
         [[nodiscard]] bool IsReading() const { return !writing; }
         [[nodiscard]] bool IsWriting() const { return writing; }
         [[nodiscard]] Archive& GetArchive() { return *archive; }
+
+        void Serialize(char& value) { if (writing) { archive->WriteChar(value); } else { value = archive->ReadChar(); }}
+        void Serialize(uint8_t& value) { if (writing) { archive->WriteByte(value); } else { value = archive->ReadByte(); }}
+        void Serialize(uint32_t& value) { if (writing) { archive->WriteLong(value); } else { value = archive->ReadLong(); }}
+        void Serialize(uint64_t& value) { if (writing) { archive->WriteLongLong(value); } else { value = archive->ReadLongLong(); }}
+        void Serialize(float& value) { if (writing) { archive->WriteFloat(value); } else { value = archive->ReadFloat(); }}
 
         template <typename T>
         void Serialize(T& value)

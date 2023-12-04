@@ -103,36 +103,27 @@ namespace cyb::ecs
         {
             Archive& archive = ser.GetArchive();
 
-            if (archive.IsReading())
+            size_t componentCount = m_components.size();
+            ser.Serialize(componentCount);
+            if (ser.IsReading())
             {
-                // Clear component manager before deserializeing
-                Clear();
-
-                uint64_t count;
-                archive >> count;
-
-                m_components.resize(count);
-                for (uint64_t i = 0; i < count; ++i)
-                    SerializeComponent(m_components[i], ser, entitySerializer);
-
-                m_entities.resize(count);
-                for (uint64_t i = 0; i < count; ++i)
-                {
-                    Entity entity;
-
-                    SerializeEntity(entity, ser, entitySerializer);
-                    m_entities[i] = entity;
-                    m_lookup[entity] = i;
-                }
+                m_components.resize(componentCount);
+                m_entities.resize(componentCount);
             }
-            else
-            {
-                archive << (uint64_t)m_components.size();
-                for (auto& component : m_components)
-                    SerializeComponent(component, ser, entitySerializer);
 
-                for (auto& entity : m_entities)
-                    SerializeEntity(entity, ser, entitySerializer);
+            for (uint64_t i = 0; i < componentCount; ++i)
+            {
+                SerializeComponent(m_components[i], ser, entitySerializer);
+            }
+            
+            for (uint64_t i = 0; i < componentCount; ++i)
+            {
+                SerializeEntity(m_entities[i], ser, entitySerializer);
+
+                if (ser.IsReading())
+                {
+                    m_lookup[m_entities[i]] = i;
+                }
             }
         }
 

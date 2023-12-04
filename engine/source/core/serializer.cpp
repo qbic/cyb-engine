@@ -1,6 +1,4 @@
-#include "core/logger.h"
 #include "core/serializer.h"
-#include "core/filesystem.h"
 
 namespace cyb
 {
@@ -46,52 +44,34 @@ namespace cyb
         curSize += length;
     }
 
-    Archive& Archive::operator<<(char value)
+    void Archive::WriteChar(char value)
     {
         Write(&value, 1);
-        return *this;
     }
 
-    Archive& Archive::operator<<(uint8_t value)
+    void Archive::WriteByte(uint8_t value)
     {
         Write(&value, 1);
-        return *this;
     }
 
-    Archive& Archive::operator<<(int32_t value)
+    void Archive::WriteLong(uint32_t value)
     {
         Write(&value, 4);
-        return *this;
     }
 
-    Archive& Archive::operator<<(uint32_t value)
-    {
-        Write(&value, 4);
-        return *this;
-    }
-
-    Archive& Archive::operator<<(int64_t value)
+    void Archive::WriteLongLong(uint64_t value)
     {
         Write(&value, 8);
-        return *this;
     }
 
-    Archive& Archive::operator<<(uint64_t value)
-    {
-        Write(&value, 8);
-        return *this;
-    }
-
-    Archive& Archive::operator<<(float value)
+    void Archive::WriteFloat(float value)
     {
         Write(&value, 4);
-        return *this;
     }
 
     Archive& Archive::operator<<(const std::string& str)
     {
-        (*this) << str.length();
-        Write((void*)str.data(), str.length());
+        Write((void*)str.data(), str.length() + 1);
         return *this;
     }
 
@@ -129,54 +109,50 @@ namespace cyb
         return length;
     }
 
-    const Archive& Archive::operator>>(char& value) const
+#define READ_TYPE_IMPL(type, length)    \
+type value;                             \
+Read(&value, length);                   \
+return value;
+
+    char Archive::ReadChar() const
     {
-        Read(&value, 1);
-        return *this;
+        READ_TYPE_IMPL(char, 1);
     }
 
-    const Archive& Archive::operator>>(uint8_t& value) const
+    uint8_t Archive::ReadByte() const
     {
-        Read(&value, 1);
-        return *this;
+        READ_TYPE_IMPL(uint8_t, 1);
     }
 
-    const Archive& Archive::operator>>(int32_t& value) const
+    uint32_t Archive::ReadLong() const
     {
-        Read(&value, 4);
-        return *this;
+        READ_TYPE_IMPL(uint32_t, 4);
     }
 
-    const Archive& Archive::operator>>(uint32_t& value) const
+    uint64_t Archive::ReadLongLong() const
     {
-        Read(&value, 4);
-        return *this;
+        READ_TYPE_IMPL(uint64_t, 8);
     }
 
-    const Archive& Archive::operator>>(int64_t& value) const
+    float Archive::ReadFloat() const
     {
-        Read(&value, 8);
-        return *this;
-    }
-
-    const Archive& Archive::operator>>(uint64_t& value) const
-    {
-        Read(&value, 8);
-        return *this;
-    }
-
-    const Archive& Archive::operator>>(float& value) const
-    {
-        Read(&value, 4);
-        return *this;
+        READ_TYPE_IMPL(float, 4);
     }
 
     const Archive& Archive::operator>>(std::string& str) const
     {
-        size_t length;
-        (*this) >> length;
-        str.resize(length);
-        Read(str.data(), length);
+        size_t length = 0;
+        for (size_t i = readCount; i < readDataLength; i++)
+        {
+            if (readData[i] == 0)
+            {
+                break;
+            }
+            length++;
+        }
+
+        str.resize(length + 1);
+        Read(str.data(), length + 1);
         return *this;
     }
 

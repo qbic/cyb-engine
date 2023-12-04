@@ -37,8 +37,9 @@ namespace cyb
         //  Write Operations
         //=============================================================
 
+        void Write(void* data, size_t length);
+
         Archive& operator<<(char value);
-        Archive& operator<<(int8_t value);
         Archive& operator<<(uint8_t value);
         Archive& operator<<(int32_t value);
         Archive& operator<<(uint32_t value);
@@ -53,11 +54,9 @@ namespace cyb
         template <typename T>
         Archive& operator<<(std::vector<T>& data)
         {
-            Write<size_t>(data.size());
-            for (const T& x : data)
-            {
-                *(this) << x;
-            }
+            size_t count = data.size();
+            Write(&count, 8);
+            Write(data.data(), count * sizeof(T));
             return *this;
         }
 
@@ -65,61 +64,27 @@ namespace cyb
         //  Read Operations
         //=============================================================
 
-        Archive& operator>>(char& value);
-        Archive& operator>>(int8_t& value);
-        Archive& operator>>(uint8_t& value);
-        Archive& operator>>(int32_t& value);
-        Archive& operator>>(uint32_t& value);
-        Archive& operator>>(int64_t& value);
-        Archive& operator>>(uint64_t& value);
-        Archive& operator>>(float& value);
-        Archive& operator>>(std::string& str);
-        Archive& operator>>(XMFLOAT3& value);
-        Archive& operator>>(XMFLOAT4& value);
-        Archive& operator>>(XMFLOAT4X4& value);
+        size_t Read(void* data, size_t length) const;
+        const Archive& operator>>(char& value) const;
+        const Archive& operator>>(uint8_t& value) const;
+        const Archive& operator>>(int32_t& value) const;
+        const Archive& operator>>(uint32_t& value) const;
+        const Archive& operator>>(int64_t& value) const;
+        const Archive& operator>>(uint64_t& value) const;
+        const Archive& operator>>(float& value) const;
+        const Archive& operator>>(std::string& str) const;
+        const Archive& operator>>(XMFLOAT3& value) const;
+        const Archive& operator>>(XMFLOAT4& value) const;
+        const Archive& operator>>(XMFLOAT4X4& value) const;
 
         template <typename T>
         Archive& operator>>(std::vector<T>& data)
         {
-            size_t count;
-            Read(count);
+            size_t count = data.size();
+            Read(&count, 8);
             data.resize(count);
-            for (size_t i = 0; i < count; ++i)
-            {
-                *(this) >> data[i];
-            }
+            Read(data.data(), count * sizeof(T));
             return *this;
-        }
-
-    private:
-        // Write data to archive at current position
-        template <typename T>
-        inline void Write(const T& data)
-        {
-            assert(IsWriting());
-            assert(writeData != nullptr);
-
-            // Dynamically stretch the write buffer
-            size_t length = sizeof(data);
-            while (curSize + length > writeBuffer.size())
-            {
-                writeBuffer.resize((curSize + length) * 2);
-                writeData = writeBuffer.data();
-            }
-
-            *(T*)(writeBuffer.data() + curSize) = data;
-            curSize += length;
-        }
-
-        // Read data from archive as current position
-        template <typename T>
-        inline void Read(T& data)
-        {
-            assert(IsReading());
-            assert(readData != nullptr);
-
-            data = *(const T*)(readData + readCount);
-            readCount += (size_t)(sizeof(data));
         }
 
     private:
@@ -129,7 +94,7 @@ namespace cyb
 
         const uint8_t* readData = nullptr;
         size_t readDataLength = 0;
-        size_t readCount = 0;
+        mutable size_t readCount = 0;
     };
 
     class Serializer

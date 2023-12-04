@@ -30,158 +30,171 @@ namespace cyb
         readCount = 0;
     }
 
-    Archive& Archive::operator<<(char value)
+    void Archive::Write(void* data, size_t length)
     {
-        Write<char>(value);
-        return *this;
+        assert(IsWriting());
+        assert(writeData != nullptr);
+
+        // Dynamically stretch the write buffer
+        while (curSize + length > writeBuffer.size())
+        {
+            writeBuffer.resize((curSize + length) * 2);
+            writeData = writeBuffer.data();
+        }
+
+        memcpy(writeData + curSize, data, length);
+        curSize += length;
     }
 
-    Archive& Archive::operator<<(int8_t value)
+    Archive& Archive::operator<<(char value)
     {
-        Write<int8_t>(value);
+        Write(&value, 1);
         return *this;
     }
 
     Archive& Archive::operator<<(uint8_t value)
     {
-        Write<uint8_t>(value);
+        Write(&value, 1);
         return *this;
     }
 
     Archive& Archive::operator<<(int32_t value)
     {
-        Write<int32_t>(value);
+        Write(&value, 4);
         return *this;
     }
 
     Archive& Archive::operator<<(uint32_t value)
     {
-        Write<uint32_t>(value);
+        Write(&value, 4);
         return *this;
     }
 
     Archive& Archive::operator<<(int64_t value)
     {
-        Write<int64_t>(value);
-        return *this;
-    }
-
-    Archive& Archive::operator<<(float value)
-    {
-        Write<float>(value);
+        Write(&value, 8);
         return *this;
     }
 
     Archive& Archive::operator<<(uint64_t value)
     {
-        Write<uint64_t>(value);
+        Write(&value, 8);
+        return *this;
+    }
+
+    Archive& Archive::operator<<(float value)
+    {
+        Write(&value, 4);
         return *this;
     }
 
     Archive& Archive::operator<<(const std::string& str)
     {
         (*this) << str.length();
-        for (const auto& x : str)
-        {
-            (*this) << x;
-        }
+        Write((void*)str.data(), str.length());
         return *this;
     }
 
     Archive& Archive::operator<<(const XMFLOAT3& value)
     {
-        Write(value);
+        Write((void*)&value, sizeof(value));
         return *this;
     }
 
     Archive& Archive::operator<<(const XMFLOAT4& value)
     {
-        Write(value);
+        Write((void*)&value, sizeof(value));
         return *this;
     }
 
     Archive& Archive::operator<<(const XMFLOAT4X4& value)
     {
-        Write(value);
+        Write((void*)&value, sizeof(value));
         return *this;
     }
 
-    Archive& Archive::operator>>(char& value)
+    size_t Archive::Read(void* data, size_t length) const
     {
-        Read<char>(value);
-        return *this;
-    }
+        assert(IsReading());
+        assert(readData != nullptr);
 
-    Archive& Archive::operator>>(int8_t& value)
-    {
-        Read<int8_t>(value);
-        return *this;
-    }
-
-    Archive& Archive::operator>>(uint8_t& value)
-    {
-        Read<uint8_t>(value);
-        return *this;
-    }
-
-    Archive& Archive::operator>>(int32_t& value)
-    {
-        Read<int32_t>(value);
-        return *this;
-    }
-
-    Archive& Archive::operator>>(uint32_t& value)
-    {
-        Read<uint32_t>(value);
-        return *this;
-    }
-
-    Archive& Archive::operator>>(int64_t& value)
-    {
-        Read<int64_t>(value);
-        return *this;
-    }
-
-    Archive& Archive::operator>>(uint64_t& value)
-    {
-        Read<uint64_t>(value);
-        return *this;
-    }
-
-    Archive& Archive::operator>>(float& value)
-    {
-        Read<float>(value);
-        return *this;
-    }
-
-    Archive& Archive::operator>>(std::string& str)
-    {
-        size_t len;
-        (*this) >> len;
-        str.resize(len);
-        for (size_t i = 0; i < len; i++)
+        // check for overflow
+        if (readCount + length > readDataLength)
         {
-            (*this) >> str[i];
+            length = readDataLength - readCount;
         }
-        
+
+        memcpy(data, readData + readCount, length);
+        readCount += length;
+        return length;
+    }
+
+    const Archive& Archive::operator>>(char& value) const
+    {
+        Read(&value, 1);
         return *this;
     }
 
-    Archive& Archive::operator>>(XMFLOAT3& value)
+    const Archive& Archive::operator>>(uint8_t& value) const
     {
-        Read(value);
+        Read(&value, 1);
         return *this;
     }
 
-    Archive& Archive::operator>>(XMFLOAT4& value)
+    const Archive& Archive::operator>>(int32_t& value) const
     {
-        Read(value);
+        Read(&value, 4);
         return *this;
     }
 
-    Archive& Archive::operator>>(XMFLOAT4X4& value)
+    const Archive& Archive::operator>>(uint32_t& value) const
     {
-        Read(value);
+        Read(&value, 4);
+        return *this;
+    }
+
+    const Archive& Archive::operator>>(int64_t& value) const
+    {
+        Read(&value, 8);
+        return *this;
+    }
+
+    const Archive& Archive::operator>>(uint64_t& value) const
+    {
+        Read(&value, 8);
+        return *this;
+    }
+
+    const Archive& Archive::operator>>(float& value) const
+    {
+        Read(&value, 4);
+        return *this;
+    }
+
+    const Archive& Archive::operator>>(std::string& str) const
+    {
+        size_t length;
+        (*this) >> length;
+        str.resize(length);
+        Read(str.data(), length);
+        return *this;
+    }
+
+    const Archive& Archive::operator>>(XMFLOAT3& value) const
+    {
+        Read(&value, sizeof(value));
+        return *this;
+    }
+
+    const Archive& Archive::operator>>(XMFLOAT4& value) const
+    {
+        Read(&value, sizeof(value));
+        return *this;
+    }
+
+    const Archive& Archive::operator>>(XMFLOAT4X4& value) const
+    {
+        Read(&value, sizeof(value));
         return *this;
     }
 }

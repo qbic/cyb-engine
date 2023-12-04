@@ -43,20 +43,10 @@ namespace cyb
         void WriteLong(uint32_t value);
         void WriteLongLong(uint64_t value);
         void WriteFloat(float value);
-
-        Archive& operator<<(const std::string& str);
-        Archive& operator<<(const XMFLOAT3& value);
-        Archive& operator<<(const XMFLOAT4& value);
-        Archive& operator<<(const XMFLOAT4X4& value);
-
-        template <typename T>
-        Archive& operator<<(std::vector<T>& data)
-        {
-            size_t count = data.size();
-            Write(&count, 8);
-            Write(data.data(), count * sizeof(T));
-            return *this;
-        }
+        void WriteString(const std::string& str);
+        void WriteXMFLOAT3(const XMFLOAT3& value);
+        void WriteXMFLOAT4(const XMFLOAT4& value);
+        void WriteXMFLOAT4X4(const XMFLOAT4X4& value);
 
         //=============================================================
         //  Read Operations
@@ -68,21 +58,10 @@ namespace cyb
         uint32_t ReadLong() const;
         uint64_t ReadLongLong() const;
         float ReadFloat() const;
-
-        const Archive& operator>>(std::string& str) const;
-        const Archive& operator>>(XMFLOAT3& value) const;
-        const Archive& operator>>(XMFLOAT4& value) const;
-        const Archive& operator>>(XMFLOAT4X4& value) const;
-
-        template <typename T>
-        Archive& operator>>(std::vector<T>& data)
-        {
-            size_t count = data.size();
-            Read(&count, 8);
-            data.resize(count);
-            Read(data.data(), count * sizeof(T));
-            return *this;
-        }
+        std::string ReadString() const;
+        XMFLOAT3 ReadXMFLOAT3() const;
+        XMFLOAT4 ReadXMFLOAT4() const;
+        XMFLOAT4X4 ReadXMFLOAT4X4() const;
 
     private:
         std::vector<uint8_t> writeBuffer;
@@ -105,24 +84,30 @@ namespace cyb
 
         [[nodiscard]] bool IsReading() const { return !writing; }
         [[nodiscard]] bool IsWriting() const { return writing; }
-        [[nodiscard]] Archive& GetArchive() { return *archive; }
 
         void Serialize(char& value) { if (writing) { archive->WriteChar(value); } else { value = archive->ReadChar(); }}
         void Serialize(uint8_t& value) { if (writing) { archive->WriteByte(value); } else { value = archive->ReadByte(); }}
         void Serialize(uint32_t& value) { if (writing) { archive->WriteLong(value); } else { value = archive->ReadLong(); }}
         void Serialize(uint64_t& value) { if (writing) { archive->WriteLongLong(value); } else { value = archive->ReadLongLong(); }}
         void Serialize(float& value) { if (writing) { archive->WriteFloat(value); } else { value = archive->ReadFloat(); }}
+        void Serialize(std::string& value) { if (writing) { archive->WriteString(value); } else { value = archive->ReadString(); }}
+        void Serialize(XMFLOAT3& value) { if (writing) { archive->WriteXMFLOAT3(value); } else { value = archive->ReadXMFLOAT3(); }}
+        void Serialize(XMFLOAT4& value) { if (writing) { archive->WriteXMFLOAT4(value); } else { value = archive->ReadXMFLOAT4(); }}
+        void Serialize(XMFLOAT4X4& value) { if (writing) { archive->WriteXMFLOAT4X4(value); } else { value = archive->ReadXMFLOAT4X4(); }}
 
         template <typename T>
-        void Serialize(T& value)
+        void Serialize(std::vector<T>& vec)
         {
+            size_t size = vec.size();
+            Serialize(size);
             if (writing)
             {
-                *archive << value;
+                archive->Write(vec.data(), size * sizeof(T));
             }
             else
             {
-                *archive >> value;
+                vec.resize(size);
+                archive->Read(vec.data(), size * sizeof(T));
             }
         }
 

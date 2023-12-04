@@ -69,28 +69,24 @@ namespace cyb
         Write(&value, 4);
     }
 
-    Archive& Archive::operator<<(const std::string& str)
+    void Archive::WriteString(const std::string& str)
     {
-        Write((void*)str.data(), str.length() + 1);
-        return *this;
+        Write((void*)str.data(), str.length());
     }
 
-    Archive& Archive::operator<<(const XMFLOAT3& value)
+    void Archive::WriteXMFLOAT3(const XMFLOAT3& value)
     {
         Write((void*)&value, sizeof(value));
-        return *this;
     }
 
-    Archive& Archive::operator<<(const XMFLOAT4& value)
+    void Archive::WriteXMFLOAT4(const XMFLOAT4& value)
     {
         Write((void*)&value, sizeof(value));
-        return *this;
     }
 
-    Archive& Archive::operator<<(const XMFLOAT4X4& value)
+    void Archive::WriteXMFLOAT4X4(const XMFLOAT4X4& value)
     {
         Write((void*)&value, sizeof(value));
-        return *this;
     }
 
     size_t Archive::Read(void* data, size_t length) const
@@ -110,9 +106,11 @@ namespace cyb
     }
 
 #define READ_TYPE_IMPL(type, length)    \
-type value;                             \
-Read(&value, length);                   \
-return value;
+{                                       \
+    type value;                         \
+    Read(&value, length);               \
+    return value;                       \
+}
 
     char Archive::ReadChar() const
     {
@@ -139,7 +137,7 @@ return value;
         READ_TYPE_IMPL(float, 4);
     }
 
-    const Archive& Archive::operator>>(std::string& str) const
+    std::string Archive::ReadString() const
     {
         size_t length = 0;
         for (size_t i = readCount; i < readDataLength; i++)
@@ -151,26 +149,23 @@ return value;
             length++;
         }
 
-        str.resize(length + 1);
-        Read(str.data(), length + 1);
-        return *this;
+        std::string str((const char *)readData + readCount, length + 1);
+        readCount += length + 1;
+        return str;
     }
 
-    const Archive& Archive::operator>>(XMFLOAT3& value) const
+    XMFLOAT3 Archive::ReadXMFLOAT3() const
     {
-        Read(&value, sizeof(value));
-        return *this;
+        READ_TYPE_IMPL(XMFLOAT3, sizeof(XMFLOAT3));
     }
 
-    const Archive& Archive::operator>>(XMFLOAT4& value) const
+    XMFLOAT4 Archive::ReadXMFLOAT4() const
     {
-        Read(&value, sizeof(value));
-        return *this;
+        READ_TYPE_IMPL(XMFLOAT4, sizeof(XMFLOAT4));
     }
 
-    const Archive& Archive::operator>>(XMFLOAT4X4& value) const
+    XMFLOAT4X4 Archive::ReadXMFLOAT4X4() const
     {
-        Read(&value, sizeof(value));
-        return *this;
+        READ_TYPE_IMPL(XMFLOAT4X4, sizeof(XMFLOAT4X4));
     }
 }

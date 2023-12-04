@@ -101,8 +101,6 @@ namespace cyb::ecs
 
         inline void Serialize(Serializer& ser, SceneSerializeContext& entitySerializer)
         {
-            Archive& archive = ser.GetArchive();
-
             size_t componentCount = m_components.size();
             ser.Serialize(componentCount);
             if (ser.IsReading())

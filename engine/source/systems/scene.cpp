@@ -877,12 +877,9 @@ namespace cyb::ecs
 
     void SerializeComponent(scene::MeshComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
     {
-        Archive& archive = ser.GetArchive();
-
         size_t subsetCount = x.subsets.size();
         ser.Serialize(subsetCount);
         x.subsets.resize(subsetCount);
-
         for (size_t i = 0; i < subsetCount; ++i)
         {
             ecs::SerializeEntity(x.subsets[i].materialID, ser, entitySerializer);

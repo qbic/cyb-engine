@@ -7,17 +7,9 @@ using DirectX::XMFLOAT3;
 using DirectX::XMFLOAT4;
 using DirectX::XMFLOAT4X4;
 
-namespace cyb::serializer
+namespace cyb
 {
-    constexpr uint64_t LEAST_SUPPORTED_VERSION = 3;
-    constexpr uint64_t ARCHIVE_VERSION = 4;
     constexpr size_t ARCHIVE_INIT_SIZE = 128;
-
-    enum class Access
-    {
-        Read,
-        Write
-    };
 
     class Archive
     {
@@ -26,40 +18,42 @@ namespace cyb::serializer
         Archive(Archive&&) = delete;
         Archive& operator=(const Archive&) = delete;
 
-        Archive();                              // Open empty archive for writing
-        Archive(const std::string& filename, Access mode);
-        ~Archive() { Close(); }
+        // Initializes the archive for writing
+        Archive();
 
-        void CreateEmpty();
-        void SetAccessModeAndResetPos(Access mode);
-        void Close();
+        // Initializes the archive for reading
+        Archive(const uint8_t* data, size_t length);
 
-        [[nodiscard]] bool IsOpen() const;
-        [[nodiscard]] uint64_t GetVersion() const { return m_version; }
-        [[nodiscard]] bool IsReadMode() const { return m_mode == Access::Read; }
-        [[nodiscard]] bool SaveFile(const std::string& filename);
+        void InitWrite(size_t initWriteBufferSize = ARCHIVE_INIT_SIZE);
+        void InitRead(const uint8_t* data, size_t length);
+
+        [[nodiscard]] bool IsReading() const { return readData != nullptr; }
+        [[nodiscard]] bool IsWriting() const { return writeData != nullptr; }
+
+        [[nodiscard]] uint8_t* GetWriteData() const { return writeData; }
+        [[nodiscard]] size_t GetSize() const { return curSize; }
 
         //=============================================================
         //  Write Operations
         //=============================================================
 
-        Archive& operator<<(char data);
-        Archive& operator<<(int8_t data);
-        Archive& operator<<(uint8_t data);
-        Archive& operator<<(int32_t data);
-        Archive& operator<<(uint32_t data);
-        Archive& operator<<(int64_t data);
-        Archive& operator<<(uint64_t data);
-        Archive& operator<<(float data);
-        Archive& operator<<(const std::string& data);
-        Archive& operator<<(const XMFLOAT3& data);
-        Archive& operator<<(const XMFLOAT4& data);
-        Archive& operator<<(const XMFLOAT4X4& data);
+        Archive& operator<<(char value);
+        Archive& operator<<(int8_t value);
+        Archive& operator<<(uint8_t value);
+        Archive& operator<<(int32_t value);
+        Archive& operator<<(uint32_t value);
+        Archive& operator<<(int64_t value);
+        Archive& operator<<(uint64_t value);
+        Archive& operator<<(float value);
+        Archive& operator<<(const std::string& str);
+        Archive& operator<<(const XMFLOAT3& value);
+        Archive& operator<<(const XMFLOAT4& value);
+        Archive& operator<<(const XMFLOAT4X4& value);
 
         template <typename T>
         Archive& operator<<(std::vector<T>& data)
         {
-            UnsafeWrite<size_t>(data.size());
+            Write<size_t>(data.size());
             for (const T& x : data)
             {
                 *(this) << x;
@@ -71,24 +65,24 @@ namespace cyb::serializer
         //  Read Operations
         //=============================================================
 
-        Archive& operator>>(char& data);
-        Archive& operator>>(int8_t& data);
-        Archive& operator>>(uint8_t& data);
-        Archive& operator>>(int32_t& data);
-        Archive& operator>>(uint32_t& data);
-        Archive& operator>>(int64_t& data);
-        Archive& operator>>(uint64_t& data);
-        Archive& operator>>(float& data);
-        Archive& operator>>(std::string& data);
-        Archive& operator>>(XMFLOAT3& data);
-        Archive& operator>>(XMFLOAT4& data);
-        Archive& operator>>(XMFLOAT4X4& data);
+        Archive& operator>>(char& value);
+        Archive& operator>>(int8_t& value);
+        Archive& operator>>(uint8_t& value);
+        Archive& operator>>(int32_t& value);
+        Archive& operator>>(uint32_t& value);
+        Archive& operator>>(int64_t& value);
+        Archive& operator>>(uint64_t& value);
+        Archive& operator>>(float& value);
+        Archive& operator>>(std::string& str);
+        Archive& operator>>(XMFLOAT3& value);
+        Archive& operator>>(XMFLOAT4& value);
+        Archive& operator>>(XMFLOAT4X4& value);
 
         template <typename T>
         Archive& operator>>(std::vector<T>& data)
         {
             size_t count;
-            UnsafeRead(count);
+            Read(count);
             data.resize(count);
             for (size_t i = 0; i < count; ++i)
             {
@@ -100,38 +94,72 @@ namespace cyb::serializer
     private:
         // Write data to archive at current position
         template <typename T>
-        inline void UnsafeWrite(const T& data)
+        inline void Write(const T& data)
         {
-            assert(!IsReadMode());
-            assert(!m_data.empty());
-            size_t size = sizeof(data);
-            size_t right = m_pos + size;
-            if (right > m_data.size())
+            assert(IsWriting());
+            assert(writeData != nullptr);
+
+            // Dynamically stretch the write buffer
+            size_t length = sizeof(data);
+            while (curSize + length > writeBuffer.size())
             {
-                m_data.resize(right * 2);
-                m_dataPtr = m_data.data();
+                writeBuffer.resize((curSize + length) * 2);
+                writeData = writeBuffer.data();
             }
 
-            *(T*)(m_data.data() + m_pos) = data;
-            m_pos = right;
+            *(T*)(writeBuffer.data() + curSize) = data;
+            curSize += length;
         }
 
         // Read data from archive as current position
         template <typename T>
-        inline void UnsafeRead(T& data)
+        inline void Read(T& data)
         {
-            assert(IsReadMode());
-            assert(m_dataPtr != nullptr);
-            data = *(const T*)(m_dataPtr + m_pos);
-            m_pos += (size_t)(sizeof(data));
+            assert(IsReading());
+            assert(readData != nullptr);
+
+            data = *(const T*)(readData + readCount);
+            readCount += (size_t)(sizeof(data));
         }
 
-     private:
-        uint64_t m_version = 0;
-        Access m_mode = Access::Write;
-        size_t m_pos = 0;
-        std::vector<uint8_t> m_data;
-        const uint8_t* m_dataPtr = nullptr;
-        std::string m_filename;             // Save to filename on close if not empty
+    private:
+        std::vector<uint8_t> writeBuffer;
+        uint8_t* writeData = nullptr;
+        size_t curSize = 0;
+
+        const uint8_t* readData = nullptr;
+        size_t readDataLength = 0;
+        size_t readCount = 0;
+    };
+
+    class Serializer
+    {
+    public:
+        Serializer(Archive& ar_) :
+            archive(&ar_)
+        {
+            writing = archive->IsWriting();
+        }
+
+        [[nodiscard]] bool IsReading() const { return !writing; }
+        [[nodiscard]] bool IsWriting() const { return writing; }
+        [[nodiscard]] Archive& GetArchive() { return *archive; }
+
+        template <typename T>
+        void Serialize(T& value)
+        {
+            if (writing)
+            {
+                *archive << value;
+            }
+            else
+            {
+                *archive >> value;
+            }
+        }
+
+    private:
+        Archive* archive;
+        bool writing;
     };
 }

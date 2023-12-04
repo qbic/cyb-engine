@@ -8,13 +8,29 @@ namespace cyb::input
     MouseState mouse;
     std::atomic_bool initialized = false;
 
+    void ButtonState::RegisterKeyDown()
+    {
+        isDown = true;
+        halfTransitionCount++;
+    }
+
+    void ButtonState::RegisterKeyUp()
+    {
+        isDown = false;
+    }
+
+    void ButtonState::Reset()
+    {
+        halfTransitionCount = 0;
+    }
+
     void Initialize()
     {
         Timer timer;
 
         rawinput::Initialize();
 
-        CYB_INFO("Input system initialized ({}ms)", timer.ElapsedMilliseconds());
+        CYB_INFO("Input system initialized ({:.2f}ms)", timer.ElapsedMilliseconds());
         initialized.store(true);
     }
 
@@ -33,9 +49,6 @@ namespace cyb::input
 #ifdef _WIN32
         rawinput::GetKeyboardState(&keyboard);
         rawinput::GetMouseState(&mouse);
-        //mouse.leftButtonPress |= KEY_DOWN(VK_LBUTTON);
-        //mouse.middleButtonPress |= KEY_DOWN(VK_MBUTTON);
-        //mouse.rightButtonPress |= KEY_DOWN(VK_RBUTTON);
 
         // Since raw input doesn't contain absolute mouse position, we get it with regular winapi:
         POINT p;
@@ -45,7 +58,7 @@ namespace cyb::input
 #endif // _WIN32
     }
 
-    const KeyboardState GetKeyboardState()
+    const KeyboardState& GetKeyboardState()
     {
         return keyboard;
     }
@@ -160,5 +173,3 @@ namespace cyb::input
         return ((buttonState.halfTransitionCount > 1) || (buttonState.halfTransitionCount == 1 && buttonState.isDown));
     }
 }
-
-

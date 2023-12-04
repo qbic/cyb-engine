@@ -2,6 +2,8 @@
 #include "editor/terrain-generator.h"
 #include "game.h"
 
+#include "core/filesystem.h"
+
 using namespace cyb;
 
 void Game::Initialize()
@@ -15,7 +17,22 @@ void Game::Initialize()
 void GameRenderer::Load()
 {
 #if 1 
-    scene::LoadModel("../terrain_04.cbs");
+    {
+        Timer timer;
+        scene::Scene& scene = scene::GetScene();
+        std::string filename = "../terrain_04.cbs";
+        std::vector<uint8_t> sceneFile;
+        if (filesystem::ReadFile(filename, sceneFile))
+        {
+            Archive archive(sceneFile.data(), sceneFile.size());
+            Serializer ser(archive);
+            scene.Clear();
+            scene.Serialize(ser);
+            CYB_TRACE("Loaded scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+        }
+
+    }
+    //scene::LoadModel("../terrain_04.cbs");
 #else
     editor::TerrainMeshDesc terrainDesc;
     terrainDesc.size = 1000;

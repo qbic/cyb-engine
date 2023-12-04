@@ -632,23 +632,39 @@ namespace cyb::scene
         weathers.Remove(entity);
     }
 
-    void Scene::Serialize(serializer::Archive& archive)
-    {
-        ecs::SerializeEntityContext serialize;
+    constexpr uint64_t SCENE_FILE_VERSION = 4;
+    constexpr uint64_t SCENE_FILE_LEAST_SUPPORTED_VERSION = 4;
 
-        names.Serialize(archive, serialize);
-        transforms.Serialize(archive, serialize);
-        if (archive.GetVersion() >= 4)
-            groups.Serialize(archive, serialize);
-        hierarchy.Serialize(archive, serialize);
-        materials.Serialize(archive, serialize);
-        meshes.Serialize(archive, serialize);
-        objects.Serialize(archive, serialize);
-        aabb_objects.Serialize(archive, serialize);
-        lights.Serialize(archive, serialize);
-        aabb_lights.Serialize(archive, serialize);
-        cameras.Serialize(archive, serialize);
-        weathers.Serialize(archive, serialize);
+    void Scene::Serialize(Serializer& ser)
+    {
+        ecs::SceneSerializeContext context;
+
+        context.fileVersion = SCENE_FILE_VERSION;
+        ser.Serialize(context.fileVersion);
+        if (context.fileVersion < SCENE_FILE_LEAST_SUPPORTED_VERSION)
+        {
+            CYB_ERROR("Unsupported archive version (version={} LeastUupportedVersion={})", context.fileVersion, SCENE_FILE_LEAST_SUPPORTED_VERSION);
+            return;
+        }
+        if (context.fileVersion > SCENE_FILE_VERSION)
+        {
+            CYB_ERROR("Corrupt archive version (version={})", context.fileVersion);
+            return;
+        }
+        CYB_CWARNING(context.fileVersion < SCENE_FILE_VERSION, "Old (but supported) archive version (version={} currentVersion={})", context.fileVersion, SCENE_FILE_VERSION);
+
+        names.Serialize(ser, context);
+        transforms.Serialize(ser, context);
+        groups.Serialize(ser, context);
+        hierarchy.Serialize(ser, context);
+        materials.Serialize(ser, context);
+        meshes.Serialize(ser, context);
+        objects.Serialize(ser, context);
+        aabb_objects.Serialize(ser, context);
+        lights.Serialize(ser, context);
+        aabb_lights.Serialize(ser, context);
+        cameras.Serialize(ser, context);
+        weathers.Serialize(ser, context);
     }
 
     const uint32_t SMALL_SUBTASK_GROUPSIZE = 64;
@@ -759,29 +775,6 @@ namespace cyb::scene
         }
     }
 
-    bool LoadModel(const std::string& filename)
-    {
-        Scene scene;
-        if (!LoadModel(scene, filename))
-            return false;
-
-        GetScene().merge(scene);
-        return true;
-    }
-
-    bool LoadModel(Scene& scene, const std::string& filename)
-    {
-        Timer timer;
-        timer.Record();
-        serializer::Archive ar(filename, serializer::Access::Read);
-        if (!ar.IsOpen())
-            return false;
-
-        scene.Serialize(ar);
-        CYB_TRACE("Loaded scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
-        return true;
-    }
-
     PickResult Pick(const Scene& scene, const math::Ray& ray)
     {
         CYB_TIMED_FUNCTION();
@@ -845,194 +838,104 @@ namespace cyb::scene
 // Scene component serializers
 namespace cyb::ecs
 {
-    void SerializeComponent(scene::NameComponent& x, serializer::Archive& archive, SerializeEntityContext& entitySerializer)
+    void SerializeComponent(scene::NameComponent& x, Serializer& ser, SceneSerializeContext& entitySerializer)
     {
-        if (archive.IsReadMode())
-        {
-            archive >> x.name;
-        }
-        else
-        {
-            archive << x.name;
-        }
+        ser.Serialize(x.name);
     }
 
-    void SerializeComponent(scene::TransformComponent& x, serializer::Archive& archive, ecs::SerializeEntityContext& entitySerializer)
+    void SerializeComponent(scene::TransformComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
     {
-        if (archive.IsReadMode())
-        {
-            archive >> (uint32_t&)x.flags;
-            archive >> x.scale_local;
-            archive >> x.rotation_local;
-            archive >> x.translation_local;
+        ser.Serialize((uint32_t&)x.flags);
+        ser.Serialize(x.scale_local);
+        ser.Serialize(x.rotation_local);
+        ser.Serialize(x.translation_local);
 
+        if (ser.IsReading())
+        {
             x.SetDirty();
             jobsystem::Execute(entitySerializer.ctx, [&x](jobsystem::JobArgs) { x.UpdateTransform(); });
         }
-        else
+    }
+
+    void SerializeComponent(scene::GroupComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
+    {
+    }
+
+    void SerializeComponent(scene::HierarchyComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
+    {
+        ecs::SerializeEntity(x.parentID, ser, entitySerializer);
+    }
+
+    void SerializeComponent(scene::MaterialComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
+    {
+        ser.Serialize((uint32_t&)x.flags);
+        ser.Serialize((uint32_t&)x.shaderType);
+        ser.Serialize(x.baseColor);
+        ser.Serialize(x.roughness);
+        ser.Serialize(x.metalness);
+    }
+
+    void SerializeComponent(scene::MeshComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
+    {
+        Archive& archive = ser.GetArchive();
+
+        size_t subsetCount = x.subsets.size();
+        ser.Serialize(subsetCount);
+        x.subsets.resize(subsetCount);
+
+        for (size_t i = 0; i < subsetCount; ++i)
         {
-            archive << (uint32_t)x.flags;
-            archive << x.scale_local;
-            archive << x.rotation_local;
-            archive << x.translation_local;
+            ecs::SerializeEntity(x.subsets[i].materialID, ser, entitySerializer);
+            ser.Serialize(x.subsets[i].indexOffset);
+            ser.Serialize(x.subsets[i].indexCount);
         }
-    }
 
-    void SerializeComponent(scene::GroupComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
-    {
-    }
+        ser.Serialize(x.vertex_positions);
+        ser.Serialize(x.vertex_normals);
+        ser.Serialize(x.vertex_colors);
+        ser.Serialize(x.indices);
 
-    void SerializeComponent(scene::HierarchyComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
-    {
-        ecs::SerializeEntity(x.parentID, arhive, entitySerializer);
-    }
-
-    void SerializeComponent(scene::MaterialComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
-    {
-        if (arhive.IsReadMode())
+        if (ser.IsReading())
         {
-            arhive >> (uint32_t&)x.flags;
-            if (arhive.GetVersion() >= 4)
-                arhive >> (uint32_t&)x.shaderType;
-            arhive >> x.baseColor;
-            arhive >> x.roughness;
-            arhive >> x.metalness;
-        }
-        else
-        {
-            arhive << (uint32_t)x.flags;
-            if (arhive.GetVersion() >= 4)
-                arhive << (uint32_t)x.shaderType;
-            arhive << x.baseColor;
-            arhive << x.roughness;
-            arhive << x.metalness;
-        }
-    }
-
-    void SerializeComponent(scene::MeshComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
-    {
-        if (arhive.IsReadMode())
-        {
-            size_t subsetCount;
-            arhive >> subsetCount;
-            x.subsets.resize(subsetCount);
-            for (size_t i = 0; i < subsetCount; ++i)
-            {
-                ecs::SerializeEntity(x.subsets[i].materialID, arhive, entitySerializer);
-                arhive >> x.subsets[i].indexOffset;
-                arhive >> x.subsets[i].indexCount;
-            }
-
-            arhive >> x.vertex_positions;
-            arhive >> x.vertex_normals;
-            arhive >> x.vertex_colors;
-            arhive >> x.indices;
-
             jobsystem::Execute(entitySerializer.ctx, [&x](jobsystem::JobArgs) { x.CreateRenderData(); });
         }
-        else
-        {
-            arhive << x.subsets.size();
-            for (size_t i = 0; i < x.subsets.size(); ++i)
-            {
-                ecs::SerializeEntity(x.subsets[i].materialID, arhive, entitySerializer);
-                arhive << x.subsets[i].indexOffset;
-                arhive << x.subsets[i].indexCount;
-            }
-
-            arhive << x.vertex_positions;
-            arhive << x.vertex_normals;
-            arhive << x.vertex_colors;
-            arhive << x.indices;
-        }
     }
 
-    void SerializeComponent(scene::ObjectComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
+    void SerializeComponent(scene::ObjectComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
     {
-        if (arhive.IsReadMode())
-        {
-            arhive >> (uint32_t&)x.flags;
-            ecs::SerializeEntity(x.meshID, arhive, entitySerializer);
-        }
-        else
-        {
-            arhive << (uint32_t)x.flags;
-            ecs::SerializeEntity(x.meshID, arhive, entitySerializer);
-        }
+        ser.Serialize((uint32_t&)x.flags);
+        ecs::SerializeEntity(x.meshID, ser, entitySerializer);
     }
 
-    void SerializeComponent(scene::LightComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
+    void SerializeComponent(scene::LightComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
     {
-        if (arhive.IsReadMode())
-        {
-            arhive >> (uint32_t&)x.flags;
-            arhive >> x.color;
-            arhive >> (uint32_t&)x.type;
-            arhive >> x.energy;
-            arhive >> x.range;
-        }
-        else
-        {
-            arhive << (uint32_t)x.flags;
-            arhive << x.color;
-            arhive << (uint32_t)x.type;
-            arhive << x.energy;
-            arhive << x.range;
-        }
+        ser.Serialize((uint32_t&)x.flags);
+        ser.Serialize(x.color);
+        ser.Serialize((uint32_t&)x.type);
+        ser.Serialize(x.energy);
+        ser.Serialize(x.range);
     }
 
-    void SerializeComponent(scene::CameraComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
+    void SerializeComponent(scene::CameraComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
     {
-        if (arhive.IsReadMode())
-        {
-            arhive >> x.aspect;
-            arhive >> x.zNearPlane;
-            arhive >> x.zFarPlane;
-            arhive >> x.fov;
-            arhive >> x.pos;
-            arhive >> x.target;
-            arhive >> x.up;
-        }
-        else
-        {
-            arhive << x.aspect;
-            arhive << x.zNearPlane;
-            arhive << x.zFarPlane;
-            arhive << x.fov;
-            arhive << x.pos;
-            arhive << x.target;
-            arhive << x.up;
-        }
+        ser.Serialize(x.aspect);
+        ser.Serialize(x.zNearPlane);
+        ser.Serialize(x.zFarPlane);
+        ser.Serialize(x.fov);
+        ser.Serialize(x.pos);
+        ser.Serialize(x.target);
+        ser.Serialize(x.up);
     }
 
-    void SerializeComponent(scene::WeatherComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
+    void SerializeComponent(scene::WeatherComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
     {
-        if (arhive.IsReadMode())
-        {
-            arhive >> x.horizon;
-            arhive >> x.zenith;
-        }
-        else
-        {
-            arhive << x.horizon;
-            arhive << x.zenith;
-        }
+        ser.Serialize(x.horizon);
+        ser.Serialize(x.zenith);
     }
 
-    void SerializeComponent(math::AxisAlignedBox& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer)
+    void SerializeComponent(math::AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer)
     {
-        if (arhive.IsReadMode())
-        {
-            XMFLOAT3 min;
-            XMFLOAT3 max;
-            arhive >> min;
-            arhive >> max;
-            x = math::AxisAlignedBox(min, max);
-        }
-        else
-        {
-            arhive << x.min;
-            arhive << x.max;
-        }
+        ser.Serialize(x.min);
+        ser.Serialize(x.max);
     }
 }

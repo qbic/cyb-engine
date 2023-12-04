@@ -54,6 +54,11 @@ namespace cyb::logger
 
     void priv::RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule)
     {
+        for (const auto& it : logHistory)
+        {
+            outputModule->Write(it);
+        }
+
         outputModules.push_back(std::move(outputModule));
     }
 

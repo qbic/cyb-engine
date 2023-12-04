@@ -121,7 +121,9 @@ namespace cyb::renderer
         const std::string fullPath = SHADERPATH + filename;
         std::vector<uint8_t> fileData;
         if (!filesystem::ReadFile(fullPath, fileData))
+        {
             return false;
+        }
 
         if (!filesystem::HasExtension(filename, "spv"))
         {
@@ -144,7 +146,10 @@ namespace cyb::renderer
 
             bool success = GetDevice()->CreateShader(stage, output.shaderdata, output.shadersize, &shader);
             if (success)
+            {
                 GetDevice()->SetName(&shader, filename.c_str());
+            }
+
             return success;
         }
         
@@ -210,8 +215,8 @@ namespace cyb::renderer
 
     static void LoadBuiltinTextures(jobsystem::Context& ctx)
     {
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::Load("assets/light_point2.png"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::Load("assets/light_directional2.png"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::Load("assets/light_point2.png", resourcemanager::Flags::FlipImageBit); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::Load("assets/light_directional2.png", resourcemanager::Flags::FlipImageBit); });
     }
 
     static void LoadShaders()

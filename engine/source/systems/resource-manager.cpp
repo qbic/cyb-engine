@@ -1,6 +1,7 @@
 #include "core/logger.h"
 #include "core/filesystem.h"
 #include "core/timer.h"
+#include "core/hash.h"
 #include "graphics/renderer.h"
 #define STB_RECT_PACK_IMPLEMENTATION
 #include "stb_rect_pack.h"
@@ -21,103 +22,67 @@ namespace cyb
 {
     struct ResourceInternal
     {
-        cyb::graphics::Texture texture;
+        std::string name;
+        uint64_t nameHash;
         std::vector<uint8_t> data;
+        cyb::graphics::Texture texture;
     };
-
-    const std::vector<uint8_t>& Resource::GetFileData() const
-    {
-        const ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();
-        return resourceinternal->data;
-    }
 
     const graphics::Texture& Resource::GetTexture() const
     {
         const ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();
         return resourceinternal->texture;
     }
-
-    void Resource::SetFileData(const std::vector<uint8_t>& data)
-    {
-        if (internal_state == nullptr)
-            internal_state = std::make_shared<ResourceInternal>();
-
-        ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();
-        resourceinternal->data = data;
-    }
-
-    void Resource::SetFileData(std::vector<uint8_t>&& data)
-    {
-        if (internal_state == nullptr)
-            internal_state = std::make_shared<ResourceInternal>();
-
-        ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();
-        resourceinternal->data = data;
-    }
-
-    void Resource::SetTexture(const graphics::Texture& texture)
-    {
-        if (internal_state == nullptr)
-            internal_state = std::make_shared<ResourceInternal>();
-
-        ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();
-        resourceinternal->texture = texture;
-    }
 }
 
 namespace cyb::resourcemanager
 {
     std::mutex locker;
-    std::unordered_map<std::string, std::weak_ptr<ResourceInternal>> resourceCache;
+    std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
     Mode mode = Mode::DiscardFiledataAfterLoad;
 
     enum class DataType
     {
-        Unknown,
         Image,
         Sound,
     };
 
-    DataType GetResourceTypeByExtension(const std::string& extension)
-    {
-        static const std::unordered_map<std::string, DataType> types = {
-            std::make_pair("jpg", DataType::Image),
-            std::make_pair("png", DataType::Image),
-            std::make_pair("dds", DataType::Image),
-            std::make_pair("tga", DataType::Image)
-        };
-
-        auto it = types.find(extension);
-        if (it == types.end())
-            return DataType::Unknown;
-
-        return it->second;
-    }
+    static const std::unordered_map<std::string, DataType> types = {
+        std::make_pair("jpg",  DataType::Image),
+        std::make_pair("jpeg", DataType::Image),
+        std::make_pair("png",  DataType::Image),
+        std::make_pair("dds",  DataType::Image),
+        std::make_pair("tga",  DataType::Image),
+        std::make_pair("bmp",  DataType::Image)
+    };
 
     Resource Load(
         const std::string& name,
-        LoadFlags flags,
+        Flags flags,
         const uint8_t* filedata,
         size_t filesize)
     {
         Timer timer;
 
         if (mode == Mode::DiscardFiledataAfterLoad)
-            flags &= ~LoadFlags::RetainFiledataBit;
+        {
+            flags &= ~Flags::RetainFiledataBit;
+        }
 
         // Check if we have allready loaded resource or we need to create it
+        const uint64_t hash = hash::String(name);
         locker.lock();
-        std::shared_ptr<ResourceInternal> resource = resourceCache[name].lock();
+        std::shared_ptr<ResourceInternal> resource = resourceCache[hash].lock();
         if (resource != nullptr)
         {
             locker.unlock();
-            Resource ret;
-            ret.internal_state = resource;
-            return ret;
+            return Resource{ resource };
         }
         
-        resource = std::make_shared<ResourceInternal>();    
-        resourceCache[name] = resource;
+        resource = std::make_shared<ResourceInternal>();
+        resource->name = name;
+        resource->nameHash = hash;
+        resourceCache[hash] = resource;
         locker.unlock();
 
         // Load filedata if none was appointed
@@ -125,7 +90,6 @@ namespace cyb::resourcemanager
         {
             if (!filesystem::ReadFile(name, resource->data))
             {
-                resource.reset();
                 return Resource();
             }
 
@@ -133,22 +97,22 @@ namespace cyb::resourcemanager
             filesize = resource->data.size();
         }
 
-        const std::string extension = filesystem::GetExtension(name);
-        const DataType type = GetResourceTypeByExtension(extension);
-        if (type == DataType::Unknown)
+        // Dynamic type selection
+        const auto& typeIt = types.find(filesystem::GetExtension(name));
+        if (typeIt == types.end())
         {
             CYB_ERROR("Failed to determine resource type (filename={0})", name);
             return Resource();
         }
 
-        switch (type)
+        switch (typeIt->second)
         {
         case DataType::Image:
         {
             const int channels = 4;
             int width, height, bpp;
 
-            const bool flipImage = !HasFlag(flags, LoadFlags::FlipImageBit);
+            const bool flipImage = HasFlag(flags, Flags::FlipImageBit);
             stbi_set_flip_vertically_on_load(flipImage);
             stbi_uc* rawImage = stbi_load_from_memory(filedata, (int)filesize, &width, &height, &bpp, channels);
             if (rawImage == nullptr)
@@ -172,21 +136,20 @@ namespace cyb::resourcemanager
             graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &resource->texture);
             stbi_image_free(rawImage);
         } break;
-        };
+        }
 
-        if (!resource->data.empty() && !HasFlag(flags, LoadFlags::RetainFiledataBit))
+        if (!HasFlag(flags, Flags::RetainFiledataBit))
+        {
             resource->data.clear();
+        }
 
         CYB_INFO("Loaded resource (filename={0}) in {1:.2f}ms", name, timer.ElapsedMilliseconds());
-        
-        Resource ret;
-        ret.internal_state = resource;
-        return ret;
+        return Resource{ resource };
     }
 
     void Clear()
     {
-        std::scoped_lock<std::mutex> lock(locker);
+        std::scoped_lock lock(locker);
         resourceCache.clear();
     }
 };

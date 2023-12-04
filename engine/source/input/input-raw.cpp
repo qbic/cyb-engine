@@ -190,15 +190,6 @@ namespace cyb::input::rawinput
 			mouse = input::MouseState();
 		}
 
-        UINT numDevices = 0;
-        UINT listResult = GetRawInputDeviceList(NULL, &numDevices, sizeof(RAWINPUTDEVICELIST));
-        assert(listResult == 0);
-
-        static RAWINPUTDEVICELIST devicelist[64];
-        listResult = GetRawInputDeviceList(devicelist, &numDevices, sizeof(RAWINPUTDEVICELIST));
-        assert(listResult >= 0);
-        assert(numDevices <= _countof(devicelist));
-
 		// Loop through inputs that we got from message loop
 		for (auto& input : inputMessages)
 		{
@@ -223,7 +214,7 @@ namespace cyb::input::rawinput
 		if (lpb == nullptr)
 		{
 			CYB_WARNING("Input message queue full, dropping input data");
-			CYB_DEBUGBREAK();
+			CYB_DEBUGBREAK();	// (need to increase allocator size if this hits)
 			return;
 		}
 

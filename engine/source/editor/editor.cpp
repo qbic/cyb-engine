@@ -714,8 +714,17 @@ namespace cyb::editor
     {
         filesystem::OpenDialog(FILE_FILTER_SCENE, [](std::string filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
-                scene::GetScene().Clear();
-                scene::LoadModel(filename);
+                Timer timer;
+                scene::Scene& scene = scene::GetScene();
+                std::vector<uint8_t> sceneFile;
+                if (filesystem::ReadFile(filename, sceneFile))
+                {
+                    Archive archive(sceneFile.data(), sceneFile.size());
+                    Serializer ser(archive);
+                    scene.Clear();
+                    scene.Serialize(ser);
+                    CYB_TRACE("Loaded scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+                }
                 });
             });
     }
@@ -724,6 +733,7 @@ namespace cyb::editor
     // it will be automaticly selected in the scene graph view.
     void OpenDialog_ImportModel(const std::string filter)
     {
+#if 0
         filesystem::OpenDialog(filter, [](std::string filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
                 const std::string extension = filesystem::GetExtension(filename);
@@ -736,6 +746,7 @@ namespace cyb::editor
                 }
                 });
             });
+#endif
     }
 
     void OpenDialog_SaveAs()
@@ -746,8 +757,15 @@ namespace cyb::editor
                 filename += ".cbs";
             }
 
-            serializer::Archive ar(filename, serializer::Access::Write);
-            scene::GetScene().Serialize(ar);
+            Timer timer;
+            Archive archive;
+            Serializer ser(archive);
+            scene::GetScene().Serialize(ser);
+            if (!filesystem::WriteFile(filename, archive.GetWriteData(), archive.GetSize()))
+            {
+                return;
+            }
+            CYB_TRACE("Saved scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
             });
     }
 
@@ -980,17 +998,18 @@ namespace cyb::editor
         if (ImGui::IsItemDeactivatedAfterEdit())
             CYB_TRACE("guizmo deactivated");
 
-        //if (ImGuizmo::FinishedDragging())
+#if 0
+        if (ImGuizmo::FinishedDragging())
         {
-            //XMFLOAT4X4 drag_matrix = {};
-            //ImGuizmo::GetFinishedDragMatrix(&drag_matrix._11);
+            XMFLOAT4X4 drag_matrix = {};
+            ImGuizmo::GetFinishedDragMatrix(&drag_matrix._11);
 
-            //serializer::Archive& ar = AdvanceHistory();
-            //ar << (int)HistoryOpType::TRANSFORM;
-            //ar << drag_matrix;
-            //ar << entity;
+            serializer::Archive& ar = AdvanceHistory();
+            ar << (int)HistoryOpType::TRANSFORM;
+            ar << drag_matrix;
+            ar << entity;
         }
-
+#endif
 #if 0
         ImVec2 viewManipPos(io.DisplaySize.x - 190, 40);
         ImGuizmo::ViewManipulate(
@@ -1032,13 +1051,13 @@ namespace cyb::editor
         AttachToolToMenu(std::make_unique<Tool_LogDisplay>("Backlog"));
 
         // Icons rendered by ImGui need's to be flipped manually at loadtime
-        import_icon = resourcemanager::Load("assets/import.png", resourcemanager::LoadFlags::FlipImageBit);
-        delete_icon = resourcemanager::Load("assets/delete.png", resourcemanager::LoadFlags::FlipImageBit);
-        light_icon = resourcemanager::Load("assets/add.png", resourcemanager::LoadFlags::FlipImageBit);
-        editor_icon_select = resourcemanager::Load("assets/select.png", resourcemanager::LoadFlags::FlipImageBit);
-        translate_icon = resourcemanager::Load("assets/move.png", resourcemanager::LoadFlags::FlipImageBit);
-        rotate_icon = resourcemanager::Load("assets/rotate.png",  resourcemanager::LoadFlags::FlipImageBit);
-        scale_icon = resourcemanager::Load("assets/resize.png", resourcemanager::LoadFlags::FlipImageBit);
+        import_icon = resourcemanager::Load("assets/import.png");
+        delete_icon = resourcemanager::Load("assets/delete.png");
+        light_icon = resourcemanager::Load("assets/add.png");
+        editor_icon_select = resourcemanager::Load("assets/select.png");
+        translate_icon = resourcemanager::Load("assets/move.png");
+        rotate_icon = resourcemanager::Load("assets/rotate.png");
+        scale_icon = resourcemanager::Load("assets/resize.png");
 
 #if 1
         // ImGuizmo style

@@ -2,10 +2,6 @@
 #include "core/platform.h"
 #include "core/logger.h"
 
-// The main window needs to communicate with both imgui and the input layer:
-extern LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-extern LRESULT CALLBACK Win32_InputProcHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
 namespace cyb::platform
 {
 	void Exit(int exitCode)

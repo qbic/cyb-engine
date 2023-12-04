@@ -1,6 +1,4 @@
 #pragma once
-#include <memory>
-#include <unordered_map>
 #include "graphics/graphics-device.h"
 #include "core/enum_flags.h"
 
@@ -9,14 +7,9 @@ namespace cyb
     struct Resource
     {
         std::shared_ptr<void> internal_state;
-        inline bool IsValid() const { return internal_state.get() != nullptr; }
-        
-        const std::vector<uint8_t>& GetFileData() const;
-        const graphics::Texture& GetTexture() const;
-        
-        void SetTexture(const graphics::Texture& texture);
-        void SetFileData(const std::vector<uint8_t>& data);
-        void SetFileData(std::vector<uint8_t>&& data);
+
+        [[nodiscard]] bool IsValid() const { return internal_state.get() != nullptr; }
+        [[nodiscard]] const graphics::Texture& GetTexture() const;
     };
 }
 
@@ -28,22 +21,22 @@ namespace cyb::resourcemanager
         AllowRetainFiledata
     };
 
-    enum class LoadFlags
+    enum class Flags
     {
-        None                = 0,
-        FlipImageBit        = (1 << 1),     // Flip image vertically on load
-        RetainFiledataBit   = (1 << 2)      // File data will be kept for later reuse.
+        None = 0,
+        FlipImageBit = (1 << 1),            // Flip image vertically on load
+        RetainFiledataBit = (1 << 2)        // File data will be kept for later reuse.
     };
-    CYB_ENABLE_BITMASK_OPERATORS(LoadFlags);
+    CYB_ENABLE_BITMASK_OPERATORS(Flags);
 
     // Load a resource:
     //  name : Filename of a resource
     //  flags : Specify flags that modify behaviour (optional)
     //  filedata : Pointer to file data, if file was loaded manually (optional)
     //  filesize : Size of file data, if file was loaded manually (optional)
-    Resource Load(
+    [[nodiscard]] Resource Load(
         const std::string& name, 
-        LoadFlags flags = LoadFlags::None,
+        Flags flags = Flags::None,
         const uint8_t* filedata = nullptr, 
         size_t filesize = 0);
 

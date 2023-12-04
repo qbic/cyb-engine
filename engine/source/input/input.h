@@ -43,21 +43,9 @@ namespace cyb::input
         bool isDown = false;
         uint32_t halfTransitionCount = 0;
 
-        void RegisterKeyDown()
-        {
-            isDown = true;
-            halfTransitionCount++;
-        }
-
-        void RegisterKeyUp()
-        {
-            isDown = false;
-        }
-
-        void Reset()
-        {
-            halfTransitionCount = 0;
-        }
+        void RegisterKeyDown();
+        void RegisterKeyUp();
+        void Reset();
     };
 
     struct KeyboardState
@@ -75,15 +63,18 @@ namespace cyb::input
         ButtonState rightButton = {};
     };
 
+    // Initialize the input system
     void Initialize();
+
+    // Call once per frame (before processing new input events)
     void Update(platform::WindowType window);
 
-    [[nodiscard]] const KeyboardState GetKeyboardState();
+    [[nodiscard]] const KeyboardState& GetKeyboardState();
     [[nodiscard]] const MouseState& GetMouseState();
 
     // Check if a button is down
-    bool IsDown(uint32_t button);
+    [[nodiscard]] bool IsDown(uint32_t button);
 
     // Check if a button is pressed once
-    bool WasPressed(uint32_t button);
+    [[nodiscard]] bool WasPressed(uint32_t button);
 }

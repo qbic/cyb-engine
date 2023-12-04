@@ -2,236 +2,186 @@
 #include "core/serializer.h"
 #include "core/filesystem.h"
 
-namespace cyb::serializer
+namespace cyb
 {
-    Archive::Archive() :
-        m_mode(Access::Write)
+    Archive::Archive()
     {
-        CreateEmpty();
+        InitWrite();
     }
 
-    Archive::Archive(const std::string& filename, Access mode) :
-        m_mode(mode),
-        m_filename(filename)
+    Archive::Archive(const uint8_t* data, size_t length)
     {
-        if (filename.empty())
-        {
-            return;
-        }
-
-        if (mode == Access::Read)
-        {
-            if (filesystem::ReadFile(filename, m_data))
-            {
-                m_dataPtr = m_data.data();
-                (*this) >> m_version;
-                CYB_CERROR(m_version < LEAST_SUPPORTED_VERSION, "Unsupported archive version (file={} version={} LeastUupportedVersion={})", filename, m_version, LEAST_SUPPORTED_VERSION);
-                CYB_CWARNING(m_version < ARCHIVE_VERSION, "Old (but supported) archive version (file={} version={} currentVersion={})", filename, m_version, ARCHIVE_VERSION);
-            }
-        }
-        else
-        {
-            CreateEmpty();
-        }
+        InitRead(data, length);
     }
 
-    void Archive::CreateEmpty()
+    void Archive::InitWrite(size_t initWriteBufferSize)
     {
-        m_version = ARCHIVE_VERSION;
-        m_data.resize(ARCHIVE_INIT_SIZE);
-        m_dataPtr = m_data.data(),
-        SetAccessModeAndResetPos(Access::Write);
+        readData = nullptr;
+        writeBuffer.resize(initWriteBufferSize);
+        writeData = writeBuffer.data();
+        curSize = 0;
     }
 
-    void Archive::SetAccessModeAndResetPos(Access mode)
+    void Archive::InitRead(const uint8_t* data, size_t length)
     {
-        m_mode = mode;
-        m_pos = 0;
-
-        if (IsReadMode())
-        {
-            (*this) >> m_version;
-        }
-        else
-        {
-            (*this) << m_version;
-        }
+        writeData = nullptr;
+        readData = data;
+        readDataLength = length;
+        readCount = 0;
     }
 
-    bool Archive::IsOpen() const
+    Archive& Archive::operator<<(char value)
     {
-        return m_dataPtr != nullptr;
-    }
-
-    void Archive::Close()
-    {
-        if (!IsReadMode() && !m_filename.empty())
-        {
-            if (!SaveFile(m_filename))
-            {
-                CYB_WARNING("Failed to write archive (filename={})", m_filename);
-            }
-        }
-        m_data.clear();
-    }
-
-    bool Archive::SaveFile(const std::string& filename)
-    {
-        return filesystem::WriteFile(filename, m_data.data(), m_pos);
-    }
-
-    Archive& Archive::operator<<(char data)
-    {
-        UnsafeWrite<char>(data);
+        Write<char>(value);
         return *this;
     }
 
-    Archive& Archive::operator<<(int8_t data)
+    Archive& Archive::operator<<(int8_t value)
     {
-        UnsafeWrite<int8_t>(data);
+        Write<int8_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator<<(uint8_t data)
+    Archive& Archive::operator<<(uint8_t value)
     {
-        UnsafeWrite<uint8_t>(data);
+        Write<uint8_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator<<(int32_t data)
+    Archive& Archive::operator<<(int32_t value)
     {
-        UnsafeWrite<int32_t>(data);
+        Write<int32_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator<<(uint32_t data)
+    Archive& Archive::operator<<(uint32_t value)
     {
-        UnsafeWrite<uint32_t>(data);
+        Write<uint32_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator<<(int64_t data)
+    Archive& Archive::operator<<(int64_t value)
     {
-        UnsafeWrite<int64_t>(data);
+        Write<int64_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator<<(float data)
+    Archive& Archive::operator<<(float value)
     {
-        UnsafeWrite<float>(data);
+        Write<float>(value);
         return *this;
     }
 
-    Archive& Archive::operator<<(uint64_t data)
+    Archive& Archive::operator<<(uint64_t value)
     {
-        UnsafeWrite<uint64_t>(data);
+        Write<uint64_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator<<(const std::string& data)
+    Archive& Archive::operator<<(const std::string& str)
     {
-        (*this) << data.length();
-        for (const auto& x : data)
+        (*this) << str.length();
+        for (const auto& x : str)
         {
             (*this) << x;
         }
         return *this;
     }
 
-    Archive& Archive::operator<<(const XMFLOAT3& data)
+    Archive& Archive::operator<<(const XMFLOAT3& value)
     {
-        UnsafeWrite(data);
+        Write(value);
         return *this;
     }
 
-    Archive& Archive::operator<<(const XMFLOAT4& data)
+    Archive& Archive::operator<<(const XMFLOAT4& value)
     {
-        UnsafeWrite(data);
+        Write(value);
         return *this;
     }
 
-    Archive& Archive::operator<<(const XMFLOAT4X4& data)
+    Archive& Archive::operator<<(const XMFLOAT4X4& value)
     {
-        UnsafeWrite(data);
+        Write(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(char& data)
+    Archive& Archive::operator>>(char& value)
     {
-        UnsafeRead<char>(data);
+        Read<char>(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(int8_t& data)
+    Archive& Archive::operator>>(int8_t& value)
     {
-        UnsafeRead<int8_t>(data);
+        Read<int8_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(uint8_t& data)
+    Archive& Archive::operator>>(uint8_t& value)
     {
-        UnsafeRead<uint8_t>(data);
+        Read<uint8_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(int32_t& data)
+    Archive& Archive::operator>>(int32_t& value)
     {
-        UnsafeRead<int32_t>(data);
+        Read<int32_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(uint32_t& data)
+    Archive& Archive::operator>>(uint32_t& value)
     {
-        UnsafeRead<uint32_t>(data);
+        Read<uint32_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(int64_t& data)
+    Archive& Archive::operator>>(int64_t& value)
     {
-        UnsafeRead<int64_t>(data);
+        Read<int64_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(uint64_t& data)
+    Archive& Archive::operator>>(uint64_t& value)
     {
-        UnsafeRead<uint64_t>(data);
+        Read<uint64_t>(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(float& data)
+    Archive& Archive::operator>>(float& value)
     {
-        UnsafeRead<float>(data);
+        Read<float>(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(std::string& data)
+    Archive& Archive::operator>>(std::string& str)
     {
         size_t len;
         (*this) >> len;
-        data.resize(len);
+        str.resize(len);
         for (size_t i = 0; i < len; i++)
         {
-            (*this) >> data[i];
+            (*this) >> str[i];
         }
         
         return *this;
     }
 
-    Archive& Archive::operator>>(XMFLOAT3& data)
+    Archive& Archive::operator>>(XMFLOAT3& value)
     {
-        UnsafeRead(data);
+        Read(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(XMFLOAT4& data)
+    Archive& Archive::operator>>(XMFLOAT4& value)
     {
-        UnsafeRead(data);
+        Read(value);
         return *this;
     }
 
-    Archive& Archive::operator>>(XMFLOAT4X4& data)
+    Archive& Archive::operator>>(XMFLOAT4X4& value)
     {
-        UnsafeRead(data);
+        Read(value);
         return *this;
     }
 }

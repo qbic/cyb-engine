@@ -280,7 +280,7 @@ namespace cyb::scene
         void ComponentAttach(ecs::Entity entity, ecs::Entity parent);
         void ComponentDetach(ecs::Entity entity);
 
-        void Serialize(serializer::Archive& archive);
+        void Serialize(Serializer& ser);
 
         void RunTransformUpdateSystem(jobsystem::Context& ctx);
         void RunHierarchyUpdateSystem(jobsystem::Context& ctx);
@@ -304,9 +304,6 @@ namespace cyb::scene
         return camera;
     }
 
-    bool LoadModel(const std::string& filename);
-    bool LoadModel(Scene& scene, const std::string& filename);
-
     struct PickResult
     {
         ecs::Entity entity = ecs::INVALID_ENTITY;
@@ -320,15 +317,15 @@ namespace cyb::scene
 // Scene component serializers
 namespace cyb::ecs
 {
-    void SerializeComponent(scene::NameComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
-    void SerializeComponent(scene::TransformComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
-    void SerializeComponent(scene::GroupComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
-    void SerializeComponent(scene::HierarchyComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
-    void SerializeComponent(scene::MaterialComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
-    void SerializeComponent(scene::MeshComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
-    void SerializeComponent(scene::ObjectComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
-    void SerializeComponent(scene::LightComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
-    void SerializeComponent(scene::CameraComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
-    void SerializeComponent(scene::WeatherComponent& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
-    void SerializeComponent(math::AxisAlignedBox& x, serializer::Archive& arhive, ecs::SerializeEntityContext& entitySerializer);
+    void SerializeComponent(scene::NameComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
+    void SerializeComponent(scene::TransformComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
+    void SerializeComponent(scene::GroupComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
+    void SerializeComponent(scene::HierarchyComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
+    void SerializeComponent(scene::MaterialComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
+    void SerializeComponent(scene::MeshComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
+    void SerializeComponent(scene::ObjectComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
+    void SerializeComponent(scene::LightComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
+    void SerializeComponent(scene::CameraComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
+    void SerializeComponent(scene::WeatherComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
+    void SerializeComponent(math::AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
 }

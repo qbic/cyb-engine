@@ -16,49 +16,45 @@ namespace cyb::ecs
         return next.fetch_add(1);
     }
 
-    struct SerializeEntityContext
+    struct SceneSerializeContext
     {
+        uint64_t fileVersion = 5;
         jobsystem::Context ctx;
         std::unordered_map<uint32_t, Entity> remap;
 
-        ~SerializeEntityContext()
+        ~SceneSerializeContext()
         {
             jobsystem::Wait(ctx);
         }
     };
 
-    inline void SerializeEntity(Entity& entity, serializer::Archive& archive, SerializeEntityContext& serialize)
+    inline void SerializeEntity(Entity& entity, Serializer& ser, SceneSerializeContext& serialize)
     {
-        if (archive.IsReadMode())
-        {
-            uint32_t mem;
-            archive >> mem;
+        ser.Serialize(entity);
 
-            if (mem == INVALID_ENTITY)
+        if (ser.IsReading())
+        {
+            if (entity == INVALID_ENTITY)
             {
-                entity = (Entity)mem;
                 return;
             }
 
-            auto it = serialize.remap.find(mem);
+            auto it = serialize.remap.find(entity);
             if (it == serialize.remap.end())
             {
-                entity = CreateEntity();
-                serialize.remap[mem] = entity;
+                Entity newEntity = CreateEntity();
+                serialize.remap[entity] = newEntity;
+                entity = newEntity;
             }
             else
             {
                 entity = it->second;
             }
         }
-        else 
-        {
-            archive << entity;
-        }
     }
 
     template <typename T>
-    void SerializeComponent(T& x, serializer::Archive& arhive, ecs::SerializeEntityContext& serialize)
+    void SerializeComponent(T& x, Archive& arhive, ecs::SceneSerializeContext& serialize)
     {
         assert(0 && "ecs::SerializeComponent must be implemented for all ecs components");
     }
@@ -103,9 +99,11 @@ namespace cyb::ecs
             other.Clear();
         }
 
-        inline void Serialize(serializer::Archive& archive, SerializeEntityContext& entitySerializer)
+        inline void Serialize(Serializer& ser, SceneSerializeContext& entitySerializer)
         {
-            if (archive.IsReadMode())
+            Archive& archive = ser.GetArchive();
+
+            if (archive.IsReading())
             {
                 // Clear component manager before deserializeing
                 Clear();
@@ -114,27 +112,27 @@ namespace cyb::ecs
                 archive >> count;
 
                 m_components.resize(count);
-                for (uint64_t i = 0; i < count; ++i) 
-                    SerializeComponent(m_components[i], archive, entitySerializer);
+                for (uint64_t i = 0; i < count; ++i)
+                    SerializeComponent(m_components[i], ser, entitySerializer);
 
                 m_entities.resize(count);
-                for (uint64_t i = 0; i < count; ++i) 
+                for (uint64_t i = 0; i < count; ++i)
                 {
                     Entity entity;
-                    
-                    SerializeEntity(entity, archive, entitySerializer);
+
+                    SerializeEntity(entity, ser, entitySerializer);
                     m_entities[i] = entity;
                     m_lookup[entity] = i;
                 }
-            } 
-            else 
+            }
+            else
             {
                 archive << (uint64_t)m_components.size();
-                for (auto& component : m_components) 
-                    SerializeComponent(component, archive, entitySerializer);
+                for (auto& component : m_components)
+                    SerializeComponent(component, ser, entitySerializer);
 
                 for (auto& entity : m_entities)
-                    SerializeEntity(entity, archive, entitySerializer);
+                    SerializeEntity(entity, ser, entitySerializer);
             }
         }
 

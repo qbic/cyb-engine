@@ -24,9 +24,9 @@ namespace cyb::noise
     struct Parameters
     {
         Type type = Type::Perlin;
-        uint32_t seed = 0;              // Noise function seed value
-        float frequency = 5.5f;         // Noise function frequency
-        uint32_t octaves = 4;           // Fractal Brownian Motion (FBM) octaves
+        uint32_t seed = 0;              // noise function seed value
+        float frequency = 5.5f;         // noise function frequency
+        uint32_t octaves = 4;           // fractal brownian motion (FBM) octaves
         float lacunarity = 2.0f;
         float gain = 0.5f;
         CellularReturn cellularReturnType = CellularReturn::Distance;
@@ -36,15 +36,10 @@ namespace cyb::noise
     class Generator
     {
     public:
-        Generator(uint32_t seed = 1337) noexcept;
-        Generator(const Parameters& settings) noexcept;
+        Generator(const Parameters& params_) noexcept;
 
-        void SetSeed(uint32_t seed) noexcept { m_params.seed = seed; }
-        void SetType(Type type) noexcept { m_params.type = type; }
-        void SetFrequency(float frequency) noexcept { m_params.frequency = frequency; }
-        void SetFractalOctaves(int octaves) noexcept { m_params.octaves = octaves; CalculateFractalBounding(); }
-        void SetCellularReturn(CellularReturn type) noexcept { m_params.cellularReturnType = type; }
-        [[nodiscard]] float GetNoise(float x, float y) const noexcept;
+        [[nodiscard]] float GetValue(float x, float y) const noexcept;
+        [[nodiscard]] const Parameters& GetParams() const noexcept { return params; }
 
     private:
         void CalculateFractalBounding() noexcept;
@@ -52,7 +47,8 @@ namespace cyb::noise
         [[nodiscard]] float SinglePerlin(uint32_t seed, float x, float y) const noexcept;
         [[nodiscard]] float SingleCellular(uint32_t seed, float x, float y) const noexcept;
 
-        Parameters m_params;
-        float m_fractalBounding;
+    private:
+        Parameters params;
+        float fractalBounding;
     };
 }

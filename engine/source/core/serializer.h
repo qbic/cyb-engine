@@ -18,10 +18,10 @@ namespace cyb
         Archive(Archive&&) = delete;
         Archive& operator=(const Archive&) = delete;
 
-        // Initializes the archive for writing
+        // initializes the archive for writing
         Archive();
 
-        // Initializes the archive for reading
+        // initializes the archive for reading
         Archive(const uint8_t* data, size_t length);
 
         void InitWrite(size_t initWriteBufferSize = ARCHIVE_INIT_SIZE);
@@ -53,15 +53,15 @@ namespace cyb
         //=============================================================
 
         size_t Read(void* data, size_t length) const;
-        char ReadChar() const;
-        uint8_t ReadByte() const;
-        uint32_t ReadLong() const;
-        uint64_t ReadLongLong() const;
-        float ReadFloat() const;
-        std::string ReadString() const;
-        XMFLOAT3 ReadXMFLOAT3() const;
-        XMFLOAT4 ReadXMFLOAT4() const;
-        XMFLOAT4X4 ReadXMFLOAT4X4() const;
+        [[nodiscard]] char ReadChar() const;
+        [[nodiscard]] uint8_t ReadByte() const;
+        [[nodiscard]] uint32_t ReadLong() const;
+        [[nodiscard]] uint64_t ReadLongLong() const;
+        [[nodiscard]] float ReadFloat() const;
+        [[nodiscard]] std::string ReadString() const;
+        [[nodiscard]] XMFLOAT3 ReadXMFLOAT3() const;
+        [[nodiscard]] XMFLOAT4 ReadXMFLOAT4() const;
+        [[nodiscard]] XMFLOAT4X4 ReadXMFLOAT4X4() const;
 
     private:
         std::vector<uint8_t> writeBuffer;

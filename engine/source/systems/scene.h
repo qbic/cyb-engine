@@ -25,10 +25,10 @@ namespace cyb::scene
 
         Flags flags = Flags::DirtyBit;
         XMFLOAT3 scale_local = XMFLOAT3(1, 1, 1);
-        XMFLOAT4 rotation_local = XMFLOAT4(0, 0, 0, 1);     // Quaternion rotation
+        XMFLOAT4 rotation_local = XMFLOAT4(0, 0, 0, 1);     // quaternion rotation
         XMFLOAT3 translation_local = XMFLOAT3(0, 0, 0);
 
-        // Non-serialized data
+        // non-serialized data
         XMFLOAT4X4 world = math::MATRIX_IDENTITY;
 
         void SetDirty(bool value = true);
@@ -42,7 +42,7 @@ namespace cyb::scene
         [[nodiscard]] XMVECTOR GetScaleV() const noexcept;
         [[nodiscard]] XMMATRIX GetLocalMatrix() const noexcept;
 
-        // Apply world matrix to local space, overwriting scale, rotation & translation
+        // apply world matrix to local space, overwriting scale, rotation & translation
         void ApplyTransform();
 
         void MatrixTransform(const XMFLOAT4X4& matrix);
@@ -107,19 +107,20 @@ namespace cyb::scene
         };
         std::vector<MeshSubset> subsets;
 
-        // Non-serialized data
+        // non-serialized data
         math::AxisAlignedBox aabb;
         graphics::GPUBuffer vertex_buffer_pos;
         graphics::GPUBuffer vertex_buffer_col;
         graphics::GPUBuffer index_buffer;
         graphics::GPUBuffer vertexBuffer;
 
-        void Clear();                       // Clear vertex and index data. GPUBuffer's will be left untouched
+        // clear vertex and index data. GPUBuffer's will be left untouched
+        void Clear();
         void CreateRenderData();
         void ComputeHardNormals();
         void ComputeSmoothNormals();
 
-        // Internal format for vertex_buffer_pos
+        // internal format for vertex_buffer_pos
         struct Vertex_Pos
         {
             static constexpr graphics::Format FORMAT = graphics::Format::R32G32B32A32_Float;
@@ -132,7 +133,7 @@ namespace cyb::scene
             [[nodiscard]] uint32_t DecodeMaterialIndex() const;
         };
 
-        // Internal format for vertex_buffer_col
+        // internal format for vertex_buffer_col
         struct Vertex_Col
         {
             static constexpr graphics::Format FORMAT = graphics::Format::R8G8B8A8_Unorm;
@@ -144,21 +145,22 @@ namespace cyb::scene
     {
         enum class Flags : uint32_t
         {
-            None          = 0,
-            RenderableBit = (1 << 0),
-            CastShadowBit = (1 << 1),
-            DefaultFlags = RenderableBit | CastShadowBit
+            None            = 0,
+            RenderableBit   = (1 << 0),
+            CastShadowBit   = (1 << 1),
+            DefaultFlags    = RenderableBit | CastShadowBit
         };
 
         Flags flags = Flags::DefaultFlags;
         ecs::Entity meshID = ecs::INVALID_ENTITY;
 
-        // Non-serialized data
-        int32_t transformIndex = -1;        // Only valid for a single frame
+        // non-serialized data
+        int32_t transformIndex = -1;        // only valid for a single frame
     };
     CYB_ENABLE_BITMASK_OPERATORS(ObjectComponent::Flags);
 
-    // NOTE: Theese need to be synced with the LIGHTSOURCE_TYPE_* defines in shader_interop.h
+    // NOTE: 
+    // theese need to be synced with the LIGHTSOURCE_TYPE_ defines in shaders/shader-interop.h
     enum class LightType
     {
         Directional,
@@ -169,9 +171,9 @@ namespace cyb::scene
     {
         enum class Flags : uint32_t
         {
-            CastShadowsBit     = (1 << 0),
-            AffectsSceneBit    = (1 << 1),
-            DefaultFlags = AffectsSceneBit
+            CastShadowsBit  = (1 << 0),
+            AffectsSceneBit = (1 << 1),
+            DefaultFlags    = AffectsSceneBit
         };
 
         Flags flags = Flags::DefaultFlags;
@@ -180,8 +182,8 @@ namespace cyb::scene
         float energy = 1.0f;
         float range = 10.0f;
 
-        // Non-serialized data
-        math::AxisAlignedBox aabb;          // Local space
+        // non-serialized data
+        math::AxisAlignedBox aabb;          // non-transformed localspace box
 
         void SetffectingSceney(bool value);
         bool IsAffectingScene() const;
@@ -211,13 +213,13 @@ namespace cyb::scene
         float aspect = 1.0f;
         float zNearPlane = 0.001f;
         float zFarPlane = 800.0f;
-        float fov = 90.0f;      // Field of view in degrees
+        float fov = 90.0f;      // field of view in degrees
 
         XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
         XMFLOAT3 target = XMFLOAT3(0.0f, 0.0f, 1.0f);
         XMFLOAT3 up = XMFLOAT3(0.0f, 1.0f, 0.0f);
 
-        // Non-serialized data
+        // non-serialized data
         XMFLOAT3X3 rotation;
         XMFLOAT4X4 view, projection, VP;
         XMFLOAT4X4 inv_view, inv_projection, inv_VP;
@@ -250,8 +252,9 @@ namespace cyb::scene
         void Clear();
         void merge(Scene& other);
 
-        // Be careful removing non-recursive mode sence it might leave
-        // child entities without parent.
+        // NOTE:
+        // be careful removing non-recursive mode sence it might leave
+        // child entities without parent
         void RemoveEntity(ecs::Entity entity, bool recursive);
 
         ecs::Entity CreateGroup(const std::string& name);
@@ -276,8 +279,12 @@ namespace cyb::scene
 
         ecs::Entity FindMaterial(const std::string& search_value);
 
-        // Hierarchy functions
+        // create a hierarchy component to the entity and attaches it to parent
+        // world position will not be changed
         void ComponentAttach(ecs::Entity entity, ecs::Entity parent);
+
+        // remove the hierarchy compoennt from entity and update transform,
+        // world position will not be changed
         void ComponentDetach(ecs::Entity entity);
 
         void Serialize(Serializer& ser);
@@ -290,14 +297,14 @@ namespace cyb::scene
         void RunWeatherUpdateSystem(jobsystem::Context& ctx);
     };
 
-    // Getter to the global scene
+    // getter to the global scene
     inline Scene& GetScene() 
     {
         static Scene scene;
         return scene;
     }
 
-    // Getter to the global camera
+    // getter to the global camera
     inline CameraComponent& GetCamera()
     {
         static CameraComponent camera;
@@ -314,7 +321,7 @@ namespace cyb::scene
     PickResult Pick(const Scene& scene, const math::Ray& ray);
 }
 
-// Scene component serializers
+// scene component serializers
 namespace cyb::ecs
 {
     void SerializeComponent(scene::NameComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);

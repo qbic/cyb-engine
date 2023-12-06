@@ -251,7 +251,7 @@ namespace cyb::editor
                     const float ys = static_cast<float>(y) / static_cast<float>(image.height);
                     const size_t offset = y * image.width + x;
 
-                    image.data[offset] = noise.GetNoise(xs, ys);
+                    image.data[offset] = noise.GetValue(xs, ys);
                 }
             });
     }

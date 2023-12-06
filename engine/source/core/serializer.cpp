@@ -33,7 +33,7 @@ namespace cyb
         assert(IsWriting());
         assert(writeData != nullptr);
 
-        // Dynamically stretch the write buffer
+        // dynamically stretch writeBuffer to fit new writes
         while (curSize + length > writeBuffer.size())
         {
             writeBuffer.resize((curSize + length) * 2);

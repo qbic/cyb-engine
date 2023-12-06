@@ -8,14 +8,13 @@ namespace cyb::noise
     template <typename T>
     struct Lookup
     {
-        static const T Gradients2D[];
-        static const T RandVecs2D[];
+        static const T gradients2D[];
+        static const T randVecs2D[];
     };
 
-    // Hashing
-    static const int PrimeX = 501125321;
-    static const int PrimeY = 1136930381;
-
+    // hashing
+    static const int primeX = 501125321;
+    static const int primeY = 1136930381;
     static int Hash(int seed, int xPrimed, int yPrimed) noexcept
     {
         int hash = seed ^ xPrimed ^ yPrimed;
@@ -30,59 +29,53 @@ namespace cyb::noise
         hash ^= hash >> 15;
         hash &= 127 << 1;
 
-        float xg = Lookup<float>::Gradients2D[hash];
-        float yg = Lookup<float>::Gradients2D[hash | 1];
+        float xg = Lookup<float>::gradients2D[hash];
+        float yg = Lookup<float>::gradients2D[hash | 1];
 
         return xd * xg + yd * yg;
     }
 
-    Generator::Generator(uint32_t seed) noexcept
+    Generator::Generator(const Parameters& params_) noexcept :
+        params(params_)
     {
-        SetSeed(seed);
-        CalculateFractalBounding();
-    }
-
-    Generator::Generator(const Parameters& noiseDesc) noexcept
-    {
-        m_params = noiseDesc;
         CalculateFractalBounding();
     }
 
     void Generator::CalculateFractalBounding() noexcept
     {
-        float amp = m_params.gain;
+        float amp = params.gain;
         float ampFractal = 1.0f;
-        for (uint32_t i = 1; i < m_params.octaves; i++)
+        for (uint32_t i = 1; i < params.octaves; i++)
         {
             ampFractal += amp;
-            amp *= m_params.gain;
+            amp *= params.gain;
         }
-        m_fractalBounding = 1.0f / ampFractal;
+        fractalBounding = 1.0f / ampFractal;
     }
 
-    float Generator::GetNoise(float x, float y) const noexcept
+    float Generator::GetValue(float x, float y) const noexcept
     {
-        x *= m_params.frequency;
-        y *= m_params.frequency;
+        x *= params.frequency;
+        y *= params.frequency;
 
         float sum = 0.0f;
         float amp = 1;
 
-        for (uint32_t i = 0; i < m_params.octaves; ++i)
+        for (uint32_t i = 0; i < params.octaves; ++i)
         {
-            x *= m_params.lacunarity;
-            y *= m_params.lacunarity;
+            x *= params.lacunarity;
+            y *= params.lacunarity;
 
-            amp *= m_params.gain;
-            sum += GetNoiseSingle(m_params.seed + i, x, y) * amp;
+            amp *= params.gain;
+            sum += GetNoiseSingle(params.seed + i, x, y) * amp;
         }
 
-        return sum * m_fractalBounding;
+        return sum * fractalBounding;
     }
 
     float Generator::GetNoiseSingle(uint32_t seed, float x, float y) const noexcept
     {
-        switch (m_params.type)
+        switch (params.type)
         {
         case Type::Perlin:  
             return SinglePerlin(seed, x, y);
@@ -108,10 +101,10 @@ namespace cyb::noise
         const float xs = math::InterpQuinticFunc(xd0);
         const float ys = math::InterpQuinticFunc(yd0);
 
-        const int x0 = static_cast<int>(fx) * PrimeX;
-        const int y0 = static_cast<int>(fy) * PrimeY;
-        const int x1 = x0 + PrimeX;
-        const int y1 = y0 + PrimeY;
+        const int x0 = static_cast<int>(fx) * primeX;
+        const int y0 = static_cast<int>(fy) * primeY;
+        const int x1 = x0 + primeX;
+        const int y1 = y0 + primeY;
 
         const float xf0 = math::Lerp(GradCoord(seed, x0, y0, xd0, yd0), GradCoord(seed, x1, y0, xd1, yd0), xs);
         const float xf1 = math::Lerp(GradCoord(seed, x0, y1, xd0, yd1), GradCoord(seed, x1, y1, xd1, yd1), xs);
@@ -128,10 +121,10 @@ namespace cyb::noise
         float distance1 = 1e10f;
         int closestHash = 0;
 
-        float cellularJitter = 0.43701595f * m_params.cellularJitterModifier;
+        float cellularJitter = 0.43701595f * params.cellularJitterModifier;
 
-        int xPrimed = (xr - 1) * PrimeX;
-        int yPrimedBase = (yr - 1) * PrimeY;
+        int xPrimed = (xr - 1) * primeX;
+        int yPrimedBase = (yr - 1) * primeY;
 
         for (int xi = xr - 1; xi <= xr + 1; xi++)
         {
@@ -142,8 +135,8 @@ namespace cyb::noise
                 int hash = Hash(seed, xPrimed, yPrimed);
                 int idx = hash & (255 << 1);
 
-                float vecX = (float)(xi - x) + Lookup<float>::RandVecs2D[idx] * cellularJitter;
-                float vecY = (float)(yi - y) + Lookup<float>::RandVecs2D[idx | 1] * cellularJitter;
+                float vecX = (float)(xi - x) + Lookup<float>::randVecs2D[idx] * cellularJitter;
+                float vecY = (float)(yi - y) + Lookup<float>::randVecs2D[idx | 1] * cellularJitter;
 
                 float newDistance = vecX * vecX + vecY * vecY;
 
@@ -153,12 +146,12 @@ namespace cyb::noise
                     distance0 = newDistance;
                     closestHash = hash;
                 }
-                yPrimed += PrimeY;
+                yPrimed += primeY;
             }
-            xPrimed += PrimeX;
+            xPrimed += primeX;
         }
             
-        switch (m_params.cellularReturnType)
+        switch (params.cellularReturnType)
         {
         case CellularReturn::CellValue:
             return closestHash * (1 / 2147483648.0f);
@@ -180,7 +173,7 @@ namespace cyb::noise
     }
 
     template <typename T>
-    const T Lookup<T>::Gradients2D[] =
+    const T Lookup<T>::gradients2D[] =
     {
         0.130526192220052f, 0.99144486137381f, 0.38268343236509f, 0.923879532511287f, 0.608761429008721f, 0.793353340291235f, 0.793353340291235f, 0.608761429008721f,
         0.923879532511287f, 0.38268343236509f, 0.99144486137381f, 0.130526192220051f, 0.99144486137381f, -0.130526192220051f, 0.923879532511287f, -0.38268343236509f,
@@ -217,7 +210,7 @@ namespace cyb::noise
     };
 
     template <typename T>
-    const T Lookup<T>::RandVecs2D[] =
+    const T Lookup<T>::randVecs2D[] =
     {
         -0.2700222198f, -0.9628540911f, 0.3863092627f, -0.9223693152f, 0.04444859006f, -0.999011673f, -0.5992523158f, -0.8005602176f, -0.7819280288f, 0.6233687174f, 0.9464672271f, 0.3227999196f, -0.6514146797f, -0.7587218957f, 0.9378472289f, 0.347048376f,
         -0.8497875957f, -0.5271252623f, -0.879042592f, 0.4767432447f, -0.892300288f, -0.4514423508f, -0.379844434f, -0.9250503802f, -0.9951650832f, 0.0982163789f, 0.7724397808f, -0.6350880136f, 0.7573283322f, -0.6530343002f, -0.9928004525f, -0.119780055f,

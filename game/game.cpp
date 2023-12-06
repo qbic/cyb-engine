@@ -30,8 +30,8 @@ void GameRenderer::Load()
             scene.Serialize(ser);
             CYB_TRACE("Loaded scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
         }
-
     }
+
     //scene::LoadModel("../terrain_04.cbs");
 #else
     editor::TerrainMeshDesc terrainDesc;

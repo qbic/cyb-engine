@@ -3,10 +3,8 @@
  * David Gallardo's https://gist.github.com/galloscript/8a5d179e432e062550972afcd1ecf112
  */
 #include <memory>
-#include "editor/widgets.h"
-#ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
-#endif
+#include "editor/widgets.h"
 #include "imgui/imgui_internal.h"
 
 namespace cyb::ui

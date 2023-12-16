@@ -172,7 +172,7 @@ namespace cyb::input::rawinput
     {
 		if (hasWindowFocus)
 		{
-			for (uint32_t i = 0; i < _countof(keyboard.buttons); ++i)
+			for (uint32_t i = 0; i < CountOf(keyboard.buttons); ++i)
 			{
 				keyboard.buttons[i].Reset();
 			}

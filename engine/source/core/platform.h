@@ -24,6 +24,12 @@
 #define CYB_DEBUGBREAK()
 #endif
 
+template <typename T, std::size_t N>
+constexpr std::size_t CountOf(T const (&)[N]) noexcept
+{
+	return N;
+}
+
 namespace cyb::platform
 {
 #ifdef _WIN32

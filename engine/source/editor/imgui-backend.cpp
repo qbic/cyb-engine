@@ -162,8 +162,6 @@ void ImGui_Impl_CybEngine_Init(cyb::platform::WindowType window)
 
 	ImGuiIO& io = ImGui::GetIO();
 	IM_ASSERT(io.BackendRendererUserData == nullptr && "Already initialized a renderer backend!");
-	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 
 	// Setup backend capabilities flags
 	ImGui_Impl_Data* bd = IM_NEW(ImGui_Impl_Data)();

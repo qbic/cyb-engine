@@ -161,7 +161,7 @@ namespace cyb::editor
         ecs::Entity selectedEntity = ecs::INVALID_ENTITY;
 
         assert(components.Size() < INT32_MAX);
-        if (ImGui::ListBoxHeader("##lbhd", (int)components.Size(), displayedEntitiesCount))
+        if (ImGui::BeginListBox("##BeginListBox"))
         {
             std::vector<SortableNameEntityData> sortedEntities;
             for (size_t i = 0; i < components.Size(); ++i)
@@ -189,7 +189,7 @@ namespace cyb::editor
                 }
                 ImGui::PopID();
             }
-            ImGui::ListBoxFooter();
+            ImGui::EndListBox();
         }
 
         ImGui::Text("Search:");

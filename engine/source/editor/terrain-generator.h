@@ -35,8 +35,8 @@ namespace cyb::editor
         void GenerateTerrainMesh();
 
     private:
-        // have a seperate preview jobsystem to be able to wait for
-        // previous render without stalling other jobsystems
+        // have a seperate preview generation jobsystem to be able 
+        // to wait for previous render without stalling other jobsystems
         jobsystem::Context previewGenContext;
         int32_t previewResolution = 256;
         XMINT2 previewOffset = XMINT2(0, 0);

@@ -7,95 +7,46 @@ namespace cyb::editor
 {
     struct TerrainMeshDesc
     {
-        float size = 1000.0f;           // Terrain size in meters
-        float maxAltitude = 200.0f;     // Peak height in meters
-        float minAltitude = -22.0f;     // Lowest terrain point
-        uint32_t numChunks = 8;         // Devide terrain in numChunks^2 seperate scene objects
+        float size = 1000.0f;           // terrain size in meters per chunk
+        float maxAltitude = 200.0f;     // peak height in meters
+        float minAltitude = -22.0f;     // lowest terrain point
+        int32_t chunkExpand = 2;        // number of chunks to expand in every direction from center
 
         float maxError = 0.004f;
         uint32_t maxTriangles = 0;
         uint32_t maxVertices = 0;
     };
 
-    struct TerrainMesh
-    {
-        struct Chunk
-        {
-            float chunkSize;
-            float chunkResolution;
-            XMUINT2 bitmapOffset;
-
-            std::vector<XMFLOAT3> vertices;
-            std::vector<XMFLOAT3> colors;
-            std::vector<uint32_t> indices;
-        };
-
-        TerrainMeshDesc desc;
-        std::vector<Chunk> chunks;
-
-        ////
-        std::vector<XMFLOAT3> points;
-        std::vector<XMINT3> triangles;
-        ////
-
-        //---- scene data ----
-        ecs::Entity materialID = ecs::INVALID_ENTITY;
-        ecs::Entity groupID = ecs::INVALID_ENTITY;
-    };
-
     //=============================================================
     //  TerrainGenerator GUI
     //=============================================================
 
-    void SetTerrainGenerationParams(const TerrainMeshDesc* params);
-
     class TerrainGenerator
     {
     public:
-        enum class Map
-        {
-            InputA,
-            InputB,
-            Combined
-        };
-
         TerrainGenerator();
         void DrawGui(ecs::Entity selected_entity);
-        const graphics::Texture* GetTerrainMapTexture(Map type) const;
-        void UpdateHeightmapAndTextures();
 
     private:
-        bool m_initialized = false;
-
-        HeightmapDesc m_heightmapDesc;
-        HeightmapDesc m_moisturemapDesc;
-        noise::Parameters m_moisturemapNoise;
-        Heightmap m_heightmap;
-        Heightmap m_moisturemap;
-        std::vector<uint32_t> m_colormap;
-        ui::Gradient m_biomeColorBand;
-        ui::Gradient m_moistureBiomeColorBand;
-
-        graphics::Texture m_heightmapInputATex;
-        graphics::Texture m_heightmapInputBTex;
-        graphics::Texture m_heightmapTex;
-        graphics::Texture m_moisturemapTex;
-        graphics::Texture m_colormapTex;
-
-        TerrainMeshDesc m_meshDesc;
-        TerrainMesh m_mesh;
-
-        Map m_selectedMapType = Map::Combined;
-        bool m_drawChunkLines = false;
-        bool m_useMoistureMap = false;
-        
         void SetDefaultHeightmapValues();
-        void DrawChunkLines(const ImVec2& drawStartPos) const;
-        void DrawMeshTriangles(const ImVec2& drawStartPos) const;
+        void CreatePreviewImage();
 
-        void UpdateHeightmap();
-        void UpdateTextures();
-
+        void CreateTerrainAtOffset(const XMINT2 offset);
         void GenerateTerrainMesh();
+
+    private:
+        // have a seperate preview jobsystem to be able to wait for
+        // previous render without stalling other jobsystems
+        jobsystem::Context previewGenContext;
+        int32_t previewResolution = 256;
+        XMINT2 previewOffset = XMINT2(0, 0);
+        graphics::Texture previewTex;
+
+        jobsystem::Context jobContext;
+        HeightmapGenerator heightmap;
+        ui::Gradient m_biomeColorBand;
+        TerrainMeshDesc m_meshDesc;
+        ecs::Entity groundMateral = ecs::INVALID_ENTITY;
+        ecs::Entity rockMatereal = ecs::INVALID_ENTITY;
     };
 }

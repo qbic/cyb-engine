@@ -18,7 +18,6 @@ namespace cyb::noise
     static int Hash(int seed, int xPrimed, int yPrimed) noexcept
     {
         int hash = seed ^ xPrimed ^ yPrimed;
-
         hash *= 0x27d4eb2d;
         return hash;
     }
@@ -61,13 +60,12 @@ namespace cyb::noise
         float sum = 0.0f;
         float amp = 1;
 
-        for (uint32_t i = 0; i < params.octaves; ++i)
+        for (uint32_t i = 0; i < params.octaves; i++)
         {
+            sum += GetNoiseSingle(params.seed + i, x, y) * amp;
             x *= params.lacunarity;
             y *= params.lacunarity;
-
             amp *= params.gain;
-            sum += GetNoiseSingle(params.seed + i, x, y) * amp;
         }
 
         return sum * fractalBounding;
@@ -109,7 +107,8 @@ namespace cyb::noise
         const float xf0 = math::Lerp(GradCoord(seed, x0, y0, xd0, yd0), GradCoord(seed, x1, y0, xd1, yd0), xs);
         const float xf1 = math::Lerp(GradCoord(seed, x0, y1, xd0, yd1), GradCoord(seed, x1, y1, xd1, yd1), xs);
 
-        return math::Lerp(xf0, xf1, ys);
+        // try to map the output to a [0..1] range
+        return (math::Lerp(xf0, xf1, ys) + 0.28f) * 3.47f;
     }
 
     float Generator::SingleCellular(uint32_t seed, float x, float y) const noexcept
@@ -150,13 +149,15 @@ namespace cyb::noise
             }
             xPrimed += primeX;
         }
-            
+        
+        // try to map the output to a [0..1] range
+        // only CellularReturn::Distance mapping is checked
         switch (params.cellularReturnType)
         {
         case CellularReturn::CellValue:
             return closestHash * (1 / 2147483648.0f);
         case CellularReturn::Distance:
-            return distance0 - 1;
+            return (distance0) * 2.9f;
         case CellularReturn::Distance2:
             return distance1 - 1;
         case CellularReturn::Distance2Add:

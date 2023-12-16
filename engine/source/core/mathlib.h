@@ -7,6 +7,11 @@
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
+[[nodiscard]] constexpr XMINT2 operator+(const XMINT2& a, const XMINT2& b) noexcept
+{
+    return XMINT2(a.x + b.x, a.y + b.y);
+}
+
 namespace cyb::math
 {
     constexpr float PI = 3.14159265358979323846f;
@@ -83,6 +88,8 @@ namespace cyb::math
     {
         return XMUINT2(Max(a.x, b.x), Max(a.y, b.y));
     }
+
+    
 
     [[nodiscard]] constexpr float Saturate(float x) noexcept
     { 

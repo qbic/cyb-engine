@@ -27,8 +27,8 @@ namespace cyb::noise
         uint32_t seed = 0;              // noise function seed value
         float frequency = 5.5f;         // noise function frequency
         uint32_t octaves = 4;           // fractal brownian motion (FBM) octaves
-        float lacunarity = 2.0f;
-        float gain = 0.5f;
+        float lacunarity = 2.0f;        // frequency increase per octave
+        float gain = 0.5f;              // amplification increase per octave
         CellularReturn cellularReturnType = CellularReturn::Distance;
         float cellularJitterModifier = 1.0f;
     };

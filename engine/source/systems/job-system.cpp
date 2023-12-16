@@ -121,7 +121,8 @@ namespace cyb::jobsystem
 
 		for (uint32_t threadID = 0; threadID < internal_state.numThreads; ++threadID)
 		{
-			internal_state.threads.emplace_back([threadID] {
+			internal_state.threads.emplace_back([threadID]
+			{
 				while (internal_state.alive.load())
 				{
 					work(threadID);
@@ -163,7 +164,7 @@ namespace cyb::jobsystem
 
 	void Execute(Context& ctx, const std::function<void(JobArgs)>& task)
 	{
-		// Context state is updated:
+		// context state is updated
 		ctx.counter.fetch_add(1);
 
 		Job job;

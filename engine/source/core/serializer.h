@@ -30,7 +30,7 @@ namespace cyb
         [[nodiscard]] bool IsReading() const { return readData != nullptr; }
         [[nodiscard]] bool IsWriting() const { return writeData != nullptr; }
 
-        [[nodiscard]] uint8_t* GetWriteData() const { return writeData; }
+        [[nodiscard]] const uint8_t* GetWriteData() const { return writeData; }
         [[nodiscard]] size_t GetSize() const { return curSize; }
 
         //=============================================================

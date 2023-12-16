@@ -96,7 +96,7 @@ namespace cyb::input::rawinput
             assert(0);
         }
 
-		allocator.Reserve(64 * 1024, 8); // 64kb temp buffer, 8byte alignment
+		allocator.Reserve(1024 * 1024, 8); // 1Mb temp buffer, 8byte alignment
 		inputMessages.reserve(64);
 		initialized.store(true);
     }

@@ -1,6 +1,7 @@
 #pragma once
 #include <unordered_map>
 #include <atomic>
+#include <mutex>
 #include "core/random.h"
 #include "core/serializer.h"
 #include "systems/job-system.h"

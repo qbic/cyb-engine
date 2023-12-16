@@ -40,7 +40,6 @@ namespace cyb::ui
         ImGui::PopStyleColor(m_numColors);
     }
 
-
     void ItemLabel(const std::string& title, bool isLeft = true)
     {
         ImGuiWindow& window = *ImGui::GetCurrentWindow();
@@ -273,22 +272,25 @@ namespace cyb::ui
     bool ListBox(const char* label, int* selectedIndex, std::vector<std::string_view>& values)
     {
         COMMON_WIDGET_CODE(label);
-        auto itemGetter = [](void* vec, int idx, const char** outText)
+        auto getter = [](void* vec, int idx) -> const char *
         {
             auto& vector = *static_cast<std::vector<std::string_view>*>(vec);
             if (idx < 0 || idx >= static_cast<int>(vector.size()))
-                return false;
+            {
+                return nullptr;
+            }
 
-            *outText = vector.at(idx).data();
-            return true;
+            return vector[idx].data();
         };
 
-        if (values.empty())
-            return false;
+        bool change = false;
+        if (!values.empty())
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+            change = ImGui::ListBox("", selectedIndex, getter, static_cast<void*>(&values), (int)values.size());
+            ImGui::PopStyleVar();
+        }
 
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
-        bool change = ImGui::ListBox("", selectedIndex, itemGetter, static_cast<void*>(&values), (int)values.size());
-        ImGui::PopStyleVar();
         return change;
     }
 

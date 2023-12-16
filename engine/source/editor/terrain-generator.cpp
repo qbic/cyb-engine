@@ -197,7 +197,7 @@ namespace cyb::editor
 
             // begin drawing of the settings panel
             ImGui::TableNextColumn();
-            ImGui::BeginChild("Settings panel", ImVec2(settingsPandelWidth, 680), true);
+            ImGui::BeginChild("Settings panel", ImVec2(settingsPandelWidth, 680), ImGuiChildFlags_Border);
 
             if (ImGui::CollapsingHeader("Mesh Settings"))
             {
@@ -258,7 +258,7 @@ namespace cyb::editor
             }
 
             ImGui::EndChild();
-            ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 130), true);
+            ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 130), ImGuiChildFlags_Border);
 
             if (ImGui::Button("Set Default Params", ImVec2(-1, 0)))
             {

@@ -139,9 +139,9 @@ static void LoadShaders()
 
 	bd->inputLayout.elements =
 	{
-		{ "in_position", 0, Format::R32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, pos) },
-		{ "in_uv",       0, Format::R32G32_Float,   (uint32_t)IM_OFFSETOF(ImDrawVert, uv)  },
-		{ "in_color",    0, Format::R8G8B8A8_Unorm, (uint32_t)IM_OFFSETOF(ImDrawVert, col) }
+		{ "in_position", 0, Format::R32G32_Float,   (uint32_t)offsetof(ImDrawVert, pos) },
+		{ "in_uv",       0, Format::R32G32_Float,   (uint32_t)offsetof(ImDrawVert, uv)  },
+		{ "in_color",    0, Format::R8G8B8A8_Unorm, (uint32_t)offsetof(ImDrawVert, col) }
 	};
 
 	PipelineStateDesc desc;

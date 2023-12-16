@@ -897,7 +897,7 @@ namespace cyb::editor
             ImVec4 color = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
             ImGui::PushStyleColor(ImGuiCol_Button, color);
         }
-        bool clicked = ImGui::ImageButton((ImTextureID)&texture, size);
+        bool clicked = ImGui::ImageButton((const char*)(intptr_t)&texture, (ImTextureID)&texture, size);
         if (is_selected)
         {
             ImGui::PopStyleColor(1);
@@ -1086,14 +1086,14 @@ namespace cyb::editor
         DrawIconBar();
 
         ImGui::Text("Scene Hierarchy:");
-        ImGui::BeginChild("Scene hierarchy", ImVec2(0, 300), true, 0);
+        ImGui::BeginChild("Scene hierarchy", ImVec2(0, 300), ImGuiChildFlags_Border);
         scenegraph_view.GenerateView();
         scenegraph_view.Draw();
         ImGui::EndChild();
         
         ImGui::Text("Components:");
         const float componentChildHeight = math::Max(300.0f, ImGui::GetContentRegionAvail().y);
-        ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), true);
+        ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), ImGuiChildFlags_Border);
         const ecs::Entity selectedEntity = scenegraph_view.SelectedEntity();
         EditEntityComponents(selectedEntity);
         ImGui::EndChild();

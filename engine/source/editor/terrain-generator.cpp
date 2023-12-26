@@ -333,28 +333,12 @@ namespace cyb::editor
         jobsystem::Execute(previewGenContext, [&](jobsystem::JobArgs)
         {
             heightmap.UnlockMinMax();
-            std::vector<float> image;
-            image.resize(previewResolution * previewResolution);
-            for (int32_t i = 0; i < previewResolution; i++)
-            {
-                for (int32_t j = 0; j < previewResolution; j++)
-                {
-                    const float scale = (1.0f / (float)previewResolution) * 256.0f;
-                    int sampleX = (int)std::round((float)(j + previewOffset.x) * scale);
-                    int sampleY = (int)std::round((float)(i + previewOffset.y) * scale);
-
-                    image[i * previewResolution + j] = heightmap.GetHeightAt(XMINT2(sampleX, sampleY));
-                }
-            }
+            HeightmapImage image = HeightmapImage(previewResolution, previewResolution, previewOffset, heightmap);
             heightmap.LockMinMax();
             //CYB_TRACE("MIN={} MAX={}", heightmap.minValue, heightmap.maxValue);
 
-            // normalize preview image values to 0.0f - 1.0f range
-            const float scale = 1.0f / (heightmap.maxValue - heightmap.minValue);
-            for (uint32_t i = 0; i < (uint32_t)(previewResolution * previewResolution); ++i)
-            {
-                image[i] = (image[i] - heightmap.minValue) * scale;
-            }
+            // create a normalized preview image with value range 0.0f - 1.0f 
+            HeightmapImage normalizedImage = HeightmapImage(previewResolution, previewResolution, previewOffset, heightmap);
 
             // create a one channel float texture with all components
             // swizzled for easy grayscale viewing
@@ -363,12 +347,12 @@ namespace cyb::editor
             desc.components.r = graphics::TextureComponentSwizzle::R;
             desc.components.g = graphics::TextureComponentSwizzle::R;
             desc.components.b = graphics::TextureComponentSwizzle::R;
-            desc.width = previewResolution;
-            desc.height = previewResolution;
+            desc.width = previewResolution + 1;
+            desc.height = previewResolution + 1;
             desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
 
             graphics::SubresourceData subresourceData;
-            subresourceData.mem = image.data();
+            subresourceData.mem = normalizedImage.data.get();
             subresourceData.rowPitch = desc.width * graphics::GetFormatStride(graphics::Format::R32_Float);
 
             graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &previewTex);
@@ -441,13 +425,14 @@ namespace cyb::editor
 
     void TerrainGenerator::CreateTerrainAtOffset(const XMINT2 offset)
     {
-        XMINT2 heightmapOffset = XMINT2(offset.x * m_meshDesc.size, offset.y * m_meshDesc.size);
-        HeightmapTriangulator triangulator(&heightmap, m_meshDesc.size, m_meshDesc.size, heightmapOffset);
+        const XMINT2 heightmapOffset = XMINT2(offset.x * m_meshDesc.size, offset.y * m_meshDesc.size);
+        const HeightmapImage image(m_meshDesc.size, m_meshDesc.size, heightmapOffset, heightmap);
+        HeightmapTriangulator triangulator(&image);
         triangulator.Run(m_meshDesc.maxError, m_meshDesc.maxVertices, m_meshDesc.maxTriangles);
 
         // setup scene entities
         scene::Scene& scene = scene::GetScene();
-        ecs::Entity objectID = scene.CreateObject(fmt::format("TerrainChunk[{}, {}]", offset.x, offset.y));
+        ecs::Entity objectID = scene.CreateObject(fmt::format("TerrainChunk_{}_{}", offset.x, offset.y));
         scene::TransformComponent* transform = scene.transforms.GetComponent(objectID);
         transform->Translate(XMFLOAT3(offset.x * m_meshDesc.size, 0, offset.y * m_meshDesc.size));
 

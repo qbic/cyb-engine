@@ -143,12 +143,37 @@ namespace cyb::editor
         return inputs;
     }
 
-    static XMINT2 Add(const XMINT2& a, const XMINT2& b)
+    HeightmapImage::HeightmapImage(int32_t width_, int32_t height_, const XMINT2& generatorOffset, const HeightmapGenerator& generator) :
+        width(width_),
+        height(height_)
     {
-        return XMINT2(a.x + b.x, a.y + b.y);
+        int32_t width1 = width + 1;
+        int32_t height1 = height + 1;
+        data = std::make_unique<float[]>(width1 * height1);
+
+        const float xScale = (1.0f / (float)width) * 256.0f;
+        const float yScale = (1.0f / (float)height) * 256.0f;
+        const float heightScale = 1.0f / (generator.maxValue - generator.minValue);
+
+        for (int32_t y = 0; y < height1; ++y)
+        {
+            for (int32_t x = 0; x < width1; ++x)
+            {
+                const int32_t xSample = (int32_t)(std::round(x + generatorOffset.x) * xScale);
+                const int32_t ySample = (int32_t)(std::round(y + generatorOffset.y) * yScale);
+                const float v = generator.GetHeightAt(XMINT2(xSample, ySample));
+                data[y * width1 + x] = (v - generator.minValue) * heightScale;
+            }
+        }
     }
 
-    std::pair<XMINT2, float> HeightmapGenerator::FindCandidate(uint32_t width, uint32_t height, const XMINT2& offset, const XMINT2& p0, const XMINT2& p1, const XMINT2& p2) const
+    [[nodiscard]] float HeightmapImage::GetHeightAt(const XMINT2& p) const
+    {
+        // TODO: check for overflow
+        return data[p.y * (width + 1) + p.x];
+    }
+
+    std::pair<XMINT2, float> HeightmapImage::FindCandidate(const XMINT2& p0, const XMINT2& p1, const XMINT2& p2) const
     {
         auto edge = [](const XMINT2& a, const XMINT2& b, const XMINT2& c) -> uint32_t
         {
@@ -175,13 +200,13 @@ namespace cyb::editor
         const int32_t a20 = p0.y - p2.y;
         const int32_t b20 = p2.x - p0.x;
 
-        // Pre-multiplied z values at vertices
+        // pre-multiplied z values at vertices
         const float triangleArea = static_cast<float>(edge(p0, p1, p2));
-        const float z0 = GetHeightAt(p0 + offset) / triangleArea;
-        const float z1 = GetHeightAt(p1 + offset) / triangleArea;
-        const float z2 = GetHeightAt(p2 + offset) / triangleArea;
+        const float z0 = GetHeightAt(p0) / triangleArea;
+        const float z1 = GetHeightAt(p1) / triangleArea;
+        const float z2 = GetHeightAt(p2) / triangleArea;
 
-        // Iterate over pixels in bounding box
+        // iterate over pixels in bounding box
         float maxError = 0;
         XMINT2 maxPoint(0, 0);
         for (int32_t y = bbMin.y; y <= bbMax.y; y++)
@@ -206,7 +231,7 @@ namespace cyb::editor
 
                     // compute z using barycentric coordinates
                     const float z = z0 * w0 + z1 * w1 + z2 * w2;
-                    const float dz = std::abs(z - GetHeightAt(XMINT2(x, y) + offset));
+                    const float dz = std::abs(z - GetHeightAt(XMINT2(x, y)));
                     if (dz > maxError)
                     {
                         maxError = dz;
@@ -243,8 +268,8 @@ namespace cyb::editor
         // add points at all four corners
         const int32_t x0 = 0;
         const int32_t y0 = 0;
-        const int32_t x1 = m_Width;
-        const int32_t y1 = m_Height;
+        const int32_t x1 = m_Image->width;
+        const int32_t y1 = m_Image->height;
         const int32_t p0 = AddPoint(XMINT2(x0, y0));
         const int32_t p1 = AddPoint(XMINT2(x1, y0));
         const int32_t p2 = AddPoint(XMINT2(x0, y1));
@@ -276,9 +301,9 @@ namespace cyb::editor
         for (const XMINT2& p : m_Points)
         {
             points.emplace_back(
-                static_cast<float>(p.x) / static_cast<float>(m_Width),
-                m_Heightmap->GetHeightAt(p + m_Offset),
-                static_cast<float>(p.y) / static_cast<float>(m_Height));
+                static_cast<float>(p.x) / static_cast<float>(m_Image->width),
+                m_Image->GetHeightAt(p),
+                static_cast<float>(p.y) / static_cast<float>(m_Image->height));
         }
         return points;
     }
@@ -302,15 +327,15 @@ namespace cyb::editor
         for (const int t : m_pending)
         {
             // rasterize triangle to find maximum pixel error
-            const auto pair = m_Heightmap->FindCandidate(
-                m_Width, m_Height,
-                m_Offset,
+            const auto pair = m_Image->FindCandidate(
                 m_Points[m_triangles[t * 3 + 0]],
                 m_Points[m_triangles[t * 3 + 1]],
                 m_Points[m_triangles[t * 3 + 2]]);
+
             // update metadata
             m_Candidates[t] = pair.first;
             m_Errors[t] = pair.second;
+
             // add triangle to priority queue
             QueuePush(t);
         }

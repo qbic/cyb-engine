@@ -5,6 +5,7 @@
 #include "core/random.h"
 #include "core/serializer.h"
 #include "systems/job-system.h"
+#include "flat_hash_map.hpp"
 
 namespace cyb::ecs 
 {
@@ -36,9 +37,7 @@ namespace cyb::ecs
         if (ser.IsReading())
         {
             if (entity == INVALID_ENTITY)
-            {
                 return;
-            }
 
             auto it = serialize.remap.find(entity);
             if (it == serialize.remap.end())
@@ -55,171 +54,163 @@ namespace cyb::ecs
     }
 
     template <typename T>
-    void SerializeComponent(T& x, Archive& arhive, ecs::SceneSerializeContext& serialize)
-    {
-        assert(0 && "ecs::SerializeComponent must be implemented for all ecs components");
-    }
-
-    template <typename ComponentType>
     class ComponentManager
     {
     public:
         ComponentManager(size_t reservedCount = 0)
         {
-            m_components.reserve(reservedCount);
-            m_entities.reserve(reservedCount);
-            m_lookup.reserve(reservedCount);
+            components.reserve(reservedCount);
+            entities.reserve(reservedCount);
+            lookup.reserve(reservedCount);
         }
 
-        // Clear the container of all components and entities
+        // disallow this to be copied by mistake
+        ComponentManager(const ComponentManager&) = delete;
+
+        // clear the container of all components and entities
         inline void Clear()
         {
-            m_components.clear();
-            m_entities.clear();
-            m_lookup.clear();
+            components.clear();
+            entities.clear();
+            lookup.clear();
         }
 
-        // Merge in an other component manager of the same type to this. 
-        // The other component manager MUST NOT contain any of the same entities!
-        // The other component manager is not retained after this operation!
-        inline void Merge(ComponentManager<ComponentType>& other)
+        // merge in an other component manager of the same type to this. 
+        // the other component manager MUST NOT contain any of the same entities!
+        // the other component manager is not retained after this operation!
+        void Merge(ComponentManager<T>& other)
         {
-            m_components.reserve(Size() + other.Size());
-            m_entities.reserve(Size() + other.Size());
-            m_lookup.reserve(Size() + other.Size());
+            components.reserve(Size() + other.Size());
+            entities.reserve(Size() + other.Size());
+            lookup.reserve(Size() + other.Size());
 
             for (size_t i = 0; i < other.Size(); ++i) 
             {
-                Entity entity = other.m_entities[i];
+                Entity entity = other.entities[i];
                 assert(!Contains(entity));
-                m_entities.push_back(entity);
-                m_lookup[entity] = m_components.size();
-                m_components.push_back(other.m_components[i]);
+                entities.push_back(entity);
+                lookup[entity] = components.size();
+                components.push_back(other.components[i]);
             }
 
             other.Clear();
         }
 
-        inline void Serialize(Serializer& ser, SceneSerializeContext& entitySerializer)
+        void Serialize(Serializer& ser, SceneSerializeContext& entitySerializer)
         {
-            size_t componentCount = m_components.size();
+            size_t componentCount = components.size();
             ser.Serialize(componentCount);
             if (ser.IsReading())
             {
-                m_components.resize(componentCount);
-                m_entities.resize(componentCount);
+                components.resize(componentCount);
+                entities.resize(componentCount);
             }
 
-            for (uint64_t i = 0; i < componentCount; ++i)
+            for (size_t i = 0; i < componentCount; ++i)
             {
-                SerializeComponent(m_components[i], ser, entitySerializer);
+                SerializeComponent(components[i], ser, entitySerializer);
             }
             
-            for (uint64_t i = 0; i < componentCount; ++i)
+            for (size_t i = 0; i < componentCount; ++i)
             {
-                SerializeEntity(m_entities[i], ser, entitySerializer);
+                SerializeEntity(entities[i], ser, entitySerializer);
 
                 if (ser.IsReading())
-                {
-                    m_lookup[m_entities[i]] = i;
-                }
+                    lookup[entities[i]] = i;
             }
         }
 
-        inline ComponentType& Create(Entity entity)
+        T& Create(Entity entity)
         {
             // ecs::INVALID_ENTITY is not allowed!
-            // Only one of this component type per entity is allowed!
-            // Entity count must always be the same as the number of coponents!
+            // only one of this component type per entity is allowed!
+            // entity count must always be the same as the number of coponents!
             assert(entity != INVALID_ENTITY);
-            assert(m_lookup.find(entity) == m_lookup.end());
-            assert(m_entities.size() == m_components.size());
-            assert(m_lookup.size() == m_components.size());
+            assert(lookup.find(entity) == lookup.end());
+            assert(entities.size() == components.size());
+            assert(lookup.size() == components.size());
 
-            m_lookup[entity] = m_components.size();
-            m_components.push_back(ComponentType());
-            m_entities.push_back(entity);
+            lookup[entity] = components.size();
+            components.emplace_back();
+            entities.push_back(entity);
 
-            return m_components.back();
+            return components.back();
         }
 
-        inline void Remove(Entity entity)
+        void Remove(Entity entity)
         {
-            auto it = m_lookup.find(entity);
-            if (it != m_lookup.end()) 
+            auto it = lookup.find(entity);
+            if (it != lookup.end()) 
             {
-                // Directly index into components and entities array
+                // directly index into components and entities array
                 const size_t index = it->second;
-                const Entity indexedEntity = m_entities[index];
+                const Entity indexedEntity = entities[index];
 
-                if (index < m_components.size() - 1) 
+                if (index < components.size() - 1) 
                 {
-                    // Swap out the dead element with the last one
-                    m_components[index] = std::move(m_components.back());
-                    m_entities[index] = m_entities.back();
+                    // swap out the dead element with the last one
+                    components[index] = std::move(components.back());
+                    entities[index] = entities.back();
 
-                    // Update the lookup table
-                    m_lookup[m_entities[index]] = index;
+                    // update the lookup table
+                    lookup[entities[index]] = index;
                 }
 
-                // Shrink the container
-                m_components.pop_back();
-                m_entities.pop_back();
-                m_lookup.erase(indexedEntity);
+                // shrink the container
+                components.pop_back();
+                entities.pop_back();
+                lookup.erase(indexedEntity);
             }
         }
 
-        // Check if a component exists for a given entity or not
-        inline bool Contains(Entity entity) const
+        // check if a component exists for a given entity or not
+        [[nodiscard]] bool Contains(Entity entity) const
         {
-            return m_lookup.find(entity) != m_lookup.end();
+            return lookup.find(entity) != lookup.end();
         }
 
-        // Retrieve a [read/write] component specified by an entity (if it exists, otherwise nullptr)
-        inline ComponentType* GetComponent(Entity entity)
+        // retrieve a [read/write] component specified by an entity (if it exists, otherwise nullptr)
+        [[nodiscard]] T* GetComponent(Entity entity)
         {
-            auto it = m_lookup.find(entity);
-            if (it != m_lookup.end()) 
-                return &m_components[it->second];
+            auto it = lookup.find(entity);
+            if (it == lookup.end())
+                return nullptr;
+
+            return &components[it->second];
+        }
+
+        // retrieve a [read only] component specified by an entity (if it exists, otherwise nullptr)
+        [[nodiscard]] const T* GetComponent(Entity entity) const
+        {
+            const auto it = lookup.find(entity);
+            if (it != lookup.end()) 
+                return &components[it->second];
 
             return nullptr;
         }
 
-        // Retrieve a [read only] component specified by an entity (if it exists, otherwise nullptr)
-        inline const ComponentType* GetComponent(Entity entity) const
+        // retrieve component index by entity handle (if not exists, returns SIZE_MAX value)
+        [[nodiscard]] size_t GetIndex(Entity entity) const
         {
-            const auto it = m_lookup.find(entity);
-            if (it != m_lookup.end()) 
-                return &m_components[it->second];
-
-            return nullptr;
-        }
-
-        // Retrieve component index by entity handle (if not exists, returns SIZE_MAX value)
-        inline size_t GetIndex(Entity entity) const
-        {
-            const auto it = m_lookup.find(entity);
-            if (it != m_lookup.end()) 
+            const auto it = lookup.find(entity);
+            if (it != lookup.end()) 
                 return it->second;
 
             return SIZE_MAX;
         }
 
-        inline Entity GetEntity(size_t index) const 
+        [[nodiscard]] Entity GetEntity(size_t index) const
         { 
-            return m_entities[index]; 
+            return entities[index]; 
         }
 
-        inline size_t Size() const { return m_components.size(); }
-        inline ComponentType& operator[](size_t index) { return m_components[index]; }
-        inline const ComponentType& operator[](size_t index) const { return m_components[index]; }
+        [[nodiscard]] size_t Size() const { return components.size(); }
+        [[nodiscard]] T& operator[](size_t index) { return components[index]; }
+        [[nodiscard]] const T& operator[](size_t index) const { return components[index]; }
 
     private:
-        std::vector<ComponentType> m_components;
-        std::vector<Entity> m_entities;
-        std::unordered_map<Entity, size_t> m_lookup;
-
-        // Disallow this to be copied by mistake
-        ComponentManager(const ComponentManager&) = delete;
+        std::vector<T> components;
+        std::vector<Entity> entities;
+        ska::flat_hash_map<Entity, size_t> lookup;
     };
 }

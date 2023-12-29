@@ -887,6 +887,7 @@ namespace cyb::editor
     }
 
     static bool DrawIconButton(
+        const std::string& strId,
         const graphics::Texture& texture, 
         const std::string& tooltip, 
         bool is_selected = false,
@@ -897,7 +898,7 @@ namespace cyb::editor
             ImVec4 color = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
             ImGui::PushStyleColor(ImGuiCol_Button, color);
         }
-        bool clicked = ImGui::ImageButton((const char*)(intptr_t)&texture, (ImTextureID)&texture, size);
+        bool clicked = ImGui::ImageButton(strId.c_str(), (ImTextureID)&texture, size);
         if (is_selected)
         {
             ImGui::PopStyleColor(1);
@@ -914,15 +915,15 @@ namespace cyb::editor
     void DrawIconBar()
     {
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 16.0f);
-        if (DrawIconButton(import_icon.GetTexture(), "Import a 3D model to the scene"))
+        if (DrawIconButton("#Import", import_icon.GetTexture(), "Import a 3D model to the scene"))
             OpenDialog_ImportModel(FILE_FILTER_IMPORT_MODEL);
 
         ImGui::SameLine();
-        if (DrawIconButton(light_icon.GetTexture(), "Add a pointlight to the scene"))
+        if (DrawIconButton("##AddLight", light_icon.GetTexture(), "Add a pointlight to the scene"))
             CreatePointLight();
 
         ImGui::SameLine();
-        if (DrawIconButton(delete_icon.GetTexture(), "Delete the selected entity"))
+        if (DrawIconButton("##Delete", delete_icon.GetTexture(), "Delete the selected entity"))
         {
             DeleteSelectedEntity();
         }
@@ -931,19 +932,19 @@ namespace cyb::editor
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
         ImGui::SameLine();
-        if (DrawIconButton(editor_icon_select.GetTexture(), "Select entity", guizmo_operation & ImGuizmo::BOUNDS))
+        if (DrawIconButton("##SelectEntity", editor_icon_select.GetTexture(), "Select entity", guizmo_operation & ImGuizmo::BOUNDS))
             guizmo_operation = ImGuizmo::BOUNDS;
 
         ImGui::SameLine();
-        if (DrawIconButton(translate_icon.GetTexture(), "Move the selected entity", guizmo_operation & ImGuizmo::TRANSLATE))
+        if (DrawIconButton("##Translate", translate_icon.GetTexture(), "Move the selected entity", guizmo_operation & ImGuizmo::TRANSLATE))
             guizmo_operation = ImGuizmo::TRANSLATE;
 
         ImGui::SameLine();
-        if (DrawIconButton(rotate_icon.GetTexture(), "Rotate the selected entity", guizmo_operation & ImGuizmo::ROTATE))
+        if (DrawIconButton("##Rotate", rotate_icon.GetTexture(), "Rotate the selected entity", guizmo_operation & ImGuizmo::ROTATE))
             guizmo_operation = ImGuizmo::ROTATE;
 
         ImGui::SameLine();
-        if (DrawIconButton(scale_icon.GetTexture(), "Scale the selected entity", guizmo_operation & ImGuizmo::SCALEU))
+        if (DrawIconButton("##Scale", scale_icon.GetTexture(), "Scale the selected entity", guizmo_operation & ImGuizmo::SCALEU))
             guizmo_operation = ImGuizmo::SCALEU;
 
         //ImGui::SameLine();

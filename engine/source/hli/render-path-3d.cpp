@@ -42,6 +42,8 @@ namespace cyb::hli
 
     void RenderPath3D::Update(double dt)
     {
+        RenderPath2D::Update(dt);
+
         m_runtime += dt;
 
         scene->Update(dt);
@@ -55,7 +57,6 @@ namespace cyb::hli
         // Update per frame constant buffer
         renderer::UpdatePerFrameData(sceneViewMain, static_cast<float>(m_runtime), frameCB);
 
-        RenderPath2D::Update(dt);
     }
 
     void RenderPath3D::Render() const

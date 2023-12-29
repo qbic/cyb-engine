@@ -7,6 +7,7 @@
 
 WCHAR szTitle[MAX_LOADSTRING]; 
 WCHAR szWindowClass[MAX_LOADSTRING];
+WCHAR szTextlogFile[MAX_LOADSTRING];
 
 extern LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -22,15 +23,17 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
     _In_ LPSTR lpCmdLine,
     _In_ int nShowCmd)
 {
-    // Setup logger output modules
+    // load resource strings
+    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+    LoadStringW(hInstance, IDC_CYBGAME, szWindowClass, MAX_LOADSTRING);
+    LoadStringW(hInstance, IDS_TEXTLOG, szTextlogFile, MAX_LOADSTRING);
+
+    // setup engine logger output modules
     cyb::logger::RegisterOutputModule<cyb::logger::LogOutputModule_VisualStudio>();
-    cyb::logger::RegisterOutputModule<cyb::logger::OutputModule_File>("textlog.txt");
+    cyb::logger::RegisterOutputModule<cyb::logger::OutputModule_File>(szTextlogFile);
 
     BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     assert(dpiSuccess);
-
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_CYBGAME, szWindowClass, MAX_LOADSTRING);
 
     RegisterWindowClass(hInstance);
     if (!InitInstance(hInstance, nShowCmd))

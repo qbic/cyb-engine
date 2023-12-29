@@ -22,13 +22,10 @@ namespace cyb::eventsystem
 
 		~EventInternal()
 		{
-			manager->locker.lock();
+			std::scoped_lock lock(manager->locker);
 			auto it = manager->subscribers.find(id);
 			if (it != manager->subscribers.end())
-			{
 				it->second.remove(&callback);
-			}
-			manager->locker.unlock();
 		}
 	};
 
@@ -62,17 +59,16 @@ namespace cyb::eventsystem
 			manager->locker.lock();
 			auto it = manager->subscribers_once.find(id);
 			bool found = it != manager->subscribers_once.end();
-			manager->locker.unlock();
 
 			if (found)
 			{
 				auto& callbacks = it->second;
 				for (auto& callback : callbacks)
-				{
 					callback(userdata);
-				}
+
 				callbacks.clear();
 			}
+			manager->locker.unlock();
 		}
 		// Callbacks that live until deleted:
 		{

@@ -5,7 +5,6 @@ BUGS:
 
 TODO FEATURES:
  * Resolution change (internal res is hardcoded in render-path.h)
- * Terrain chunks
  * LOD support
  * Automatic LOD mesh generation (Fast-Quadric-Mesh-Simplification?)
  * Editor default window layout

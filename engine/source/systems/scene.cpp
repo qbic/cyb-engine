@@ -492,34 +492,12 @@ namespace cyb::scene
         return entity;
     }
 
-    ecs::Entity Scene::FindMaterial(const std::string& search_value)
-    {
-        for (size_t i = 0; i < materials.Size(); ++i)
-        {
-            const ecs::Entity component_id = materials.GetEntity(i);
-            const scene::NameComponent* name = names.GetComponent(component_id);
-            if (!name)
-            {
-                continue;
-            }
-
-            if (name->name.compare(search_value) == 0)
-            {
-                return component_id;
-            }
-        }
-
-        return ecs::INVALID_ENTITY;
-    }
-
     void Scene::ComponentAttach(ecs::Entity entity, ecs::Entity parent)
     {
         assert(entity != parent);
 
         if (hierarchy.Contains(entity))
-        {
             ComponentDetach(entity);
-        }
 
         HierarchyComponent& component = hierarchy.Create(entity);
         component.parentID = parent;
@@ -540,9 +518,7 @@ namespace cyb::scene
     {
         const HierarchyComponent* parent = hierarchy.GetComponent(entity);
         if (parent == nullptr)
-        {
             return;
-        }
 
         TransformComponent* transform = transforms.GetComponent(entity);
         transform->ApplyTransform();
@@ -585,7 +561,7 @@ namespace cyb::scene
         weathers.Clear();
     }
 
-    void Scene::merge(Scene& other)
+    void Scene::Merge(Scene& other)
     {
         names.Merge(other.names);
         transforms.Merge(other.transforms);
@@ -670,7 +646,7 @@ namespace cyb::scene
         weathers.Serialize(ser, context);
     }
 
-    const uint32_t SMALL_SUBTASK_GROUPSIZE = 64;
+    const uint32_t SMALL_SUBTASK_GROUPSIZE = 32U;
 
     void Scene::RunTransformUpdateSystem(jobsystem::Context& ctx)
     {
@@ -723,27 +699,23 @@ namespace cyb::scene
 
     void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Execute(ctx, [&](jobsystem::JobArgs)
+        jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
+        {
+            ecs::Entity entity = objects.GetEntity(args.jobIndex);
+            ObjectComponent& object = objects[args.jobIndex];
+            math::AxisAlignedBox& aabb = aabb_objects[args.jobIndex];
+
+            aabb = math::AxisAlignedBox();
+            if (object.meshID != ecs::INVALID_ENTITY && meshes.Contains(object.meshID) && transforms.Contains(entity))
             {
-                for (size_t i = 0; i < objects.Size(); ++i)
-                {
-                    ObjectComponent& object = objects[i];
-                    math::AxisAlignedBox& aabb = aabb_objects[i];
+                const MeshComponent* mesh = meshes.GetComponent(object.meshID);
 
-                    aabb = math::AxisAlignedBox();
+                object.transformIndex = (int32_t)transforms.GetIndex(entity);
+                const TransformComponent* transform = transforms.GetComponent(entity);
 
-                    if (object.meshID != ecs::INVALID_ENTITY)
-                    {
-                        const ecs::Entity entity = objects.GetEntity(i);
-                        const MeshComponent* mesh = meshes.GetComponent(object.meshID);
-
-                        object.transformIndex = (int32_t)transforms.GetIndex(entity);
-                        const TransformComponent& transform = transforms[object.transformIndex];
-
-                        aabb = mesh->aabb.Transform(XMLoadFloat4x4(&transform.world));
-                    }
-                }
-            });
+                aabb = mesh->aabb.Transform(XMLoadFloat4x4(&transform->world));
+            }
+        });
     }
 
     void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)

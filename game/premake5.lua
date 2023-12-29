@@ -13,6 +13,9 @@ project "game"
 		"**.cpp"
 	}
 
+	 filter "system:windows"
+	 	files { "game.rc" }
+
 	includedirs
 	{
 		"%{wks.location}/engine/source",

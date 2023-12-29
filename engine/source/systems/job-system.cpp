@@ -107,47 +107,47 @@ namespace cyb::jobsystem
 		}
 	}
 
+	void WorkLoop(uint32_t threadID)
+	{
+		while (internal_state.alive.load())
+		{
+			work(threadID);
+
+			// finished with jobs, put to sleep
+			std::unique_lock<std::mutex> lock(internal_state.wakeMutex);
+			internal_state.wakeCondition.wait(lock);
+		}
+	}
+
 	void Initialize()
 	{
 		assert(internal_state.numThreads == 0 && "allready initialized");
 
-		// Retrieve the number of hardware threads in this system
+		// retrieve the number of hardware threads in this system
 		internal_state.numCores = std::thread::hardware_concurrency();
 
-		// Calculate the actual number of worker threads we want (-1 main thread)
-		internal_state.numThreads = std::max(1u, internal_state.numCores - 1);
+		// calculate the actual number of worker threads we want
+		internal_state.numThreads = std::max(1u, internal_state.numCores );
 		internal_state.jobQueuePerThread.reset(new JobQueue[internal_state.numThreads]);
 		internal_state.threads.reserve(internal_state.numThreads);
 
-		for (uint32_t threadID = 0; threadID < internal_state.numThreads; ++threadID)
+		// start from 1, leaving the main thread free
+		for (uint32_t threadID = 1; threadID < internal_state.numThreads; ++threadID)
 		{
-			internal_state.threads.emplace_back([threadID]
-			{
-				while (internal_state.alive.load())
-				{
-					work(threadID);
+			internal_state.threads.emplace_back(WorkLoop, threadID);
 
-					// finished with jobs, put to sleep
-					std::unique_lock<std::mutex> lock(internal_state.wakeMutex);
-					internal_state.wakeCondition.wait(lock);
-				}
-			});
 			std::thread& worker = internal_state.threads.back();
 
 #ifdef _WIN32
-			// Do Windows-specific thread setup
 			HANDLE handle = (HANDLE)worker.native_handle();
-
-			// Put each thread on to dedicated core
+#if 0
+			// put each thread on to dedicated core
 			DWORD_PTR affinityMask = 1ull << threadID;
 			DWORD_PTR affinityResult = SetThreadAffinityMask(handle, affinityMask);
 			assert(affinityResult > 0);
-
-			// Increase thread priority
-			//BOOL priorityResult = SetThreadPriority(handle, THREAD_PRIORITY_HIGHEST);
-			//assert(priorityResult != 0);
-
-			// Name the thread
+#else
+			// don't set the thread affinity and let the OS deal with scheduling
+#endif
 			std::wstring wthreadname = L"cyb::jobsystem_" + std::to_wstring(threadID);
 			HRESULT hr = SetThreadDescription(handle, wthreadname.c_str());
 			assert(SUCCEEDED(hr));

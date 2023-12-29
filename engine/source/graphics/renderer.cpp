@@ -535,27 +535,29 @@ namespace cyb::renderer
             if (object.meshID != ecs::INVALID_ENTITY)
             {
                 const MeshComponent* mesh = view.scene->meshes.GetComponent(object.meshID);
-
-                if (mesh->vertex_buffer_col.IsValid())
+                if (mesh != nullptr)
                 {
-                    const graphics::GPUBuffer* vertex_buffers[] =
+                    if (mesh->vertex_buffer_col.IsValid())
                     {
-                        &mesh->vertex_buffer_pos,
-                        &mesh->vertex_buffer_col
-                    };
+                        const graphics::GPUBuffer* vertex_buffers[] =
+                        {
+                            &mesh->vertex_buffer_pos,
+                            &mesh->vertex_buffer_col
+                        };
 
-                    const uint32_t strides[] = 
+                        const uint32_t strides[] =
+                        {
+                            sizeof(scene::MeshComponent::Vertex_Pos),
+                            sizeof(scene::MeshComponent::Vertex_Col)
+                        };
+
+                        device->BindVertexBuffers(vertex_buffers, (uint32_t)CountOf(vertex_buffers), strides, nullptr, cmd);
+                        device->BindIndexBuffer(&mesh->index_buffer, IndexBufferFormat::Uint32, 0, cmd);
+                    }
+                    else
                     {
-                        sizeof(scene::MeshComponent::Vertex_Pos),
-                        sizeof(scene::MeshComponent::Vertex_Col)
-                    };
-
-                    device->BindVertexBuffers(vertex_buffers, 2, strides, nullptr, cmd);
-                    device->BindIndexBuffer(&mesh->index_buffer, IndexBufferFormat::Uint32, 0, cmd);
-                }
-                else
-                {
-                    //device->BindVertexBuffer(&mesh->vertex_buffer_pos);
+                        //device->BindVertexBuffer(&mesh->vertex_buffer_pos);
+                    }
                 }
 
                 const TransformComponent& transform = view.scene->transforms[object.transformIndex];

@@ -3,6 +3,7 @@
 #include "core/profiler.h"
 #include "core/logger.h"
 #include "core/filesystem.h"
+#include "systems/event-system.h"
 #include "editor/editor.h"
 #include "editor/terrain-generator.h"
 #include "editor/undo-manager.h"
@@ -201,8 +202,8 @@ namespace cyb::editor
 
             if (ImGui::CollapsingHeader("Mesh Settings"))
             {
-                ui::DragFloat("ChunkSize", &m_meshDesc.size, 1.0f, 1.0f, 10000.0f, "%.2fm");
-                ui::SliderInt("Seed", (int*)&m_meshDesc.chunkExpand, nullptr, 0, 24);
+                ui::DragInt("ChunkSize", &m_meshDesc.size, 1, 1, 2000, "%dm");
+                ui::SliderInt("Expand", (int*)&m_meshDesc.chunkExpand, nullptr, 0, 24);
                 ui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
                 ui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
                 ui::SliderFloat("Max Error", &m_meshDesc.maxError, nullptr, 0.0001f, 0.01f, "%.4f");
@@ -339,7 +340,7 @@ namespace cyb::editor
             {
                 for (int32_t j = 0; j < previewResolution; j++)
                 {
-                    const float scale = (1.0f / (float)previewResolution) * 256.0f;
+                    const float scale = (1.0f / (float)previewResolution) * 1024.0f;
                     int sampleX = (int)std::round((float)(j + previewOffset.x) * scale);
                     int sampleY = (int)std::round((float)(i + previewOffset.y) * scale);
 
@@ -408,6 +409,11 @@ namespace cyb::editor
         // Loop though all indices and seperate ground from rock indices
         std::vector<uint32_t> groundIndices;
         std::vector<uint32_t> rockIndices;
+        groundIndices.resize(mesh->indices.size());
+        rockIndices.resize(mesh->indices.size());
+
+        size_t groundIndexCount = 0;
+        size_t rockIndexCount = 0;
 
         for (size_t i = 0; i < mesh->indices.size(); i += 3)
         {
@@ -421,88 +427,135 @@ namespace cyb::editor
 
             if (c != rockColor)
             {
-                groundIndices.push_back(i0);
-                groundIndices.push_back(i1);
-                groundIndices.push_back(i2);
+                groundIndices[groundIndexCount + 0] = i0;
+                groundIndices[groundIndexCount + 1] = i1;
+                groundIndices[groundIndexCount + 2] = i2;
+                groundIndexCount += 3;
             }
             else
             {
-                rockIndices.push_back(i0);
-                rockIndices.push_back(i1);
-                rockIndices.push_back(i2);
+                rockIndices[rockIndexCount + 0] = i0;
+                rockIndices[rockIndexCount + 1] = i1;
+                rockIndices[rockIndexCount + 2] = i2;
+                rockIndexCount += 3;
             }
         }
 
+        groundIndices.resize(groundIndexCount);
+        rockIndices.resize(rockIndexCount);
+
         // Merge all indices, first ground, than rock indices
         mesh->indices = groundIndices;
-        mesh->indices.insert(mesh->indices.end(), rockIndices.begin(), rockIndices.end());
+        if (!rockIndices.empty())
+            mesh->indices.insert(mesh->indices.end(), rockIndices.begin(), rockIndices.end());
         return (uint32_t)groundIndices.size();
     }
 
-    void TerrainGenerator::CreateTerrainAtOffset(const XMINT2 offset)
+    void TerrainGenerator::RemoveTerrainData()
     {
-        XMINT2 heightmapOffset = XMINT2(offset.x * m_meshDesc.size, offset.y * m_meshDesc.size);
-        HeightmapTriangulator triangulator(&heightmap, m_meshDesc.size, m_meshDesc.size, heightmapOffset);
-        triangulator.Run(m_meshDesc.maxError, m_meshDesc.maxVertices, m_meshDesc.maxTriangles);
-
-        // setup scene entities
         scene::Scene& scene = scene::GetScene();
-        ecs::Entity objectID = scene.CreateObject(fmt::format("TerrainChunk[{}, {}]", offset.x, offset.y));
-        scene::TransformComponent* transform = scene.transforms.GetComponent(objectID);
-        transform->Translate(XMFLOAT3(offset.x * m_meshDesc.size, 0, offset.y * m_meshDesc.size));
-
-        scene::ObjectComponent* object = scene.objects.GetComponent(objectID);
-        object->meshID = objectID;
-        scene::MeshComponent* mesh = &scene.meshes.Create(objectID);
-
-        // load mesh vertices
-        std::vector<XMFLOAT3> points = triangulator.GetPoints();
-        const XMFLOAT3 positionToCenter = XMFLOAT3(-(m_meshDesc.size * 0.5f), 0.0f, -(m_meshDesc.size * 0.5f));
-        mesh->vertex_positions.reserve(points.size());
-        mesh->vertex_colors.reserve(points.size());
-        for (const auto& p : points)
-        {
-            mesh->vertex_positions.push_back(XMFLOAT3(
-                positionToCenter.x + p.x * m_meshDesc.size,
-                positionToCenter.y + math::Lerp(m_meshDesc.minAltitude, m_meshDesc.maxAltitude, p.y),
-                positionToCenter.z + p.z * m_meshDesc.size));
-            mesh->vertex_colors.push_back(m_biomeColorBand.GetColorAt(p.y));
-        }
-
-        // load mesh indexes
-        std::vector<XMINT3> triangles = triangulator.GetTriangles();
-        mesh->indices.reserve(triangles.size() * 3);
-        for (const auto& tri : triangles)
-        {
-            mesh->indices.push_back(tri.x);
-            mesh->indices.push_back(tri.z);
-            mesh->indices.push_back(tri.y);
-        }
-
-        // seperate rock surfaces from ground to enable them
-        // to have different materials
-        uint32_t groundIndices = ColorizeMountains(mesh);
-
-        // setup a subset using ground material
-        scene::MeshComponent::MeshSubset subset;
-        subset.indexOffset = 0;
-        subset.indexCount = (uint32_t)groundIndices;
-        subset.materialID = groundMateral;
-        mesh->subsets.push_back(subset);
-
-        // setup subset using rock material
-        subset.indexOffset = groundIndices;
-        subset.indexCount = (uint32_t)mesh->indices.size() - groundIndices;
-        subset.materialID = rockMatereal;
-        mesh->subsets.push_back(subset);
-
-        mesh->CreateRenderData();
+        chunks.clear();
+        scene.RemoveEntity(terrainEntity, true);
     }
 
     void TerrainGenerator::GenerateTerrainMesh()
     {
-        // create terrain materials
+        RemoveTerrainData();
+
+        auto requestChunk = [&](int32_t xOffset, int32_t zOffset)
+        {
+            Chunk chunk = center_chunk;
+            chunk.x += xOffset;
+            chunk.z += zOffset;
+            auto it = chunks.find(chunk);
+            if (it == chunks.end() || it->second.entity == ecs::INVALID_ENTITY)
+            {
+                // generate a new chunk
+                ChunkData& chunkData = chunks[chunk];
+                scene::Scene& chunkScene = chunkData.scene;
+                chunkData.entity = chunkScene.CreateObject(fmt::format("Chunk_{}_{}", xOffset, zOffset));
+                scene::ObjectComponent* object = chunkScene.objects.GetComponent(chunkData.entity);
+
+                scene::TransformComponent* transform = chunkScene.transforms.GetComponent(chunkData.entity);
+                transform->Translate(XMFLOAT3((float)(xOffset * m_meshDesc.size), 0, (float)(zOffset * m_meshDesc.size)));
+                transform->UpdateTransform();
+
+                scene::MeshComponent* mesh = &chunkScene.meshes.Create(chunkData.entity);
+                object->meshID = chunkData.entity;
+
+                // generate triangulated heightmap mesh
+                XMINT2 heightmapOffset = XMINT2(xOffset * m_meshDesc.size, zOffset * m_meshDesc.size);
+                HeightmapTriangulator triangulator(&heightmap, m_meshDesc.size, m_meshDesc.size, heightmapOffset);
+                triangulator.Run(m_meshDesc.maxError, m_meshDesc.maxVertices, m_meshDesc.maxTriangles);
+
+                jobsystem::Context ctx;
+                std::vector<XMFLOAT3> points;
+                jobsystem::Execute(ctx, [&](jobsystem::JobArgs args)
+                {
+                    points = triangulator.GetPoints();
+                });
+
+                std::vector<XMINT3> triangles;
+                jobsystem::Execute(ctx, [&](jobsystem::JobArgs args)
+                {
+                    triangles = triangulator.GetTriangles();
+                });
+
+                jobsystem::Wait(ctx);
+
+                // load mesh vertices
+                const XMFLOAT3 offsetToCenter = XMFLOAT3(-(m_meshDesc.size * 0.5f), 0.0f, -(m_meshDesc.size * 0.5f));
+                mesh->vertex_positions.resize(points.size());
+                mesh->vertex_colors.resize(points.size());
+                jobsystem::Dispatch(ctx, (uint32_t)points.size(), 512, [&](jobsystem::JobArgs args)
+                {
+                    const uint32_t index = args.jobIndex;
+                    mesh->vertex_positions[index] = XMFLOAT3(
+                        offsetToCenter.x + points[index].x * m_meshDesc.size,
+                        offsetToCenter.y + math::Lerp(m_meshDesc.minAltitude, m_meshDesc.maxAltitude, points[index].y),
+                        offsetToCenter.z + points[index].z * m_meshDesc.size);
+                    mesh->vertex_colors[index] = m_biomeColorBand.GetColorAt(points[index].y);
+                });
+
+                // load mesh indexes
+                mesh->indices.resize(triangles.size() * 3);
+                jobsystem::Dispatch(ctx, (uint32_t)triangles.size(), 512, [&](jobsystem::JobArgs args)
+                {
+                    const uint32_t index = args.jobIndex;
+                    mesh->indices[(index * 3) + 0] = triangles[index].x;
+                    mesh->indices[(index * 3) + 1] = triangles[index].z;
+                    mesh->indices[(index * 3) + 2] = triangles[index].y;
+                });
+
+                // seperate rock surfaces from ground to enable them
+                // to have different materials
+                jobsystem::Wait(ctx);
+                uint32_t groundIndices = ColorizeMountains(mesh);
+
+                // setup a subset using ground material
+                scene::MeshComponent::MeshSubset subset;
+                subset.indexOffset = 0;
+                subset.indexCount = (uint32_t)groundIndices;
+                subset.materialID = groundMateral;
+                mesh->subsets.push_back(subset);
+
+                // setup subset using rock material
+                subset.indexOffset = groundIndices;
+                subset.indexCount = (uint32_t)mesh->indices.size() - groundIndices;
+                subset.materialID = rockMatereal;
+                mesh->subsets.push_back(subset);
+
+                mesh->CreateRenderData();
+                chunkData.isGenerated.store(true);
+            }
+        };
+
         scene::Scene& scene = scene::GetScene();
+
+        // create terrain group entity
+        terrainEntity = scene.CreateGroup("Terrain");
+
+        // create terrain materials
         groundMateral = scene.CreateMaterial("TerrainGround_Material");
         scene::MaterialComponent* material = scene.materials.GetComponent(groundMateral);
         material->roughness = 0.85;
@@ -513,9 +566,26 @@ namespace cyb::editor
         material->roughness = 0.95;
         material->metalness = 0.215;
 
+        auto mergeChunks = [&](int x, int z)
+        {
+            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t)
+            {
+                Chunk chunk = center_chunk;
+                chunk.x += x;
+                chunk.z += z;
+                auto it = chunks.find(chunk);
+                ChunkData& chunkData = it->second;
+
+                scene::Scene& scene = scene::GetScene();
+                scene.Merge(chunkData.scene);
+                scene.ComponentAttach(chunkData.entity, terrainEntity);
+            });
+        };
+
         jobsystem::Execute(jobContext, [=](jobsystem::JobArgs)
         {
-            CreateTerrainAtOffset(XMINT2(0, 0));
+            requestChunk(0, 0);
+            mergeChunks(0, 0);
             for (int32_t growth = 0; growth < m_meshDesc.chunkExpand; growth++)
             {
                 const int side = 2 * (growth + 1);
@@ -523,22 +593,26 @@ namespace cyb::editor
                 int z = -growth - 1;
                 for (int i = 0; i < side; ++i)
                 {
-                    CreateTerrainAtOffset(XMINT2(x, z));
+                    requestChunk(x, z);
+                    mergeChunks(x, z);
                     x++;
                 }
                 for (int i = 0; i < side; ++i)
                 {
-                    CreateTerrainAtOffset(XMINT2(x, z));
+                    requestChunk(x, z);
+                    mergeChunks(x, z);
                     z++;
                 }
                 for (int i = 0; i < side; ++i)
                 {
-                    CreateTerrainAtOffset(XMINT2(x, z));
+                    requestChunk(x, z);
+                    mergeChunks(x, z);
                     x--;
                 }
                 for (int i = 0; i < side; ++i)
                 {
-                    CreateTerrainAtOffset(XMINT2(x, z));
+                    requestChunk(x, z);
+                    mergeChunks(x, z);
                     z--;
                 }
             }

@@ -250,7 +250,7 @@ namespace cyb::scene
 
         void Update(double dt);
         void Clear();
-        void merge(Scene& other);
+        void Merge(Scene& other);
 
         // NOTE:
         // be careful removing non-recursive mode sence it might leave
@@ -276,8 +276,6 @@ namespace cyb::scene
             float farPlane,
             float fov
         );
-
-        ecs::Entity FindMaterial(const std::string& search_value);
 
         // create a hierarchy component to the entity and attaches it to parent
         // world position will not be changed

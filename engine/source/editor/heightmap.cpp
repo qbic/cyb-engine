@@ -114,7 +114,7 @@ namespace cyb::editor
 
     float HeightmapGenerator::GetHeightAt(const XMINT2& p) const
     {
-        return GetValue(static_cast<float>(p.x) / 256.0f, static_cast<float>(p.y) / 256.0f);
+        return GetValue(static_cast<float>(p.x) / 512.0f, static_cast<float>(p.y) / 512.0f);
     }
 
     std::vector<HeightmapGenerator::Input> GetDefaultInputs()
@@ -124,7 +124,7 @@ namespace cyb::editor
 
         desc.noise.type = noise::Type::Perlin;
         desc.noise.seed = 0;
-        desc.noise.frequency = 1.389f;
+        desc.noise.frequency = 0.989f;
         desc.noise.octaves = 3;
         desc.strataOp = StrataOp::Smooth;
         desc.strata = 5.0f;
@@ -133,7 +133,7 @@ namespace cyb::editor
         inputs.push_back(desc);
         
         desc.noise.type = noise::Type::Cellular;
-        desc.noise.frequency = 1.16f;
+        desc.noise.frequency = 0.56f;
         desc.noise.octaves = 4;
         desc.strataOp = StrataOp::None;
         desc.strata = 12.0f;
@@ -308,9 +308,11 @@ namespace cyb::editor
                 m_Points[m_triangles[t * 3 + 0]],
                 m_Points[m_triangles[t * 3 + 1]],
                 m_Points[m_triangles[t * 3 + 2]]);
+
             // update metadata
             m_Candidates[t] = pair.first;
             m_Errors[t] = pair.second;
+
             // add triangle to priority queue
             QueuePush(t);
         }

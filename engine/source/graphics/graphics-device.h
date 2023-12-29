@@ -645,6 +645,7 @@ namespace cyb::graphics
 
         virtual CommandList BeginCommandList(QueueType queue = QueueType::Graphics) = 0;
         virtual void SubmitCommandList() {}
+        virtual void WaitForGPU() const = 0;
         virtual void SetName(GPUResource* resource, const char* name) { }
         virtual void SetName(Shader* shader, const char* name) { }
 

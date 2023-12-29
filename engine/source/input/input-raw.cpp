@@ -90,7 +90,7 @@ namespace cyb::input::rawinput
         rid[1].dwFlags = 0;
         rid[1].hwndTarget = 0;
 
-        if (RegisterRawInputDevices(rid, CountOf(rid), sizeof(rid[0])) == FALSE)
+        if (RegisterRawInputDevices(rid, _countof(rid), sizeof(rid[0])) == FALSE)
         {
             // registration failed. Call GetLastError for the cause of the error
             assert(0);

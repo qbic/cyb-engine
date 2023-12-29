@@ -651,10 +651,10 @@ namespace cyb::scene
     void Scene::RunTransformUpdateSystem(jobsystem::Context& ctx)
     {
         jobsystem::Dispatch(ctx, (uint32_t)transforms.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
-        {
-            TransformComponent& transform = transforms[args.jobIndex];
-            transform.UpdateTransform();
-        });
+            {
+                TransformComponent& transform = transforms[args.jobIndex];
+                transform.UpdateTransform();
+            });
     }
 
     void Scene::RunHierarchyUpdateSystem(jobsystem::Context& ctx)

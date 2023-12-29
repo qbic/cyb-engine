@@ -2931,12 +2931,6 @@ namespace cyb::graphics
         m_initLocker.unlock();
     }
 
-    void GraphicsDevice_Vulkan::WaitForGPU() const
-    {
-        VkResult res = vkDeviceWaitIdle(device);
-        assert(res == VK_SUCCESS);
-    }
-
     void GraphicsDevice_Vulkan::ClearPipelineStateCache()
     {
         m_allocationHandler->destroylocker.lock();

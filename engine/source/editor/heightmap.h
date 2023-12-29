@@ -49,28 +49,19 @@ namespace cyb::editor
         void LockMinMax();
         [[nodiscard]] float GetValue(float x, float y) const;
         [[nodiscard]] float GetHeightAt(const XMINT2& p) const;
+        [[nodiscard]] std::pair<XMINT2, float> FindCandidate(uint32_t width, uint32_t height, const XMINT2& offset, const XMINT2& p0, const XMINT2& p1, const XMINT2& p2) const;
     };
 
     std::vector<HeightmapGenerator::Input> GetDefaultInputs();
 
-    struct HeightmapImage
-    {
-        int32_t width;
-        int32_t height;
-        std::unique_ptr<float[]> data;
-
-        HeightmapImage(int32_t width_, int32_t height_, const XMINT2& offset, const HeightmapGenerator& generator);
-        ~HeightmapImage() = default;
-
-        [[nodiscard]] float GetHeightAt(const XMINT2& p) const;
-        [[nodiscard]] std::pair<XMINT2, float> FindCandidate(const XMINT2& p0, const XMINT2& p1, const XMINT2& p2) const;
-    };
-
     class HeightmapTriangulator
     {
     public:
-        HeightmapTriangulator(const HeightmapImage* image) :
-            m_Image(image)
+        HeightmapTriangulator(const HeightmapGenerator* heightmap, uint32_t width, uint32_t height, const XMINT2& offset) :
+            m_Heightmap(heightmap),
+            m_Offset(offset),
+            m_Width(width),
+            m_Height(height)
         {
         }
 
@@ -101,7 +92,10 @@ namespace cyb::editor
         void QueueUp(const size_t j0);
         bool QueueDown(const size_t i0, const size_t n);
 
-        const HeightmapImage* m_Image;
+        const HeightmapGenerator* m_Heightmap;
+        XMINT2 m_Offset;
+        uint32_t m_Height;
+        uint32_t m_Width;
         std::vector<XMINT2> m_Points;
         std::vector<uint32_t> m_triangles;      // triangle indexes
         std::vector<int> m_Halfedges;

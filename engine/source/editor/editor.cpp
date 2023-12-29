@@ -10,13 +10,13 @@
 #include "systems/event-system.h"
 #include "editor/editor.h"
 #include "editor/imgui-backend.h"
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "imgui_internal.h"
 #include "backends/imgui_impl_win32.h"
 #include "imgui_stdlib.h"
 #include "ImGuizmo.h"
 #include "editor/widgets.h"
 #include "editor/terrain-generator.h"
-
-#include "imgui_internal.h" // REMOVE! (used for vertical seperator in menu atm)
 
 namespace cyb::editor 
 {
@@ -156,16 +156,11 @@ namespace cyb::editor
         const ecs::ComponentManager<scene::NameComponent>& names,
         const ecs::Entity currentEntity)
     {
-        assert(components.Size() < INT32_MAX);
-
         static ImGuiTextFilter filter;
-        ImGui::Text(ICON_FA_MAGNIFYING_GLASS " Filter:");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(-1);
-        filter.Draw("##filter");
-
         constexpr int displayedEntitiesCount = 10;
         ecs::Entity selectedEntity = ecs::INVALID_ENTITY;
+
+        assert(components.Size() < INT32_MAX);
         if (ImGui::BeginListBox("##BeginListBox"))
         {
             std::vector<SortableNameEntityData> sortedEntities;
@@ -197,6 +192,10 @@ namespace cyb::editor
             ImGui::EndListBox();
         }
 
+        ImGui::Text("Search:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(-1);
+        filter.Draw("##filter");
         return selectedEntity;
     }
 
@@ -258,7 +257,7 @@ namespace cyb::editor
         scene::NameComponent* name = scene.names.GetComponent(object->meshID);
         ImGui::InputText("##Mesh_Name", &name->name);
         ImGui::SameLine();
-        if (ImGui::Button("Change", ImVec2(-1, 0)))
+        if (ImGui::Button("Change"))
             ImGui::OpenPopup("MeshSelectPopup");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Link another mesh to the object");
@@ -1073,7 +1072,6 @@ namespace cyb::editor
         style.Colors[ImGuizmo::PLANE_Z].w = 0.6f;
 #endif
 
-        graphics::GetDevice()->WaitForGPU();
         initialized = true;
     }
 

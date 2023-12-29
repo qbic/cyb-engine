@@ -227,6 +227,7 @@ namespace cyb::graphics
 
         CommandList BeginCommandList(QueueType queue) override;
         void SubmitCommandList() override;
+        void WaitForGPU() const override;
         void SetName(GPUResource* pResource, const char* name) override;
         void SetName(Shader* shader, const char* name) override;
 

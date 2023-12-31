@@ -135,7 +135,6 @@ namespace cyb::jobsystem
 		for (uint32_t threadID = 1; threadID < internal_state.numThreads; ++threadID)
 		{
 			internal_state.threads.emplace_back(WorkLoop, threadID);
-
 			std::thread& worker = internal_state.threads.back();
 
 #ifdef _WIN32

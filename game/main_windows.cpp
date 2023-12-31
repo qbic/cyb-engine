@@ -107,11 +107,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         nullptr);
 
     if (!hWnd)
-    {
         return FALSE;
-    }
-
-    application.SetWindow(hWnd);
 
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
@@ -130,6 +126,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     switch (message)
     {
+    case WM_CREATE:
+        application.SetWindow(hWnd);
+        break;
     case WM_CLOSE:
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -138,13 +137,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_INPUT:
         cyb::input::rawinput::ParseMessage((HRAWINPUT)lParam);
         break;
-
-    case WM_PAINT:
-    {
-        PAINTSTRUCT paint;
-        HDC hDC = BeginPaint(hWnd, &paint);
-        EndPaint(hWnd, &paint);
-    } break;
 
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);

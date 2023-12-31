@@ -56,30 +56,28 @@ namespace cyb::hli
 
 	void Application::Initialize()
 	{
-		// Create a new vulkan render device and set it as default
-		graphics_device = std::make_unique<graphics::GraphicsDevice_Vulkan>();
-		graphics::GetDevice() = graphics_device.get();
-		graphics::GraphicsDevice* device = graphics::GetDevice();
+		Timer timer;
+		CYB_INFO("Initializing cyb-engine, please wait...");
 
-		graphics::SwapChainDesc desc = {};
-		platform::WindowProperties windowProp = platform::GetWindowProperties(window);
-		desc.width = windowProp.width;
-		desc.height = windowProp.height;
-		graphics::GetDevice()->CreateSwapChain(&desc, window, &swapchain);
-
-		change_vsyc_event = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this](uint64_t userdata) {
-			SwapChainDesc desc = swapchain.desc;
-			desc.vsync = (userdata != 0);
-			bool success = graphics_device->CreateSwapChain(&desc, nullptr, &swapchain);
-			assert(success);
-			});
-
-		ImGui_Impl_CybEngine_Init(window);
-
-		// Initialize 3d engine components
 		jobsystem::Initialize();
+
+#if 1
+		// async component initialization
+		jobsystem::Context ctx;
+		jobsystem::Execute(ctx, [](jobsystem::JobArgs) { input::Initialize(); });
+		jobsystem::Execute(ctx, [](jobsystem::JobArgs) { renderer::Initialize(); });
+		jobsystem::Execute(ctx, [&](jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(window); });
+
+		jobsystem::Wait(ctx);
+#else
+		// synced initialization
 		input::Initialize();
 		renderer::Initialize();
+		ImGui_Impl_CybEngine_Init(window);
+
+#endif
+
+		CYB_INFO("cyb-engine initialized in {:.2f}ms", timer.ElapsedMilliseconds());
 	}
 
 	void Application::Update(double dt)
@@ -107,5 +105,27 @@ namespace cyb::hli
 	void Application::SetWindow(platform::WindowType window)
 	{
 		this->window = window;
+
+		if (graphics_device == nullptr)
+		{
+			graphics_device = std::make_unique<graphics::GraphicsDevice_Vulkan>();
+			graphics::GetDevice() = graphics_device.get();
+			graphics::GraphicsDevice* device = graphics::GetDevice();
+		}
+
+		graphics::SwapChainDesc desc = {};
+		platform::WindowProperties windowProp = platform::GetWindowProperties(window);
+		desc.width = windowProp.width;
+		desc.height = windowProp.height;
+		graphics::GetDevice()->CreateSwapChain(&desc, window, &swapchain);
+
+		change_vsyc_event = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this](uint64_t userdata)
+		{
+			SwapChainDesc desc = swapchain.desc;
+			desc.vsync = (userdata != 0);
+			bool success = graphics_device->CreateSwapChain(&desc, nullptr, &swapchain);
+			assert(success);
+		});
+
 	}
 }

@@ -1,5 +1,7 @@
 #include <algorithm>
+#include <fstream>
 #include "core/noise.h"
+#include "core/random.h"
 #include "core/profiler.h"
 #include "core/logger.h"
 #include "core/filesystem.h"
@@ -9,7 +11,6 @@
 #include "editor/undo-manager.h"
 #include "editor/icons_font_awesome6.h"
 #include "json.hpp"
-#include <fstream>
 
 namespace cyb::editor
 {
@@ -280,15 +281,12 @@ namespace cyb::editor
             if (!jobsystem::IsBusy(jobContext))
             {
                 if (ImGui::Button("Generate terrain mesh", ImVec2(-1, 0)))
-                {
                     GenerateTerrainMesh();
-                }
             }
             else 
             {
-                ImGui::BeginDisabled();
-                ImGui::Button("Generating mesh...", ImVec2(-1, 0));
-                ImGui::EndDisabled();
+                if (ImGui::Button("[Cancel generation]", ImVec2(-1, 0)))
+                    cancelTerrainGen.store(true);
             }
 
             if (ImGui::IsItemHovered())
@@ -464,90 +462,87 @@ namespace cyb::editor
 
         auto requestChunk = [&](int32_t xOffset, int32_t zOffset)
         {
-            Chunk chunk = center_chunk;
-            chunk.x += xOffset;
-            chunk.z += zOffset;
+            Chunk chunk = { centerChunk.x + xOffset, centerChunk.z + zOffset };
             auto it = chunks.find(chunk);
-            if (it == chunks.end() || it->second.entity == ecs::INVALID_ENTITY)
+            if (it != chunks.end() && it->second.entity != ecs::INVALID_ENTITY)
+                return;
+
+            // generate a new chunk
+            ChunkData& chunkData = chunks[chunk];
+            scene::Scene& chunkScene = chunkData.scene;
+            chunkData.entity = chunkScene.CreateObject(fmt::format("Chunk_{}_{}", xOffset, zOffset));
+            scene::ObjectComponent* object = chunkScene.objects.GetComponent(chunkData.entity);
+
+            scene::TransformComponent* transform = chunkScene.transforms.GetComponent(chunkData.entity);
+            transform->Translate(XMFLOAT3((float)(xOffset * m_meshDesc.size), 0, (float)(zOffset * m_meshDesc.size)));
+            transform->UpdateTransform();
+
+            scene::MeshComponent* mesh = &chunkScene.meshes.Create(chunkData.entity);
+            object->meshID = chunkData.entity;
+
+            // generate triangulated heightmap mesh
+            XMINT2 heightmapOffset = XMINT2(xOffset * m_meshDesc.size, zOffset * m_meshDesc.size);
+            HeightmapTriangulator triangulator(&heightmap, m_meshDesc.size, m_meshDesc.size, heightmapOffset);
+            triangulator.Run(m_meshDesc.maxError, m_meshDesc.maxVertices, m_meshDesc.maxTriangles);
+
+            jobsystem::Context ctx;
+            std::vector<XMFLOAT3> points;
+            jobsystem::Execute(ctx, [&](jobsystem::JobArgs args)
             {
-                // generate a new chunk
-                ChunkData& chunkData = chunks[chunk];
-                scene::Scene& chunkScene = chunkData.scene;
-                chunkData.entity = chunkScene.CreateObject(fmt::format("Chunk_{}_{}", xOffset, zOffset));
-                scene::ObjectComponent* object = chunkScene.objects.GetComponent(chunkData.entity);
+                points = triangulator.GetPoints();
+            });
 
-                scene::TransformComponent* transform = chunkScene.transforms.GetComponent(chunkData.entity);
-                transform->Translate(XMFLOAT3((float)(xOffset * m_meshDesc.size), 0, (float)(zOffset * m_meshDesc.size)));
-                transform->UpdateTransform();
+            std::vector<XMINT3> triangles;
+            jobsystem::Execute(ctx, [&](jobsystem::JobArgs args)
+            {
+                triangles = triangulator.GetTriangles();
+            });
 
-                scene::MeshComponent* mesh = &chunkScene.meshes.Create(chunkData.entity);
-                object->meshID = chunkData.entity;
+            jobsystem::Wait(ctx);
 
-                // generate triangulated heightmap mesh
-                XMINT2 heightmapOffset = XMINT2(xOffset * m_meshDesc.size, zOffset * m_meshDesc.size);
-                HeightmapTriangulator triangulator(&heightmap, m_meshDesc.size, m_meshDesc.size, heightmapOffset);
-                triangulator.Run(m_meshDesc.maxError, m_meshDesc.maxVertices, m_meshDesc.maxTriangles);
+            // load mesh vertices
+            const XMFLOAT3 offsetToCenter = XMFLOAT3(-(m_meshDesc.size * 0.5f), 0.0f, -(m_meshDesc.size * 0.5f));
+            mesh->vertex_positions.resize(points.size());
+            mesh->vertex_colors.resize(points.size());
+            jobsystem::Dispatch(ctx, (uint32_t)points.size(), 512, [&](jobsystem::JobArgs args)
+            {
+                const uint32_t index = args.jobIndex;
+                mesh->vertex_positions[index] = XMFLOAT3(
+                    offsetToCenter.x + points[index].x * m_meshDesc.size,
+                    offsetToCenter.y + math::Lerp(m_meshDesc.minAltitude, m_meshDesc.maxAltitude, points[index].y),
+                    offsetToCenter.z + points[index].z * m_meshDesc.size);
+                mesh->vertex_colors[index] = m_biomeColorBand.GetColorAt(points[index].y);
+            });
 
-                jobsystem::Context ctx;
-                std::vector<XMFLOAT3> points;
-                jobsystem::Execute(ctx, [&](jobsystem::JobArgs args)
-                {
-                    points = triangulator.GetPoints();
-                });
+            // load mesh indexes
+            mesh->indices.resize(triangles.size() * 3);
+            jobsystem::Dispatch(ctx, (uint32_t)triangles.size(), 512, [&](jobsystem::JobArgs args)
+            {
+                const uint32_t index = args.jobIndex;
+                mesh->indices[(index * 3) + 0] = triangles[index].x;
+                mesh->indices[(index * 3) + 1] = triangles[index].z;
+                mesh->indices[(index * 3) + 2] = triangles[index].y;
+            });
 
-                std::vector<XMINT3> triangles;
-                jobsystem::Execute(ctx, [&](jobsystem::JobArgs args)
-                {
-                    triangles = triangulator.GetTriangles();
-                });
+            // seperate rock surfaces from ground to enable them
+            // to have different materials
+            jobsystem::Wait(ctx);
+            uint32_t groundIndices = ColorizeMountains(mesh);
 
-                jobsystem::Wait(ctx);
+            // setup a subset using ground material
+            scene::MeshComponent::MeshSubset subset;
+            subset.indexOffset = 0;
+            subset.indexCount = (uint32_t)groundIndices;
+            subset.materialID = groundMateral;
+            mesh->subsets.push_back(subset);
 
-                // load mesh vertices
-                const XMFLOAT3 offsetToCenter = XMFLOAT3(-(m_meshDesc.size * 0.5f), 0.0f, -(m_meshDesc.size * 0.5f));
-                mesh->vertex_positions.resize(points.size());
-                mesh->vertex_colors.resize(points.size());
-                jobsystem::Dispatch(ctx, (uint32_t)points.size(), 512, [&](jobsystem::JobArgs args)
-                {
-                    const uint32_t index = args.jobIndex;
-                    mesh->vertex_positions[index] = XMFLOAT3(
-                        offsetToCenter.x + points[index].x * m_meshDesc.size,
-                        offsetToCenter.y + math::Lerp(m_meshDesc.minAltitude, m_meshDesc.maxAltitude, points[index].y),
-                        offsetToCenter.z + points[index].z * m_meshDesc.size);
-                    mesh->vertex_colors[index] = m_biomeColorBand.GetColorAt(points[index].y);
-                });
+            // setup subset using rock material
+            subset.indexOffset = groundIndices;
+            subset.indexCount = (uint32_t)mesh->indices.size() - groundIndices;
+            subset.materialID = rockMatereal;
+            mesh->subsets.push_back(subset);
 
-                // load mesh indexes
-                mesh->indices.resize(triangles.size() * 3);
-                jobsystem::Dispatch(ctx, (uint32_t)triangles.size(), 512, [&](jobsystem::JobArgs args)
-                {
-                    const uint32_t index = args.jobIndex;
-                    mesh->indices[(index * 3) + 0] = triangles[index].x;
-                    mesh->indices[(index * 3) + 1] = triangles[index].z;
-                    mesh->indices[(index * 3) + 2] = triangles[index].y;
-                });
-
-                // seperate rock surfaces from ground to enable them
-                // to have different materials
-                jobsystem::Wait(ctx);
-                uint32_t groundIndices = ColorizeMountains(mesh);
-
-                // setup a subset using ground material
-                scene::MeshComponent::MeshSubset subset;
-                subset.indexOffset = 0;
-                subset.indexCount = (uint32_t)groundIndices;
-                subset.materialID = groundMateral;
-                mesh->subsets.push_back(subset);
-
-                // setup subset using rock material
-                subset.indexOffset = groundIndices;
-                subset.indexCount = (uint32_t)mesh->indices.size() - groundIndices;
-                subset.materialID = rockMatereal;
-                mesh->subsets.push_back(subset);
-
-                mesh->CreateRenderData();
-                chunkData.isGenerated.store(true);
-            }
+            mesh->CreateRenderData();
         };
 
         scene::Scene& scene = scene::GetScene();
@@ -570,9 +565,7 @@ namespace cyb::editor
         {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t)
             {
-                Chunk chunk = center_chunk;
-                chunk.x += x;
-                chunk.z += z;
+                Chunk chunk = { centerChunk.x + x, centerChunk.z + z };
                 auto it = chunks.find(chunk);
                 ChunkData& chunkData = it->second;
 
@@ -582,10 +575,14 @@ namespace cyb::editor
             });
         };
 
+        cancelTerrainGen.store(false);
+
         jobsystem::Execute(jobContext, [=](jobsystem::JobArgs)
         {
             requestChunk(0, 0);
             mergeChunks(0, 0);
+            if (cancelTerrainGen.load()) 
+                return;
             for (int32_t growth = 0; growth < m_meshDesc.chunkExpand; growth++)
             {
                 const int side = 2 * (growth + 1);
@@ -595,24 +592,32 @@ namespace cyb::editor
                 {
                     requestChunk(x, z);
                     mergeChunks(x, z);
+                    if (cancelTerrainGen.load())
+                        return;
                     x++;
                 }
                 for (int i = 0; i < side; ++i)
                 {
                     requestChunk(x, z);
                     mergeChunks(x, z);
+                    if (cancelTerrainGen.load())
+                        return;
                     z++;
                 }
                 for (int i = 0; i < side; ++i)
                 {
                     requestChunk(x, z);
                     mergeChunks(x, z);
+                    if (cancelTerrainGen.load())
+                        return;
                     x--;
                 }
                 for (int i = 0; i < side; ++i)
                 {
                     requestChunk(x, z);
                     mergeChunks(x, z);
+                    if (cancelTerrainGen.load())
+                        return;
                     z--;
                 }
             }

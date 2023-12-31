@@ -60,7 +60,6 @@ namespace cyb::editor
         {
             ecs::Entity entity = ecs::INVALID_ENTITY;
             scene::Scene scene;
-            std::atomic_bool isGenerated = false;
         };
 
         // have a seperate preview generation jobsystem to be able 
@@ -75,8 +74,9 @@ namespace cyb::editor
         ui::Gradient m_biomeColorBand;
         TerrainMeshDesc m_meshDesc;
 
+        std::atomic_bool cancelTerrainGen = false;
         std::unordered_map<Chunk, ChunkData, ChunkHash> chunks;
-        Chunk center_chunk = {};
+        Chunk centerChunk = {};
 
         ecs::Entity terrainEntity = ecs::INVALID_ENTITY;
         ecs::Entity groundMateral = ecs::INVALID_ENTITY;

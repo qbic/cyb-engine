@@ -85,11 +85,6 @@ namespace cyb::ui
         }
     }
 
-#define COMMON_WIDGET_CODE(label)   \
-    IdScopeGuard m_idGuard(label);  \
-    ItemLabel(label);               \
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-
     // [Deprecated]
     template <class T>
     void SaveChangeToUndoManager(typename T::value_type* v)
@@ -122,6 +117,11 @@ namespace cyb::ui
                 onChange();
         }
     }
+
+#define COMMON_WIDGET_CODE(label)   \
+    IdScopeGuard m_idGuard(label);  \
+    ItemLabel(label);               \
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
     void Checkbox(const char* label, bool* v, const std::function<void()> onChange)
     {
@@ -276,9 +276,7 @@ namespace cyb::ui
         {
             auto& vector = *static_cast<std::vector<std::string_view>*>(vec);
             if (idx < 0 || idx >= static_cast<int>(vector.size()))
-            {
                 return nullptr;
-            }
 
             return vector[idx].data();
         };

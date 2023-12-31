@@ -156,11 +156,16 @@ namespace cyb::editor
         const ecs::ComponentManager<scene::NameComponent>& names,
         const ecs::Entity currentEntity)
     {
+        assert(components.Size() < INT32_MAX);
         static ImGuiTextFilter filter;
         constexpr int displayedEntitiesCount = 10;
         ecs::Entity selectedEntity = ecs::INVALID_ENTITY;
 
-        assert(components.Size() < INT32_MAX);
+        ImGui::Text(ICON_FA_MAGNIFYING_GLASS "Search:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(-1);
+        filter.Draw("##filter");
+
         if (ImGui::BeginListBox("##BeginListBox"))
         {
             std::vector<SortableNameEntityData> sortedEntities;
@@ -192,10 +197,6 @@ namespace cyb::editor
             ImGui::EndListBox();
         }
 
-        ImGui::Text("Search:");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(-1);
-        filter.Draw("##filter");
         return selectedEntity;
     }
 

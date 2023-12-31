@@ -1,8 +1,5 @@
 #pragma once
-#include <unordered_map>
 #include <atomic>
-#include <mutex>
-#include "core/random.h"
 #include "core/serializer.h"
 #include "systems/job-system.h"
 #include "flat_hash_map.hpp"
@@ -64,8 +61,8 @@ namespace cyb::ecs
             lookup.reserve(reservedCount);
         }
 
-        // disallow this to be copied by mistake
         ComponentManager(const ComponentManager&) = delete;
+        ComponentManager& operator=(const ComponentManager&) = delete;
 
         // clear the container of all components and entities
         inline void Clear()
@@ -140,27 +137,27 @@ namespace cyb::ecs
         void Remove(Entity entity)
         {
             auto it = lookup.find(entity);
-            if (it != lookup.end()) 
+            if (it == lookup.end())
+                return;
+
+            // directly index into components and entities array
+            const size_t index = it->second;
+            const Entity indexedEntity = entities[index];
+
+            if (index < components.size() - 1)
             {
-                // directly index into components and entities array
-                const size_t index = it->second;
-                const Entity indexedEntity = entities[index];
+                // swap out the dead element with the last one
+                components[index] = std::move(components.back());
+                entities[index] = entities.back();
 
-                if (index < components.size() - 1) 
-                {
-                    // swap out the dead element with the last one
-                    components[index] = std::move(components.back());
-                    entities[index] = entities.back();
-
-                    // update the lookup table
-                    lookup[entities[index]] = index;
-                }
-
-                // shrink the container
-                components.pop_back();
-                entities.pop_back();
-                lookup.erase(indexedEntity);
+                // update the lookup table
+                lookup[entities[index]] = index;
             }
+
+            // shrink the container
+            components.pop_back();
+            entities.pop_back();
+            lookup.erase(indexedEntity);
         }
 
         // check if a component exists for a given entity or not
@@ -183,20 +180,20 @@ namespace cyb::ecs
         [[nodiscard]] const T* GetComponent(Entity entity) const
         {
             const auto it = lookup.find(entity);
-            if (it != lookup.end()) 
-                return &components[it->second];
+            if (it == lookup.end())
+                return nullptr;
 
-            return nullptr;
+            return &components[it->second];
         }
 
-        // retrieve component index by entity handle (if not exists, returns SIZE_MAX value)
+        // retrieve component index by entity handle (if not found, returns std::numeric_limits<size_t>::max)
         [[nodiscard]] size_t GetIndex(Entity entity) const
         {
             const auto it = lookup.find(entity);
-            if (it != lookup.end()) 
-                return it->second;
-
-            return SIZE_MAX;
+            if (it == lookup.end())
+                return std::numeric_limits<size_t>::max();
+                
+            return it->second;
         }
 
         [[nodiscard]] Entity GetEntity(size_t index) const

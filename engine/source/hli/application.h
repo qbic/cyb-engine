@@ -22,7 +22,12 @@ namespace cyb::hli
         // Call this before calling Run() or Initialize() if you want to render to a UWP window
         void SetWindow(platform::WindowType window);
 
+        void KillWindowFocus() { isWindowActive = false; }
+        void SetWindowFocus() { isWindowActive = true; }
+        [[nodiscard]] bool IsWindowActive() const { return isWindowActive; }
+
     private:
+        bool isWindowActive = true;
         std::unique_ptr<graphics::GraphicsDevice> graphicsDevice;
         eventsystem::Handle changeVSyncEvent;
         bool initialized = false;

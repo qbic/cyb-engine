@@ -1,7 +1,6 @@
 BUGS:
  * Unlit flat shader doesent render anything
  * Depth buffer only goes from 0 - 0.01 according to renderdoc
- * Minimizing the game window crashes the engine (hotfixed by disabling the minimize button)
 
 TODO FEATURES:
  * LOD support

@@ -28,6 +28,13 @@ namespace cyb::hli
 			initialized = true;
 		}
 
+		// disable update loops if application is not active
+		if (!IsWindowActive())
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds((int)10));
+			return;
+		}
+
 		profiler::BeginFrame();
 		deltaTime = timer.RecordElapsedSeconds();
 

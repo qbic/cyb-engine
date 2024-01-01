@@ -86,7 +86,7 @@ ATOM RegisterWindowClass(HINSTANCE hInstance)
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-    DWORD style = WS_POPUP | WS_OVERLAPPED | WS_SYSMENU | WS_BORDER | WS_CAPTION;
+    DWORD style = WS_POPUP | WS_OVERLAPPED | WS_SYSMENU | WS_BORDER | WS_CAPTION | WS_SIZEBOX;
     DWORD exStyle = WS_EX_APPWINDOW;
 
     // TODO: Minimize crashes the engine, so keep it disabled until fixed
@@ -127,6 +127,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_CREATE:
+        application.SetWindow(hWnd);
+        break;
+    case WM_SIZE:
+    case WM_DPICHANGED:
         application.SetWindow(hWnd);
         break;
     case WM_CLOSE:

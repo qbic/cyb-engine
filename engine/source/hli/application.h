@@ -28,6 +28,7 @@ namespace cyb::hli
         bool initialized = false;
         Timer timer;
         double m_deltaTime = 0.0; 
+        Canvas canvas;
         RenderPath* active_path = nullptr;
         platform::WindowType window;
         graphics::SwapChain swapchain;

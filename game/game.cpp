@@ -3,6 +3,7 @@
 #include "game.h"
 
 #include "core/filesystem.h"
+#include "hli/canvas.h"
 
 using namespace cyb;
 
@@ -57,7 +58,7 @@ void GameRenderer::Load()
     scene->CreateLight("Light_Point01", XMFLOAT3(0.0f, 20.0f, 0.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.6f, 100.0f, scene::LightType::Point);
 #endif
 
-    ResizeBuffers();       /// !!!!!!!!
+    //ResizeBuffers();       /// !!!!!!!!
 
     camera_transform.Translate(XMFLOAT3(0, 2, -10));
 

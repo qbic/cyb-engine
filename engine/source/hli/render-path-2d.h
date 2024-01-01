@@ -5,11 +5,6 @@ namespace cyb::hli
 {
     class RenderPath2D : public RenderPath
     {
-    private:
-#ifndef NO_EDITOR
-        bool show_editor = false;
-#endif
-
     public:
         virtual void ResizeBuffers();
 
@@ -23,7 +18,14 @@ namespace cyb::hli
         // TODO: Change from hardcoded internal resolution
         XMUINT2 GetInternalResolution() const
         {
-            return XMUINT2(1920, 1080);
+            return XMUINT2(GetPhysicalWidth(), GetPhysicalHeight());
+            //return XMUINT2(1920, 1080);
         }
+
+    private:
+        XMUINT2 currentBufferSize = {};
+#ifndef NO_EDITOR
+        bool show_editor = false;
+#endif
     };
 }

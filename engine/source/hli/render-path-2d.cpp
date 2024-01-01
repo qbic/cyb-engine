@@ -8,6 +8,7 @@ namespace cyb::hli
 {
     void RenderPath2D::ResizeBuffers()
     {
+        currentBufferSize = GetInternalResolution();
     }
 
     void RenderPath2D::Load()
@@ -24,6 +25,13 @@ namespace cyb::hli
 
     void RenderPath2D::Update(double dt)
     {
+        const XMUINT2 internalResolution = GetInternalResolution();
+        if (currentBufferSize.x != internalResolution.x || currentBufferSize.y != internalResolution.y)
+        {
+            CYB_TRACE("Resizing buffers (width={} height={})", internalResolution.x, internalResolution.y);
+            ResizeBuffers();
+        }
+
 #ifndef NO_EDITOR
         if (input::WasPressed(input::KEYBOARD_BUTTON_F1))
         {

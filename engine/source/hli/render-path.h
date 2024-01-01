@@ -1,9 +1,10 @@
 #pragma once
 #include "graphics/graphics-device.h"
+#include "hli/canvas.h"
 
 namespace cyb::hli
 {
-    class RenderPath
+    class RenderPath : public Canvas
     {
     public:
         virtual void Load() = 0;

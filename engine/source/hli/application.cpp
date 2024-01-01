@@ -14,6 +14,8 @@ namespace cyb::hli
 {
 	void Application::ActivePath(RenderPath* component)
 	{
+		if (component != nullptr)
+			component->SetCanvas(canvas);
 		active_path = component;
 	}
 
@@ -31,6 +33,9 @@ namespace cyb::hli
 
 		// Wake up the events that need to be executed on the main thread, in thread safe manner:
 		eventsystem::FireEvent(eventsystem::Event_ThreadSafePoint, 0);
+
+		if (active_path != nullptr)
+			active_path->SetCanvas(canvas);
 
 		// Update the game components
 		// TODO: Add a fixed-time update routine
@@ -113,10 +118,12 @@ namespace cyb::hli
 			graphics::GraphicsDevice* device = graphics::GetDevice();
 		}
 
+		canvas.SetCanvas(window);
+
 		graphics::SwapChainDesc desc = {};
 		platform::WindowProperties windowProp = platform::GetWindowProperties(window);
-		desc.width = windowProp.width;
-		desc.height = windowProp.height;
+		desc.width = canvas.GetPhysicalWidth();
+		desc.height = canvas.GetPhysicalHeight();;
 		graphics::GetDevice()->CreateSwapChain(&desc, window, &swapchain);
 
 		change_vsyc_event = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this](uint64_t userdata)

@@ -11,7 +11,7 @@ namespace cyb::hli
         virtual ~Application() = default;
 
         void ActivePath(RenderPath* component);
-        RenderPath* GetActivePath() { return active_path; }
+        RenderPath* GetActivePath() { return activePath; }
 
         void Run();
         virtual void Initialize();
@@ -23,13 +23,13 @@ namespace cyb::hli
         void SetWindow(platform::WindowType window);
 
     private:
-        std::unique_ptr<graphics::GraphicsDevice> graphics_device;
-        eventsystem::Handle change_vsyc_event;
+        std::unique_ptr<graphics::GraphicsDevice> graphicsDevice;
+        eventsystem::Handle changeVSyncEvent;
         bool initialized = false;
         Timer timer;
-        double m_deltaTime = 0.0; 
+        double deltaTime = 0.0; 
         Canvas canvas;
-        RenderPath* active_path = nullptr;
+        RenderPath* activePath = nullptr;
         platform::WindowType window;
         graphics::SwapChain swapchain;
     };

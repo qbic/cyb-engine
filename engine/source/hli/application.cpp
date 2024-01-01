@@ -16,7 +16,7 @@ namespace cyb::hli
 	{
 		if (component != nullptr)
 			component->SetCanvas(canvas);
-		active_path = component;
+		activePath = component;
 	}
 
 	void Application::Run()
@@ -29,34 +29,34 @@ namespace cyb::hli
 		}
 
 		profiler::BeginFrame();
-		m_deltaTime = timer.RecordElapsedSeconds();
+		deltaTime = timer.RecordElapsedSeconds();
 
 		// Wake up the events that need to be executed on the main thread, in thread safe manner:
 		eventsystem::FireEvent(eventsystem::Event_ThreadSafePoint, 0);
 
-		if (active_path != nullptr)
-			active_path->SetCanvas(canvas);
+		if (activePath != nullptr)
+			activePath->SetCanvas(canvas);
 
 		// Update the game components
 		// TODO: Add a fixed-time update routine
-		Update(m_deltaTime);
+		Update(deltaTime);
 
 		// Render the scene
 		Render();
 
 		// Compose the final image and and pass it to the swapchain for display
-		CommandList cmd = graphics_device->BeginCommandList();
-		graphics_device->BeginRenderPass(&swapchain, cmd);
+		CommandList cmd = graphicsDevice->BeginCommandList();
+		graphicsDevice->BeginRenderPass(&swapchain, cmd);
 		Viewport viewport;
 		viewport.width = (float)swapchain.GetDesc().width;
 		viewport.height = (float)swapchain.GetDesc().height;
-		graphics_device->BindViewports(&viewport, 1, cmd);
+		graphicsDevice->BindViewports(&viewport, 1, cmd);
 
 		Compose(cmd);
-		graphics_device->EndRenderPass(cmd);
+		graphicsDevice->EndRenderPass(cmd);
 
 		profiler::EndFrame(cmd);
-		graphics_device->SubmitCommandList();
+		graphicsDevice->SubmitCommandList();
 	}
 
 	void Application::Initialize()
@@ -88,33 +88,33 @@ namespace cyb::hli
 	void Application::Update(double dt)
 	{
 		CYB_PROFILE_CPU_SCOPE("Update");
-		if (active_path != nullptr)
-			active_path->Update(dt);
+		if (activePath != nullptr)
+			activePath->Update(dt);
 		input::Update(window);
 	}
 
 	void Application::Render()
 	{
 		CYB_PROFILE_CPU_SCOPE("Render");
-		if (active_path != nullptr)
-			active_path->Render();
+		if (activePath != nullptr)
+			activePath->Render();
 	}
 
 	void Application::Compose(graphics::CommandList cmd)
 	{
 		CYB_PROFILE_CPU_SCOPE("Compose");
-		if (active_path != nullptr)
-			active_path->Compose(cmd);
+		if (activePath != nullptr)
+			activePath->Compose(cmd);
 	}
 
 	void Application::SetWindow(platform::WindowType window)
 	{
 		this->window = window;
 
-		if (graphics_device == nullptr)
+		if (graphicsDevice == nullptr)
 		{
-			graphics_device = std::make_unique<graphics::GraphicsDevice_Vulkan>();
-			graphics::GetDevice() = graphics_device.get();
+			graphicsDevice = std::make_unique<graphics::GraphicsDevice_Vulkan>();
+			graphics::GetDevice() = graphicsDevice.get();
 			graphics::GraphicsDevice* device = graphics::GetDevice();
 		}
 
@@ -126,13 +126,12 @@ namespace cyb::hli
 		desc.height = canvas.GetPhysicalHeight();;
 		graphics::GetDevice()->CreateSwapChain(&desc, window, &swapchain);
 
-		change_vsyc_event = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this](uint64_t userdata)
+		changeVSyncEvent = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this](uint64_t userdata)
 		{
 			SwapChainDesc desc = swapchain.desc;
 			desc.vsync = (userdata != 0);
-			bool success = graphics_device->CreateSwapChain(&desc, nullptr, &swapchain);
+			bool success = graphicsDevice->CreateSwapChain(&desc, nullptr, &swapchain);
 			assert(success);
 		});
-
 	}
 }

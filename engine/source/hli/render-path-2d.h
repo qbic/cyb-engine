@@ -15,17 +15,15 @@ namespace cyb::hli
         void Render() const override;
         void Compose(graphics::CommandList cmd) const override;
 
-        // TODO: Change from hardcoded internal resolution
-        XMUINT2 GetInternalResolution() const
+        [[nodiscard]] XMUINT2 GetInternalResolution() const
         {
             return XMUINT2(GetPhysicalWidth(), GetPhysicalHeight());
-            //return XMUINT2(1920, 1080);
         }
 
     private:
         XMUINT2 currentBufferSize = {};
 #ifndef NO_EDITOR
-        bool show_editor = false;
+        bool showEditor = false;
 #endif
     };
 }

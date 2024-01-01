@@ -8,8 +8,14 @@ namespace cyb::hli
     class RenderPath3D : public RenderPath2D
     {
     public:
+        void ResizeBuffers() override;
+        void Update(double dt) override;
+        void Render() const override;
+        void Compose(graphics::CommandList cmd) const override;
+
+    public:
         scene::CameraComponent* camera = &cyb::scene::GetCamera();
-        scene::TransformComponent camera_transform;
+        scene::TransformComponent cameraTransform;
         scene::Scene* scene = &cyb::scene::GetScene();
         renderer::SceneView sceneViewMain;
         //renderer::SceneView sceneViewDebug;
@@ -19,13 +25,6 @@ namespace cyb::hli
         graphics::Texture renderTarget_Main;
         graphics::Texture depthBuffer_Main;
 
-        double m_runtime = 0.0;                       // Accumilated delta times
-
-    public:
-        void ResizeBuffers() override;
-
-        void Update(double dt) override;
-        void Render() const override;
-        void Compose(graphics::CommandList cmd) const override;
+        double runtime = 0.0;                       // Accumilated delta times
     };
 }

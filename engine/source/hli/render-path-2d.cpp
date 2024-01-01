@@ -34,15 +34,13 @@ namespace cyb::hli
 
 #ifndef NO_EDITOR
         if (input::WasPressed(input::KEYBOARD_BUTTON_F1))
-        {
-            show_editor = !show_editor;
-        }
+            showEditor = !showEditor;
 
         {
             CYB_PROFILE_CPU_SCOPE("GUI Update");
             editor::UpdateFPSCounter(dt);
             ImGui_Impl_CybEngine_Update();
-            if (show_editor)
+            if (showEditor)
                 editor::Update();
         }
 #endif
@@ -63,7 +61,6 @@ namespace cyb::hli
             CYB_PROFILE_CPU_SCOPE("GUI Render");
             CYB_PROFILE_GPU_SCOPE("GUI", cmd);
             graphics::GetDevice()->BeginEvent("GUI", cmd);
-            //editor::Render(cmd);
             ImGui_Impl_CybEngine_Compose(cmd);
             graphics::GetDevice()->EndEvent(cmd);
         }

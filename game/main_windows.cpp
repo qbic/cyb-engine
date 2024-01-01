@@ -92,6 +92,12 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     // TODO: Minimize crashes the engine, so keep it disabled until fixed
     //style |= WS_MINIMIZEBOX;  
 
+    uint32_t width = 1920;
+    uint32_t height = 1080;
+
+    RECT rc = { 0, 0, (LONG)width, (LONG)height };
+    AdjustWindowRect(&rc, style, FALSE);
+
     HWND hWnd = CreateWindowEx(
         exStyle,
         szWindowClass,
@@ -99,8 +105,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         style,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        1920,
-        1080,
+        rc.right - rc.left,
+        rc.bottom - rc.top,
         nullptr,
         nullptr,
         hInstance,
@@ -119,7 +125,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
     {
-        // If ImGUI takes an input from the user we need to return
+        // if imgui takes an input from the user we need to return
         // so that it doesen't follow though to the game.
         return true;
     }

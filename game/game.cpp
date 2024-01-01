@@ -58,10 +58,10 @@ void GameRenderer::Load()
     scene->CreateLight("Light_Point01", XMFLOAT3(0.0f, 20.0f, 0.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.6f, 100.0f, scene::LightType::Point);
 #endif
 
-    //ResizeBuffers();       /// !!!!!!!!
+    cameraTransform.Translate(XMFLOAT3(0, 2, -10));
 
-    camera_transform.Translate(XMFLOAT3(0, 2, -10));
-
+    // NOTE: i feel like this should be handled by the engine initialization somewhere sence
+    // all this really does is loding icons for the editor
     RenderPath3D::Load();
 }
 
@@ -119,15 +119,15 @@ void GameRenderer::CameraControl(double dt)
 
     //if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f)
     {
-        XMMATRIX cameraRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&camera_transform.rotation_local));
+        XMMATRIX cameraRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&cameraTransform.rotation_local));
         XMVECTOR rotatedMove = XMVector3TransformNormal(velocity, cameraRotation);
         XMFLOAT3 rotatedMoveStored;
         XMStoreFloat3(&rotatedMoveStored, rotatedMove);
-        camera_transform.Translate(rotatedMoveStored);
-        camera_transform.RotateRollPitchYaw(XMFLOAT3(yDif, xDif, 0));
+        cameraTransform.Translate(rotatedMoveStored);
+        cameraTransform.RotateRollPitchYaw(XMFLOAT3(yDif, xDif, 0));
     }
 
-    camera_transform.UpdateTransform();
+    cameraTransform.UpdateTransform();
     XMStoreFloat3(&m_cameraVelocity, velocity);
 }
 

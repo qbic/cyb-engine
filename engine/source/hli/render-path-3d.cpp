@@ -12,15 +12,15 @@ namespace cyb::hli
     void RenderPath3D::ResizeBuffers()
     {
         GraphicsDevice* device = cyb::graphics::GetDevice();
-        XMUINT2 internal_resolution = GetInternalResolution();
+        XMUINT2 internalResolution = GetInternalResolution();
 
         // Render targets:
         {
             TextureDesc desc;
             desc.format = Format::R8G8B8A8_Unorm;
             desc.bindFlags = BindFlags::ShaderResourceBit | BindFlags::RenderTargetBit;
-            desc.width = internal_resolution.x;
-            desc.height = internal_resolution.y;
+            desc.width = internalResolution.x;
+            desc.height = internalResolution.y;
             device->CreateTexture(&desc, nullptr, &renderTarget_Main);
             device->SetName(&renderTarget_Main, "renderTarget_Main");
         }
@@ -31,8 +31,8 @@ namespace cyb::hli
             desc.layout = ResourceState::DepthStencil_ReadOnlyBit;
             desc.format = Format::D32_Float_S8_Uint;
             desc.bindFlags = BindFlags::DepthStencilBit;
-            desc.width = internal_resolution.x;
-            desc.height = internal_resolution.y;
+            desc.width = internalResolution.x;
+            desc.height = internalResolution.y;
             device->CreateTexture(&desc, nullptr, &depthBuffer_Main);
             device->SetName(&depthBuffer_Main, "depthBuffer_Main");
         }
@@ -44,10 +44,10 @@ namespace cyb::hli
     {
         RenderPath2D::Update(dt);
 
-        m_runtime += dt;
+        runtime += dt;
 
         scene->Update(dt);
-        camera->TransformCamera(camera_transform);
+        camera->TransformCamera(cameraTransform);
         camera->UpdateCamera();
 
         // Update the main view:
@@ -55,7 +55,7 @@ namespace cyb::hli
         sceneViewMain.Update(scene, camera);
 
         // Update per frame constant buffer
-        renderer::UpdatePerFrameData(sceneViewMain, static_cast<float>(m_runtime), frameCB);
+        renderer::UpdatePerFrameData(sceneViewMain, static_cast<float>(runtime), frameCB);
 
     }
 

@@ -86,7 +86,6 @@ namespace cyb::hli
 		input::Initialize();
 		renderer::Initialize();
 		ImGui_Impl_CybEngine_Init(window);
-
 #endif
 
 		CYB_INFO("cyb-engine initialized in {:.2f}ms", timer.ElapsedMilliseconds());

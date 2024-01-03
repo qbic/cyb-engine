@@ -1,16 +1,19 @@
 BUGS:
  * Unlit flat shader doesent render anything
- * Depth buffer only goes from 0 - 0.01 according to renderdoc
+ * Depth buffer only goes from 0 - 0.01 according to renderdoc (seems fine in-game though so not sure it's a bug)
 
 TODO FEATURES:
  * LOD support
- * Automatic LOD mesh generation (Fast-Quadric-Mesh-Simplification?)
  * Editor default window layout
  * Water
  * Hide/Show button in entity select window
  * Editor function to setup the camera to look at an entity
  * Write/Read pso cache off disk
  * ImGuizmo transform undo
+
+MAYBE FEATURES:
+ * Automatic LOD mesh generation (Fast-Quadric-Mesh-Simplification?)
+ * Change editor gui framefork to qt?
 
 Small stuff:
 move profile from core to tools sence it uses graphics device

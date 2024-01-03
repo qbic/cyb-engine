@@ -615,13 +615,10 @@ namespace cyb::graphics
         Sampler SAM[DESCRIPTORBINDER_SAMPLER_COUNT];
     };
 
-    constexpr uint32_t AlignTo(uint32_t value, uint32_t alignment)
+    template <typename T>
+    constexpr T AlignTo(T value, T alignment)
     {
-        return ((value + alignment - 1) / alignment) * alignment;
-    }
-    constexpr uint64_t AlignTo(uint64_t value, uint64_t alignment)
-    {
-        return ((value + alignment - 1) / alignment) * alignment;
+        return ((value + alignment - T(1)) / alignment) * alignment;
     }
 
     class GraphicsDevice
@@ -745,8 +742,8 @@ namespace cyb::graphics
                 CreateBuffer(&desc, nullptr, &allocator.buffer);
                 SetName(&allocator.buffer, "FrameAllocationBuffer");
                 allocator.offset = 0;
-
-                CYB_TRACE("Increasing GPU FrameAllocationBuffer[{}] to {:.1f}kb", GetBufferIndex(), desc.size / 1024.0f);
+                
+                CYB_TRACE("Increasing GPU frame allocation buffer to {:.1f}kb (commandList=0x{:0x}, bufferIndex={})", desc.size / 1024.0f, (ptrdiff_t)cmd.internal_state, GetBufferIndex());
             }
 
             allocation.buffer = allocator.buffer;

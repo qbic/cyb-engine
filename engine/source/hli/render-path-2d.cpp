@@ -28,7 +28,7 @@ namespace cyb::hli
         const XMUINT2 internalResolution = GetInternalResolution();
         if (currentBufferSize.x != internalResolution.x || currentBufferSize.y != internalResolution.y)
         {
-            CYB_TRACE("Resizing buffers (width={} height={})", internalResolution.x, internalResolution.y);
+            CYB_TRACE("Resizing buffers (width={}, height={})", internalResolution.x, internalResolution.y);
             ResizeBuffers();
         }
 

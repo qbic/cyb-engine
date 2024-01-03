@@ -57,6 +57,20 @@ namespace cyb::platform
 #endif // _WIN32
 		return prop;
 	}
+
+	struct VideoMode
+	{
+		uint32_t width;
+		uint32_t height;
+		uint32_t displayHz;
+
+		bool operator==(const VideoMode& other) const
+		{
+			return other.width == width && other.height == height && other.displayHz == displayHz;
+		}
+	};
+
+	bool GetVideoModesForDisplay(int32_t displayNum, std::vector<VideoMode>& modeList);
 	
 	void Exit(int exitCode);
 	void CreateMessageWindow(const std::string& msg, const std::string& windowTitle = "Warning!");

@@ -4,6 +4,54 @@
 
 namespace cyb::platform
 {
+	bool GetVideoModesForDisplay(int32_t displayNum, std::vector<VideoMode>& modeList)
+	{
+		DISPLAY_DEVICEA device;
+		device.cb = sizeof(device);
+		if (!EnumDisplayDevicesA(0, displayNum, &device, 0))
+			return false;
+
+		if (!(device.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP))
+			return false;
+
+		DISPLAY_DEVICEA monitor;
+		monitor.cb = sizeof(monitor);
+		if (!EnumDisplayDevicesA(device.DeviceName, 0, &monitor, 0))
+			return false;
+
+		DEVMODEA devmode;
+		devmode.dmSize = sizeof(devmode);
+		for (DWORD modeNum = 0; ; modeNum++)
+		{
+			if (!EnumDisplaySettingsA(device.DeviceName, modeNum, &devmode))
+				break;
+
+			if (devmode.dmBitsPerPel != 32 ||
+				devmode.dmDisplayFrequency < 60 ||
+				devmode.dmPelsHeight < 720)
+				continue;
+
+			VideoMode mode;
+			mode.width = devmode.dmPelsWidth;
+			mode.height = devmode.dmPelsHeight;
+			mode.displayHz = devmode.dmDisplayFrequency;
+			if (std::find(modeList.begin(), modeList.end(), mode) == modeList.end())
+				modeList.push_back(mode);
+		}
+
+		auto compare = [](const VideoMode& a, const VideoMode& b) -> bool
+		{
+			if (a.displayHz != b.displayHz)
+				return a.displayHz > b.displayHz;
+			if (a.width != b.width)
+				return a.width > b.width;
+			return a.height > b.height;
+		};
+
+		std::sort(modeList.begin(), modeList.end(), compare);
+		return true;
+	}
+
 	void Exit(int exitCode)
 	{
 		//PostQuitMessage(exitCode);

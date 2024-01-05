@@ -58,6 +58,7 @@ void GameRenderer::Load()
     scene->CreateLight("Light_Point01", XMFLOAT3(0.0f, 20.0f, 0.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.6f, 100.0f, scene::LightType::Point);
 #endif
 
+    camera->zFarPlane = 1500.f;
     cameraTransform.Translate(XMFLOAT3(0, 2, -10));
 
     // NOTE: i feel like this should be handled by the engine initialization somewhere sence

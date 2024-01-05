@@ -853,17 +853,21 @@ namespace cyb::editor
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("Debug"))
+            if (ImGui::BeginMenu("Renderer"))
             {
-                bool debug_object_aabb = renderer::GetDebugObjectAABB();
-                if (ImGui::Checkbox("Draw Object AABB", &debug_object_aabb))
-                    renderer::SetDebugObjectAABB(debug_object_aabb);
-                bool debug_lightsources = renderer::GetDebugLightsources();
-                if (ImGui::Checkbox("Draw Lightsources", &debug_lightsources))
-                    renderer::SetDebugLightsources(debug_lightsources);
-                bool debug_lightsources_abb = renderer::GetDebugLightsourcesAABB();
-                if (ImGui::Checkbox("Draw Lightsources AABB", &debug_lightsources_abb))
-                    renderer::SetDebugLightsourcesAABB(debug_lightsources_abb);
+                if (ImGui::BeginMenu("Debug"))
+                {
+                    bool debug_object_aabb = renderer::GetDebugObjectAABB();
+                    if (ImGui::Checkbox("Draw Object AABB", &debug_object_aabb))
+                        renderer::SetDebugObjectAABB(debug_object_aabb);
+                    bool debug_lightsources = renderer::GetDebugLightsources();
+                    if (ImGui::Checkbox("Draw Lightsources", &debug_lightsources))
+                        renderer::SetDebugLightsources(debug_lightsources);
+                    bool debug_lightsources_abb = renderer::GetDebugLightsourcesAABB();
+                    if (ImGui::Checkbox("Draw Lightsources AABB", &debug_lightsources_abb))
+                        renderer::SetDebugLightsourcesAABB(debug_lightsources_abb);
+                    ImGui::EndMenu();
+                }
 
                 if (ImGui::Checkbox("Enable VSync", &vsync_enabled))
                     eventsystem::FireEvent(eventsystem::Event_SetVSync, vsync_enabled ? 1ull : 0ull);

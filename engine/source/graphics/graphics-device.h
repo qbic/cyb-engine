@@ -495,9 +495,9 @@ namespace cyb::graphics
 
     struct RenderPassInfo
     {
-        Format rtFormats[8];    // Render target formats
-        uint32_t rtCount = 0;   // Number of render targets
-        Format dsFormat;        // Depth stencil format
+        Format rtFormats[8];                // render target formats
+        uint32_t rtCount = 0;               // number of render targets
+        Format dsFormat = Format::Unknown;  // depth stencil format
 
         constexpr uint64_t GetHash() const
         {
@@ -626,7 +626,7 @@ namespace cyb::graphics
     {
     protected:
         static const uint32_t BUFFERCOUNT = 2;
-        const bool VALIDATION_MODE_ENABLED = false;
+        const bool VALIDATION_MODE_ENABLED = true;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 
@@ -790,22 +790,53 @@ namespace cyb::graphics
         switch (format)
         {
         case Format::D32_Float:
+        case Format::D24_Float_S8_Uint:
         case Format::D32_Float_S8_Uint:
             return true;
-        default:
+
+        case Format::Unknown:
+        case Format::R32G32B32A32_Float:
+        case Format::R8G8B8A8_Uint:
+        case Format::R8G8B8A8_Unorm:
+        case Format::R16G16_Float:
+        case Format::R32G32_Float:
+        case Format::R8_Unorm:
+        case Format::R32_Float:
+        case Format::R16_Float:
+        case Format::B8G8R8A8_Unorm:
+        case Format::R32G32B32_Float:
             return false;
         }
+
+        assert(0);
+        return false;
     }
 
     constexpr bool IsFormatStencilSupport(Format format)
     {
         switch (format)
         {
+        case Format::D24_Float_S8_Uint:
         case Format::D32_Float_S8_Uint:
             return true;
-        default:
+
+        case Format::Unknown:
+        case Format::D32_Float:
+        case Format::R32G32B32A32_Float:
+        case Format::R8G8B8A8_Uint:
+        case Format::R8G8B8A8_Unorm:
+        case Format::R16G16_Float:
+        case Format::R32G32_Float:
+        case Format::R8_Unorm:
+        case Format::R32_Float:
+        case Format::R16_Float:
+        case Format::B8G8R8A8_Unorm:
+        case Format::R32G32B32_Float:
             return false;
         }
+
+        assert(0);
+        return false;
     }
 
     constexpr uint32_t GetFormatStride(Format format)
@@ -819,6 +850,7 @@ namespace cyb::graphics
             return 12u;
 
         case Format::R32G32_Float:
+        case Format::D32_Float_S8_Uint:
             return 8u;
 
         case Format::R8G8B8A8_Uint:
@@ -827,7 +859,6 @@ namespace cyb::graphics
         case Format::R32_Float:
         case Format::D32_Float:
         case Format::B8G8R8A8_Unorm:
-        case Format::D32_Float_S8_Uint:
             return 4u;
 
         case Format::R16_Float:
@@ -835,12 +866,9 @@ namespace cyb::graphics
 
         case Format::R8_Unorm:
             return 1u;
-
-        default:
-            assert(0);
-            break;
         }
 
+        assert(0);
         return 16u;
     }
 

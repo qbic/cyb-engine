@@ -18,6 +18,34 @@ std::string GetLastErrorMessage();
 
 Game application;
 
+bool EnterFullscreenMode(uint32_t modeIndex)
+{
+    DEVMODE fullscreenSettings = {};
+    bool isChangeSuccessful;
+    
+    std::vector<cyb::platform::VideoMode> modeList;
+    cyb::platform::GetVideoModesForDisplay(0, modeList);
+    cyb::platform::VideoMode& mode = modeList[modeIndex];
+
+    fullscreenSettings.dmSize = sizeof(fullscreenSettings);
+    EnumDisplaySettings(NULL, 0, &fullscreenSettings);
+    fullscreenSettings.dmPelsWidth = mode.width;
+    fullscreenSettings.dmPelsHeight = mode.height;
+    fullscreenSettings.dmBitsPerPel = 32;
+    fullscreenSettings.dmDisplayFrequency = mode.displayHz;
+    fullscreenSettings.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL | DM_DISPLAYFREQUENCY;
+
+    HWND hwnd = (HWND)application.GetWindow();
+    SetWindowLongPtr(hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW);
+    SetWindowLongPtr(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+    isChangeSuccessful = ChangeDisplaySettings(&fullscreenSettings, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL;
+    ShowWindow(hwnd, SW_MAXIMIZE);
+
+    application.SetWindow(hwnd);
+
+    return isChangeSuccessful;
+}
+
 int WINAPI WinMain(_In_ HINSTANCE hInstance, 
     _In_opt_ HINSTANCE hPrevInstance, 
     _In_ LPSTR lpCmdLine,
@@ -41,6 +69,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
         CYB_ERROR("Failed to initialize instance: {}", GetLastErrorMessage());
         return FALSE;
     }
+
+    static auto setFullscreenEvent = cyb::eventsystem::Subscribe(cyb::eventsystem::Event_SetFullScreen, [](uint64_t mode)
+    {
+        EnterFullscreenMode(mode);
+    });
 
     MSG msg = { 0 };
     while (msg.message != WM_QUIT)

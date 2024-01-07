@@ -6,6 +6,8 @@ namespace cyb::platform
 {
 	bool GetVideoModesForDisplay(int32_t displayNum, std::vector<VideoMode>& modeList)
 	{
+		modeList.clear();
+
 		DISPLAY_DEVICEA device;
 		device.cb = sizeof(device);
 		if (!EnumDisplayDevicesA(0, displayNum, &device, 0))
@@ -21,14 +23,22 @@ namespace cyb::platform
 
 		DEVMODEA devmode;
 		devmode.dmSize = sizeof(devmode);
+
+		DWORD systemDisplayHz = 60;
+		if (EnumDisplaySettingsA(device.DeviceName, ENUM_CURRENT_SETTINGS, &devmode))
+			systemDisplayHz = devmode.dmDisplayFrequency;
+
 		for (DWORD modeNum = 0; ; modeNum++)
 		{
 			if (!EnumDisplaySettingsA(device.DeviceName, modeNum, &devmode))
 				break;
 
+			float aspect = (float)devmode.dmPelsWidth / (float)devmode.dmPelsHeight;
 			if (devmode.dmBitsPerPel != 32 ||
-				devmode.dmDisplayFrequency < 60 ||
-				devmode.dmPelsHeight < 720)
+				devmode.dmDisplayFrequency != systemDisplayHz ||
+				devmode.dmPelsHeight < 720 ||
+				devmode.dmDisplayFixedOutput != DMDFO_DEFAULT ||
+				aspect < 1.6f)
 				continue;
 
 			VideoMode mode;

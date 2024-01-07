@@ -29,7 +29,7 @@ namespace cyb::hli
         {
             TextureDesc desc;
             desc.layout = ResourceState::DepthStencil_ReadOnlyBit;
-            desc.format = Format::D32_Float_S8_Uint;
+            desc.format = Format::D24_Float_S8_Uint;
             desc.bindFlags = BindFlags::DepthStencilBit;
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;

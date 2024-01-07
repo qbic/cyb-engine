@@ -21,6 +21,7 @@ namespace cyb::hli
 
         // Call this before calling Run() or Initialize() if you want to render to a UWP window
         void SetWindow(platform::WindowType window);
+        platform::WindowType GetWindow() const { return window; }
 
         void KillWindowFocus() { isWindowActive = false; }
         void SetWindowFocus() { isWindowActive = true; }

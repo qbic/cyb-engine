@@ -24,6 +24,7 @@ namespace cyb::graphics::vulkan_internal
         case Format::R8G8B8A8_Uint:             return VK_FORMAT_R8G8B8A8_UINT;
         case Format::R16G16_Float:              return VK_FORMAT_R16G16_SFLOAT;
         case Format::D32_Float:                 return VK_FORMAT_D32_SFLOAT;
+        case Format::D24_Float_S8_Uint:         return VK_FORMAT_D24_UNORM_S8_UINT;
         case Format::D32_Float_S8_Uint:         return VK_FORMAT_D32_SFLOAT_S8_UINT;
         case Format::R32_Float:                 return VK_FORMAT_R32_SFLOAT;
         case Format::R16_Float:                 return VK_FORMAT_R16_SFLOAT;

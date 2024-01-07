@@ -75,7 +75,8 @@ namespace cyb::graphics
         R32_Float,                          // Single-component, 32-bit floating-point format swizzeled to { r, r, r, 1 }
         R16_Float,                          // Single-component, 16-bit floating-point format swizzeled to { r, r, r, 1 }
         D32_Float,                          // Single-component, 32-bit floating-point format for depth
-        D32_Float_S8_Uint,                  // Two-component, Depth (32-bit) + stencil (8-bit)
+        D24_Float_S8_Uint,                  // Two-component, Depth (24-bit) + stencil (8-bit)
+        D32_Float_S8_Uint,                  // Two-component, Depth (32-bit) + stencil (8-bit) (24-bits unused)
         B8G8R8A8_Unorm,
         R32G32B32_Float
     };
@@ -826,6 +827,7 @@ namespace cyb::graphics
         case Format::R32_Float:
         case Format::D32_Float:
         case Format::B8G8R8A8_Unorm:
+        case Format::D32_Float_S8_Uint:
             return 4u;
 
         case Format::R16_Float:

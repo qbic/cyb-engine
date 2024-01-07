@@ -70,6 +70,12 @@ namespace cyb::platform
 		}
 	};
 
+	// only save modes that:
+	//  * have 32 pixels depth
+	//  * where display frequency is the same as system desktop
+	//  * where vertival resolution is higher than 720 pixels
+	//  * is a fixed resolution for the display (no stretching or centerd with black bars)
+	//  * where aspect (width/height) >= 1.6
 	bool GetVideoModesForDisplay(int32_t displayNum, std::vector<VideoMode>& modeList);
 	
 	void Exit(int exitCode);

@@ -31,6 +31,7 @@ namespace cyb::editor
 
     bool initialized = false;
     bool vsync_enabled = true;      // FIXME: initial value has to be synced with SwapChainDesc::vsync
+    bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
     Resource import_icon;
     Resource delete_icon;
     Resource light_icon;
@@ -41,6 +42,7 @@ namespace cyb::editor
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::BOUNDS;
     bool guizmo_world_mode = true;
     SceneGraphView scenegraph_view;
+    std::vector<platform::VideoMode> videoModeList;
 
     // fps counter data
     double deltatimes[30] = {};
@@ -815,7 +817,8 @@ namespace cyb::editor
                 }
 
                 ImGui::Separator();
-                ImGui::MenuItem("Exit (!!)", "ALT+F4");
+                if (ImGui::MenuItem("Exit", "ALT+F4"))
+                    platform::Exit(0);
                 ImGui::EndMenu();
             }
 
@@ -869,7 +872,25 @@ namespace cyb::editor
                     ImGui::EndMenu();
                 }
 
-                if (ImGui::Checkbox("Enable VSync", &vsync_enabled))
+                if (ImGui::BeginMenu("Resolution"))
+                {
+                    for (size_t i = 0; i < videoModeList.size(); i++)
+                    {
+                        platform::VideoMode& mode = videoModeList[i];
+                        std::string str = fmt::format("{}x{} @ {}hz", mode.width, mode.height, mode.displayHz);
+                        if (ImGui::MenuItem(str.c_str()))
+                        {
+                            eventsystem::FireEvent(eventsystem::Event_SetFullScreen, i);
+                            fullscreenEnabled = true;
+                        }
+                    }
+                    ImGui::EndMenu();
+                }
+                if (ImGui::Checkbox("Fullscreen", &fullscreenEnabled))
+                {
+                    
+                }
+                if (ImGui::Checkbox("VSync", &vsync_enabled))
                     eventsystem::FireEvent(eventsystem::Event_SetVSync, vsync_enabled ? 1ull : 0ull);
 
                 ImGui::EndMenu();
@@ -1076,6 +1097,9 @@ namespace cyb::editor
         style.Colors[ImGuizmo::PLANE_Y].w = 0.6f;
         style.Colors[ImGuizmo::PLANE_Z].w = 0.6f;
 #endif
+
+        // Grab available fullscreen resolutions
+        platform::GetVideoModesForDisplay(0, videoModeList);
 
         initialized = true;
     }

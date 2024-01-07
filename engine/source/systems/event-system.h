@@ -4,14 +4,16 @@
 
 namespace cyb::eventsystem
 {
-    enum { Event_ReloadShaders = -1 };
-    enum { Event_ThreadSafePoint = -2 };
-    enum { Event_SetVSync = -3 };
+    constexpr int Event_ReloadShaders = -1;
+    constexpr int Event_ThreadSafePoint = -2;
+    constexpr int Event_SetVSync = -3;
+    constexpr int Event_SetFullScreen = -4;
 
     struct Handle
     {
         std::shared_ptr<void> internal_state;
-        inline bool IsValid() const {
+        [[nodiscard]] bool IsValid() const
+        {
             return internal_state.get() != nullptr;
         }
     };

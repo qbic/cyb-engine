@@ -6,10 +6,7 @@ namespace cyb::scene
 {
     void TransformComponent::SetDirty(bool value)
     {
-        if (value)
-            flags |= Flags::DirtyBit;
-        else
-            flags &= ~Flags::DirtyBit;
+        SetFlag(flags, Flags::DirtyBit, value);
     }
 
     bool TransformComponent::IsDirty() const
@@ -134,10 +131,7 @@ namespace cyb::scene
 
     void MaterialComponent::SetUseVertexColors(bool value)
     {
-        if (value)
-            flags |= Flags::UseVertexColorsBit;
-        else
-            flags &= ~Flags::UseVertexColorsBit;
+        SetFlag(flags, Flags::UseVertexColorsBit, value);
     }
 
     bool MaterialComponent::IsUsingVertexColors() const

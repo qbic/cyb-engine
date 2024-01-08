@@ -513,7 +513,7 @@ namespace cyb::graphics
                     uint64_t rtFormat_5 : 6;
                     uint64_t rtFormat_6 : 6;
                     uint64_t rtFormat_7 : 6;
-                    uint64_t dsFormat : 6;
+                    uint64_t dsFormat   : 6;
                 } bits;
                 uint64_t value;
             };

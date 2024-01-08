@@ -56,3 +56,11 @@ constexpr bool HasFlag(E lhs, E rhs) noexcept
 {
     return (lhs & rhs) == rhs;
 }
+
+template<typename E>
+constexpr void SetFlag(E& lhs, E rhs, bool value) noexcept
+{
+    typedef typename std::underlying_type<E>::type underlying;
+    lhs &= ~rhs;
+    lhs |= (E)(static_cast<underlying>(value) * static_cast<underlying>(rhs));
+}

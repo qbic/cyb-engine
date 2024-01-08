@@ -91,11 +91,11 @@ namespace cyb::scene
 
     void TransformComponent::UpdateTransform()
     {
-        if (IsDirty())
-        {
-            SetDirty(false);
-            XMStoreFloat4x4(&world, GetLocalMatrix());
-        }
+        if (!IsDirty())
+            return;
+     
+        SetDirty(false);
+        XMStoreFloat4x4(&world, GetLocalMatrix());
     }
 
     void TransformComponent::UpdateTransformParented(const TransformComponent& parent)

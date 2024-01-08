@@ -14,7 +14,7 @@ constexpr bool EnableBitmaskOperators(E) noexcept
 }
 
 template<typename E>
-constexpr typename std::enable_if<EnableBitmaskOperators(E()), E>::type operator|(E lhs, E rhs) noexcept
+[[nodiscard]] constexpr typename std::enable_if<EnableBitmaskOperators(E()), E>::type operator|(E lhs, E rhs) noexcept
 {
     typedef typename std::underlying_type<E>::type underlying;
     return static_cast<E>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
@@ -29,7 +29,7 @@ constexpr typename std::enable_if<EnableBitmaskOperators(E()), E&>::type operato
 }
 
 template<typename E>
-constexpr typename std::enable_if<EnableBitmaskOperators(E()), E>::type operator&(E lhs, E rhs) noexcept
+[[nodiscard]] constexpr typename std::enable_if<EnableBitmaskOperators(E()), E>::type operator&(E lhs, E rhs) noexcept
 {
     typedef typename std::underlying_type<E>::type underlying;
     return static_cast<E>(static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
@@ -44,7 +44,7 @@ constexpr typename std::enable_if<EnableBitmaskOperators(E()), E&>::type operato
 }
 
 template<typename E>
-constexpr typename std::enable_if<EnableBitmaskOperators(E()), E>::type operator~(E rhs) noexcept
+[[nodiscard]] constexpr typename std::enable_if<EnableBitmaskOperators(E()), E>::type operator~(E rhs) noexcept
 {
     typedef typename std::underlying_type<E>::type underlying;
     rhs = static_cast<E>(~static_cast<underlying>(rhs));
@@ -52,13 +52,13 @@ constexpr typename std::enable_if<EnableBitmaskOperators(E()), E>::type operator
 }
 
 template<typename E>
-constexpr bool HasFlag(E lhs, E rhs) noexcept
+[[nodiscard]] constexpr bool HasFlag(E lhs, E rhs) noexcept
 {
     return (lhs & rhs) == rhs;
 }
 
 template<typename E>
-constexpr void SetFlag(E& lhs, E rhs, bool value) noexcept
+[[nodiscard]] constexpr void SetFlag(E& lhs, E rhs, bool value) noexcept
 {
     typedef typename std::underlying_type<E>::type underlying;
     lhs &= ~rhs;

@@ -20,16 +20,16 @@
 
 namespace cyb
 {
-    struct ResourceInternal
+    struct ResourceInternal : public Resource::InternalBaseData
     {
-        std::string name;
-        uint64_t nameHash;
         std::vector<uint8_t> data;
         cyb::graphics::Texture texture;
     };
 
     const graphics::Texture& Resource::GetTexture() const
     {
+        assert(internal_state != nullptr);
+        assert(internal_state->type == ResourceType::Image);
         const ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();
         return resourceinternal->texture;
     }
@@ -41,20 +41,28 @@ namespace cyb::resourcemanager
     std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
     Mode mode = Mode::DiscardFiledataAfterLoad;
 
-    enum class DataType
+    static const std::unordered_map<std::string, ResourceType> types = 
     {
-        Image,
-        Sound,
+        std::make_pair("jpg",  ResourceType::Image),
+        std::make_pair("jpeg", ResourceType::Image),
+        std::make_pair("png",  ResourceType::Image),
+        std::make_pair("dds",  ResourceType::Image),
+        std::make_pair("tga",  ResourceType::Image),
+        std::make_pair("bmp",  ResourceType::Image)
     };
 
-    static const std::unordered_map<std::string, DataType> types = {
-        std::make_pair("jpg",  DataType::Image),
-        std::make_pair("jpeg", DataType::Image),
-        std::make_pair("png",  DataType::Image),
-        std::make_pair("dds",  DataType::Image),
-        std::make_pair("tga",  DataType::Image),
-        std::make_pair("bmp",  DataType::Image)
-    };
+    const char* GetResourceTypeString(ResourceType type)
+    {
+        switch (type)
+        {
+        case ResourceType::None:    return "None";
+        case ResourceType::Image:   return "Image";
+        case ResourceType::Sound:   return "Sound";
+        }
+
+        assert(0);
+        return "None";
+    }
 
     Resource Load(
         const std::string& name,
@@ -65,11 +73,17 @@ namespace cyb::resourcemanager
         Timer timer;
 
         if (mode == Mode::DiscardFiledataAfterLoad)
-        {
             flags &= ~Flags::RetainFiledataBit;
+
+        // dynamic type selection
+        const auto& typeIt = types.find(filesystem::GetExtension(name));
+        if (typeIt == types.end())
+        {
+            CYB_ERROR("Failed to determine resource type (filename={0})", name);
+            return Resource();
         }
 
-        // Check if we have allready loaded resource or we need to create it
+        // compute hash for the asset and try locate it in the cache
         const uint64_t hash = hash::String(name);
         locker.lock();
         std::shared_ptr<ResourceInternal> resource = resourceCache[hash].lock();
@@ -81,33 +95,24 @@ namespace cyb::resourcemanager
         
         resource = std::make_shared<ResourceInternal>();
         resource->name = name;
-        resource->nameHash = hash;
+        resource->hash = hash;
+        resource->type = typeIt->second;
         resourceCache[hash] = resource;
         locker.unlock();
 
-        // Load filedata if none was appointed
+        // load filedata if nothing was assigned
         if (filedata == nullptr || filesize == 0)
         {
             if (!filesystem::ReadFile(name, resource->data))
-            {
                 return Resource();
-            }
 
             filedata = resource->data.data();
             filesize = resource->data.size();
         }
 
-        // Dynamic type selection
-        const auto& typeIt = types.find(filesystem::GetExtension(name));
-        if (typeIt == types.end())
+        switch (resource->type)
         {
-            CYB_ERROR("Failed to determine resource type (filename={0})", name);
-            return Resource();
-        }
-
-        switch (typeIt->second)
-        {
-        case DataType::Image:
+        case ResourceType::Image:
         {
             const int channels = 4;
             int width, height, bpp;
@@ -127,7 +132,7 @@ namespace cyb::resourcemanager
             desc.height = height;
             desc.format = graphics::Format::R8G8B8A8_Unorm;
             desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
-            desc.mipLevels = 1;     // Generate full mip chain at runtime
+            desc.mipLevels = 1;     // generate full mip chain at runtime
 
             graphics::SubresourceData subresourceData;
             subresourceData.mem = rawImage;
@@ -139,11 +144,9 @@ namespace cyb::resourcemanager
         }
 
         if (!HasFlag(flags, Flags::RetainFiledataBit))
-        {
             resource->data.clear();
-        }
 
-        CYB_INFO("Loaded resource (filename={0}) in {1:.2f}ms", name, timer.ElapsedMilliseconds());
+        CYB_INFO("Loaded {} resource {} in {:.2f}ms", GetResourceTypeString(resource->type), name, timer.ElapsedMilliseconds());
         return Resource{ resource };
     }
 

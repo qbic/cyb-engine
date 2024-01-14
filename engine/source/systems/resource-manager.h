@@ -4,11 +4,28 @@
 
 namespace cyb
 {
+    enum class ResourceType
+    {
+        None,
+        Image,
+        Sound
+    };
+
     struct Resource
     {
-        std::shared_ptr<void> internal_state;
+        struct InternalBaseData
+        {
+            using HashType = uint64_t;
+            HashType hash = 0;
+            ResourceType type = ResourceType::None;
+            std::string name;
+        };
+
+        std::shared_ptr<InternalBaseData> internal_state;
 
         [[nodiscard]] bool IsValid() const { return internal_state.get() != nullptr; }
+        [[nodiscard]] long GetReferenceCount() const { return IsValid() ? internal_state.use_count() : 0; }
+        [[nodiscard]] ResourceType GetType() const { return IsValid() ? internal_state->type : ResourceType::None; }
         [[nodiscard]] const graphics::Texture& GetTexture() const;
     };
 }
@@ -28,6 +45,8 @@ namespace cyb::resourcemanager
         RetainFiledataBit = (1 << 2)        // File data will be kept for later reuse.
     };
     CYB_ENABLE_BITMASK_OPERATORS(Flags);
+
+    [[nodiscard]] const char* GetResourceTypeString(ResourceType type);
 
     // Load a resource:
     //  name : Filename of a resource

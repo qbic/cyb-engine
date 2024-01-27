@@ -94,8 +94,8 @@ namespace cyb::editor
 
         const HeightmapGenerator* m_Heightmap;
         XMINT2 m_Offset;
-        uint32_t m_Height;
         uint32_t m_Width;
+        uint32_t m_Height;
         std::vector<XMINT2> m_Points;
         std::vector<uint32_t> m_triangles;      // triangle indexes
         std::vector<int> m_Halfedges;

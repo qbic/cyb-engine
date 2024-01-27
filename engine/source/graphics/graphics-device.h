@@ -532,7 +532,7 @@ namespace cyb::graphics
             return hasher.value;
         }
 
-        static constexpr RenderPassInfo GetFrom(const RenderPassImage* images, uint32_t imageCount)
+        static const RenderPassInfo GetFrom(const RenderPassImage* images, uint32_t imageCount)
         {
             RenderPassInfo info;
             for (uint32_t i = 0; i < imageCount; ++i)
@@ -552,7 +552,7 @@ namespace cyb::graphics
             return info;
         }
 
-        static constexpr RenderPassInfo GetFrom(const SwapChainDesc& swapchainDesc)
+        static const RenderPassInfo GetFrom(const SwapChainDesc& swapchainDesc)
         {
             RenderPassInfo info;
             info.rtCount = 1;
@@ -626,7 +626,7 @@ namespace cyb::graphics
     {
     protected:
         static const uint32_t BUFFERCOUNT = 2;
-        const bool VALIDATION_MODE_ENABLED = true;
+        const bool VALIDATION_MODE_ENABLED = false;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 
@@ -858,6 +858,7 @@ namespace cyb::graphics
         case Format::R16G16_Float:
         case Format::R32_Float:
         case Format::D32_Float:
+        case Format::D24_Float_S8_Uint:
         case Format::B8G8R8A8_Unorm:
             return 4u;
 
@@ -866,6 +867,10 @@ namespace cyb::graphics
 
         case Format::R8_Unorm:
             return 1u;
+
+        case Format::Unknown:
+        default:
+            break;
         }
 
         assert(0);

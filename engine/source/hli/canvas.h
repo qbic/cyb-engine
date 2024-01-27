@@ -13,7 +13,7 @@ namespace cyb
         {
             width = width_;
             height = height_;
-            dpi = dpi;
+            dpi = dpi_;
         }
 
         void SetCanvas(const Canvas& other)

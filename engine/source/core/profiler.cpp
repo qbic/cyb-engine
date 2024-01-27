@@ -25,7 +25,7 @@ namespace cyb::profiler
             graphics::GPUQueryDesc desc;
             desc.type = graphics::GPUQueryType::Timestamp;
             desc.queryCount = 1024;
-            bool success = device->CreateQuery(&desc, &query);
+            [[maybe_unused]] bool success = device->CreateQuery(&desc, &query);
             assert(success);
 
             graphics::GPUBufferDesc bd;

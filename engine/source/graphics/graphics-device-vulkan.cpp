@@ -6,7 +6,15 @@
 #include "graphics/graphics-device-vulkan.h"
 #include "volk.h"
 #define VMA_IMPLEMENTATION
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-completeness"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
 #include "vk_mem_alloc.h"
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #include "spirv_reflect.h"
 
 #define CYB_DEBUGBREAK_ON_VALIDATION_ERROR  1
@@ -127,6 +135,7 @@ namespace cyb::graphics::vulkan_internal
         case ResourceState::UnorderedAccessBit:     return VK_IMAGE_LAYOUT_GENERAL;
         case ResourceState::CopySrcBit:             return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         case ResourceState::CopyDstBit:             return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        default: break;
         }
 
         assert(0);
@@ -591,7 +600,7 @@ namespace cyb::graphics
         semaphore_info.pNext = &timeline_info;
         semaphore_info.flags = 0;
 
-        VkResult res = vkCreateSemaphore(device->device, &semaphore_info, nullptr, &semaphore);
+        [[maybe_unused]] VkResult res = vkCreateSemaphore(device->device, &semaphore_info, nullptr, &semaphore);
         assert(res == VK_SUCCESS);
     }
 
@@ -619,7 +628,7 @@ namespace cyb::graphics
             pool_info.queueFamilyIndex = device->copyFamily;
             pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
 
-            VkResult res = vkCreateCommandPool(device->device, &pool_info, nullptr, &cmd.commandpool);
+            [[maybe_unused]] VkResult res = vkCreateCommandPool(device->device, &pool_info, nullptr, &cmd.commandpool);
             assert(res == VK_SUCCESS);
 
             VkCommandBufferAllocateInfo commandbuffer_info = {};
@@ -657,13 +666,13 @@ namespace cyb::graphics
             GPUBufferDesc uploaddesc;
             uploaddesc.size = math::GetNextPowerOfTwo(staging_size);
             uploaddesc.usage = MemoryAccess::Upload;
-            bool upload_success = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadBuffer);
-            assert(upload_success);
+            [[maybe_unused]] bool res = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadBuffer);
+            assert(res);
             device->SetName(&cmd.uploadBuffer, "CopyAllocator::uploadBuffer");
         }
 
         // begin command list in valid state:
-        VkResult res = vkResetCommandPool(device->device, cmd.commandpool, 0);
+        [[maybe_unused]] VkResult res = vkResetCommandPool(device->device, cmd.commandpool, 0);
         assert(res == VK_SUCCESS);
 
         VkCommandBufferBeginInfo beginInfo = {};
@@ -679,7 +688,7 @@ namespace cyb::graphics
 
     void GraphicsDevice_Vulkan::CopyAllocator::Submit(CopyCMD cmd)
     {
-        VkResult res = vkEndCommandBuffer(cmd.commandbuffer);
+        [[maybe_unused]] VkResult res = vkEndCommandBuffer(cmd.commandbuffer);
         assert(res == VK_SUCCESS);
 
         // It was very slow in Vulkan to submit the copies immediately.
@@ -715,7 +724,7 @@ namespace cyb::graphics
 
             submit_info.pNext = &timeline_info;
 
-            VkResult res = vkQueueSubmit(device->copyQueue, 1, &submit_info, VK_NULL_HANDLE);
+            [[maybe_unused]] VkResult res = vkQueueSubmit(device->copyQueue, 1, &submit_info, VK_NULL_HANDLE);
             assert(res == VK_SUCCESS);
 
             submit_cmds.clear();
@@ -723,7 +732,7 @@ namespace cyb::graphics
 
         // free up the finished command lists:
         uint64_t completed_fence_value;
-        VkResult res = vkGetSemaphoreCounterValue(device->device, semaphore, &completed_fence_value);
+        [[maybe_unused]] VkResult res = vkGetSemaphoreCounterValue(device->device, semaphore, &completed_fence_value);
         assert(res == VK_SUCCESS);
         for (size_t i = 0; i < worklist.size(); ++i)
         {
@@ -787,7 +796,7 @@ namespace cyb::graphics
             alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
             alloc_info.descriptorPool = binder_pool.descriptor_pool;
             alloc_info.descriptorSetCount = 1;
-            alloc_info.pSetLayouts = &pso_internal->descriptorset_layout;
+            alloc_info.pSetLayouts = &descriptorset_layout;
 
             VkResult res = vkAllocateDescriptorSets(device->device, &alloc_info, &descriptorset);
             while (res == VK_ERROR_OUT_OF_POOL_MEMORY)
@@ -805,12 +814,12 @@ namespace cyb::graphics
             image_infos.clear();
 
             const auto& layout_bindings = pso_internal->layout_bindings;
-            const auto& imageview_types = pso_internal->imageview_types;
+            //const auto& imageview_types = pso_internal->imageview_types;
 
-            int i = 0;
+            //int i = 0;
             for (const auto& x : layout_bindings)
             {
-                VkImageViewType viewtype = imageview_types[i++];
+                //VkImageViewType viewtype = imageview_types[i++];
 
                 for (uint32_t descriptor_index = 0; descriptor_index < x.descriptorCount; ++descriptor_index)
                 {
@@ -831,7 +840,6 @@ namespace cyb::graphics
                     {
                         image_infos.emplace_back();
                         write.pImageInfo = &image_infos.back();
-                        const uint32_t binding_location = unrolled_binding;
                         const GPUResource& resource = table.SRV[unrolled_binding];
                         auto texture_internal = ToInternal((const Texture*)&resource);
                         const Sampler& sampler = table.SAM[unrolled_binding];
@@ -929,7 +937,7 @@ namespace cyb::graphics
         create_info.pPoolSizes = pool_sizes.data();
         create_info.maxSets = pool_max_size;
 
-        VkResult res = vkCreateDescriptorPool(device->device, &create_info, nullptr, &descriptor_pool);
+        [[maybe_unused]] VkResult res = vkCreateDescriptorPool(device->device, &create_info, nullptr, &descriptor_pool);
         assert(res == VK_SUCCESS);
     }
 
@@ -948,7 +956,7 @@ namespace cyb::graphics
     {
         if (descriptor_pool != VK_NULL_HANDLE)
         {
-            VkResult res = vkResetDescriptorPool(device->device, descriptor_pool, 0);
+            [[maybe_unused]] VkResult res = vkResetDescriptorPool(device->device, descriptor_pool, 0);
             assert(res == VK_SUCCESS);
         }
     }
@@ -1087,7 +1095,7 @@ namespace cyb::graphics
                 }
                 pipelineInfo.pNext = &renderingInfo;
 
-                VkResult res = vkCreateGraphicsPipelines(device, m_pipelineCache, 1, &pipelineInfo, nullptr, &pipeline);
+                [[maybe_unused]] VkResult res = vkCreateGraphicsPipelines(device, m_pipelineCache, 1, &pipelineInfo, nullptr, &pipeline);
                 assert(res == VK_SUCCESS);
 
                 commandlist.pipelinesWorker.push_back(std::make_pair(pipeline_hash, pipeline));
@@ -1462,7 +1470,7 @@ namespace cyb::graphics
                     VkFenceCreateInfo fenceInfo = {};
                     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
                     //fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-                    VkResult res = vkCreateFence(device, &fenceInfo, nullptr, &m_frameResources[i].fence[q]);
+                    [[maybe_unused]] VkResult res = vkCreateFence(device, &fenceInfo, nullptr, &m_frameResources[i].fence[q]);
                     assert(res == VK_SUCCESS);
                 }
 
@@ -1516,14 +1524,14 @@ namespace cyb::graphics
             assert(res == VK_SUCCESS);
         }
 
-        CYB_INFO("Initialized Vulkan {0}.{1}", VK_API_VERSION_MAJOR(properties2.properties.apiVersion), VK_API_VERSION_MINOR(properties2.properties.apiVersion));
-        CYB_INFO("Using {0}", properties2.properties.deviceName);
-        CYB_INFO("Driver {0} {1}", properties_1_2.driverName, properties_1_2.driverInfo);;
+        CYB_INFO("Initialized Vulkan {}.{}", VK_API_VERSION_MAJOR(properties2.properties.apiVersion), VK_API_VERSION_MINOR(properties2.properties.apiVersion));
+        CYB_INFO("  Device: {}", properties2.properties.deviceName);
+        CYB_INFO("  Driver: {} {}", properties_1_2.driverName, properties_1_2.driverInfo);;
     }
     
     GraphicsDevice_Vulkan::~GraphicsDevice_Vulkan()
     {
-        VkResult res = vkDeviceWaitIdle(device);
+        [[maybe_unused]] VkResult res = vkDeviceWaitIdle(device);
         assert(res == VK_SUCCESS);
 
         for (auto& x : m_pipelinesGlobal)
@@ -1668,7 +1676,7 @@ namespace cyb::graphics
             alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
         }
        
-        VkResult res = vmaCreateBuffer(m_allocationHandler->allocator, &buffer_info, &alloc_info, &internal_state->resource, &internal_state->allocation, nullptr);
+        [[maybe_unused]] VkResult res = vmaCreateBuffer(m_allocationHandler->allocator, &buffer_info, &alloc_info, &internal_state->resource, &internal_state->allocation, nullptr);
         assert(res == VK_SUCCESS);
 
         if (desc->usage == MemoryAccess::Readback || desc->usage == MemoryAccess::Upload)
@@ -1922,9 +1930,10 @@ namespace cyb::graphics
                 viewInfo.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
                 viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
                 break;
+            default: break;
             }
             
-            VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &subresource.imageView);
+            [[maybe_unused]] VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &subresource.imageView);
             assert(res == VK_SUCCESS);
 
             assert(!textureInternal->srv.IsValid());
@@ -1933,7 +1942,7 @@ namespace cyb::graphics
         case SubresourceType::RTV:
         {
             viewInfo.subresourceRange.levelCount = 1;
-            VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &subresource.imageView);
+            [[maybe_unused]] VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &subresource.imageView);
             assert(res == VK_SUCCESS);
             assert(!textureInternal->rtv.IsValid());
             textureInternal->rtv = subresource;
@@ -1942,7 +1951,7 @@ namespace cyb::graphics
         {
             viewInfo.subresourceRange.levelCount = 1;
             viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-            VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &subresource.imageView);
+            [[maybe_unused]] VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &subresource.imageView);
             assert(res == VK_SUCCESS);
             assert(!textureInternal->dsv.IsValid());
             textureInternal->dsv = subresource;
@@ -2007,7 +2016,7 @@ namespace cyb::graphics
         VmaAllocationCreateInfo allocInfo = {};
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
-        VkResult res = vmaCreateImage(
+        [[maybe_unused]] VkResult res = vmaCreateImage(
             m_allocationHandler->allocator,
             &imageInfo,
             &allocInfo,
@@ -2226,7 +2235,7 @@ namespace cyb::graphics
         create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         create_info.codeSize = bytecodeLength;
         create_info.pCode = (const uint32_t*)shaderBytecode;
-        VkResult res = vkCreateShaderModule(device, &create_info, nullptr, &internal_state->shadermodule);
+        [[maybe_unused]] VkResult res = vkCreateShaderModule(device, &create_info, nullptr, &internal_state->shadermodule);
         assert(res == VK_SUCCESS);
 
         internal_state->stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -2251,7 +2260,7 @@ namespace cyb::graphics
 
         {
             SpvReflectShaderModule module;
-            SpvReflectResult result = spvReflectCreateShaderModule(create_info.codeSize, create_info.pCode, &module);
+            [[maybe_unused]] SpvReflectResult result = spvReflectCreateShaderModule(create_info.codeSize, create_info.pCode, &module);
             assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
             uint32_t binding_count = 0;
@@ -2266,8 +2275,8 @@ namespace cyb::graphics
 
             for (auto& x : bindings)
             {
-                const bool bindless = x->set > 0;
-                assert(bindless == false);   // NO SUPPORT FOR BINDLESS ATM
+                // NO SUPPORT FOR BINDLESS ATM
+                assert((x->set > 0) == false);
                 
                 auto& descriptor = internal_state->layout_bindings.emplace_back();
                 descriptor.stageFlags = internal_state->stage_info.stage;
@@ -2351,7 +2360,7 @@ namespace cyb::graphics
         sampler_info.maxLod = desc->maxLOD;
         sampler_info.unnormalizedCoordinates = VK_FALSE;
 
-        VkResult res = vkCreateSampler(device, &sampler_info, nullptr, &internal_state->resource);
+        [[maybe_unused]] VkResult res = vkCreateSampler(device, &sampler_info, nullptr, &internal_state->resource);
         assert(res == VK_SUCCESS);
 
         return true;
@@ -2448,7 +2457,7 @@ namespace cyb::graphics
             descriptorset_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             descriptorset_layout_info.bindingCount = static_cast<uint32_t>(internal_state->layout_bindings.size());
             descriptorset_layout_info.pBindings = internal_state->layout_bindings.data();
-            VkResult res = vkCreateDescriptorSetLayout(device, &descriptorset_layout_info, nullptr, &internal_state->descriptorset_layout);
+            [[maybe_unused]] VkResult res = vkCreateDescriptorSetLayout(device, &descriptorset_layout_info, nullptr, &internal_state->descriptorset_layout);
             assert(res == VK_SUCCESS);
 
             VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
@@ -2604,7 +2613,6 @@ namespace cyb::graphics
         {
             if (shader != nullptr && shader->IsValid())
             {
-                auto shaderInternal = ToInternal(shader);
                 internal_state->shaderStages[shaderStageCount++] = ToInternal(shader)->stage_info;
             }
         };
@@ -2724,7 +2732,7 @@ namespace cyb::graphics
                 poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
                 poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
                 poolInfo.queueFamilyIndex = graphicsFamily;
-                VkResult res = vkCreateCommandPool(device, &poolInfo, nullptr, &commandlist.commandpools[buffer_index][static_cast<uint32_t>(queue)]);
+                [[maybe_unused]] VkResult res = vkCreateCommandPool(device, &poolInfo, nullptr, &commandlist.commandpools[buffer_index][static_cast<uint32_t>(queue)]);
                 assert(res == VK_SUCCESS);
 
                 VkCommandBufferAllocateInfo allocInfo = {};
@@ -2741,7 +2749,7 @@ namespace cyb::graphics
             commandlist.binder.Init(this);
         }
 
-        VkResult res = vkResetCommandPool(device, commandlist.GetCommandPool(), 0);
+        [[maybe_unused]] VkResult res = vkResetCommandPool(device, commandlist.GetCommandPool(), 0);
         assert(res == VK_SUCCESS);
 
         VkCommandBufferBeginInfo beginInfo = {};
@@ -2788,7 +2796,7 @@ namespace cyb::graphics
 
         submitInfo.pNext = &timelineInfo;
 
-        VkResult res = vkQueueSubmit(queue, 1, &submitInfo, fence);
+        [[maybe_unused]] VkResult res = vkQueueSubmit(queue, 1, &submitInfo, fence);
         assert(res == VK_SUCCESS);
 
         if (!submit_swapchains.empty())
@@ -2818,7 +2826,6 @@ namespace cyb::graphics
 
     void GraphicsDevice_Vulkan::SubmitCommandList()
     {
-        VkResult res;
         m_initLocker.lock();
 
         // Submit current frame:
@@ -2829,7 +2836,7 @@ namespace cyb::graphics
             if (m_initSubmits)
             {
                 m_initSubmits = false;
-                res = vkEndCommandBuffer(frame.init_commandbuffer);
+                [[maybe_unused]] VkResult res = vkEndCommandBuffer(frame.init_commandbuffer);
                 assert(res == VK_SUCCESS);
                 queues[static_cast<uint32_t>(QueueType::Graphics)].submit_cmds.push_back(frame.init_commandbuffer);
             }
@@ -2854,7 +2861,7 @@ namespace cyb::graphics
             for (uint32_t cmd_index = 0; cmd_index < cmd_last; ++cmd_index)
             {
                 CommandList_Vulkan& commandlist = *m_commandlists[cmd_index].get();
-                res = vkEndCommandBuffer(commandlist.GetCommandBuffer());
+                [[maybe_unused]] VkResult res = vkEndCommandBuffer(commandlist.GetCommandBuffer());
                 assert(res == VK_SUCCESS);
 
                 CommandQueue& queue = queues[static_cast<uint32_t>(commandlist.queue)];
@@ -2905,7 +2912,7 @@ namespace cyb::graphics
                 for (uint32_t i = 0; i < static_cast<uint32_t>(QueueType::_Count); ++i)
                 {
                     VkFence& fence = frame.fence[i];
-                    res =  vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+                    [[maybe_unused]] VkResult res = vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
                     assert(res == VK_SUCCESS);
                     res = vkResetFences(device, 1, &fence);
                     assert(res == VK_SUCCESS);
@@ -2916,7 +2923,7 @@ namespace cyb::graphics
 
             // Restart transition command buffers:
             {
-                res = vkResetCommandPool(device, frame.init_commandpool, 0);
+                [[maybe_unused]] VkResult res = vkResetCommandPool(device, frame.init_commandpool, 0);
                 assert(res == VK_SUCCESS);
 
                 VkCommandBufferBeginInfo beginInfo = {};
@@ -2970,7 +2977,7 @@ namespace cyb::graphics
         createInfo.pInitialData = nullptr;
 
         // Create Vulkan pipeline cache
-        VkResult res = vkCreatePipelineCache(device, &createInfo, nullptr, &m_pipelineCache);
+        [[maybe_unused]] VkResult res = vkCreatePipelineCache(device, &createInfo, nullptr, &m_pipelineCache);
         assert(res == VK_SUCCESS);
     }
 
@@ -2980,7 +2987,7 @@ namespace cyb::graphics
         auto internal_state = ToInternal(swapchain);
         commandlist.prev_swapchains.push_back(*swapchain);
 
-        VkResult res = vkAcquireNextImageKHR(
+        [[maybe_unused]] VkResult res = vkAcquireNextImageKHR(
             device, 
             internal_state->swapchain,
             UINT64_MAX, 
@@ -3334,7 +3341,7 @@ namespace cyb::graphics
         if (info.objectHandle == (uint64_t)VK_NULL_HANDLE)
             return;
 
-        VkResult res = vkSetDebugUtilsObjectNameEXT(device, &info);
+        [[maybe_unused]] VkResult res = vkSetDebugUtilsObjectNameEXT(device, &info);
         assert(res == VK_SUCCESS);
     }
 
@@ -3352,7 +3359,7 @@ namespace cyb::graphics
         if (info.objectHandle == (uint64_t)VK_NULL_HANDLE)
             return;
 
-        VkResult res = vkSetDebugUtilsObjectNameEXT(device, &info);
+        [[maybe_unused]] VkResult res = vkSetDebugUtilsObjectNameEXT(device, &info);
         assert(res == VK_SUCCESS);
     }
 

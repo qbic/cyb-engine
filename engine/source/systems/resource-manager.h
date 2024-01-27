@@ -13,9 +13,10 @@ namespace cyb
 
     struct Resource
     {
+        using HashType = uint64_t;
+
         struct InternalBaseData
         {
-            using HashType = uint64_t;
             HashType hash = 0;
             ResourceType type = ResourceType::None;
             std::string name;

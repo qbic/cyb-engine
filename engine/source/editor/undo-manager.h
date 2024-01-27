@@ -27,8 +27,8 @@ namespace cyb::ui
         static constexpr int num = N;
 
         EditorAction_ModifyValue(T* dataPtr, std::function<void()> onChange = nullptr) :
-            m_newValue(),
-            m_onChange(onChange)
+            m_onChange(onChange),
+            m_newValue()
         {
             assert(dataPtr);
             m_dataPtr = dataPtr;

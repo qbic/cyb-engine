@@ -58,7 +58,7 @@ template<typename E>
 }
 
 template<typename E>
-[[nodiscard]] constexpr void SetFlag(E& lhs, E rhs, bool value) noexcept
+constexpr void SetFlag(E& lhs, E rhs, bool value) noexcept
 {
     typedef typename std::underlying_type<E>::type underlying;
     lhs &= ~rhs;

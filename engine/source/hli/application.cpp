@@ -31,7 +31,7 @@ namespace cyb::hli
 		// disable update loops if application is not active
 		if (!IsWindowActive())
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds((int)10));
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 			return;
 		}
 
@@ -69,24 +69,15 @@ namespace cyb::hli
 	void Application::Initialize()
 	{
 		Timer timer;
-		CYB_INFO("Initializing cyb-engine, please wait...");
+		CYB_INFO("Initializing cyb-engine (asynchronous), please wait...");
 
 		jobsystem::Initialize();
 
-#if 1
-		// async component initialization
 		jobsystem::Context ctx;
 		jobsystem::Execute(ctx, [](jobsystem::JobArgs) { input::Initialize(); });
 		jobsystem::Execute(ctx, [](jobsystem::JobArgs) { renderer::Initialize(); });
 		jobsystem::Execute(ctx, [&](jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(window); });
-
 		jobsystem::Wait(ctx);
-#else
-		// synced initialization
-		input::Initialize();
-		renderer::Initialize();
-		ImGui_Impl_CybEngine_Init(window);
-#endif
 
 		CYB_INFO("cyb-engine initialized in {:.2f}ms", timer.ElapsedMilliseconds());
 	}

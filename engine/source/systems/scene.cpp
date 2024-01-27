@@ -640,7 +640,7 @@ namespace cyb::scene
         weathers.Serialize(ser, context);
     }
 
-    const uint32_t SMALL_SUBTASK_GROUPSIZE = 32U;
+    const uint32_t SMALL_SUBTASK_GROUPSIZE = 64U;
 
     void Scene::RunTransformUpdateSystem(jobsystem::Context& ctx)
     {

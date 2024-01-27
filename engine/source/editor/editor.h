@@ -8,9 +8,9 @@ namespace cyb::editor
     {
     public:
         GuiTool(const std::string& name, int windowFlags = 0) :
+            m_windowTitle(name),
             m_showWindow(false),
-            m_windowFlags(windowFlags),
-            m_windowTitle(name)
+            m_windowFlags(windowFlags)
         {
             Init();
         }

@@ -37,9 +37,7 @@ namespace cyb::input
     void Update(platform::WindowType window)
     {
         if (!initialized.load())
-        {
             return;
-        }
 
         CYB_PROFILE_CPU_SCOPE("Input");
 

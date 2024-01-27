@@ -38,7 +38,7 @@ namespace cyb
 namespace cyb::resourcemanager
 {
     std::mutex locker;
-    std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
+    std::unordered_map<Resource::HashType, std::weak_ptr<ResourceInternal>> resourceCache;
     Mode mode = Mode::DiscardFiledataAfterLoad;
 
     static const std::unordered_map<std::string, ResourceType> types = 
@@ -84,7 +84,7 @@ namespace cyb::resourcemanager
         }
 
         // compute hash for the asset and try locate it in the cache
-        const uint64_t hash = hash::String(name);
+        const Resource::HashType hash = hash::String(name);
         locker.lock();
         std::shared_ptr<ResourceInternal> resource = resourceCache[hash].lock();
         if (resource != nullptr)
@@ -141,6 +141,11 @@ namespace cyb::resourcemanager
             graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &resource->texture);
             stbi_image_free(rawImage);
         } break;
+
+        case ResourceType::Sound:
+        case ResourceType::None:
+            assert(0 && "Unimplemented");
+            break;
         }
 
         if (!HasFlag(flags, Flags::RetainFiledataBit))

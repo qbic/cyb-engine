@@ -85,10 +85,10 @@ namespace cyb::editor
         scene::Scene& scene = scene::GetScene();
 
         // Mesh info
-        ImGui::Text("Vertex positions: %u", mesh->vertex_positions.size());
-        ImGui::Text("Vertex normals: %u", mesh->vertex_normals.size());
-        ImGui::Text("Vertex colors: %u", mesh->vertex_colors.size());
-        ImGui::Text("Index count: %u", mesh->indices.size());
+        ImGui::Text("Vertex positions: %zu", mesh->vertex_positions.size());
+        ImGui::Text("Vertex normals: %zu", mesh->vertex_normals.size());
+        ImGui::Text("Vertex colors: %zu", mesh->vertex_colors.size());
+        ImGui::Text("Index count: %zu", mesh->indices.size());
 
         ImGui::Spacing();
         ImGui::TextUnformatted("Mesh Subset Info:");
@@ -160,7 +160,6 @@ namespace cyb::editor
     {
         assert(components.Size() < INT32_MAX);
         static ImGuiTextFilter filter;
-        constexpr int displayedEntitiesCount = 10;
         ecs::Entity selectedEntity = ecs::INVALID_ENTITY;
 
         ImGui::Text(ICON_FA_MAGNIFYING_GLASS "Search:");
@@ -406,7 +405,7 @@ namespace cyb::editor
         node_flags |= (node->entity == selected_entity) ? ImGuiTreeNodeFlags_Selected : 0;
 
         const void* nodeId = (void*)((size_t)node->entity);
-        bool is_open = ImGui::TreeNodeEx(nodeId, node_flags, node->name.data());
+        bool is_open = ImGui::TreeNodeEx(nodeId, node_flags, "%s", node->name.data());
         if (ImGui::IsItemClicked())
             selected_entity = node->entity;
 
@@ -548,10 +547,10 @@ namespace cyb::editor
             const auto& cpuFrame = profilerContext.entries.find(profilerContext.cpuFrame);
             const auto& gpuFrame = profilerContext.entries.find(profilerContext.gpuFrame);
 
-            ImGui::Text("Frame counter: %u", graphics::GetDevice()->GetFrameCount());
-            ImGui::Text("Average FPS (over %d frames): %d", _countof(deltatimes), avgFps);
+            ImGui::Text("Frame counter: %llu", graphics::GetDevice()->GetFrameCount());
+            ImGui::Text("Average FPS (over %zu frames): %d", CountOf(deltatimes), avgFps);
             graphics::GraphicsDevice::MemoryUsage vram = graphics::GetDevice()->GetMemoryUsage();
-            ImGui::Text("VRAM usage: %dMB / %dMB", vram.usage / 1024 / 1024, vram.budget / 1024 / 1024);
+            ImGui::Text("VRAM usage: %lluMB / %lluMB", vram.usage / 1024 / 1024, vram.budget / 1024 / 1024);
 
             ImGui::BeginTable("CPU/GPU Profiling", 2, ImGuiTableFlags_Borders);
             ImGui::TableNextColumn();
@@ -932,7 +931,7 @@ namespace cyb::editor
 
         if (ImGui::IsItemHovered()) 
         {
-            ImGui::SetTooltip(tooltip.c_str());
+            ImGui::SetTooltip("%s", tooltip.c_str());
         }
 
         return clicked;

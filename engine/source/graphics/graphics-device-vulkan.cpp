@@ -1052,7 +1052,7 @@ namespace cyb::graphics
                         attr.location = i;
 
                         attr.offset = x.alignedByteOffset;
-                        if (attr.offset == VertexInputLayout::AppendAlignedElement)
+                        if (attr.offset == VertexInputLayout::APPEND_ALIGNMENT_ELEMENT)
                         {
                             // need to manually resolve this from the format spec.
                             attr.offset = offset;

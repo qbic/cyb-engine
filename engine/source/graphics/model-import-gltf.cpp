@@ -42,7 +42,7 @@ namespace cyb::renderer
         {
             entity = ecs::CreateEntity();
             state.scene->transforms.Create(entity);
-            state.scene->names.Create(entity) = node.name;
+            state.scene->names.Create(entity, node.name);
         }
 
         scene::TransformComponent* transform = state.scene->transforms.GetComponent(entity);

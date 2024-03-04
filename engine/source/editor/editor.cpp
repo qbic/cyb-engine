@@ -32,6 +32,7 @@ namespace cyb::editor
     bool initialized = false;
     bool vsync_enabled = true;      // FIXME: initial value has to be synced with SwapChainDesc::vsync
     bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
+        
     Resource import_icon;
     Resource delete_icon;
     Resource light_icon;
@@ -39,6 +40,7 @@ namespace cyb::editor
     Resource translate_icon;
     Resource rotate_icon;
     Resource scale_icon;
+    
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::BOUNDS;
     bool guizmo_world_mode = true;
     SceneGraphView scenegraph_view;
@@ -1068,8 +1070,9 @@ namespace cyb::editor
     // PUBLIC API
     //------------------------------------------------------------------------------
 
+
     void Initialize()
-    {        
+    {
         // Attach built-in tools
         AttachToolToMenu(std::make_unique<Tool_TerrainGeneration>("Terrain Generator"));
         AttachToolToMenu(std::make_unique<Tool_ContentBrowser>("Scene Content Browser"));

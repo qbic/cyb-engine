@@ -12,7 +12,8 @@ namespace cyb::scene
     {
         std::string name;
 
-        inline void operator=(const std::string& str) { name = str; }
+        NameComponent() = default;
+        NameComponent(const std::string& name_) : name(name_) {}
     };
 
     struct TransformComponent
@@ -225,6 +226,8 @@ namespace cyb::scene
         XMFLOAT4X4 inv_view, inv_projection, inv_VP;
         math::Frustum frustum;
 
+        CameraComponent() = default;
+        CameraComponent(float newAspect, float newNear, float newFar, float newFOV) { CreatePerspective(newAspect, newNear, newFar, newFOV); }
         XMMATRIX GetViewProjection() const { return XMLoadFloat4x4(&VP); }
         void CreatePerspective(float newAspect, float newNear, float newFar, float newFOV);
         void UpdateCamera();
@@ -267,15 +270,13 @@ namespace cyb::scene
             const XMFLOAT3& color,
             float energy,
             float range,
-            LightType type = LightType::Point
-        );
+            LightType type = LightType::Point);
         ecs::Entity CreateCamera(
             const std::string& name,
             float aspect,
             float nearPlane,
             float farPlane,
-            float fov
-        );
+            float fov);
 
         // create a hierarchy component to the entity and attaches it to parent
         // world position will not be changed

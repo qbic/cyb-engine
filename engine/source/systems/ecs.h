@@ -4,12 +4,12 @@
 #include "systems/job-system.h"
 #include "flat_hash_map.hpp"
 
-namespace cyb::ecs 
+namespace cyb::ecs
 {
     using Entity = uint32_t;
     static constexpr Entity INVALID_ENTITY = 0;
 
-    inline Entity CreateEntity() 
+    inline Entity CreateEntity()
     {
         static std::atomic<Entity> next = INVALID_ENTITY + 1;
         return next.fetch_add(1);
@@ -81,7 +81,7 @@ namespace cyb::ecs
             entities.reserve(Size() + other.Size());
             lookup.reserve(Size() + other.Size());
 
-            for (size_t i = 0; i < other.Size(); ++i) 
+            for (size_t i = 0; i < other.Size(); ++i)
             {
                 Entity entity = other.entities[i];
                 assert(!Contains(entity));
@@ -107,28 +107,30 @@ namespace cyb::ecs
             {
                 SerializeComponent(components[i], ser, entitySerializer);
             }
-            
+
             for (size_t i = 0; i < componentCount; ++i)
             {
                 SerializeEntity(entities[i], ser, entitySerializer);
 
                 if (ser.IsReading())
+                {
                     lookup[entities[i]] = i;
+                }
             }
         }
 
-        T& Create(Entity entity)
+        // ecs::INVALID_ENTITY is not allowed!
+        // only one of this component type per entity is allowed!
+        template <typename... Args>
+        T& Create(Entity entity, [[maybe_unused]] Args&&... args)
         {
-            // ecs::INVALID_ENTITY is not allowed!
-            // only one of this component type per entity is allowed!
-            // entity count must always be the same as the number of coponents!
             assert(entity != INVALID_ENTITY);
             assert(lookup.find(entity) == lookup.end());
             assert(entities.size() == components.size());
             assert(lookup.size() == components.size());
 
             lookup[entity] = components.size();
-            components.emplace_back();
+            components.emplace_back(std::forward<Args>(args)...);
             entities.push_back(entity);
 
             return components.back();
@@ -140,24 +142,19 @@ namespace cyb::ecs
             if (it == lookup.end())
                 return;
 
-            // directly index into components and entities array
             const size_t index = it->second;
-            const Entity indexedEntity = entities[index];
 
             if (index < components.size() - 1)
             {
-                // swap out the dead element with the last one
-                components[index] = std::move(components.back());
+                std::exchange(components[index], components.back());
                 entities[index] = entities.back();
-
-                // update the lookup table
                 lookup[entities[index]] = index;
             }
 
             // shrink the container
             components.pop_back();
             entities.pop_back();
-            lookup.erase(indexedEntity);
+            lookup.erase(entity);
         }
 
         // check if a component exists for a given entity or not
@@ -170,35 +167,26 @@ namespace cyb::ecs
         [[nodiscard]] T* GetComponent(Entity entity)
         {
             auto it = lookup.find(entity);
-            if (it == lookup.end())
-                return nullptr;
-
-            return &components[it->second];
+            return it != lookup.end() ? &components[it->second] : nullptr;
         }
 
         // retrieve a [read only] component specified by an entity (if it exists, otherwise nullptr)
         [[nodiscard]] const T* GetComponent(Entity entity) const
         {
             const auto it = lookup.find(entity);
-            if (it == lookup.end())
-                return nullptr;
-
-            return &components[it->second];
+            return it != lookup.end() ? &components[it->second] : nullptr;
         }
 
         // retrieve component index by entity handle (if not found, returns std::numeric_limits<size_t>::max)
         [[nodiscard]] size_t GetIndex(Entity entity) const
         {
             const auto it = lookup.find(entity);
-            if (it == lookup.end())
-                return std::numeric_limits<size_t>::max();
-                
-            return it->second;
+            return it != lookup.end() ? it->second : std::numeric_limits<size_t>::max();
         }
 
         [[nodiscard]] Entity GetEntity(size_t index) const
-        { 
-            return entities[index]; 
+        {
+            return entities[index];
         }
 
         [[nodiscard]] size_t Size() const { return components.size(); }

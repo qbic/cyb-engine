@@ -85,36 +85,18 @@ namespace cyb::ui
         }
     }
 
-    // [Deprecated]
-    template <class T>
-    void SaveChangeToUndoManager(typename T::value_type* v)
-    {
-        if (ImGui::IsItemActivated())
-        {
-            auto action = std::make_shared<T>(v);
-            ui::GetUndoManager().Record(action);
-        }
-
-        if (ImGui::IsItemDeactivatedAfterEdit())
-            ui::GetUndoManager().CommitIncompleteAction();
-    }
-
     // Record any change to value v to the undo-manager, if value is
     // changed directly or though undo-manager onChanger() will be called
-    template <class T>
-    void SaveChangeToUndoManager(typename T::value_type* v, const std::function<void()>& onChange)
-    {
-        if (ImGui::IsItemActivated())
-        {
-            auto action = std::make_shared<T>(v, onChange);
-            ui::GetUndoManager().Record(action);
+    template <class T, typename... Args>
+    void SaveChangeToUndoManager(typename T::value_type* v, [[maybe_unused]] Args&&... args) {
+        if (ImGui::IsItemActivated()) {
+            UndoStack::Command cmd = std::make_shared<T>(v, std::forward<Args>(args)...);
+            ui::GetUndoManager().Record(cmd);
         }
 
-        if (ImGui::IsItemDeactivatedAfterEdit())
-        {
-            ui::GetUndoManager().CommitIncompleteAction();
-            if (onChange)
-                onChange();
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            // command is completed!
+            ui::GetUndoManager().CommitIncompleteCommand();
         }
     }
 
@@ -129,7 +111,7 @@ namespace cyb::ui
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
         ImGui::Checkbox("", v);
         ImGui::PopStyleVar();
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<bool, 1>>(v, onChange);
+        SaveChangeToUndoManager<ui::ModifyValue<bool, 1>>(v, onChange);
     }
 
     void CheckboxFlags(const char* label, uint32_t* flags, uint32_t flagsValue, const std::function<void()> onChange)
@@ -138,7 +120,7 @@ namespace cyb::ui
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
         ImGui::CheckboxFlags("", (unsigned int*)flags, (unsigned int)flagsValue);
         ImGui::PopStyleVar();
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<uint32_t, 1>>(flags, onChange);
+        SaveChangeToUndoManager<ui::ModifyValue<uint32_t, 1>>(flags, onChange);
     }
 
     bool DragFloat(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
@@ -147,7 +129,7 @@ namespace cyb::ui
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
         bool change = ImGui::DragFloat("", v, v_speed, v_min, v_max, format, flags);
         ImGui::PopStyleVar();
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<float, 1>>(v);
+        SaveChangeToUndoManager<ui::ModifyValue<float, 1>>(v);
         return change;
     }
     
@@ -157,7 +139,7 @@ namespace cyb::ui
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
         bool change = ImGui::DragFloat3("", v, v_speed, v_min, v_max, format, flags);
         ImGui::PopStyleColor();
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<float, 3>>(v);
+        SaveChangeToUndoManager<ui::ModifyValue<float, 3>>(v);
         return change;
     }
 
@@ -165,7 +147,7 @@ namespace cyb::ui
     {
         COMMON_WIDGET_CODE(label);
         bool change = ImGui::DragInt("", v, v_speed, v_min, v_max, format, flags);
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<int, 1>>(v);
+        SaveChangeToUndoManager<ui::ModifyValue<int, 1>>(v);
         return change;
     }
 
@@ -177,7 +159,7 @@ namespace cyb::ui
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
         ImGui::SliderFloat("", &temp, minValue, maxValue);
         ImGui::PopStyleVar();
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<float, 1>>(v, onChange);
+        SaveChangeToUndoManager<ui::ModifyValue<float, 1>>(v, onChange);
         *v = temp;
     }
 
@@ -190,7 +172,7 @@ namespace cyb::ui
         ImGui::SliderInt("", &temp, minValue, maxValue, format, flags);
         ImGui::PopStyleVar();
 
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<int, 1>>(v, onChange);
+        SaveChangeToUndoManager<ui::ModifyValue<int, 1>>(v, onChange);
         *v = temp;
     }
 
@@ -201,7 +183,7 @@ namespace cyb::ui
         bool change = ImGui::ColorEdit3("", col, flags);
         ImGui::PopStyleVar();
 
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<float, 3>>(col);
+        SaveChangeToUndoManager<ui::ModifyValue<float, 3>>(col);
         return change;
     }
 
@@ -212,7 +194,7 @@ namespace cyb::ui
         bool change = ImGui::ColorEdit4("", col, flags);
         ImGui::PopStyleVar();
 
-        SaveChangeToUndoManager<ui::EditorAction_ModifyValue<float, 4>>(col);
+        SaveChangeToUndoManager<ui::ModifyValue<float, 4>>(col);
         return change;
     }
 
@@ -226,10 +208,11 @@ namespace cyb::ui
         bool change = ImGui::DragFloat3("", component, 0.1f, 0.0f, 0.0f, "%.1f");
         ImGui::PopStyleVar();
 
-        if (change)
+        if (change) {
             transform->SetDirty();
-        SaveChangeToUndoManager<ui::EditorAction_ModifyTransform>(transform);
-        
+        }
+        SaveChangeToUndoManager<ui::ModifyTransform>(transform);
+
         return change;
     }
 
@@ -249,8 +232,8 @@ namespace cyb::ui
                 if (ImGui::Selectable(name.c_str(), isSelected))
                 {
                     const uint32_t tempValue[1] = { key };
-                    auto action = std::make_shared<ui::EditorAction_ModifyValue<uint32_t, 1>>(&value, tempValue, onChange);
-                    ui::GetUndoManager().Record(action);
+                    UndoStack::Command cmd = std::make_shared<ui::ModifyValue<uint32_t, 1>>(&value, tempValue, onChange);
+                    ui::GetUndoManager().Record(cmd);
 
                     value = key;
                     valueChange = true;
@@ -290,37 +273,6 @@ namespace cyb::ui
         }
 
         return change;
-    }
-
-    /**
-     * Draw a frame with the label inside and a filled bar with a
-     * frameBox * (v - vMin) / (vMax - vMin)) size filled background.
-     */
-    void FilledBar(const char* label, float v, float vMin, float vMax, const char* format)
-    {
-        ImGuiWindow* window = ImGui::GetCurrentWindow();
-        if (window->SkipItems)
-            return;
-
-        const ImGuiContext& g = *GImGui;
-        const ImGuiStyle& style = g.Style;
-        const ImGuiID id = window->GetID(label);
-        const float width = ImGui::CalcItemWidth();
-
-        const ImVec2 labelSize = ImGui::CalcTextSize(label, NULL, true);
-        const ImRect frameBox(window->DC.CursorPos, window->DC.CursorPos + ImVec2(width, labelSize.y + style.FramePadding.y * 2.0f));
-        const ImRect totalBox(frameBox.Min, frameBox.Max);
-        ImGui::ItemSize(totalBox, style.FramePadding.y);
-        if (!ImGui::ItemAdd(totalBox, id))
-            return;
-
-        const std::string text = std::string(label) + ": " + fmt::format(format, v);
-
-        // Render
-        ImGui::RenderFrame(frameBox.Min, frameBox.Max, ImGui::GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
-        const float fraction = (v - vMin) / (vMax - vMin);
-        ImGui::RenderRectFilledRangeH(window->DrawList, frameBox, ImGui::GetColorU32(ImGuiCol_PlotHistogram), 0.0f, fraction, 0.0f);
-        ImGui::RenderText(ImVec2(frameBox.Min.x + style.ItemInnerSpacing.x, frameBox.Min.y + style.FramePadding.y), text.c_str());
     }
 
 #define GRADIENT_BAR_EDITOR_HEIGHT      40

@@ -173,7 +173,7 @@ namespace cyb::editor
                         m_heightmapDesc.device2.blur = input2["blur"];
 #endif
                         CreatePreviewImage();
-                        ui::GetUndoManager().ClearActionHistory();
+                        ui::GetUndoManager().ClearHistory();
                         });
                 }
                 ImGui::EndMenu();

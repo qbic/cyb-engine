@@ -235,15 +235,16 @@ namespace cyb::graphics
 
     struct VertexInputLayout
     {
-        // Automatically calculate alignedByteOffset using format
-        static constexpr uint32_t AppendAlignedElement = ~0u; 
+        static constexpr uint32_t APPEND_ALIGNMENT_ELEMENT = ~0u; 
 
         struct Element
         {
             std::string inputName;
             uint32_t inputSlot = 0;
             Format format = Format::Unknown;
-            uint32_t alignedByteOffset = AppendAlignedElement;
+            
+            // setting alignedByteOffset to APPEND_ALIGNMENT_ELEMENT calculates offset using format
+            uint32_t alignedByteOffset = APPEND_ALIGNMENT_ELEMENT;
         };
 
         std::vector<Element> elements;

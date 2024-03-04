@@ -1,145 +1,139 @@
 #pragma once
 #include <unordered_map>
-#include <vector>
+#include <stack>
 #include <memory>
 #include <functional>
-#include <optional>
 #include "imgui/imgui.h"
 #include "systems/scene.h"
 
-namespace cyb::ui
-{
-    class EditorAction
-    {
-    public:
-        virtual void OnUndo() const = 0;
-        virtual void OnRedo() const = 0;
+namespace cyb::ui {
 
-        virtual bool IsComplete() const { return true; }
-        virtual void Complete(bool isComplete) {}
+    using UndoCallback = std::function<void()>;
+
+    // Implementation details for UndoCommand:
+    //   * value_type must be defined
+    //   * Undo() should be cycling value (Undo() -> Redo() -> Undo()...)
+    class UndoCommand {
+    public:
+        virtual void Undo() = 0;
+
+        [[nodiscard]] virtual bool IsComplete() const { return true; }
+        virtual void SetComplete(bool complete) {}
     };
 
     template <typename T, int N = 1>
-    class EditorAction_ModifyValue : public EditorAction
-    {
+    class ModifyValue : public UndoCommand {
+        static_assert(N >= 1 && N <= 1024, "N must be within the range [1, 1024]");
     public:
         using value_type = T;
-        static constexpr int num = N;
 
-        EditorAction_ModifyValue(T* dataPtr, std::function<void()> onChange = nullptr) :
-            m_onChange(onChange),
-            m_newValue()
-        {
-            assert(dataPtr);
-            m_dataPtr = dataPtr;
-            for (int i = 0; i < N; ++i)
-                m_oldValue[i] = m_dataPtr[i];
-            m_isComplete = false;
-        }
+        // construct a non-complete command
+        ModifyValue(T* valuePtr, UndoCallback onChange = nullptr) :
+            value(valuePtr),
+            onChange(onChange),
+            isComplete(false) {
+            assert(value);
 
-        EditorAction_ModifyValue(T* dataPtr, const T newValue[N], const std::function<void()>& onChange = nullptr) :
-            m_onChange(onChange)
-        {
-            assert(dataPtr != nullptr);
-            m_dataPtr = dataPtr;
-            for (int i = 0; i < N; ++i)
-            {
-                m_oldValue[i] = m_dataPtr[i];
-                m_newValue[i] = newValue[i];
+            for (int i = 0; i < N; ++i) {
+                previousValue[i] = value[i];
             }
-            m_isComplete = true;
         }
 
-        virtual void OnUndo() const override
-        {
-            for (int i = 0; i < N; ++i)
-                m_dataPtr[i] = m_oldValue[i];
+        // construct a complete command
+        ModifyValue(T* valuePtr, const T newValue[N], const UndoCallback& onChange = nullptr) :
+            value(valuePtr),
+            onChange(onChange),
+            isComplete(true) {
+            assert(value);
 
-            if (m_onChange)
-                m_onChange();
-        }
-
-        virtual void OnRedo() const override
-        {
-            for (int i = 0; i < N; ++i)
-                m_dataPtr[i] = m_newValue[i];
-
-            if (m_onChange)
-                m_onChange();
-        }
-
-        bool IsComplete() const override { return m_isComplete; }
-        void Complete(bool isComplete) override
-        { 
-            if (isComplete)
-            {
-                for (int i = 0; i < N; ++i) 
-                    m_newValue[i] = m_dataPtr[i];
+            for (int i = 0; i < N; ++i) {
+                previousValue[i] = value[i];
+                value[i] = newValue[i];
             }
-            m_isComplete = isComplete;
+        }
+
+        virtual void Undo() override {
+            for (int i = 0; i < N; ++i) {
+                const T temp = value[i];
+                value[i] = previousValue[i];
+                previousValue[i] = temp;
+            }
+
+            if (onChange != nullptr) {
+                onChange();
+            }
+        }
+
+        [[nodiscard]] bool IsComplete() const override { return isComplete; }
+
+        // also calls onChange() if madify is complete
+        void SetComplete(bool complete) override {
+            isComplete = complete;
+            if (isComplete && onChange != nullptr) {
+                onChange();
+            }
         }
 
     private:
-        std::function<void()> m_onChange;
-        T* m_dataPtr;
-        T m_oldValue[N];
-        T m_newValue[N];
-        bool m_isComplete;
+        UndoCallback onChange;
+        T* value;
+        T previousValue[N];
+        bool isComplete;
     };
 
-    class EditorAction_ModifyTransform : public EditorAction_ModifyValue<scene::TransformComponent, 1>
-    {
+    class ModifyTransform : public ModifyValue<scene::TransformComponent> {
     public:
-        using value_type = scene::TransformComponent;
-
-        EditorAction_ModifyTransform(scene::TransformComponent* dataPtr) :
-            EditorAction_ModifyValue(dataPtr),
-            m_transform(dataPtr)
-        {
+        ModifyTransform(scene::TransformComponent* valuePtr) :
+            ModifyValue(valuePtr),
+            transform(valuePtr) {
         }
 
-        void OnUndo() const override
-        {
-            EditorAction_ModifyValue::OnUndo();
-            m_transform->SetDirty();
-        }
-
-        void OnRedo() const override
-        {
-            EditorAction_ModifyValue::OnRedo();
-            m_transform->SetDirty();
+        void Undo() override {
+            ModifyValue::Undo();
+            transform->SetDirty();
         }
 
     private:
-        scene::TransformComponent* m_transform;
+        scene::TransformComponent* transform;
     };
 
-    // NOTE: All top-level windows has their own action history
-    class UndoManager
-    {
+    class UndoStack final {
     public:
-        void Record(const std::shared_ptr<EditorAction>& action);
-        void CommitIncompleteAction();
-        void ClearActionHistory();
+        using Command = std::shared_ptr<UndoCommand>;
+
+        [[nodiscard]] bool CanUndo() const { return !undoStack.empty(); }
+        [[nodiscard]] bool CanRedo() const { return !redoStack.empty(); }
+        void Push(Command& cmd);
+        void Undo();
+        void Redo();
+        void Clear();
+
+    private:
+        std::stack<Command> undoStack;
+        std::stack<Command> redoStack;
+    };
+
+    class UndoManager final {
+    public:
+        void Record(UndoStack::Command& cmd);
+        void CommitIncompleteCommand();
+        void ClearHistory();
 
         void Undo();
         void Redo();
 
     private:
-        struct WindowActionHistory
-        {
-            std::shared_ptr<EditorAction> incompleteAction;
-            std::vector<std::shared_ptr<EditorAction>> actionBuffer;
-            std::vector<std::shared_ptr<EditorAction>> redoStack;
+        struct WindowActionHistory {
+            UndoStack::Command incompleteCommand;
+            UndoStack commands;
         };
 
         WindowActionHistory& GetHistoryForActiveWindow();
 
-        std::unordered_map<ImGuiID, WindowActionHistory> m_windowActions;
+        std::unordered_map<ImGuiID, WindowActionHistory> windowCommands;
     };
 
-    inline UndoManager& GetUndoManager()
-    {
+    inline UndoManager& GetUndoManager() {
         static UndoManager undoManager;
         return undoManager;
     }

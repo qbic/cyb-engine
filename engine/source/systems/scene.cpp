@@ -342,9 +342,7 @@ namespace cyb::scene
     {
         // skip directional lights as they affect the whole scene
         if (type == LightType::Directional)
-        {
             return;
-        }
 
         const float halfRange = range * 0.5f;
         aabb = math::AxisAlignedBox(-halfRange, halfRange);
@@ -411,7 +409,7 @@ namespace cyb::scene
     ecs::Entity Scene::CreateGroup(const std::string& name)
     {
         ecs::Entity entity = ecs::CreateEntity();
-        names.Create(entity) = name;
+        names.Create(entity, name);
         transforms.Create(entity);
         groups.Create(entity);
         return entity;
@@ -420,7 +418,7 @@ namespace cyb::scene
     ecs::Entity Scene::CreateMaterial(const std::string& name)
     {
         ecs::Entity entity = ecs::CreateEntity();
-        names.Create(entity) = name;
+        names.Create(entity, name);
         materials.Create(entity);
         return entity;
     }
@@ -428,7 +426,7 @@ namespace cyb::scene
     ecs::Entity Scene::CreateMesh(const std::string& name)
     {
         ecs::Entity entity = ecs::CreateEntity();
-        names.Create(entity) = name;
+        names.Create(entity, name);
         meshes.Create(entity);
         return entity;
     }
@@ -436,7 +434,7 @@ namespace cyb::scene
     ecs::Entity Scene::CreateObject(const std::string& name)
     {
         ecs::Entity entity = ecs::CreateEntity();
-        names.Create(entity) = name;
+        names.Create(entity, name);
         transforms.Create(entity);
         aabb_objects.Create(entity);
         objects.Create(entity);
@@ -449,11 +447,10 @@ namespace cyb::scene
         const XMFLOAT3& color,
         float energy,
         float range,
-        LightType type
-    )
+        LightType type)
     {
         ecs::Entity entity = ecs::CreateEntity();
-        names.Create(entity) = name;
+        names.Create(entity, name);
 
         TransformComponent& transform = transforms.Create(entity);
         transform.Translate(position);
@@ -475,37 +472,36 @@ namespace cyb::scene
         float aspect,
         float nearPlane,
         float farPlane,
-        float fov
-    )
+        float fov)
     {
         ecs::Entity entity = ecs::CreateEntity();
-        names.Create(entity) = name;
+        names.Create(entity, name);
         transforms.Create(entity);
-        CameraComponent& camera = cameras.Create(entity);
-        camera.CreatePerspective(aspect, nearPlane, farPlane, fov);
+        cameras.Create(entity, aspect, nearPlane, farPlane, fov);
         return entity;
     }
 
-    void Scene::ComponentAttach(ecs::Entity entity, ecs::Entity parent)
+    void Scene::ComponentAttach(ecs::Entity entity, ecs::Entity parentEntity)
     {
-        assert(entity != parent);
+        assert(entity != parentEntity);
 
         if (hierarchy.Contains(entity))
             ComponentDetach(entity);
 
         HierarchyComponent& component = hierarchy.Create(entity);
-        component.parentID = parent;
+        component.parentID = parentEntity;
 
-        // child updated immediately, so that it can be immediately be attached to afterwards
-        const TransformComponent* transform_parent = transforms.GetComponent(parent);
-        TransformComponent* transform_child = transforms.GetComponent(entity);
+        // child is updated immediately so that another entity can
+        // be attached to it directly afterwards
+        const TransformComponent* parent = transforms.GetComponent(parentEntity);
+        TransformComponent* child = transforms.GetComponent(entity);
 
         // move child to parent's local space
-        XMMATRIX B = XMMatrixInverse(nullptr, XMLoadFloat4x4(&transform_parent->world));
-        transform_child->MatrixTransform(B);
-        transform_child->UpdateTransform();
+        XMMATRIX B = XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent->world));
+        child->MatrixTransform(B);
+        child->UpdateTransform();
 
-        transform_child->UpdateTransformParented(*transform_parent);
+        child->UpdateTransformParented(*parent);
     }
 
     void Scene::ComponentDetach(ecs::Entity entity)
@@ -654,39 +650,39 @@ namespace cyb::scene
     void Scene::RunHierarchyUpdateSystem(jobsystem::Context& ctx)
     {
         jobsystem::Dispatch(ctx, (uint32_t)hierarchy.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
+        {
+            const HierarchyComponent& hier = hierarchy[args.jobIndex];
+            ecs::Entity entity = hierarchy.GetEntity(args.jobIndex);
+            TransformComponent* transform = transforms.GetComponent(entity);
+
+            XMMATRIX worldMatrix = {};
+            if (transform != nullptr)
+                worldMatrix = transform->GetLocalMatrix();
+
+            ecs::Entity parentID = hier.parentID;
+            while (parentID != ecs::INVALID_ENTITY)
             {
-                const HierarchyComponent& hier = hierarchy[args.jobIndex];
-                ecs::Entity entity = hierarchy.GetEntity(args.jobIndex);
-                TransformComponent* transform = transforms.GetComponent(entity);
-                
-                XMMATRIX worldMatrix = {};
-                if (transform != nullptr)
-                    worldMatrix = transform->GetLocalMatrix();
+                const TransformComponent* transformParent = transforms.GetComponent(parentID);
 
-                ecs::Entity parentID = hier.parentID;
-                while (parentID != ecs::INVALID_ENTITY)
+                if (transform != nullptr && transformParent != nullptr)
+                    worldMatrix *= transformParent->GetLocalMatrix();
+
+                const HierarchyComponent* hierRecursive = hierarchy.GetComponent(parentID);
+                if (hierRecursive != nullptr)
                 {
-                    const TransformComponent* transformParent = transforms.GetComponent(parentID);
-
-                    if (transform != nullptr && transformParent != nullptr)
-                        worldMatrix *= transformParent->GetLocalMatrix();
-
-                    const HierarchyComponent* hierRecursive = hierarchy.GetComponent(parentID);
-                    if (hierRecursive != nullptr)
-                    {
-                        parentID = hierRecursive->parentID;
-                    }
-                    else
-                    {
-                        parentID = ecs::INVALID_ENTITY;
-                    }
+                    parentID = hierRecursive->parentID;
                 }
-
-                if (transform != nullptr)
+                else
                 {
-                    XMStoreFloat4x4(&transform->world, worldMatrix);
+                    parentID = ecs::INVALID_ENTITY;
                 }
-            });
+            }
+
+            if (transform != nullptr)
+            {
+                XMStoreFloat4x4(&transform->world, worldMatrix);
+            }
+        });
     }
 
     void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
@@ -701,11 +697,13 @@ namespace cyb::scene
             if (object.meshID != ecs::INVALID_ENTITY && meshes.Contains(object.meshID) && transforms.Contains(entity))
             {
                 const MeshComponent* mesh = meshes.GetComponent(object.meshID);
+                if (mesh != nullptr)
+                {
+                    object.transformIndex = (int32_t)transforms.GetIndex(entity);
+                    const TransformComponent* transform = transforms.GetComponent(entity);
 
-                object.transformIndex = (int32_t)transforms.GetIndex(entity);
-                const TransformComponent* transform = transforms.GetComponent(entity);
-
-                aabb = mesh->aabb.Transform(XMLoadFloat4x4(&transform->world));
+                    aabb = mesh->aabb.Transform(XMLoadFloat4x4(&transform->world));
+                }
             }
         });
     }
@@ -713,25 +711,25 @@ namespace cyb::scene
     void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)
     {
         jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
-            {
-                const ecs::Entity entity = lights.GetEntity(args.jobIndex);
-                const TransformComponent* transform = transforms.GetComponent(entity);
+        {
+            const ecs::Entity entity = lights.GetEntity(args.jobIndex);
+            const TransformComponent* transform = transforms.GetComponent(entity);
 
-                LightComponent& light = lights[args.jobIndex];
-                light.UpdateLight();
+            LightComponent& light = lights[args.jobIndex];
+            light.UpdateLight();
 
-                math::AxisAlignedBox& aabb = aabb_lights[args.jobIndex];
-                aabb = light.aabb.Transform(XMLoadFloat4x4(&transform->world));
-            });
+            math::AxisAlignedBox& aabb = aabb_lights[args.jobIndex];
+            aabb = light.aabb.Transform(XMLoadFloat4x4(&transform->world));
+        });
     }
 
     void Scene::RunCameraUpdateSystem(jobsystem::Context& ctx)
     {
         jobsystem::Dispatch(ctx, (uint32_t)cameras.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
-            {
-                CameraComponent& camera = cameras[args.jobIndex];
-                camera.UpdateCamera();
-            });
+        {
+            CameraComponent& camera = cameras[args.jobIndex];
+            camera.UpdateCamera();
+        });
     }
 
     void Scene::RunWeatherUpdateSystem(jobsystem::Context& /* ctx */)

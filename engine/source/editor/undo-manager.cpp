@@ -3,75 +3,97 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 
-namespace cyb::ui
-{
-    void UndoManager::Record(const std::shared_ptr<EditorAction>& action)
-    {
-        WindowActionHistory& history = GetHistoryForActiveWindow();
-        
-        history.redoStack.clear();
-        history.actionBuffer.push_back(action);
+namespace cyb::ui {
 
-        if (!action->IsComplete())
-        {
-            CYB_CWARNING(history.incompleteAction != nullptr, "Overwriting non-null incomplete action");
-            history.incompleteAction = action;
+    void UndoStack::Push(Command& cmd) {
+        undoStack.push(cmd);
+        while (!redoStack.empty()) {
+            redoStack.pop();
         }
     }
 
-    void UndoManager::CommitIncompleteAction()
-    {
-        WindowActionHistory& history = GetHistoryForActiveWindow();
-        
-        history.incompleteAction->Complete(true);
-        history.incompleteAction.reset();
+    void UndoStack::Undo() {
+        if (undoStack.empty()) {
+            return;
+        }
+
+        auto cmd = undoStack.top();
+        cmd->Undo();
+        undoStack.pop();
+        redoStack.push(cmd);
     }
 
-    void UndoManager::ClearActionHistory()
-    {
+    void UndoStack::Redo() {
+        if (redoStack.empty()) {
+            return;
+        }
+
+        auto cmd = redoStack.top();
+        cmd->Undo();
+        redoStack.pop();
+        undoStack.push(cmd);
+    }
+
+    void UndoStack::Clear() {
+        while (!undoStack.empty()) {
+            undoStack.pop();
+        }
+
+        while (!redoStack.empty()) {
+            redoStack.pop();
+        }
+    }
+
+    void UndoManager::Record(UndoStack::Command& cmd) {
+        WindowActionHistory& history = GetHistoryForActiveWindow();
+        
+        history.commands.Push(cmd);
+
+        if (!cmd->IsComplete()) {
+            if (history.incompleteCommand != nullptr) {
+                CYB_WARNING("Overwriting a previous incomplete action");
+            }
+            history.incompleteCommand = cmd;
+        }
+    }
+
+    void UndoManager::CommitIncompleteCommand() {
         WindowActionHistory& windowHistory = GetHistoryForActiveWindow();
-        windowHistory.actionBuffer.clear();
-        windowHistory.redoStack.clear();
-        windowHistory.incompleteAction.reset();
-    }
-
-    void UndoManager::Undo()
-    {
-        WindowActionHistory& history = GetHistoryForActiveWindow();
-        
-        if (history.actionBuffer.empty())
+        if (!windowHistory.incompleteCommand) {
             return;
+        }
 
-        std::shared_ptr<EditorAction> action = history.actionBuffer.back();
-        history.actionBuffer.pop_back();
-        action->OnUndo();
-        history.redoStack.push_back(std::move(action));
+        windowHistory.incompleteCommand->SetComplete(true);
+        windowHistory.incompleteCommand.reset();
     }
 
-    void UndoManager::Redo()
-    {
+    void UndoManager::ClearHistory() {
+        WindowActionHistory& windowHistory = GetHistoryForActiveWindow();
+        windowHistory.commands.Clear();
+        windowHistory.incompleteCommand.reset();
+    }
+
+    void UndoManager::Undo() {
         WindowActionHistory& history = GetHistoryForActiveWindow();
-        
-        if (history.redoStack.empty())
-            return;
-
-        std::shared_ptr<EditorAction> action = history.redoStack.back();
-        history.redoStack.pop_back();
-        action->OnRedo();
-        history.actionBuffer.push_back(std::move(action));
+        history.commands.Undo();
     }
 
-    UndoManager::WindowActionHistory& UndoManager::GetHistoryForActiveWindow()
-    {
-        const ImGuiContext* g = ImGui::GetCurrentContext();
-        ImGuiWindow* window = g->CurrentWindow;
-        if (!window)
-            return m_windowActions[0];
+    void UndoManager::Redo() {
+        WindowActionHistory& history = GetHistoryForActiveWindow();
+        history.commands.Redo();
+    }
 
-        // Get the toplevel window
-        while (window->ParentWindow != nullptr)
+    UndoManager::WindowActionHistory& UndoManager::GetHistoryForActiveWindow() {
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        if (!window) {
+            return windowCommands[0];
+        }
+
+        // get the toplevel window
+        while (window->ParentWindow != nullptr) {
             window = window->ParentWindow;
+        }
 
-        return m_windowActions[window->ID];
+        return windowCommands[window->ID];
     }
 }

@@ -12,6 +12,12 @@ namespace cyb::ui {
         }
     }
 
+    void UndoStack::Pop() {
+        if (!undoStack.empty()) {
+            undoStack.pop();
+        }
+    }
+
     void UndoStack::Undo() {
         if (undoStack.empty()) {
             return;
@@ -44,33 +50,47 @@ namespace cyb::ui {
         }
     }
 
-    void UndoManager::Record(UndoStack::Command& cmd) {
+    void UndoManager::Push(UndoStack::Command& cmd) {
         WindowActionHistory& history = GetHistoryForActiveWindow();
         
+        if (history.incompleteCommand != nullptr) {
+            CYB_WARNING("Overwriting a previous incomplete action");
+            history.commands.Pop();
+            history.incompleteCommand.reset();
+        }
+
         history.commands.Push(cmd);
 
         if (!cmd->IsComplete()) {
-            if (history.incompleteCommand != nullptr) {
-                CYB_WARNING("Overwriting a previous incomplete action");
-            }
             history.incompleteCommand = cmd;
         }
     }
 
     void UndoManager::CommitIncompleteCommand() {
-        WindowActionHistory& windowHistory = GetHistoryForActiveWindow();
-        if (!windowHistory.incompleteCommand) {
+        WindowActionHistory& history = GetHistoryForActiveWindow();
+        if (!history.incompleteCommand) {
             return;
         }
 
-        windowHistory.incompleteCommand->SetComplete(true);
-        windowHistory.incompleteCommand.reset();
+        assert(history.incompleteCommand == history.commands.Top());
+        history.incompleteCommand->Complete();
+        history.incompleteCommand.reset();
     }
 
     void UndoManager::ClearHistory() {
         WindowActionHistory& windowHistory = GetHistoryForActiveWindow();
         windowHistory.commands.Clear();
         windowHistory.incompleteCommand.reset();
+    }
+
+    bool UndoManager::CanUndo() const {
+        const WindowActionHistory& history = GetHistoryForActiveWindow();
+        return history.commands.CanUndo();
+    }
+
+    bool UndoManager::CanRedo() const {
+        const WindowActionHistory& history = GetHistoryForActiveWindow();
+        return history.commands.CanRedo();
     }
 
     void UndoManager::Undo() {
@@ -95,5 +115,9 @@ namespace cyb::ui {
         }
 
         return windowCommands[window->ID];
+    }
+
+    const UndoManager::WindowActionHistory& UndoManager::GetHistoryForActiveWindow() const {
+        return const_cast<UndoManager*>(this)->GetHistoryForActiveWindow();
     }
 }

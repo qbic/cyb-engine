@@ -7,37 +7,34 @@
 #include "editor/widgets.h"
 #include "imgui/imgui_internal.h"
 
-namespace cyb::ui
-{
-    ColorScopeGuard::ColorScopeGuard(ImGuiCol id, const ImVec4& color) :
-        m_numColors(1)
-    {
+namespace cyb::ui {
+
+    ScopedStyleColor::ScopedStyleColor(ImGuiCol id, const ImVec4& color) :
+        numColors(1) {
         ImGui::PushStyleColor(id, color);
     }
 
-    ColorScopeGuard::ColorScopeGuard(ImGuiCol id, ImColor color) :
-        m_numColors(1)
-    {
+    ScopedStyleColor::ScopedStyleColor(ImGuiCol id, ImColor color) :
+        numColors(1) {
         ImGui::PushStyleColor(id, color.Value);
     }
 
-    ColorScopeGuard::ColorScopeGuard(const std::initializer_list<std::pair<ImGuiCol, ImVec4>> colors) :
-        m_numColors(static_cast<uint32_t>(colors.size()))
-    {
-        for (const auto& [id, color] : colors)
+    ScopedStyleColor::ScopedStyleColor(const std::initializer_list<std::pair<ImGuiCol, ImVec4>> colors) :
+        numColors(static_cast<uint32_t>(colors.size())) {
+        for (const auto& [id, color] : colors) {
             ImGui::PushStyleColor(id, color);
+        }
     }
 
-    ColorScopeGuard::ColorScopeGuard(const std::initializer_list<std::pair<ImGuiCol, ImU32>> colors) :
-        m_numColors(static_cast<uint32_t>(colors.size()))
-    {
-        for (const auto& [id, color] : colors)
+    ScopedStyleColor::ScopedStyleColor(const std::initializer_list<std::pair<ImGuiCol, ImU32>> colors) :
+        numColors(static_cast<uint32_t>(colors.size())) {
+        for (const auto& [id, color] : colors) {
             ImGui::PushStyleColor(id, color);
+        }
     }
 
-    ColorScopeGuard::~ColorScopeGuard()
-    {
-        ImGui::PopStyleColor(m_numColors);
+    ScopedStyleColor::~ScopedStyleColor() {
+        ImGui::PopStyleColor(numColors);
     }
 
     void ItemLabel(const std::string& title, bool isLeft = true)
@@ -88,20 +85,18 @@ namespace cyb::ui
     // Record any change to value v to the undo-manager, if value is
     // changed directly or though undo-manager onChanger() will be called
     template <class T, typename... Args>
-    void SaveChangeToUndoManager(typename T::value_type* v, [[maybe_unused]] Args&&... args) {
+    void SaveChangeToUndoManager(typename T::value_type* value, [[maybe_unused]] Args&&... args) {
         if (ImGui::IsItemActivated()) {
-            UndoStack::Command cmd = std::make_shared<T>(v, std::forward<Args>(args)...);
-            ui::GetUndoManager().Record(cmd);
+            ui::GetUndoManager().Emplace<T>(value, std::forward<Args>(args)...);
         }
 
         if (ImGui::IsItemDeactivatedAfterEdit()) {
-            // command is completed!
             ui::GetUndoManager().CommitIncompleteCommand();
         }
     }
 
 #define COMMON_WIDGET_CODE(label)   \
-    IdScopeGuard m_idGuard(label);  \
+    ScopedID m_idGuard(label);  \
     ItemLabel(label);               \
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
@@ -232,8 +227,7 @@ namespace cyb::ui
                 if (ImGui::Selectable(name.c_str(), isSelected))
                 {
                     const uint32_t tempValue[1] = { key };
-                    UndoStack::Command cmd = std::make_shared<ui::ModifyValue<uint32_t, 1>>(&value, tempValue, onChange);
-                    ui::GetUndoManager().Record(cmd);
+                    ui::GetUndoManager().Emplace<ui::ModifyValue<uint32_t, 1>>(&value, tempValue, onChange);
 
                     value = key;
                     valueChange = true;

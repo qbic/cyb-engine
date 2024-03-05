@@ -2,45 +2,38 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
-#include <optional>
 #include <fmt/format.h>
 #include "imgui/imgui.h"
-#include "editor/icons_font_awesome6.h"
 #include "editor/undo-manager.h"
 
-namespace cyb::ui
-{
+namespace cyb::ui {
+
     // Set a color or colorscheme for imgui that will be reset when out of scope
-    class ColorScopeGuard
-    {
+    class ScopedStyleColor final {
     public:
-        ColorScopeGuard(ImGuiCol id, const ImVec4& color);
-        ColorScopeGuard(ImGuiCol id, ImColor color);
-        explicit ColorScopeGuard(const std::initializer_list<std::pair<ImGuiCol, ImVec4>> colors);
-        explicit ColorScopeGuard(const std::initializer_list<std::pair<ImGuiCol, ImU32>> colors);
-        ~ColorScopeGuard();
+        ScopedStyleColor(ImGuiCol id, const ImVec4& color);
+        ScopedStyleColor(ImGuiCol id, ImColor color);
+        explicit ScopedStyleColor(const std::initializer_list<std::pair<ImGuiCol, ImVec4>> colors);
+        explicit ScopedStyleColor(const std::initializer_list<std::pair<ImGuiCol, ImU32>> colors);
+        ~ScopedStyleColor();
 
     private:
-        uint32_t m_numColors;
+        uint32_t numColors;
     };
 
-    // Manually push an id to imgui that will be reset when out of scope
-    class IdScopeGuard
-    {
+    // Push an imgui id that will be popped when of scope
+    class ScopedID {
     public:
         template <class T>
-        IdScopeGuard(const T label)
-        {
+        ScopedID(const T& label) {
             ImGui::PushID(label);
         }
 
-        IdScopeGuard(const std::string& label)
-        {
+        ScopedID(const std::string& label) {
             ImGui::PushID(label.c_str());
         }
 
-        ~IdScopeGuard()
-        {
+        ~ScopedID() {
             ImGui::PopID();
         }
     };
@@ -60,27 +53,21 @@ namespace cyb::ui
     void ComboBox(const char* label, uint32_t& value, const std::unordered_map<uint32_t, std::string>& combo, const std::function<void()>& onChange = nullptr);
 
     template <typename T>
-    void ComboBox(const char* label, T& value, const std::unordered_map<T, std::string>& combo, const std::function<void()>& onChange = nullptr)
-    {
-        // Copying the map and converting type is slow
-        // but it will be good ehough for now
-        std::unordered_map<uint32_t, std::string> mapCopy;
-        for (const auto& it : combo)
-            mapCopy[(uint32_t)it.first] = it.second;
-        ComboBox(label, (uint32_t&)value, mapCopy, onChange);
+    void ComboBox(const char* label, T& value, const std::unordered_map<T, std::string>& combo, const std::function<void()>& onChange = nullptr) {
+        static_assert(std::is_enum_v<T>, "ComboBox only supports enum class types");
+        static_assert(std::is_integral_v<std::underlying_type<T>::type>, "Underlying type of std::unordered_map is not an integral.");
+        ComboBox(label, (uint32_t&)value, reinterpret_cast<const std::unordered_map<uint32_t, std::string>&>(combo), onChange);
     }
 
     bool ListBox(const char* label, int* selectedIndex, std::vector<std::string_view>& values);
     void FilledBar(const char* label, float v, float vMin, float vMax, const char* format = "{:.2f}");
 
-    struct GradientMark
-    {
+    struct GradientMark {
         ImColor color;
         float position = 0.0f;     // [0..1] range
     };
 
-    struct Gradient
-    {
+    struct Gradient {
         std::list<GradientMark*> markList;
         GradientMark* draggingMark = nullptr;
         GradientMark* selectedMark = nullptr;

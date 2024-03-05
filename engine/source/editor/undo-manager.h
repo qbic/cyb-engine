@@ -10,15 +10,13 @@ namespace cyb::ui {
 
     using UndoCallback = std::function<void()>;
 
-    // Implementation details for UndoCommand:
-    //   * value_type must be defined
-    //   * Undo() should be cycling value (Undo() -> Redo() -> Undo()...)
     class UndoCommand {
     public:
+        // implementation should be cycling value (Undo()->Redo()->Undo()...)
         virtual void Undo() = 0;
 
         [[nodiscard]] virtual bool IsComplete() const { return true; }
-        virtual void SetComplete(bool complete) {}
+        virtual void Complete() {}
     };
 
     template <typename T, int N = 1>
@@ -28,7 +26,7 @@ namespace cyb::ui {
         using value_type = T;
 
         // construct a non-complete command
-        ModifyValue(T* valuePtr, UndoCallback onChange = nullptr) :
+        ModifyValue(T* valuePtr, const UndoCallback& onChange = nullptr) :
             value(valuePtr),
             onChange(onChange),
             isComplete(false) {
@@ -66,10 +64,14 @@ namespace cyb::ui {
 
         [[nodiscard]] bool IsComplete() const override { return isComplete; }
 
-        // also calls onChange() if madify is complete
-        void SetComplete(bool complete) override {
-            isComplete = complete;
-            if (isComplete && onChange != nullptr) {
+        // calls onChange() if modify was not previously complete
+        void Complete() override {
+            if (isComplete) {
+                return;
+            }
+
+            isComplete = true;
+            if (onChange != nullptr) {
                 onChange();
             }
         }
@@ -101,24 +103,38 @@ namespace cyb::ui {
     public:
         using Command = std::shared_ptr<UndoCommand>;
 
+        void Push(Command& cmd);
+        void Pop();
+        [[nodiscard]] const Command& Top() const { return undoStack.top(); }
+        void Clear();
+
         [[nodiscard]] bool CanUndo() const { return !undoStack.empty(); }
         [[nodiscard]] bool CanRedo() const { return !redoStack.empty(); }
-        void Push(Command& cmd);
         void Undo();
         void Redo();
-        void Clear();
 
     private:
         std::stack<Command> undoStack;
         std::stack<Command> redoStack;
     };
 
+    // NOTE:
+    // If emplacing or pushing a command that is not complete, it needs to be commited with
+    // CommitIncompleteCommand() when complete or it will be popped from the undo stack.
     class UndoManager final {
     public:
-        void Record(UndoStack::Command& cmd);
+        template <typename T, typename... Args>
+        void Emplace(typename T::value_type* value, [[maybe_unused]] Args&&... args) {
+            UndoStack::Command cmd = std::make_shared<T>(value, std::forward<Args>(args)...);
+            Push(cmd);
+        }
+
+        void Push(UndoStack::Command& cmd);
         void CommitIncompleteCommand();
         void ClearHistory();
 
+        [[nodiscard]] bool CanUndo() const;
+        [[nodiscard]] bool CanRedo() const;
         void Undo();
         void Redo();
 
@@ -129,6 +145,7 @@ namespace cyb::ui {
         };
 
         WindowActionHistory& GetHistoryForActiveWindow();
+        const WindowActionHistory& GetHistoryForActiveWindow() const;
 
         std::unordered_map<ImGuiID, WindowActionHistory> windowCommands;
     };

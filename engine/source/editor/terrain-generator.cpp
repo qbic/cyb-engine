@@ -216,7 +216,7 @@ namespace cyb::editor
                 {
                     HeightmapGenerator::Input& input = heightmap.inputList[i];
 
-                    const ui::IdScopeGuard idGuard(&input);
+                    const ui::ScopedID idGuard(&input);
                     ui::ComboBox("NoiseType", input.noise.type, g_noiseTypeCombo, updatePreview);
                     if (input.noise.type == noise::Type::Cellular)
                     {

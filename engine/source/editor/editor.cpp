@@ -1,3 +1,4 @@
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <stack>
 #include <numeric>
 #include "core/logger.h"
@@ -10,7 +11,8 @@
 #include "systems/event-system.h"
 #include "editor/editor.h"
 #include "editor/imgui-backend.h"
-#define IMGUI_DEFINE_MATH_OPERATORS
+#include "editor/undo-manager.h"
+#include "editor/icons_font_awesome6.h"
 #include "imgui_internal.h"
 #include "backends/imgui_impl_win32.h"
 #include "imgui_stdlib.h"
@@ -446,7 +448,7 @@ namespace cyb::editor
 
     void SceneGraphView::Draw()
     {
-        ui::ColorScopeGuard colorGuard(ImGuiCol_Header, ImVec4(0.38f, 0.58f, 0.71f, 0.94f));
+        ui::ScopedStyleColor colorGuard(ImGuiCol_Header, ImVec4(0.38f, 0.58f, 0.71f, 0.94f));
 
         for (const auto& x : root.children)
             DrawNode(&x);
@@ -556,7 +558,7 @@ namespace cyb::editor
 
             ImGui::BeginTable("CPU/GPU Profiling", 2, ImGuiTableFlags_Borders);
             ImGui::TableNextColumn();
-            ui::ColorScopeGuard cpuFrameLineColor(ImGuiCol_PlotLines, ImColor(255, 0, 0));
+            ui::ScopedStyleColor cpuFrameLineColor(ImGuiCol_PlotLines, ImColor(255, 0, 0));
             const std::string cpuOverlayText = fmt::format("CPU Frame: {:.1f}ms", cpuFrame->second.time);
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##CPUFrame", profilerContext.cpuFrameGraph, profiler::FRAME_GRAPH_ENTRIES, 0, cpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
@@ -571,7 +573,7 @@ namespace cyb::editor
             ImGui::PopStyleVar();
 
             ImGui::TableNextColumn();
-            ui::ColorScopeGuard gpuFrameLineColor(ImGuiCol_PlotLines, ImColor(0, 0, 255));
+            ui::ScopedStyleColor gpuFrameLineColor(ImGuiCol_PlotLines, ImColor(0, 0, 255));
             const std::string gpuOverlayText = fmt::format("GPU Frame: {:.1f}ms", gpuFrame->second.time);
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##GPUFrame", profilerContext.gpuFrameGraph, profiler::FRAME_GRAPH_ENTRIES, 0, gpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
@@ -823,12 +825,14 @@ namespace cyb::editor
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("Edit"))
-            {
-                if (ImGui::MenuItem("Undo", "CTRL+Z"))
+            if (ImGui::BeginMenu("Edit")) {
+                if (ImGui::MenuItem("Undo", "CTRL+Z", false, ui::GetUndoManager().CanUndo())) {
                     ui::GetUndoManager().Undo();
-                if (ImGui::MenuItem("Redo", "CTRL+Y"))
+                }
+
+                if (ImGui::MenuItem("Redo", "CTRL+Y", false, ui::GetUndoManager().CanRedo())) {
                     ui::GetUndoManager().Redo();
+                }
 
                 ImGui::Separator();
 
@@ -853,6 +857,17 @@ namespace cyb::editor
 
                 if (ImGui::MenuItem("Reload Shaders"))
                     renderer::ReloadShaders();
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("View")) {
+                for (auto& x : tools) {
+                    const bool show_window = x->IsShown();
+                    if (ImGui::MenuItem(x->GetWindowTitle(), NULL, &show_window)) {
+                        x->ShowWindow(show_window);
+                    }
+                }
 
                 ImGui::EndMenu();
             }
@@ -893,18 +908,6 @@ namespace cyb::editor
                 }
                 if (ImGui::Checkbox("VSync", &vsync_enabled))
                     eventsystem::FireEvent(eventsystem::Event_SetVSync, vsync_enabled ? 1ull : 0ull);
-
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Tools"))
-            {
-                for (auto& x : tools)
-                {
-                    bool show_window = x->IsShown();
-                    if (ImGui::MenuItem(x->GetWindowTitle(), NULL, &show_window))
-                        x->ShowWindow(show_window);
-                }
 
                 ImGui::EndMenu();
             }
@@ -984,6 +987,7 @@ namespace cyb::editor
 
     static void DrawGizmo()
     {
+        static bool isUsingGizmo = false;
         const ImGuiIO& io = ImGui::GetIO();
         scene::Scene& scene = scene::GetScene();
         scene::CameraComponent& camera = scene::GetCamera();
@@ -1006,8 +1010,13 @@ namespace cyb::editor
             mode,
             &world._11);
 
-        if (ImGuizmo::IsUsing() && transform != nullptr)
+        if (ImGuizmo::IsUsing() && isEnabled)
         {
+            if (!isUsingGizmo) {
+                ui::GetUndoManager().Emplace<ui::ModifyValue<XMFLOAT4X4>>(&transform->world);
+                CYB_TRACE("ImGuizmo begin command");
+            }
+
             transform->world = world;
             transform->ApplyTransform();
 
@@ -1019,12 +1028,15 @@ namespace cyb::editor
                 if (parent_transform != nullptr)
                     transform->MatrixTransform(XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent_transform->world)));
             }
-        }
 
-        if (ImGui::IsItemActivated())
-            CYB_TRACE("guizmo activateed");
-        if (ImGui::IsItemDeactivatedAfterEdit())
-            CYB_TRACE("guizmo deactivated");
+            isUsingGizmo = true;
+        } else {
+            if (isUsingGizmo) {
+               // ui::GetUndoManager().CommitIncompleteCommand();
+                CYB_TRACE("ImGuizmo end command");
+                isUsingGizmo = false;
+            }
+        }
 
 #if 0
         if (ImGuizmo::FinishedDragging())

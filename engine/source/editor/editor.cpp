@@ -863,7 +863,7 @@ namespace cyb::editor
 
             if (ImGui::BeginMenu("View")) {
                 for (auto& x : tools) {
-                    const bool show_window = x->IsShown();
+                    bool show_window = x->IsShown();
                     if (ImGui::MenuItem(x->GetWindowTitle(), NULL, &show_window)) {
                         x->ShowWindow(show_window);
                     }
@@ -1037,28 +1037,6 @@ namespace cyb::editor
                 isUsingGizmo = false;
             }
         }
-
-#if 0
-        if (ImGuizmo::FinishedDragging())
-        {
-            XMFLOAT4X4 drag_matrix = {};
-            ImGuizmo::GetFinishedDragMatrix(&drag_matrix._11);
-
-            serializer::Archive& ar = AdvanceHistory();
-            ar << (int)HistoryOpType::TRANSFORM;
-            ar << drag_matrix;
-            ar << entity;
-        }
-#endif
-#if 0
-        ImVec2 viewManipPos(io.DisplaySize.x - 190, 40);
-        ImGuizmo::ViewManipulate(
-            &camera.view._11,
-            &camera.projection._11, 
-            guizmo_operation,
-            mode, &camera.view._11,
-            10.0f, viewManipPos, ImVec2(150, 150), IM_COL32(0, 0, 0, 0));
-#endif
     }
 
     static math::Ray GetPickRay(float cursorX, float cursorY)

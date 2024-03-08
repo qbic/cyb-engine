@@ -7,7 +7,6 @@
 #include "systems/scene.h"
 
 namespace cyb::ui {
-
     using UndoCallback = std::function<void()>;
 
     class UndoCommand {
@@ -92,7 +91,6 @@ namespace cyb::ui {
 
         void Undo() override {
             ModifyValue::Undo();
-            transform->UpdateTransform();
             transform->SetDirty();
         }
 
@@ -124,6 +122,7 @@ namespace cyb::ui {
     // CommitIncompleteCommand() when complete or it will be popped from the undo stack.
     class UndoManager final {
     public:
+        // emplace command to the current active window
         template <typename T, typename... Args>
         void Emplace(typename T::value_type* value, [[maybe_unused]] Args&&... args) {
             UndoStack::Command cmd = std::make_shared<T>(value, std::forward<Args>(args)...);
@@ -136,9 +135,12 @@ namespace cyb::ui {
             Push(windowID, cmd);
         }
 
+        // push command to the current active window
         void Push(UndoStack::Command& cmd);
+
         void Push(ImGuiID windowID, UndoStack::Command& cmd);
         void CommitIncompleteCommand();
+        void ClearIncompleteCommand();
         void ClearHistory();
 
         [[nodiscard]] bool CanUndo() const;
@@ -147,16 +149,13 @@ namespace cyb::ui {
         void Redo();
 
     private:
-        struct WindowActionHistory {
-            UndoStack::Command incompleteCommand;
-            UndoStack commands;
-        };
+        [[nodiscard]] ImGuiID GetCurrentWindowID() const;
+        [[nodiscard]] UndoStack& GetHistoryForActiveWindow();
+        [[nodiscard]] const UndoStack& GetHistoryForActiveWindow() const;
 
-        ImGuiID GetCurrentWindowID() const;
-        WindowActionHistory& GetHistoryForActiveWindow();
-        const WindowActionHistory& GetHistoryForActiveWindow() const;
-
-        std::unordered_map<ImGuiID, WindowActionHistory> windowCommands;
+        UndoStack::Command incompleteCommand;
+        ImGuiID incompleteCommandWindowID = 0;
+        std::unordered_map<ImGuiID, UndoStack> windowCommands;
     };
 
     inline UndoManager& GetUndoManager() {

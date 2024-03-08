@@ -1094,13 +1094,12 @@ namespace cyb::editor
         initialized = true;
     }
 
-    void Update()
-    {
-        if (!initialized)
+    void Update() {
+        if (!initialized) {
             return;
+        }
 
         ImGuizmo::BeginFrame();
-
         ImGui::Begin("CybEngine Editor", 0, ImGuiWindowFlags_MenuBar);
 
         // use windowID for gizmo undo commands
@@ -1130,28 +1129,23 @@ namespace cyb::editor
         }
 
         // Pick on left mouse click
-        if (guizmo_operation & ImGuizmo::BOUNDS)
-        {
+        if (guizmo_operation & ImGuizmo::BOUNDS) {
             ImGuiIO& io = ImGui::GetIO();
             bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver();
-            if (isMouseIn3DView && io.MouseClicked[0])
-            {
+            if (isMouseIn3DView && io.MouseClicked[0]) {
                 const scene::Scene& scene = scene::GetScene();
                 math::Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);
                 scene::PickResult pick_result = scene::Pick(scene, pick_ray);
 
                 // Enable mouse picking on lightsources only if they are being drawn
-                if (renderer::GetDebugLightsources())
-                {
-                    for (size_t i = 0; i < scene.lights.Size(); ++i)
-                    {
+                if (renderer::GetDebugLightsources()) {
+                    for (size_t i = 0; i < scene.lights.Size(); ++i) {
                         ecs::Entity entity = scene.lights.GetEntity(i);
                         const scene::TransformComponent& transform = *scene.transforms.GetComponent(entity);
 
                         XMVECTOR disV = XMVector3LinePointDistance(XMLoadFloat3(&pick_ray.origin), XMLoadFloat3(&pick_ray.origin) + XMLoadFloat3(&pick_ray.direction), transform.GetPositionV());
                         float dis = XMVectorGetX(disV);
-                        if (dis > 0.01f && dis < math::Distance(transform.GetPosition(), pick_ray.origin) * 0.05f && dis < pick_result.distance)
-                        {
+                        if (dis > 0.01f && dis < math::Distance(transform.GetPosition(), pick_ray.origin) * 0.05f && dis < pick_result.distance) {
                             pick_result = scene::PickResult();
                             pick_result.entity = entity;
                             pick_result.distance = dis;
@@ -1159,8 +1153,9 @@ namespace cyb::editor
                     }
                 }
 
-                if (pick_result.entity != ecs::INVALID_ENTITY)
+                if (pick_result.entity != ecs::INVALID_ENTITY) {
                     scenegraph_view.SelectEntity(pick_result.entity);
+                }
             }
         }
 

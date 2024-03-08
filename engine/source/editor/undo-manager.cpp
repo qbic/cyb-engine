@@ -4,7 +4,6 @@
 #include "imgui/imgui_internal.h"
 
 namespace cyb::ui {
-
     void UndoStack::Push(Command& cmd) {
         undoStack.push(cmd);
         while (!redoStack.empty()) {
@@ -56,56 +55,66 @@ namespace cyb::ui {
     }
 
     void UndoManager::Push(ImGuiID windowID, UndoStack::Command& cmd) {
-        WindowActionHistory& history = windowCommands[windowID];
+        UndoStack& history = windowCommands[windowID];
 
-        if (history.incompleteCommand != nullptr) {
+        if (incompleteCommand != nullptr) {
             CYB_WARNING("Overwriting a previous incomplete action");
-            history.commands.Pop();
-            history.incompleteCommand.reset();
+            ClearIncompleteCommand();
         }
 
-        history.commands.Push(cmd);
+        history.Push(cmd);
 
         if (!cmd->IsComplete()) {
-            history.incompleteCommand = cmd;
+            incompleteCommand = cmd;
+            incompleteCommandWindowID = windowID;
         }
     }
 
     void UndoManager::CommitIncompleteCommand() {
-        WindowActionHistory& history = GetHistoryForActiveWindow();
-        if (!history.incompleteCommand) {
+        if (!incompleteCommand) {
             return;
         }
 
-        assert(history.incompleteCommand == history.commands.Top());
-        history.incompleteCommand->Complete();
-        history.incompleteCommand.reset();
+        assert(incompleteCommand == windowCommands[incompleteCommandWindowID].Top());
+        incompleteCommand->Complete();
+        incompleteCommand.reset();
+        incompleteCommandWindowID = 0;
+    }
+
+    void UndoManager::ClearIncompleteCommand() {
+        if (!incompleteCommand) {
+            return;
+        }
+
+        UndoStack& history = windowCommands[incompleteCommandWindowID];
+        history.Pop();
+        incompleteCommand.reset();
+        incompleteCommandWindowID = 0;
     }
 
     void UndoManager::ClearHistory() {
-        WindowActionHistory& windowHistory = GetHistoryForActiveWindow();
-        windowHistory.commands.Clear();
-        windowHistory.incompleteCommand.reset();
+        ClearIncompleteCommand();
+        windowCommands.clear();
     }
 
     bool UndoManager::CanUndo() const {
-        const WindowActionHistory& history = GetHistoryForActiveWindow();
-        return history.commands.CanUndo();
+        const UndoStack& history = GetHistoryForActiveWindow();
+        return history.CanUndo();
     }
 
     bool UndoManager::CanRedo() const {
-        const WindowActionHistory& history = GetHistoryForActiveWindow();
-        return history.commands.CanRedo();
+        const UndoStack& history = GetHistoryForActiveWindow();
+        return history.CanRedo();
     }
 
     void UndoManager::Undo() {
-        WindowActionHistory& history = GetHistoryForActiveWindow();
-        history.commands.Undo();
+        UndoStack& history = GetHistoryForActiveWindow();
+        history.Undo();
     }
 
     void UndoManager::Redo() {
-        WindowActionHistory& history = GetHistoryForActiveWindow();
-        history.commands.Redo();
+        UndoStack& history = GetHistoryForActiveWindow();
+        history.Redo();
     }
 
     ImGuiID UndoManager::GetCurrentWindowID() const {
@@ -122,12 +131,12 @@ namespace cyb::ui {
         return window->ID;
     }
 
-    UndoManager::WindowActionHistory& UndoManager::GetHistoryForActiveWindow() {
+    UndoStack& UndoManager::GetHistoryForActiveWindow() {
         const ImGuiID windowID = GetCurrentWindowID();
         return windowCommands[windowID];
     }
 
-    const UndoManager::WindowActionHistory& UndoManager::GetHistoryForActiveWindow() const {
+    const UndoStack& UndoManager::GetHistoryForActiveWindow() const {
         return const_cast<UndoManager*>(this)->GetHistoryForActiveWindow();
     }
 }

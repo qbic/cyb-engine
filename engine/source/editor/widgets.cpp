@@ -90,6 +90,10 @@ namespace cyb::ui {
             ui::GetUndoManager().Emplace<T>(value, std::forward<Args>(args)...);
         }
 
+        if (ImGui::IsItemDeactivated() && !ImGui::IsItemDeactivatedAfterEdit()) {
+            ui::GetUndoManager().ClearIncompleteCommand();
+        }
+
         if (ImGui::IsItemDeactivatedAfterEdit()) {
             ui::GetUndoManager().CommitIncompleteCommand();
         }

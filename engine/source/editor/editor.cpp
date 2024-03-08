@@ -985,8 +985,8 @@ namespace cyb::editor
         ImGui::PopStyleVar();
     }
 
-    static void DrawGizmo()
-    {
+    // windowID is only used for recording undo commands
+    static void DrawGizmo(const ImGuiID windowID) {
         static bool isUsingGizmo = false;
         const ImGuiIO& io = ImGui::GetIO();
         scene::Scene& scene = scene::GetScene();
@@ -996,8 +996,9 @@ namespace cyb::editor
         scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
 
         XMFLOAT4X4 world = {};
-        if (transform)
+        if (transform) {
             world = transform->world;
+        }
 
         const bool isEnabled = transform != nullptr;
         ImGuizmo::Enable(isEnabled);
@@ -1010,11 +1011,9 @@ namespace cyb::editor
             mode,
             &world._11);
 
-        if (ImGuizmo::IsUsing() && isEnabled)
-        {
+        if (ImGuizmo::IsUsing() && isEnabled) {
             if (!isUsingGizmo) {
-                ui::GetUndoManager().Emplace<ui::ModifyValue<XMFLOAT4X4>>(&transform->world);
-                CYB_TRACE("ImGuizmo begin command");
+                ui::GetUndoManager().Emplace<ui::ModifyValue<scene::TransformComponent>>(windowID, transform);
             }
 
             transform->world = world;
@@ -1022,18 +1021,17 @@ namespace cyb::editor
 
             // Transform to local space if parented
             const scene::HierarchyComponent* hierarchy = scene.hierarchy.GetComponent(entity);
-            if (hierarchy)
-            {
+            if (hierarchy) {
                 const scene::TransformComponent* parent_transform = scene.transforms.GetComponent(hierarchy->parentID);
-                if (parent_transform != nullptr)
+                if (parent_transform != nullptr) {
                     transform->MatrixTransform(XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent_transform->world)));
+                }
             }
 
             isUsingGizmo = true;
         } else {
             if (isUsingGizmo) {
-               // ui::GetUndoManager().CommitIncompleteCommand();
-                CYB_TRACE("ImGuizmo end command");
+                ui::GetUndoManager().CommitIncompleteCommand();
                 isUsingGizmo = false;
             }
         }
@@ -1104,6 +1102,10 @@ namespace cyb::editor
         ImGuizmo::BeginFrame();
 
         ImGui::Begin("CybEngine Editor", 0, ImGuiWindowFlags_MenuBar);
+
+        // use windowID for gizmo undo commands
+        const ImGuiID gizmoWindowID = ImGui::GetCurrentWindow()->ID;
+
         DrawMenuBar();
         DrawIconBar();
 
@@ -1123,9 +1125,8 @@ namespace cyb::editor
         ImGui::End();
 
         // Only draw gizmo with a valid entity containing transform component
-        if (scene::GetScene().transforms.GetComponent(selectedEntity))
-        {
-            DrawGizmo();
+        if (scene::GetScene().transforms.GetComponent(selectedEntity)) {
+            DrawGizmo(gizmoWindowID);
         }
 
         // Pick on left mouse click

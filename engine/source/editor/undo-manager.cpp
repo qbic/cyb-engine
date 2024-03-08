@@ -51,8 +51,13 @@ namespace cyb::ui {
     }
 
     void UndoManager::Push(UndoStack::Command& cmd) {
-        WindowActionHistory& history = GetHistoryForActiveWindow();
-        
+        const ImGuiID windowID = GetCurrentWindowID();
+        Push(windowID, cmd);
+    }
+
+    void UndoManager::Push(ImGuiID windowID, UndoStack::Command& cmd) {
+        WindowActionHistory& history = windowCommands[windowID];
+
         if (history.incompleteCommand != nullptr) {
             CYB_WARNING("Overwriting a previous incomplete action");
             history.commands.Pop();
@@ -103,10 +108,10 @@ namespace cyb::ui {
         history.commands.Redo();
     }
 
-    UndoManager::WindowActionHistory& UndoManager::GetHistoryForActiveWindow() {
+    ImGuiID UndoManager::GetCurrentWindowID() const {
         ImGuiWindow* window = ImGui::GetCurrentWindow();
         if (!window) {
-            return windowCommands[0];
+            return 0;
         }
 
         // get the toplevel window
@@ -114,7 +119,12 @@ namespace cyb::ui {
             window = window->ParentWindow;
         }
 
-        return windowCommands[window->ID];
+        return window->ID;
+    }
+
+    UndoManager::WindowActionHistory& UndoManager::GetHistoryForActiveWindow() {
+        const ImGuiID windowID = GetCurrentWindowID();
+        return windowCommands[windowID];
     }
 
     const UndoManager::WindowActionHistory& UndoManager::GetHistoryForActiveWindow() const {

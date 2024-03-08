@@ -9,7 +9,6 @@ TODO FEATURES:
  * Hide/Show button in entity select window
  * Editor function to setup the camera to look at an entity
  * Write/Read pso cache off disk
- * ImGuizmo transform undo
 
 MAYBE FEATURES:
  * Automatic LOD mesh generation (Fast-Quadric-Mesh-Simplification?)

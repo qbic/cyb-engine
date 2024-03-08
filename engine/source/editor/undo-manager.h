@@ -92,6 +92,7 @@ namespace cyb::ui {
 
         void Undo() override {
             ModifyValue::Undo();
+            transform->UpdateTransform();
             transform->SetDirty();
         }
 
@@ -129,7 +130,14 @@ namespace cyb::ui {
             Push(cmd);
         }
 
+        template <typename T, typename... Args>
+        void Emplace(ImGuiID windowID, typename T::value_type* value, [[maybe_unused]] Args&&... args) {
+            UndoStack::Command cmd = std::make_shared<T>(value, std::forward<Args>(args)...);
+            Push(windowID, cmd);
+        }
+
         void Push(UndoStack::Command& cmd);
+        void Push(ImGuiID windowID, UndoStack::Command& cmd);
         void CommitIncompleteCommand();
         void ClearHistory();
 
@@ -144,6 +152,7 @@ namespace cyb::ui {
             UndoStack commands;
         };
 
+        ImGuiID GetCurrentWindowID() const;
         WindowActionHistory& GetHistoryForActiveWindow();
         const WindowActionHistory& GetHistoryForActiveWindow() const;
 

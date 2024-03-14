@@ -13,7 +13,7 @@
 </div>
 
 ## Getting started...
-1. Clone the project to your computer.
+1. Clone the project to your computer and create project files:
 ```bash
 git clone https://github.com/qbic/cyb-engine
 cd cyb-cngine
@@ -22,7 +22,7 @@ cd cyb-cngine
 python tools/scripts/setup.py
 ```
 
-2. Build the project by openging the project with Visual Studio and pressing build.
+2. Build the project by opening the project with Visual Studio and pressing build.
 Or on Linux:
 > [!NOTE]  
 > cyb-engine does currently NOT build on Linux.

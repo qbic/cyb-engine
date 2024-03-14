@@ -16,7 +16,7 @@
 1. Clone the project to your computer and create project files:
 ```bash
 git clone https://github.com/qbic/cyb-engine
-cd cyb-cngine
+cd cyb-engine
 
 # Running the setup script will generate projet files for Visual Studio 2022 on Windows and GMake build files on Linux.
 python tools/scripts/setup.py

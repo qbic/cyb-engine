@@ -81,10 +81,7 @@ namespace cyb::hli
                     RenderPassImage::DepthStencil(
                         &depthBuffer_Main,
                         RenderPassImage::LoadOp::Clear,
-                        RenderPassImage::StoreOp::Store,
-                        ResourceState::DepthStencil_ReadOnlyBit,
-                        ResourceState::DepthStencilBit,
-                        ResourceState::DepthStencil_ReadOnlyBit
+                        RenderPassImage::StoreOp::Store
                     )
         };
         device->BeginRenderPass(renderPassImages, _countof(renderPassImages), cmd);

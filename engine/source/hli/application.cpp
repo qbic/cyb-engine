@@ -69,6 +69,9 @@ namespace cyb::hli
 	void Application::Initialize()
 	{
 		Timer timer;
+#ifdef CYB_DEBUG_BUILD
+		CYB_INFO("Running debug build, performance will be slow!");
+#endif
 		CYB_INFO("Initializing cyb-engine (asynchronous), please wait...");
 
 		jobsystem::Initialize();

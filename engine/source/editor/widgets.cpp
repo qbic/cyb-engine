@@ -37,8 +37,8 @@ namespace cyb::ui {
         ImGui::PopStyleColor(numColors);
     }
 
-    void ItemLabel(const std::string& title, bool isLeft = true)
-    {
+    // draw a left-aligned item label
+    void ItemLabel(const std::string& title) {
         ImGuiWindow& window = *ImGui::GetCurrentWindow();
         const ImGuiStyle& style = ImGui::GetStyle();
 
@@ -49,37 +49,27 @@ namespace cyb::ui {
 
         ImRect textRect;
         textRect.Min = ImGui::GetCursorScreenPos();
-        if (!isLeft)
-            textRect.Min.x = textRect.Min.x + itemWidth;
         textRect.Max = textRect.Min;
         //textRect.Max.x += fullWidth - itemWidth;
         textRect.Max.x += itemWidth * 0.5f;
         textRect.Max.y += textSize.y;
 
         ImGui::SetCursorScreenPos(textRect.Min);
-
         ImGui::AlignTextToFramePadding();
-        // Adjust text rect manually because we render it directly into a drawlist instead of using public functions.
         textRect.Min.y += window.DC.CurrLineTextBaseOffset;
         textRect.Max.y += window.DC.CurrLineTextBaseOffset;
 
         ImGui::ItemSize(textRect);
-        if (ImGui::ItemAdd(textRect, window.GetID(title.data(), title.data() + title.size())))
-        {
+        if (ImGui::ItemAdd(textRect, window.GetID(title.data(), title.data() + title.size()))) {
             ImGui::RenderTextEllipsis(ImGui::GetWindowDrawList(), textRect.Min, textRect.Max, textRect.Max.x,
                 textRect.Max.x, title.data(), title.data() + title.size(), &textSize);
-            if (textRect.GetWidth() < textSize.x && ImGui::IsItemHovered())
+            if (textRect.GetWidth() < textSize.x && ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("%.*s", (int)title.size(), title.data());
+            }
         }
-        if (isLeft)
-        {
-            ImGui::SetCursorScreenPos(textRect.Max - ImVec2{ 0, textSize.y + window.DC.CurrLineTextBaseOffset });
-            ImGui::SameLine();
-        }
-        else
-        {
-            ImGui::SetCursorScreenPos(lineStart);
-        }
+        
+        ImGui::SetCursorScreenPos(textRect.Max - ImVec2{ 0, textSize.y + window.DC.CurrLineTextBaseOffset });
+        ImGui::SameLine();
     }
 
     // Record any change to value v to the undo-manager, if value is
@@ -100,7 +90,7 @@ namespace cyb::ui {
     }
 
 #define COMMON_WIDGET_CODE(label)   \
-    ScopedID m_idGuard(label);  \
+    ScopedID m_idGuard(label);      \
     ItemLabel(label);               \
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
@@ -154,7 +144,6 @@ namespace cyb::ui {
     {
         COMMON_WIDGET_CODE(label);
         float temp = *v;
-
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
         ImGui::SliderFloat("", &temp, minValue, maxValue);
         ImGui::PopStyleVar();
@@ -166,11 +155,9 @@ namespace cyb::ui {
     {
         COMMON_WIDGET_CODE(label);
         int temp = *v;
-
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
         ImGui::SliderInt("", &temp, minValue, maxValue, format, flags);
         ImGui::PopStyleVar();
-
         SaveChangeToUndoManager<ui::ModifyValue<int, 1>>(v, onChange);
         *v = temp;
     }

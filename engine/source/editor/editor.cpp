@@ -603,7 +603,7 @@ namespace cyb::editor
 
         void Draw() override
         {
-            ImGui::TextUnformatted((char*)logOutput.c_str(), (char*)logOutput.c_str() + logOutput.size());
+            ImGui::TextWrapped((char*)logOutput.c_str());
 
             if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
             {

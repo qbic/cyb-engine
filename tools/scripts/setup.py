@@ -65,8 +65,10 @@ def has_vulkan_sdk(verbose=False) -> bool:
     return True
 
 if __name__ == '__main__':
-     # change working directory to cyb-engine root path
-    os.chdir('./../')
+    if (not os.path.exists("tools/scripts/setup.py")):
+        print('Error: Run setup.py from the cyb-engine base directory.')
+        exit(1)
+    
     success = True
 
     if (not has_premake()):

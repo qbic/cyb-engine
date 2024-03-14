@@ -1,8 +1,33 @@
-# CybEngine [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.txt)
-
+<div align="center">
 <img src="https://github.com/qbic/CybEngine_Resources/blob/main/CybEngine.png" width="512">
+  
+# `cyb-engine`
+  
+![GitHub top language](https://img.shields.io/github/languages/top/qbic/cyb-engine)
+![GitHub last commit](https://img.shields.io/github/last-commit/qbic/cyb-engine)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
+<p class="align center">
+<h4><code>cyb-engine</code> is an open-source, easy to use and easy to modify 3d-engine</h4>
+</p>
+</div>
 
 ## Getting started...
-1. Clone the repository ```git clone https://github.com/qbic/cyb-engine```
-2. Run the [generate-project-files.bat](https://github.com/qbic/cyb-engine/blob/master/tools/scripts/generate-project-files.bat) script found in the `tools/scripts` folder. This will run a few system checks, looking for vulkan sdk, download premake5 etc, and generate Visual Studeo 2022 project files.
-3. Open the project file with visual studio, compile and run!
+1. Clone the project to your computer and create project files:
+```bash
+git clone https://github.com/qbic/cyb-engine
+cd cyb-cngine
+
+# Running the setup script will generate projet files for Visual Studio 2022 on Windows and GMake build files on Linux.
+python tools/scripts/setup.py
+```
+
+2. Build the project by opening the project with Visual Studio and pressing build.
+Or on Linux:
+> [!NOTE]  
+> cyb-engine does currently NOT build on Linux.
+```bash
+# change release to debug of you whant to create a debug build
+make config=release
+```
+

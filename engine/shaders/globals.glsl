@@ -106,4 +106,10 @@ float GetFogAmount(float dist)
 	return clamp((dist - cbFrame.fog.x) / (cbFrame.fog.y - cbFrame.fog.x), 0.0, 1.0);
 }
 
+vec3 FaceNormal(in vec3 a, in vec3 b, in vec3 c) {
+    const vec3 ab = a - b;
+    const vec3 cb = c - b;
+    return normalize(cross(ab, cb));
+}
+
 #endif

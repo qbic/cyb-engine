@@ -81,10 +81,10 @@ namespace cyb::editor
         ImGui::Text("Parent: %s", name->name.c_str());
     }
 
-    void InspectMeshComponent(scene::MeshComponent* mesh)
-    {
-        if (!mesh)
+    void InspectMeshComponent(scene::MeshComponent* mesh) {
+        if (!mesh) {
             return;
+        }
 
         scene::Scene& scene = scene::GetScene();
 
@@ -103,8 +103,7 @@ namespace cyb::editor
         ImGui::TableSetupColumn("Material");
         ImGui::TableHeadersRow();
         ImGui::TableNextColumn();
-        for (uint32_t i = 0; i < mesh->subsets.size(); ++i)
-        {
+        for (uint32_t i = 0; i < mesh->subsets.size(); ++i) {
             const auto& subset = mesh->subsets[i];
             const std::string& material_name = scene.names.GetComponent(subset.materialID)->name;
 
@@ -116,14 +115,14 @@ namespace cyb::editor
 
         ImGui::EndTable();
 
-        if (ImGui::Button("Compute Smooth Normals"))
-        {
+        if (ImGui::Button("Compute Smooth Normals")) {
             mesh->ComputeSmoothNormals();
+            mesh->CreateRenderData();
         }
 
-        if (ImGui::Button("Compute Hard Normals"))
-        {
+        if (ImGui::Button("Compute Hard Normals")) {
             mesh->ComputeHardNormals();
+            mesh->CreateRenderData();
         }
     }
 

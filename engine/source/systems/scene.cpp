@@ -252,8 +252,6 @@ namespace cyb::scene
         vertex_normals = newNormals;
         vertex_colors = newColors;
         indices = newIndices;
-
-        CreateRenderData();
     }
 
     void MeshComponent::ComputeSmoothNormals()
@@ -291,9 +289,8 @@ namespace cyb::scene
             newNormals[i2].z += normal.z;
         }
 
-        // normals will be normalized by CreateRenderData()
+        // normals will be normalized when creating render data
         vertex_normals = newNormals;
-        CreateRenderData();
     }
 
     void MeshComponent::Vertex_Pos::Set(const XMFLOAT3& pos, const XMFLOAT3& norm)

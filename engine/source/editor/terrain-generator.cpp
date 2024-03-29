@@ -542,6 +542,7 @@ namespace cyb::editor
             subset.materialID = rockMatereal;
             mesh->subsets.push_back(subset);
 
+            mesh->ComputeHardNormals();
             mesh->CreateRenderData();
         };
 

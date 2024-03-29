@@ -1,5 +1,5 @@
 <div align="center">
-<img src="https://github.com/qbic/CybEngine_Resources/blob/main/CybEngine.png" width="512">
+<img src="https://github.com/qbic/cyb-engine-resources/blob/main/cyb-engine-2024.03.png" width="512">
   
 # `cyb-engine`
   

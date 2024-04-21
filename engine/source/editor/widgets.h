@@ -38,6 +38,9 @@ namespace cyb::ui {
         }
     };
 
+    // Draw an info icon with mouse over text
+    void InfoIcon(const char* fmt, ...);
+
     // These are basicly just ImGui wrappers wich uses left aligned labels, 
     // and saves any change to the undo manager
     void Checkbox(const char* label, bool* v, const std::function<void()> onChange);

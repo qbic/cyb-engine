@@ -124,6 +124,9 @@ namespace cyb::editor
             mesh->ComputeHardNormals();
             mesh->CreateRenderData();
         }
+
+        ImGui::SameLine();
+        ui::InfoIcon("This will duplicate any shared vertices and\npossibly create additional mesh geometry");
     }
 
     void InspectMaterialComponent(scene::MaterialComponent* material)

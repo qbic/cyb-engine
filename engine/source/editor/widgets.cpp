@@ -6,6 +6,7 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "editor/widgets.h"
 #include "imgui/imgui_internal.h"
+#include "editor/icons_font_awesome6.h"
 
 namespace cyb::ui {
 
@@ -70,6 +71,16 @@ namespace cyb::ui {
         
         ImGui::SetCursorScreenPos(textRect.Max - ImVec2{ 0, textSize.y + window.DC.CurrLineTextBaseOffset });
         ImGui::SameLine();
+    }
+
+    void InfoIcon(const char* fmt, ...) {
+        ImGui::Text(ICON_FA_CIRCLE_INFO);
+        if (ImGui::IsItemHovered()) {
+            va_list args;
+            va_start(args, fmt);
+            ImGui::SetTooltipV(fmt, args);
+            va_end(args);
+        }
     }
 
     // Record any change to value v to the undo-manager, if value is

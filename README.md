@@ -27,7 +27,7 @@ Or on Linux:
 > [!NOTE]  
 > cyb-engine does currently NOT build on Linux.
 ```bash
-# change release to debug of you whant to create a debug build
+# change release to debug if you whant to create a debug build
 make config=release
 ```
 

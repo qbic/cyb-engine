@@ -1,7 +1,7 @@
 //? #version 450
 #ifndef _GLOBALS_GLSL
 #define _GLOBALS_GLSL
-#include "shader-interop.h"
+#include "shader_interop.h"
 
 #define PI 3.14159265359
 

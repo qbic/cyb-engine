@@ -1,7 +1,7 @@
 #pragma once
 #include <unordered_map>
 #include "core/timer.h"
-#include "graphics/graphics-device.h"
+#include "graphics/device.h"
 
 // On/Off profiler switch
 #define CYB_ENABLE_PROFILER 1
@@ -33,7 +33,7 @@
 #define CYB_PROFILE_GPU_SCOPE(name, cmd)
 #define CYB_PROFILE_FUNCTION()
 #define CYB_TIMED_FUNCTION()
-#endif
+#endif // CYB_ENABLE_PROFILER
 
 namespace cyb::profiler
 {

@@ -6,7 +6,7 @@
 #include "core/filesystem.h"
 #include "core/hash.h"
 #include "core/timer.h"
-#include "graphics/shader-compiler.h"
+#include "graphics/shader_compiler.h"
 
 namespace cyb::graphics
 {

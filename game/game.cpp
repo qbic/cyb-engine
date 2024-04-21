@@ -1,5 +1,5 @@
 #include "editor/editor.h"
-#include "editor/terrain-generator.h"
+#include "editor/terrain_generator.h"
 #include "game.h"
 
 #include "core/filesystem.h"

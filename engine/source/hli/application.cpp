@@ -1,12 +1,12 @@
 #include "core/profiler.h"
-#include "graphics/graphics-device-vulkan.h"
+#include "graphics/device_vulkan.h"
 #include "graphics/renderer.h"
-#include "systems/event-system.h"
-#include "systems/job-system.h"
+#include "systems/event_system.h"
+#include "systems/job_system.h"
 #include "input/input.h"
 #include "hli/application.h"
 
-#include "editor/imgui-backend.h"
+#include "editor/imgui_backend.h"
 
 using namespace cyb::graphics;
 

@@ -5,10 +5,10 @@
 #include "core/profiler.h"
 #include "core/logger.h"
 #include "core/filesystem.h"
-#include "systems/event-system.h"
+#include "systems/event_system.h"
 #include "editor/editor.h"
-#include "editor/terrain-generator.h"
-#include "editor/undo-manager.h"
+#include "editor/terrain_generator.h"
+#include "editor/undo_manager.h"
 #include "editor/icons_font_awesome6.h"
 #include "json.hpp"
 

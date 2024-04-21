@@ -1,8 +1,8 @@
-#include "systems/event-system.h"
 #include <unordered_map>
 #include <vector>
 #include <list>
 #include <mutex>
+#include "systems/event_system.h"
 
 namespace cyb::eventsystem
 {

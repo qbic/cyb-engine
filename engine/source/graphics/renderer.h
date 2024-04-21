@@ -1,8 +1,8 @@
 #pragma once
 #include "core/intersect.h"
-#include "systems/resource-manager.h"
-#include "graphics/graphics-device.h"
-#include "../../shaders/shader-interop.h"
+#include "systems/resource_manager.h"
+#include "graphics/device.h"
+#include "../../shaders/shader_interop.h"
 
 namespace cyb::scene 
 {

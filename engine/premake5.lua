@@ -3,7 +3,6 @@ project "engine"
 	kind "StaticLib"
    	language "C++"
    	cppdialect "C++17"
-   	staticruntime "Off"
 
    	targetdir ("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")

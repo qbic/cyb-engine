@@ -2,10 +2,10 @@
 #include "core/profiler.h"
 #include "core/logger.h"
 #include "systems/scene.h"
-#include "systems/event-system.h"
+#include "systems/event_system.h"
 #include "graphics/renderer.h"
-#include "graphics/shader-compiler.h"
-#include "../../shaders/shader-interop.h"
+#include "graphics/shader_compiler.h"
+#include "../../shaders/shader_interop.h"
 
 using namespace cyb::graphics;
 using namespace cyb::scene;

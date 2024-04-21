@@ -3,7 +3,7 @@
 #include "core/intersect.h"
 #include "core/enum_flags.h"
 #include "systems/ecs.h"
-#include "systems/job-system.h"
+#include "systems/job_system.h"
 #include "graphics/renderer.h"
 
 namespace cyb::scene

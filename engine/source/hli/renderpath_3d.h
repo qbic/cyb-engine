@@ -1,5 +1,5 @@
 #pragma once
-#include "hli/render-path-2d.h"
+#include "hli/renderpath_2d.h"
 #include "graphics/renderer.h"
 #include "systems/scene.h"
 

@@ -1,6 +1,3 @@
-#include "core/platform.h"
-#include "core/logger.h"
-#include "systems/job-system.h"
 #include <thread>
 #include <algorithm>
 #include <functional>
@@ -8,7 +5,11 @@
 #include <condition_variable>
 #ifdef _WIN32
 #include <Windows.h>
-#endif
+#endif // _WIN32
+#include "core/platform.h"
+#include "core/logger.h"
+#include "systems/job_system.h"
+
 
 namespace cyb::jobsystem
 {

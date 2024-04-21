@@ -3,18 +3,19 @@
 #include "core/platform.h"
 #include "core/hash.h"
 #include "core/profiler.h"
-#include "graphics/graphics-device-vulkan.h"
+#include "graphics/device_vulkan.h"
 #include "volk.h"
+
 #define VMA_IMPLEMENTATION
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnullability-completeness"
 #pragma clang diagnostic ignored "-Wunused-variable"
-#endif
+#endif  // __clang__
 #include "vk_mem_alloc.h"
 #ifdef __clang__
 #pragma clang diagnostic pop
-#endif
+#endif // __clang__
 #include "spirv_reflect.h"
 
 #define CYB_DEBUGBREAK_ON_VALIDATION_ERROR  1

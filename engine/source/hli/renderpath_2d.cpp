@@ -1,7 +1,7 @@
-#include "hli/render-path-2d.h"
+#include "hli/renderpath_2d.h"
 #include "editor/editor.h"
 #include "imgui.h"
-#include "editor/imgui-backend.h"
+#include "editor/imgui_backend.h"
 #include "ImGuizmo.h"
 
 namespace cyb::hli

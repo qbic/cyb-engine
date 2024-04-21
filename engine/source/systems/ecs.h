@@ -1,7 +1,7 @@
 #pragma once
 #include <atomic>
 #include "core/serializer.h"
-#include "systems/job-system.h"
+#include "systems/job_system.h"
 #include "flat_hash_map.hpp"
 
 namespace cyb::ecs

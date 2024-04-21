@@ -7,18 +7,18 @@
 #include "core/filesystem.h"
 #include "core/mathlib.h"
 #include "graphics/renderer.h"
-#include "graphics/model-import.h"
-#include "systems/event-system.h"
+#include "graphics/model_import.h"
+#include "systems/event_system.h"
 #include "editor/editor.h"
-#include "editor/imgui-backend.h"
-#include "editor/undo-manager.h"
+#include "editor/imgui_backend.h"
+#include "editor/undo_manager.h"
 #include "editor/icons_font_awesome6.h"
 #include "imgui_internal.h"
 #include "backends/imgui_impl_win32.h"
 #include "imgui_stdlib.h"
 #include "ImGuizmo.h"
 #include "editor/widgets.h"
-#include "editor/terrain-generator.h"
+#include "editor/terrain_generator.h"
 
 namespace cyb::editor 
 {

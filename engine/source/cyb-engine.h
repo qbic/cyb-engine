@@ -10,13 +10,13 @@
 #include "input/input.h"
 #include "input/input-raw.h"
 
-#include "graphics/model-import.h"
+#include "graphics/model_import.h"
 #include "graphics/renderer.h"
 
-#include "systems/job-system.h"
-#include "systems/event-system.h"
-#include "systems/resource-manager.h"
+#include "systems/job_system.h"
+#include "systems/event_system.h"
+#include "systems/resource_manager.h"
 #include "systems/scene.h"
 
-#include "hli/render-path-3d.h"
+#include "hli/renderpath_3d.h"
 #include "hli/application.h"

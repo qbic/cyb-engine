@@ -1,8 +1,8 @@
+#include <fstream>
 #include "core/logger.h"
 #include "core/timer.h"
 #include "systems/scene.h"
-#include "graphics/model-import.h"
-#include <fstream>
+#include "graphics/model_import.h"
 
 //#define DEBUG_3DS_LOADER    1
 
@@ -10,7 +10,7 @@
 #define LocalDebugPrintf    DebugPrintf
 #else
 #define LocalDebugPrintf(...)
-#endif
+#endif // DEBUG_3DS_LOADER
 
 namespace cyb::renderer::import3ds
 {

@@ -4,10 +4,9 @@
 #include <functional>
 #include <fmt/format.h>
 #include "imgui/imgui.h"
-#include "editor/undo-manager.h"
+#include "editor/undo_manager.h"
 
 namespace cyb::ui {
-
     // Set a color or colorscheme for imgui that will be reset when out of scope
     class ScopedStyleColor final {
     public:

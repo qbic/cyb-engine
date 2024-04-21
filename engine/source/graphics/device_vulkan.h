@@ -1,6 +1,6 @@
 #pragma once
 #include "core/spinlock.h"
-#include "graphics/graphics-device.h"
+#include "graphics/device.h"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 #include "volk.h"

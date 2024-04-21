@@ -1,9 +1,9 @@
 #include "core/logger.h"
-#include "systems/event-system.h"
+#include "systems/event_system.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include "imgui/imgui_freetype.h"
-#include "editor/imgui-backend.h"
+#include "editor/imgui_backend.h"
 #ifdef _WIN32
 #include "backends/imgui_impl_win32.cpp"
 #endif

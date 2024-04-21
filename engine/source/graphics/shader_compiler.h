@@ -1,6 +1,6 @@
 #pragma once
 #include "core/enum_flags.h"
-#include "graphics/graphics-device.h"
+#include "graphics/device.h"
 
 namespace cyb::graphics
 {

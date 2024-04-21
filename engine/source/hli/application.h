@@ -1,7 +1,7 @@
 #pragma once
 #include "core/platform.h"
 #include "core/timer.h"
-#include "hli/render-path.h"
+#include "hli/renderpath.h"
 
 namespace cyb::hli
 {

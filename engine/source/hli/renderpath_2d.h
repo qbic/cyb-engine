@@ -1,5 +1,5 @@
 #pragma once
-#include "hli/render-path.h"
+#include "hli/renderpath.h"
 
 namespace cyb::hli
 {

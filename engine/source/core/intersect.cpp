@@ -1,7 +1,7 @@
-#include "core/intersect.h"
 #include <algorithm>
+#include "core/intersect.h"
 
-namespace cyb::math
+namespace cyb::spatial
 {
     AxisAlignedBox::AxisAlignedBox() :
         min(FLT_MAX, FLT_MAX, FLT_MAX),

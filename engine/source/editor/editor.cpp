@@ -246,7 +246,7 @@ namespace cyb::editor
         return selectedMaterialID;
     }
 
-    void InspectAABBComponent(const math::AxisAlignedBox* aabb)
+    void InspectAABBComponent(const spatial::AxisAlignedBox* aabb)
     {
         const XMFLOAT3& min = aabb->min;
         const XMFLOAT3& max = aabb->max;
@@ -525,8 +525,8 @@ namespace cyb::editor
         InspectComponent<scene::MaterialComponent>(ICON_FA_PALETTE " Material", scene.materials, InspectMaterialComponent, entityID, false);
         InspectComponent<scene::LightComponent>(ICON_FA_LIGHTBULB " Light", scene.lights, InspectLightComponent, entityID, true);
         InspectComponent<scene::TransformComponent>(ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT " Transform", scene.transforms, InspectTransformComponent, entityID, false);
-        InspectComponent<math::AxisAlignedBox>(ICON_FA_EXPAND " AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
-        InspectComponent<math::AxisAlignedBox>(ICON_FA_EXPAND " AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
+        InspectComponent<spatial::AxisAlignedBox>(ICON_FA_EXPAND " AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
+        InspectComponent<spatial::AxisAlignedBox>(ICON_FA_EXPAND " AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
         InspectComponent<scene::HierarchyComponent>(ICON_FA_CODE_FORK " Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, false);
         InspectComponent<scene::WeatherComponent>(ICON_FA_CLOUD_RAIN " Weather", scene.weathers, InspectWeatherComponent, entityID, true);
     }
@@ -1039,7 +1039,7 @@ namespace cyb::editor
         }
     }
 
-    static math::Ray GetPickRay(float cursorX, float cursorY)
+    static spatial::Ray GetPickRay(float cursorX, float cursorY)
     {
         const scene::CameraComponent& camera = scene::GetCamera();
         ImGuiIO& io = ImGui::GetIO();
@@ -1053,7 +1053,7 @@ namespace cyb::editor
         XMVECTOR lineStart = XMVector3Unproject(XMVectorSet(cursorX, cursorY, 1, 1), 0, 0, screenW, screenH, 0.0f, 1.0f, P, V, W);
         XMVECTOR lineEnd = XMVector3Unproject(XMVectorSet(cursorX, cursorY, 0, 1), 0, 0, screenW, screenH, 0.0f, 1.0f, P, V, W);
         XMVECTOR rayDirection = XMVector3Normalize(XMVectorSubtract(lineEnd, lineStart));
-        return math::Ray(lineStart, rayDirection);
+        return spatial::Ray(lineStart, rayDirection);
     }
 
     //------------------------------------------------------------------------------
@@ -1136,7 +1136,7 @@ namespace cyb::editor
             bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver();
             if (isMouseIn3DView && io.MouseClicked[0]) {
                 const scene::Scene& scene = scene::GetScene();
-                math::Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);
+                spatial::Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);
                 scene::PickResult pick_result = scene::Pick(scene, pick_ray);
 
                 // Enable mouse picking on lightsources only if they are being drawn

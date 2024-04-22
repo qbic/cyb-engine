@@ -5,47 +5,47 @@
 
 namespace cyb::ui {
     void UndoStack::Push(Command& cmd) {
-        undoStack.push(cmd);
-        while (!redoStack.empty()) {
-            redoStack.pop();
+        m_undoStack.push(cmd);
+        while (!m_redoStack.empty()) {
+            m_redoStack.pop();
         }
     }
 
     void UndoStack::Pop() {
-        if (!undoStack.empty()) {
-            undoStack.pop();
+        if (!m_undoStack.empty()) {
+            m_undoStack.pop();
         }
     }
 
     void UndoStack::Undo() {
-        if (undoStack.empty()) {
+        if (m_undoStack.empty()) {
             return;
         }
 
-        auto cmd = undoStack.top();
+        auto cmd = m_undoStack.top();
         cmd->Undo();
-        undoStack.pop();
-        redoStack.push(cmd);
+        m_undoStack.pop();
+        m_redoStack.push(cmd);
     }
 
     void UndoStack::Redo() {
-        if (redoStack.empty()) {
+        if (m_redoStack.empty()) {
             return;
         }
 
-        auto cmd = redoStack.top();
+        auto cmd = m_redoStack.top();
         cmd->Undo();
-        redoStack.pop();
-        undoStack.push(cmd);
+        m_redoStack.pop();
+        m_undoStack.push(cmd);
     }
 
     void UndoStack::Clear() {
-        while (!undoStack.empty()) {
-            undoStack.pop();
+        while (!m_undoStack.empty()) {
+            m_undoStack.pop();
         }
 
-        while (!redoStack.empty()) {
-            redoStack.pop();
+        while (!m_redoStack.empty()) {
+            m_redoStack.pop();
         }
     }
 

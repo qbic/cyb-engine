@@ -86,16 +86,16 @@ namespace cyb::ui {
     public:
         ModifyTransform(scene::TransformComponent* valuePtr) :
             ModifyValue(valuePtr),
-            transform(valuePtr) {
+            m_transform(valuePtr) {
         }
 
         void Undo() override {
             ModifyValue::Undo();
-            transform->SetDirty();
+            m_transform->SetDirty();
         }
 
     private:
-        scene::TransformComponent* transform;
+        scene::TransformComponent* m_transform;
     };
 
     class UndoStack final {
@@ -104,17 +104,17 @@ namespace cyb::ui {
 
         void Push(Command& cmd);
         void Pop();
-        [[nodiscard]] const Command& Top() const { return undoStack.top(); }
+        [[nodiscard]] const Command& Top() const { return m_undoStack.top(); }
         void Clear();
 
-        [[nodiscard]] bool CanUndo() const { return !undoStack.empty(); }
-        [[nodiscard]] bool CanRedo() const { return !redoStack.empty(); }
+        [[nodiscard]] bool CanUndo() const { return !m_undoStack.empty(); }
+        [[nodiscard]] bool CanRedo() const { return !m_redoStack.empty(); }
         void Undo();
         void Redo();
 
     private:
-        std::stack<Command> undoStack;
-        std::stack<Command> redoStack;
+        std::stack<Command> m_undoStack;
+        std::stack<Command> m_redoStack;
     };
 
     // NOTE:

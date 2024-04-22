@@ -393,11 +393,11 @@ namespace cyb::renderer {
             CYB_PROFILE_CPU_SCOPE("Frustum Culling");
             // Perform camera frustum culling to all objects aabb and
             // store all visible objects in the view
-            const math::Frustum& frustum = camera->frustum;
+            const spatial::Frustum& frustum = camera->frustum;
             visibleObjects.resize(scene->aabb_objects.Size());
             size_t visibleObjectsCount = 0;
             for (size_t i = 0; i < scene->aabb_objects.Size(); ++i) {
-                const math::AxisAlignedBox& aabb = scene->aabb_objects[i];
+                const spatial::AxisAlignedBox& aabb = scene->aabb_objects[i];
                 if (frustum.IntersectsBoundingBox(aabb)) {
                     visibleObjects[visibleObjectsCount] = static_cast<uint32_t>(i);
                     visibleObjectsCount++;
@@ -633,7 +633,7 @@ namespace cyb::renderer {
             device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
 
             for (uint32_t instanceIndex : view.visibleObjects) {
-                const math::AxisAlignedBox& aabb = view.scene->aabb_objects[instanceIndex];
+                const spatial::AxisAlignedBox& aabb = view.scene->aabb_objects[instanceIndex];
                 MiscCB misc_cb;
                 XMStoreFloat4x4(&misc_cb.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
                 device->BindDynamicConstantBuffer(misc_cb, CBSLOT_MISC, cmd);
@@ -698,7 +698,7 @@ namespace cyb::renderer {
                 const LightComponent* light = scene.lights.GetComponent(entity);
 
                 if (light->type == LightType::Point) {
-                    const math::AxisAlignedBox& aabb = scene.aabb_lights[i];
+                    const spatial::AxisAlignedBox& aabb = scene.aabb_lights[i];
                     MiscCB cbMisc;
                     XMStoreFloat4x4(&cbMisc.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
                     device->BindDynamicConstantBuffer(cbMisc, CBSLOT_MISC, cmd);

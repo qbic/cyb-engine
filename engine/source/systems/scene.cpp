@@ -199,7 +199,7 @@ namespace cyb::scene
             assert(result == true);
         }
 
-        aabb = math::AxisAlignedBox(_min, _max);
+        aabb = spatial::AxisAlignedBox(_min, _max);
     }
 
     void MeshComponent::ComputeHardNormals()
@@ -342,7 +342,7 @@ namespace cyb::scene
             return;
 
         const float halfRange = range * 0.5f;
-        aabb = math::AxisAlignedBox(-halfRange, halfRange);
+        aabb = spatial::AxisAlignedBox(-halfRange, halfRange);
     }
 
     void CameraComponent::CreatePerspective(float newAspect, float newNear, float newFar, float newFOV)
@@ -378,7 +378,7 @@ namespace cyb::scene
         XMMATRIX _Rot = XMMatrixRotationQuaternion(R);
         XMStoreFloat3x3(&rotation, _Rot);
 
-        frustum = math::Frustum(_VP);
+        frustum = spatial::Frustum(_VP);
     }
 
     void CameraComponent::TransformCamera(const TransformComponent& transform)
@@ -688,9 +688,9 @@ namespace cyb::scene
         {
             ecs::Entity entity = objects.GetEntity(args.jobIndex);
             ObjectComponent& object = objects[args.jobIndex];
-            math::AxisAlignedBox& aabb = aabb_objects[args.jobIndex];
+            spatial::AxisAlignedBox& aabb = aabb_objects[args.jobIndex];
 
-            aabb = math::AxisAlignedBox();
+            aabb = spatial::AxisAlignedBox();
             if (object.meshID != ecs::INVALID_ENTITY && meshes.Contains(object.meshID) && transforms.Contains(entity))
             {
                 const MeshComponent* mesh = meshes.GetComponent(object.meshID);
@@ -715,7 +715,7 @@ namespace cyb::scene
             LightComponent& light = lights[args.jobIndex];
             light.UpdateLight();
 
-            math::AxisAlignedBox& aabb = aabb_lights[args.jobIndex];
+            spatial::AxisAlignedBox& aabb = aabb_lights[args.jobIndex];
             aabb = light.aabb.Transform(XMLoadFloat4x4(&transform->world));
         });
     }
@@ -737,7 +737,7 @@ namespace cyb::scene
         }
     }
 
-    PickResult Pick(const Scene& scene, const math::Ray& ray)
+    PickResult Pick(const Scene& scene, const spatial::Ray& ray)
     {
         CYB_TIMED_FUNCTION();
 
@@ -747,7 +747,7 @@ namespace cyb::scene
 
         for (size_t i = 0; i < scene.aabb_objects.Size(); ++i)
         {
-            const math::AxisAlignedBox& aabb = scene.aabb_objects[i];
+            const spatial::AxisAlignedBox& aabb = scene.aabb_objects[i];
 
             if (!ray.IntersectsBoundingBox(aabb))
                 continue;
@@ -892,7 +892,7 @@ namespace cyb::ecs
         ser.Serialize(x.zenith);
     }
 
-    void SerializeComponent(math::AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    void SerializeComponent(spatial::AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& context)
     {
         ser.Serialize(x.min);
         ser.Serialize(x.max);

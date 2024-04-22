@@ -1,7 +1,7 @@
 #pragma once
 #include "core/mathlib.h"
 
-namespace cyb::math
+namespace cyb::spatial
 {
     struct AxisAlignedBox
     {

@@ -738,42 +738,35 @@ namespace cyb::editor
 
     // Import a new model to the scene, once the loading is complete
     // it will be automaticly selected in the scene graph view.
-    void OpenDialog_ImportModel(const std::string filter)
-    {
-#if 0
+    void OpenDialog_ImportModel(const std::string filter) {
         filesystem::OpenDialog(filter, [](std::string filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
                 const std::string extension = filesystem::GetExtension(filename);
-                if (filesystem::HasExtension(filename, "csb"))
-                    scene::LoadModel(filename);
-                else if (filesystem::HasExtension(filename, "glb") || filesystem::HasExtension(filename, "gltf"))
-                {
+                if (filesystem::HasExtension(filename, "csb")) {
+                    //scene::LoadModel(filename);
+                    CYB_WARNING("OpenDialog_ImportModel: Loading .csb file from here is currently not working"); 
+                } else if (filesystem::HasExtension(filename, "glb") || filesystem::HasExtension(filename, "gltf")) {
                     ecs::Entity entity = renderer::ImportModel_GLTF(filename, scene::GetScene());
                     SetSceneGraphViewSelection(entity);
                 }
-                });
             });
-#endif
+        });
     }
 
-    void OpenDialog_SaveAs()
-    {
+    void OpenDialog_SaveAs() {
         filesystem::SaveDialog(FILE_FILTER_SCENE, [](std::string filename) {
             if (!filesystem::HasExtension(filename, "cbs"))
-            {
                 filename += ".cbs";
-            }
 
             Timer timer;
             Archive archive;
             Serializer ser(archive);
             scene::GetScene().Serialize(ser);
             if (!filesystem::WriteFile(filename, archive.GetWriteData(), archive.GetSize()))
-            {
                 return;
-            }
+
             CYB_TRACE("Saved scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
-            });
+        });
     }
 
     void SetSceneGraphViewSelection(ecs::Entity entity)

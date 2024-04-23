@@ -1,40 +1,58 @@
 #pragma once
+#include "core/serializer.h"
 #include "core/mathlib.h"
 
-namespace cyb::spatial
-{
-    struct AxisAlignedBox
-    {
+namespace cyb::spatial {
+    
+    class AxisAlignedBox {
+    public:
         AxisAlignedBox();
-        AxisAlignedBox(const XMFLOAT3& min, const XMFLOAT3& max);
-        AxisAlignedBox(float min, float max);
+        explicit AxisAlignedBox(const XMFLOAT3& min, const XMFLOAT3& max);
+        explicit AxisAlignedBox(const XMVECTOR& min, const XMVECTOR& max);
 
-        AxisAlignedBox Transform(const XMMATRIX& transform) const;
-        XMMATRIX GetAsBoxMatrix() const;
-        bool IsInside(const XMFLOAT3& p) const;
+        void Set(const XMFLOAT3& boxMin, const XMFLOAT3& boxMax);
+        void SetMin(const XMFLOAT3& boxMin);
+        void SetMax(const XMFLOAT3& boxMax);
+        void SetAsSphere(XMFLOAT3 center, float radius);
 
-        XMFLOAT3 min;
-        XMFLOAT3 max;
+        [[nodiscard]] const XMVECTOR& GetMin() const { return m_min; }
+        [[nodiscard]] const XMVECTOR& GetMax() const { return m_max; }
+        [[nodiscard]] const XMVECTOR GetCenter() const;
+        [[nodiscard]] const XMVECTOR GetExtent() const;
+
+        [[nodiscard]] AxisAlignedBox Transform(const XMMATRIX& transform) const;
+        [[nodiscard]] XMMATRIX GetAsBoxMatrix() const;
+
+        [[nodiscard]] bool ContainsPoint(const XMVECTOR& p) const;
+
+        void Serialize(Serializer& s);
+
+    private:
+        XMVECTOR m_min;
+        XMVECTOR m_max;
     };
 
-    struct Ray
-    {
+    class Ray {
+    public:
         Ray() = default;
-        Ray(const XMVECTOR& inOrigin, const XMVECTOR& inDirection);
-        
-        bool IntersectsBoundingBox(const AxisAlignedBox& aabb) const;
+        explicit Ray(const XMVECTOR& origin, const XMVECTOR& direction);
 
-        XMFLOAT3 origin;
-        XMFLOAT3 direction;
-        XMFLOAT3 invDirection;
+        [[nodiscard]] const XMVECTOR GetOrigin() const { return m_origin; }
+        [[nodiscard]] const XMVECTOR GetDirection() const { return m_direction; }
+
+        [[nodiscard]] bool IntersectsBoundingBox(const AxisAlignedBox& aabb) const;
+
+    private:
+        XMVECTOR m_origin;
+        XMVECTOR m_direction;
+        XMVECTOR m_invDirection;
     };
 
-    struct Frustum
-    {
+    struct Frustum {
         Frustum() = default;
         Frustum(const XMMATRIX& viewProjection);
 
-        bool IntersectsBoundingBox(const AxisAlignedBox& aabb) const;
+        [[nodiscard]] bool IntersectsBoundingBox(const AxisAlignedBox& aabb) const;
 
         XMFLOAT4 planes[6];
     };

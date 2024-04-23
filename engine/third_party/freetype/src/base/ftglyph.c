@@ -831,7 +831,7 @@
     if ( origin )
       FT_Glyph_Transform( glyph, NULL, origin );
 #else
-    FT_UNUSED( origin );
+    FT_UNUSED( m_origin );
 #endif
 
     /* prepare dummy slot for rendering */

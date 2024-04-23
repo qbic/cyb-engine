@@ -248,8 +248,10 @@ namespace cyb::editor
 
     void InspectAABBComponent(const spatial::AxisAlignedBox* aabb)
     {
-        const XMFLOAT3& min = aabb->min;
-        const XMFLOAT3& max = aabb->max;
+        XMFLOAT3 min = {};
+        XMFLOAT3 max = {};
+        XMStoreFloat3(&min, aabb->GetMin());
+        XMStoreFloat3(&max, aabb->GetMax());
         ImGui::Text("Min: [%.2f, %.2f, %.2f]", min.x, min.y, min.z);
         ImGui::Text("Max: [%.2f, %.2f, %.2f]", max.x, max.y, max.z);
         ImGui::Text("Width: %.2fm", max.x - min.x);
@@ -594,27 +596,24 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    class Tool_LogDisplay : public GuiTool
-    {
+    class Tool_LogDisplay : public GuiTool {
     public:
         Tool_LogDisplay(const std::string& name) :
-            GuiTool(name)
-        {
-            logger::RegisterOutputModule<logger::OutputModule_StringBuffer>(&logOutput);
+            GuiTool(name) {
+            logger::RegisterOutputModule<logger::OutputModule_StringBuffer>(&m_textBuffer);
         }
 
-        void Draw() override
-        {
-            ImGui::TextWrapped((char*)logOutput.c_str());
+        void Draw() override {
+            ImGui::PushTextWrapPos(0.0f);
+            ImGui::TextUnformatted(m_textBuffer.c_str());
+            ImGui::PopTextWrapPos();
 
             if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-            {
                 ImGui::SetScrollHereY(1.0f);
-            }
         }
 
     private:
-        std::string logOutput;
+        std::string m_textBuffer;
     };
 
     //------------------------------------------------------------------------------
@@ -1145,9 +1144,9 @@ namespace cyb::editor
                         ecs::Entity entity = scene.lights.GetEntity(i);
                         const scene::TransformComponent& transform = *scene.transforms.GetComponent(entity);
 
-                        XMVECTOR disV = XMVector3LinePointDistance(XMLoadFloat3(&pick_ray.origin), XMLoadFloat3(&pick_ray.origin) + XMLoadFloat3(&pick_ray.direction), transform.GetPositionV());
+                        XMVECTOR disV = XMVector3LinePointDistance(pick_ray.GetOrigin(), pick_ray.GetOrigin() + pick_ray.GetDirection(), transform.GetPositionV());
                         float dis = XMVectorGetX(disV);
-                        if (dis > 0.01f && dis < math::Distance(transform.GetPosition(), pick_ray.origin) * 0.05f && dis < pick_result.distance) {
+                        if (dis > 0.01f && dis < math::Distance(XMLoadFloat3(&transform.GetPosition()), pick_ray.GetOrigin()) * 0.05f && dis < pick_result.distance) {
                             pick_result = scene::PickResult();
                             pick_result.entity = entity;
                             pick_result.distance = dis;

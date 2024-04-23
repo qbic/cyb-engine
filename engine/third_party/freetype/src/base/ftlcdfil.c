@@ -81,18 +81,18 @@
     FT_UInt   width  = (FT_UInt)bitmap->width;
     FT_UInt   height = (FT_UInt)bitmap->rows;
     FT_Int    pitch  = bitmap->pitch;
-    FT_Byte*  origin = bitmap->buffer;
+    FT_Byte*  m_origin = bitmap->buffer;
     FT_Byte   mode   = bitmap->pixel_mode;
 
 
     /* take care of bitmap flow */
     if ( pitch > 0 && height > 0 )
-      origin += pitch * (FT_Int)( height - 1 );
+      m_origin += pitch * (FT_Int)( height - 1 );
 
     /* horizontal in-place FIR filter */
     if ( mode == FT_PIXEL_MODE_LCD && width >= 2 )
     {
-      FT_Byte*  line = origin;
+      FT_Byte*  line = m_origin;
 
 
       /* `fir' must be at least 32 bit wide, since the sum of */
@@ -135,7 +135,7 @@
     /* vertical in-place FIR filter */
     else if ( mode == FT_PIXEL_MODE_LCD_V && height >= 2 )
     {
-      FT_Byte*  column = origin;
+      FT_Byte*  column = m_origin;
 
 
       for ( ; width > 0; width--, column++ )
@@ -187,7 +187,7 @@
     FT_UInt   width  = (FT_UInt)bitmap->width;
     FT_UInt   height = (FT_UInt)bitmap->rows;
     FT_Int    pitch  = bitmap->pitch;
-    FT_Byte*  origin = bitmap->buffer;
+    FT_Byte*  m_origin = bitmap->buffer;
     FT_Byte   mode   = bitmap->pixel_mode;
 
     static const unsigned int  filters[3][3] =
@@ -202,12 +202,12 @@
 
     /* take care of bitmap flow */
     if ( pitch > 0 && height > 0 )
-      origin += pitch * (FT_Int)( height - 1 );
+      m_origin += pitch * (FT_Int)( height - 1 );
 
     /* horizontal in-place intra-pixel filter */
     if ( mode == FT_PIXEL_MODE_LCD && width >= 3 )
     {
-      FT_Byte*  line = origin;
+      FT_Byte*  line = m_origin;
 
 
       for ( ; height > 0; height--, line -= pitch )
@@ -244,7 +244,7 @@
     }
     else if ( mode == FT_PIXEL_MODE_LCD_V && height >= 3 )
     {
-      FT_Byte*  column = origin;
+      FT_Byte*  column = m_origin;
 
 
       for ( ; width > 0; width--, column++ )

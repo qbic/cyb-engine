@@ -373,7 +373,7 @@ FT_BEGIN_HEADER
    * FreeType.
    */
   FT_BASE( void )
-  ft_log_handler( const struct dlg_origin*  origin,
+  ft_log_handler( const struct dlg_origin*  m_origin,
                   const char*               string,
                   void*                     data );
 

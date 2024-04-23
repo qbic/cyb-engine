@@ -342,7 +342,7 @@ namespace cyb::scene
             return;
 
         const float halfRange = range * 0.5f;
-        aabb = spatial::AxisAlignedBox(-halfRange, halfRange);
+        aabb.SetAsSphere(XMFLOAT3(0, 0, 0), halfRange);
     }
 
     void CameraComponent::CreatePerspective(float newAspect, float newNear, float newFar, float newFOV)
@@ -742,8 +742,8 @@ namespace cyb::scene
         CYB_TIMED_FUNCTION();
 
         PickResult result;
-        const XMVECTOR ray_origin = XMLoadFloat3(&ray.origin);
-        const XMVECTOR ray_direction = XMVector3Normalize(XMLoadFloat3(&ray.direction));
+        const XMVECTOR ray_origin = ray.GetOrigin();
+        const XMVECTOR ray_direction = XMVector3Normalize(ray.GetDirection());
 
         for (size_t i = 0; i < scene.aabb_objects.Size(); ++i)
         {
@@ -894,7 +894,6 @@ namespace cyb::ecs
 
     void SerializeComponent(spatial::AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& context)
     {
-        ser.Serialize(x.min);
-        ser.Serialize(x.max);
+        x.Serialize(ser);
     }
 }

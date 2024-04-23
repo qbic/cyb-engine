@@ -451,7 +451,7 @@
    *
    */
   FT_BASE_DEF( void )
-  ft_log_handler( const struct dlg_origin*  origin,
+  ft_log_handler( const struct dlg_origin*  m_origin,
                   const char*               string,
                   void*                     data )
   {
@@ -495,7 +495,7 @@
 
       if ( ft_component_flag )
       {
-        size_t  tag_length = ft_strlen( *origin->tags );
+        size_t  tag_length = ft_strlen( *m_origin->tags );
         size_t  i;
 
 
@@ -516,7 +516,7 @@
 
     dlg_generic_outputf_stream( ft_fileptr,
                                 (const char*)features_buf,
-                                origin,
+                                m_origin,
                                 string,
                                 dlg_default_output_styles,
                                 true );

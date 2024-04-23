@@ -1,39 +1,59 @@
 #include <algorithm>
 #include "core/intersect.h"
 
-namespace cyb::spatial
-{
-    AxisAlignedBox::AxisAlignedBox() :
-        min(FLT_MAX, FLT_MAX, FLT_MAX),
-        max(-FLT_MAX, -FLT_MAX, -FLT_MAX)
-    {
+namespace cyb::spatial {
+
+    AxisAlignedBox::AxisAlignedBox() {
+        m_min = XMVectorSet(FLT_MAX, FLT_MAX, FLT_MAX, 0.0f);
+        m_max = XMVectorSet(-FLT_MAX, -FLT_MAX, -FLT_MAX, 0.0f);
     }
 
-    AxisAlignedBox::AxisAlignedBox(const XMFLOAT3& min, const XMFLOAT3& max) :
-        min(min),
-        max(max)
-    {
+    AxisAlignedBox::AxisAlignedBox(const XMVECTOR& min, const XMVECTOR& max) :
+        m_min(min),
+        m_max(max) {
     }
 
-    AxisAlignedBox::AxisAlignedBox(float min, float max) :
-        min(min, min, min),
-        max(max, max, max)
-    {
+    AxisAlignedBox::AxisAlignedBox(const XMFLOAT3& min, const XMFLOAT3& max) {
+        m_min = XMLoadFloat3(&min);
+        m_max = XMLoadFloat3(&max);
     }
 
-    AxisAlignedBox AxisAlignedBox::Transform(const XMMATRIX& transform) const
-    {
-        const XMVECTOR vMin = XMLoadFloat3(&min);
-        const XMVECTOR vMax = XMLoadFloat3(&max);
+    void AxisAlignedBox::Set(const XMFLOAT3& boxMin, const XMFLOAT3& boxMax) {
+        m_min = XMLoadFloat3(&boxMin);
+        m_max = XMLoadFloat3(&boxMax);
+    }
 
+    void AxisAlignedBox::SetMin(const XMFLOAT3& boxMin) {
+        m_min = XMLoadFloat3(&boxMin);
+    }
+
+    void AxisAlignedBox::SetMax(const XMFLOAT3& boxMax) {
+        m_max = XMLoadFloat3(&boxMax);
+    }
+
+    void AxisAlignedBox::SetAsSphere(XMFLOAT3 center, float radius) {
+        XMVECTOR C = XMLoadFloat3(&center);
+        XMVECTOR R = XMVectorReplicate(radius);
+        m_min = XMVectorSubtract(C, R);
+        m_max = XMVectorAdd(C, R);
+    }
+
+    const XMVECTOR AxisAlignedBox::GetCenter() const {
+        return XMVectorMultiply(XMVectorAdd(m_max, m_min), XMVectorReplicate(0.5f));
+    }
+
+    const XMVECTOR AxisAlignedBox::GetExtent() const {
+        return XMVectorMultiply(XMVectorSubtract(m_max, m_min), XMVectorReplicate(0.5f));
+    }
+
+    AxisAlignedBox AxisAlignedBox::Transform(const XMMATRIX& transform) const {
         const XMVECTOR& m0 = transform.r[0];
         const XMVECTOR& m1 = transform.r[1];
         const XMVECTOR& m2 = transform.r[2];
         const XMVECTOR& m3 = transform.r[3];
 
-        const XMVECTOR vHalf = XMVectorReplicate(0.5f);
-        const XMVECTOR vCenter = XMVectorMultiply(XMVectorAdd(vMax, vMin), vHalf);
-        const XMVECTOR vExtents = XMVectorMultiply(XMVectorSubtract(vMax, vMin), vHalf);
+        const XMVECTOR vCenter = GetCenter();
+        const XMVECTOR vExtents = GetExtent();
 
         XMVECTOR vNewCenter = XMVectorMultiply(XMVectorReplicate(XMVectorGetX(vCenter)), m0);
         vNewCenter = XMVectorMultiplyAdd(XMVectorReplicate(XMVectorGetY(vCenter)), m1, vNewCenter);
@@ -46,77 +66,62 @@ namespace cyb::spatial
 
         const XMVECTOR vNewMin = XMVectorSubtract(vNewCenter, vNewExtents);
         const XMVECTOR vNewMax = XMVectorAdd(vNewCenter, vNewExtents);
-
-        AxisAlignedBox newAABB;
-        XMStoreFloat3(&newAABB.min, vNewMin);
-        XMStoreFloat3(&newAABB.max, vNewMax);
-        return newAABB;
+        return AxisAlignedBox(vNewMin, vNewMax);
     }
 
-    XMMATRIX AxisAlignedBox::GetAsBoxMatrix() const
-    {
-        const XMVECTOR vMin = XMLoadFloat3(&min);
-        const XMVECTOR vMax = XMLoadFloat3(&max);
-
-        const XMVECTOR vHalf = XMVectorReplicate(0.5f);
-        const XMVECTOR vCenter = XMVectorMultiply(XMVectorAdd(vMax, vMin), vHalf);
-        const XMVECTOR vExtents = XMVectorAbs(XMVectorSubtract(vMax, vCenter));
-        return XMMatrixScalingFromVector(vExtents) * XMMatrixTranslationFromVector(vCenter);
+    XMMATRIX AxisAlignedBox::GetAsBoxMatrix() const {
+        const XMVECTOR C = GetCenter();
+        const XMVECTOR E = GetExtent();;
+        return XMMatrixScalingFromVector(E) * XMMatrixTranslationFromVector(C);
     }
 
-    bool AxisAlignedBox::IsInside(const XMFLOAT3& p) const
-    {
-        return (p.x <= max.x) && (p.x >= min.x) && 
-               (p.y <= max.y) && (p.y >= min.y) && 
-               (p.z <= max.z) && (p.z >= min.z);
+    bool AxisAlignedBox::ContainsPoint(const XMVECTOR& p) const {
+        return XMVector3GreaterOrEqual(p, m_min) && XMVector3LessOrEqual(p, m_max);
     }
 
-    AxisAlignedBox AABBFromHalfWidth(const XMFLOAT3& origin, const XMFLOAT3& extent)
-    {
-        AxisAlignedBox newBox;
-        newBox.min = XMFLOAT3(origin.x - extent.x, origin.y - extent.y, origin.z - extent.z);
-        newBox.max = XMFLOAT3(origin.x + extent.x, origin.y + extent.y, origin.z + extent.z);
-        return newBox;
+    void AxisAlignedBox::Serialize(Serializer& s) {
+        // serialize minmax vectors as XMFLOAT3
+        XMFLOAT3 min;
+        XMFLOAT3 max;
+        XMStoreFloat3(&min, m_min);
+        XMStoreFloat3(&max, m_max);
+        s.Serialize(min);
+        s.Serialize(max);
+
+        // update local data if are reading
+        if (s.IsReading())
+            Set(min, max);
     }
 
-    Ray::Ray(const XMVECTOR& inOrigin, const XMVECTOR& inDirection)
-    {
-        XMStoreFloat3(&origin, inOrigin);
-        XMStoreFloat3(&direction, inDirection);
-        XMStoreFloat3(&invDirection, XMVectorReciprocal(inDirection));
+    Ray::Ray(const XMVECTOR& origin, const XMVECTOR& direction) {
+        m_origin = origin;
+        m_direction = direction;
+        m_invDirection = XMVectorReciprocal(direction);
     }
 
-    bool Ray::IntersectsBoundingBox(const AxisAlignedBox& aabb) const
-    {
-        if (aabb.IsInside(origin))
+    bool Ray::IntersectsBoundingBox(const AxisAlignedBox& aabb) const {
+        if (aabb.ContainsPoint(m_origin))
             return true;
 
-        const XMFLOAT3& min = aabb.min;
-        const XMFLOAT3& max = aabb.max;
+        const XMVECTOR t1 = XMVectorMultiply(XMVectorSubtract(aabb.GetMin(), m_origin), m_invDirection);
+        const XMVECTOR t2 = XMVectorMultiply(XMVectorSubtract(aabb.GetMax(), m_origin), m_invDirection);
+        XMVECTOR tmin = XMVectorMin(t1, t2);
+        XMVECTOR tmax = XMVectorMax(t1, t2);
 
-        float tx1 = (min.x - origin.x) * invDirection.x;
-        float tx2 = (max.x - origin.x) * invDirection.x;
+        tmin = XMVectorMax(tmin, XMVectorSplatY(tmin));  // x = max(x,y)
+        tmin = XMVectorMax(tmin, XMVectorSplatZ(tmin));  // x = max(max(x,y),z)
+        tmax = XMVectorMin(tmax, XMVectorSplatY(tmax));  // x = min(x,y)
+        tmax = XMVectorMin(tmax, XMVectorSplatZ(tmax));  // x = min(min(x,y),z)
 
-        float tmin = std::min(tx1, tx2);
-        float tmax = std::max(tx1, tx2);
+        // if ( t_min > t_max ) return false;
+        XMVECTOR NoIntersection = XMVectorGreater(XMVectorSplatX(tmin), XMVectorSplatX(tmax));
 
-        float ty1 = (min.y - origin.y) * invDirection.y;
-        float ty2 = (max.y - origin.y) * invDirection.y;
-
-        tmin = std::max(tmin, std::min(ty1, ty2));
-        tmax = std::min(tmax, std::max(ty1, ty2));
-
-        float tz1 = (min.z - origin.z) * invDirection.z;
-        float tz2 = (max.z - origin.z) * invDirection.z;
-
-        tmin = std::max(tmin, std::min(tz1, tz2));
-        tmax = std::min(tmax, std::max(tz1, tz2));
-
-        return tmax >= tmin;
+        // if ( t_max < 0.0f ) return false;
+        NoIntersection = XMVectorOrInt(NoIntersection, XMVectorLess(XMVectorSplatX(tmax), XMVectorZero()));
+        return !Internal::XMVector3AnyTrue(NoIntersection);
     }
 
-    Frustum::Frustum(const XMMATRIX& viewProjection)
-    {
+    Frustum::Frustum(const XMMATRIX& viewProjection) {
         const XMMATRIX mat = XMMatrixTranspose(viewProjection);
 
         // Near plane: 
@@ -138,14 +143,12 @@ namespace cyb::spatial
         XMStoreFloat4(&planes[5], XMPlaneNormalize(mat.r[3] + mat.r[1]));
     }
 
-    bool Frustum::IntersectsBoundingBox(const AxisAlignedBox& aabb) const
-    {
-        XMVECTOR min = XMLoadFloat3(&aabb.min);
-        XMVECTOR max = XMLoadFloat3(&aabb.max);
-        XMVECTOR zero = XMVectorZero();
+    bool Frustum::IntersectsBoundingBox(const AxisAlignedBox& aabb) const {
+        const XMVECTOR& min = aabb.GetMin();
+        const XMVECTOR& max = aabb.GetMax();
+        const XMVECTOR zero = XMVectorZero();
 
-        for (size_t p = 0; p < 6; ++p)
-        {
+        for (size_t p = 0; p < 6; ++p) {
             XMVECTOR plane = XMLoadFloat4(&planes[p]);
             XMVECTOR lt = XMVectorLess(plane, zero);
             XMVECTOR furthestFromPlane = XMVectorSelect(max, min, lt);

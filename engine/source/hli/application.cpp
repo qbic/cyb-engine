@@ -107,7 +107,7 @@ namespace cyb::hli
 			activePath->Compose(cmd);
 	}
 
-	void Application::SetWindow(platform::WindowType window)
+	void Application::SetWindow(WindowHandle window)
 	{
 		this->window = window;
 
@@ -121,7 +121,7 @@ namespace cyb::hli
 		canvas.SetCanvas(window);
 
 		graphics::SwapChainDesc desc = {};
-		platform::WindowProperties windowProp = platform::GetWindowProperties(window);
+		WindowInfo info = GetWindowInfo(window);
 		desc.width = canvas.GetPhysicalWidth();
 		desc.height = canvas.GetPhysicalHeight();;
 		graphics::GetDevice()->CreateSwapChain(&desc, window, &swapchain);

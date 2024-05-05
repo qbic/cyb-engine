@@ -34,7 +34,7 @@ namespace cyb::input
         initialized.store(true);
     }
 
-    void Update(platform::WindowType window)
+    void Update(WindowHandle window)
     {
         if (!initialized.load())
             return;

@@ -154,7 +154,7 @@ static void LoadShaders()
 	GetDevice()->CreatePipelineState(&desc, &bd->pso);
 }
 
-void ImGui_Impl_CybEngine_Init(cyb::platform::WindowType window)
+void ImGui_Impl_CybEngine_Init(cyb::WindowHandle window)
 {
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();

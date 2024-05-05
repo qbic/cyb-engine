@@ -118,7 +118,7 @@ namespace cyb::spatial {
 
         // if ( t_max < 0.0f ) return false;
         NoIntersection = XMVectorOrInt(NoIntersection, XMVectorLess(XMVectorSplatX(tmax), XMVectorZero()));
-        return !Internal::XMVector3AnyTrue(NoIntersection);
+        return DirectX::Internal::XMVector3AnyTrue(NoIntersection) == 0;
     }
 
     Frustum::Frustum(const XMMATRIX& viewProjection) {

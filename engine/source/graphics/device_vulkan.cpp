@@ -18,6 +18,8 @@
 #endif // __clang__
 #include "spirv_reflect.h"
 
+#define VK_CHECK(c) { VkResult r = c; if (r != VK_SUCCESS) FatalError(fmt::format("{0} failed! ({1})", #c, (int)r)); }
+
 #define CYB_DEBUGBREAK_ON_VALIDATION_ERROR  1
 
 namespace cyb::graphics::vulkan_internal
@@ -497,36 +499,24 @@ namespace cyb::graphics::vulkan_internal
         createInfo.preTransform = capabilities.currentTransform;
 
         createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR; // The only one that is always supported
-        if (!internal_state->desc.vsync)
-        {
-            for (auto& present_mode : presentModes)
-            {
-                if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR)
-                {
+        if (!internal_state->desc.vsync) {
+            for (auto& present_mode : presentModes) {
+                if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
                     createInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
                     break;
                 }
                 if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
-                {
                     createInfo.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-                }
             }
         }
 
         createInfo.clipped = VK_TRUE;
         createInfo.oldSwapchain = internal_state->swapchain;
 
-        VkResult res = vkCreateSwapchainKHR(device, &createInfo, nullptr, &internal_state->swapchain);
-        if (res != VK_SUCCESS)
-        {
-            platform::CreateMessageWindow("vkCreateSwapchainKHR failed! Error: " + std::to_string(res), "Error!");
-            platform::Exit(1);
-        }
+        VK_CHECK(vkCreateSwapchainKHR(device, &createInfo, nullptr, &internal_state->swapchain));
 
         if (createInfo.oldSwapchain != VK_NULL_HANDLE)
-        {
             vkDestroySwapchainKHR(device, createInfo.oldSwapchain, nullptr);
-        }
 
         vkGetSwapchainImagesKHR(device, internal_state->swapchain, &imageCount, nullptr);
         internal_state->images.resize(imageCount);
@@ -535,8 +525,7 @@ namespace cyb::graphics::vulkan_internal
 
         // Create swap chain render targets:
         internal_state->imageViews.resize(internal_state->images.size());
-        for (size_t i = 0; i < internal_state->images.size(); ++i)
-        {
+        for (size_t i = 0; i < internal_state->images.size(); ++i) {
             VkImageViewCreateInfo createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             createInfo.image = internal_state->images[i];
@@ -559,23 +548,18 @@ namespace cyb::graphics::vulkan_internal
                 allocationHandler->destroylocker.unlock();
             }
 
-            res = vkCreateImageView(device, &createInfo, nullptr, &internal_state->imageViews[i]);
-            assert(res == VK_SUCCESS);
+            VK_CHECK(vkCreateImageView(device, &createInfo, nullptr, &internal_state->imageViews[i]));
         }
 
         VkSemaphoreCreateInfo semaphoreInfo = {};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-        if (internal_state->semaphore_aquire == VK_NULL_HANDLE)
-        {
-            res = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->semaphore_aquire);
-            assert(res == VK_SUCCESS);
+        if (internal_state->semaphore_aquire == VK_NULL_HANDLE) {
+            VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->semaphore_aquire));
         }
 
-        if (internal_state->semaphore_release == VK_NULL_HANDLE)
-        {
-            res = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->semaphore_release);
-            assert(res == VK_SUCCESS);
+        if (internal_state->semaphore_release == VK_NULL_HANDLE) {
+            VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->semaphore_release));
         }
 
         return true;
@@ -1121,12 +1105,7 @@ namespace cyb::graphics
 
     GraphicsDevice_Vulkan::GraphicsDevice_Vulkan()
     {
-        VkResult res = volkInitialize();
-        if (res != VK_SUCCESS)
-        {
-            platform::CreateMessageWindow("volkInitialize failed! Error: " + std::to_string(res), "Error!");
-            platform::Exit(1);
-        }
+        VK_CHECK(volkInitialize());
 
         // Fill out application info
         VkApplicationInfo applicationInfo = {};
@@ -1138,35 +1117,25 @@ namespace cyb::graphics
 
         // Enumerate available layers and extensions:
         uint32_t instanceLayerCount;
-        res = vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
-        assert(res == VK_SUCCESS);
+        VK_CHECK(vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr));
         std::vector<VkLayerProperties> availableInstanceLayers(instanceLayerCount);
-        res = vkEnumerateInstanceLayerProperties(&instanceLayerCount, availableInstanceLayers.data());
-        assert(res == VK_SUCCESS);
+        VK_CHECK(vkEnumerateInstanceLayerProperties(&instanceLayerCount, availableInstanceLayers.data()));
 
         uint32_t extensionCount = 0;
-        res = vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-        assert(res == VK_SUCCESS);
+        VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr));
         std::vector<VkExtensionProperties> availableInstanceExtensions(extensionCount);
-        res = vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableInstanceExtensions.data());
-        assert(res == VK_SUCCESS);
+        VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableInstanceExtensions.data()));
 
         std::vector<const char*> instanceLayers;
         std::vector<const char*> instanceExtensions;
 
-        for (auto& availableExtension : availableInstanceExtensions)
-        {
-            if (strcmp(availableExtension.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
-            {
+        for (auto& availableExtension : availableInstanceExtensions) {
+            if (strcmp(availableExtension.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0) {
                 debugUtils = true;
                 instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-            }
-            else if (strcmp(availableExtension.extensionName, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) == 0)
-            {
+            } else if (strcmp(availableExtension.extensionName, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) == 0) {
                 instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-            }
-            else if (strcmp(availableExtension.extensionName, VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME) == 0)
-            {
+            } else if (strcmp(availableExtension.extensionName, VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME) == 0) {
                 instanceExtensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
             }
         }
@@ -1177,8 +1146,7 @@ namespace cyb::graphics
         instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #endif
 
-        if (VALIDATION_MODE_ENABLED)
-        {
+        if (VALIDATION_MODE_ENABLED) {
             // Determine the optimal validation layers to enable that are necessary for useful debugging
             static const std::vector<const char*> validationLayerPriorityList[] =
             {
@@ -1233,19 +1201,11 @@ namespace cyb::graphics
                 CYB_WARNING("Vulkan is running with validation layers enabled. This will heavily impact performace.");
             }
 
-            res = vkCreateInstance(&instanceInfo, nullptr, &instance);
-            if (res != VK_SUCCESS)
-            {
-                platform::CreateMessageWindow("vkCreateInstance failed! Error: " + std::to_string(res), "Error!");
-                platform::Exit(1);
-            }
-
+            VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &instance));
             volkLoadInstanceOnly(instance);
 
             if (VALIDATION_MODE_ENABLED && debugUtils)
-            {
                 vkCreateDebugUtilsMessengerEXT(instance, &debugUtilsCreateInfo, nullptr, &debugUtilsMessenger);
-            }
         }
 
         // Enumerate and create device
@@ -1253,10 +1213,7 @@ namespace cyb::graphics
             uint32_t deviceCount = 0;
             vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
             if (deviceCount == 0)
-            {
-                platform::CreateMessageWindow("Failed to find GPU with Vulkan support!", "Error!");
-                platform::Exit(1);
-            }
+                FatalError("Failed to find GPU with Vulkan support");
 
             std::vector<VkPhysicalDevice> devices(deviceCount);
             vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
@@ -1302,8 +1259,7 @@ namespace cyb::graphics
                 vkGetPhysicalDeviceProperties2(dev, &properties2);
 
                 bool discreteGPU = properties2.properties.deviceType == VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-                if (discreteGPU || physicalDevice == VK_NULL_HANDLE)
-                {
+                if (discreteGPU || physicalDevice == VK_NULL_HANDLE) {
                     physicalDevice = dev;
 
                     // if this is discrete GPU, look no further (prioritize discrete GPU)
@@ -1312,19 +1268,13 @@ namespace cyb::graphics
                 }
             }
 
-            if (physicalDevice == VK_NULL_HANDLE)
-            {
-                platform::CreateMessageWindow("Failed to find a suitable GPU!");
-                platform::Exit(1);
+            if (physicalDevice == VK_NULL_HANDLE) {
+                FatalError("Failed to detect a suitable GPU!");
             }
 
-            auto checkFeature = [](bool expr, const char* name)
-            {
-                if (!expr)
-                {
-                    std::string error = fmt::format("Failed to initialize!\nNo hardware support for {}", name);
-                    platform::CreateMessageWindow(error, "Error!");
-                    platform::Exit(1);
+            auto checkFeature = [](bool expr, const char* name) {
+                if (!expr) {
+                    FatalError(fmt::format("Failed to initialize!\nNo hardware support for {}", name));
                 }
             };
 
@@ -1397,13 +1347,7 @@ namespace cyb::graphics
             device_info.enabledExtensionCount = static_cast<uint32_t>(enabledDeviceExtensions.size());
             device_info.ppEnabledExtensionNames = enabledDeviceExtensions.data();
 
-            res = vkCreateDevice(physicalDevice, &device_info, nullptr, &device);
-            if (res != VK_SUCCESS)
-            {
-                platform::CreateMessageWindow("vkCreateDevice failed! Error: " + std::to_string(res), "Error!");
-                platform::Exit(1);
-            }
-
+            VK_CHECK(vkCreateDevice(physicalDevice, &device_info, nullptr, &device));
             volkLoadDevice(device);
         }
 
@@ -1453,12 +1397,7 @@ namespace cyb::graphics
         allocatorInfo.instance = instance;
         allocatorInfo.pVulkanFunctions = &vma_vulkan_func;
 
-        res = vmaCreateAllocator(&allocatorInfo, &m_allocationHandler->allocator);
-        if (res != VK_SUCCESS)
-        {
-            platform::CreateMessageWindow("vmaCreateAllocator failed! ERROR: " + std::to_string(res), "Error!");
-            platform::Exit(1);
-        }
+        VK_CHECK(vmaCreateAllocator(&allocatorInfo, &m_allocationHandler->allocator));
 
         m_copyAllocator.Init(this);
 
@@ -1480,24 +1419,21 @@ namespace cyb::graphics
                 pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
                 pool_info.queueFamilyIndex = graphicsFamily;
                 pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-                res = vkCreateCommandPool(device, &pool_info, nullptr, &m_frameResources[i].init_commandpool);
-                assert(res == VK_SUCCESS);
+                VK_CHECK(vkCreateCommandPool(device, &pool_info, nullptr, &m_frameResources[i].init_commandpool));
 
                 VkCommandBufferAllocateInfo commandbuffer_info = {};
                 commandbuffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
                 commandbuffer_info.commandBufferCount = 1;
                 commandbuffer_info.commandPool = m_frameResources[i].init_commandpool;
                 commandbuffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-                res = vkAllocateCommandBuffers(device, &commandbuffer_info, &m_frameResources[i].init_commandbuffer);
-                assert(res == VK_SUCCESS);
+                VK_CHECK(vkAllocateCommandBuffers(device, &commandbuffer_info, &m_frameResources[i].init_commandbuffer));
 
                 VkCommandBufferBeginInfo begin_info = {};
                 begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
                 begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
                 begin_info.pInheritanceInfo = nullptr; // Optional
 
-                res = vkBeginCommandBuffer(m_frameResources[i].init_commandbuffer, &begin_info);
-                assert(res == VK_SUCCESS);
+                VK_CHECK(vkBeginCommandBuffer(m_frameResources[i].init_commandbuffer, &begin_info));
             }
         }
 
@@ -1521,8 +1457,7 @@ namespace cyb::graphics
             //createInfo.pInitialData = pipelineData.data();
 
             // Create Vulkan pipeline cache
-            res = vkCreatePipelineCache(device, &createInfo, nullptr, &m_pipelineCache);
-            assert(res == VK_SUCCESS);
+            VK_CHECK(vkCreatePipelineCache(device, &createInfo, nullptr, &m_pipelineCache));
         }
 
         CYB_INFO("Initialized Vulkan {}.{}", VK_API_VERSION_MAJOR(properties2.properties.apiVersion), VK_API_VERSION_MINOR(properties2.properties.apiVersion));
@@ -1587,7 +1522,7 @@ namespace cyb::graphics
         }
     }
 
-    bool GraphicsDevice_Vulkan::CreateSwapChain(const SwapChainDesc* desc, platform::WindowType window, SwapChain* swapchain) const
+    bool GraphicsDevice_Vulkan::CreateSwapChain(const SwapChainDesc* desc, WindowHandle window, SwapChain* swapchain) const
     {
         auto internal_state = std::static_pointer_cast<SwapChain_Vulkan>(swapchain->internal_state);
         if (swapchain->internal_state == nullptr)

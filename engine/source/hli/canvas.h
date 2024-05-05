@@ -23,9 +23,9 @@ namespace cyb
             dpi = other.dpi;
         }
 
-        void SetCanvas(platform::WindowType window)
+        void SetCanvas(WindowHandle window)
         {
-            const platform::WindowProperties prop = platform::GetWindowProperties(window);
+            const WindowInfo prop = GetWindowInfo(window);
             SetCanvas(prop.width, prop.height, prop.dpi);
         }
 

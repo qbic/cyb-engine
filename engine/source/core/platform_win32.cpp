@@ -2,11 +2,20 @@
 #include "core/platform.h"
 #include "core/logger.h"
 
-namespace cyb::platform
-{
-	bool GetVideoModesForDisplay(int32_t displayNum, std::vector<VideoMode>& modeList)
-	{
-		modeList.clear();
+namespace cyb {
+
+	WindowInfo GetWindowInfo(WindowHandle window) {
+		WindowInfo info;
+		info.dpi = (float)GetDpiForWindow(window);
+		RECT rect;
+		GetClientRect(window, &rect);
+		info.width = int(rect.right - rect.left);
+		info.height = int(rect.bottom - rect.top);
+		return info;
+	}
+
+	bool GetVideoModesForDisplay(std::vector<VideoMode>& modes, int32_t displayNum) {
+		modes.clear();
 
 		DISPLAY_DEVICEA device;
 		device.cb = sizeof(device);
@@ -28,8 +37,7 @@ namespace cyb::platform
 		if (EnumDisplaySettingsA(device.DeviceName, ENUM_CURRENT_SETTINGS, &devmode))
 			systemDisplayHz = devmode.dmDisplayFrequency;
 
-		for (DWORD modeNum = 0; ; modeNum++)
-		{
+		for (DWORD modeNum = 0; ; modeNum++) {
 			if (!EnumDisplaySettingsA(device.DeviceName, modeNum, &devmode))
 				break;
 
@@ -45,36 +53,25 @@ namespace cyb::platform
 			mode.width = devmode.dmPelsWidth;
 			mode.height = devmode.dmPelsHeight;
 			mode.displayHz = devmode.dmDisplayFrequency;
-			if (std::find(modeList.begin(), modeList.end(), mode) == modeList.end())
-				modeList.push_back(mode);
+			if (std::find(modes.begin(), modes.end(), mode) == modes.end())
+				modes.push_back(mode);
 		}
 
-		auto compare = [](const VideoMode& a, const VideoMode& b) -> bool
-		{
-			if (a.displayHz != b.displayHz)
-				return a.displayHz > b.displayHz;
-			if (a.width != b.width)
-				return a.width > b.width;
-			return a.height > b.height;
-		};
-
-		std::sort(modeList.begin(), modeList.end(), compare);
+		std::sort(modes.begin(), modes.end());
 		return true;
 	}
 
-	void Exit(int exitCode)
-	{
+	void Exit(int exitCode) {
 		//PostQuitMessage(exitCode);
 		ExitProcess(exitCode);
 	}
 
-	void CreateMessageWindow(const std::string& msg, const std::string& caption)
-	{
-		MessageBoxA(GetActiveWindow(), msg.c_str(), caption.c_str(), 0);
+	void FatalError(const std::string& text) {
+		MessageBoxA(GetActiveWindow(), fmt::format("Fatal error from application:\n{}", text).c_str(), "Error", MB_OK);
+		Exit(1);
 	}
 
-	bool FileDialog(FileDialogMode mode, const std::string& filters, std::string& output)
-	{
+	static [[nodiscard]] bool FileDialog(std::string& path, bool openFile, const std::string& filters) {
 		char szFile[MAX_PATH] = {};
 
 		OPENFILENAMEA ofn = {};
@@ -90,21 +87,26 @@ namespace cyb::platform
 		ofn.lpstrFilter = filters.c_str();
 
 		BOOL ok = FALSE;
-		switch (mode)
-		{
-		case FileDialogMode::Open:
+		if (openFile) {
 			ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 			ofn.Flags |= OFN_NOCHANGEDIR;
 			ok = GetOpenFileNameA(&ofn);
-			break;
-		case FileDialogMode::Save:
+		} else {
 			ofn.Flags = OFN_OVERWRITEPROMPT;
 			ofn.Flags |= OFN_NOCHANGEDIR;
 			ok = GetSaveFileNameA(&ofn);
-			break;
 		}
 
-		output = ofn.lpstrFile;
+		path = ofn.lpstrFile;
 		return ok;
 	}
+
+	bool FileOpenDialog(std::string& path, const std::string& filters) {
+		return FileDialog(path, true, filters);
+	}
+
+	bool FileSaveDialog(std::string& path, const std::string& filters) {
+		return FileDialog(path, false, filters);
+	}
+
 }

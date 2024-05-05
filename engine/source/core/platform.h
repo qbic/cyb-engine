@@ -24,51 +24,44 @@
 #define CYB_DEBUGBREAK()
 #endif
 
-template <typename T, std::size_t N>
-constexpr std::size_t CountOf(T const (&)[N]) noexcept
-{
-	return N;
-}
+namespace cyb {
 
-namespace cyb::platform
-{
-#ifdef _WIN32
-	using WindowType = HWND;
-#else
-	using WindowType = void*:
-#endif // _WIN32
-
-	struct WindowProperties
-	{
-		int width = 0;
-		int height = 0;
-		float dpi = 96;
-	};
-
-	inline WindowProperties GetWindowProperties(WindowType window)
-	{
-		WindowProperties prop;
-#ifdef _WIN32
-		prop.dpi = (float)GetDpiForWindow(window);
-		RECT rect;
-		GetClientRect(window, &rect);
-		prop.width = int(rect.right - rect.left);
-		prop.height = int(rect.bottom - rect.top);
-#endif // _WIN32
-		return prop;
+	template <typename T, std::size_t N>
+	[[nodiscard]] constexpr std::size_t CountOf(T const (&)[N]) noexcept {
+		return N;
 	}
 
-	struct VideoMode
-	{
+#ifdef _WIN32
+	using WindowHandle = HWND;
+#else
+	using WindowHandle = void* :
+#endif // _WIN32
+
+	struct WindowInfo {
+		int width;
+		int height;
+		float dpi;
+	};
+
+	struct VideoMode {
 		uint32_t width;
 		uint32_t height;
 		uint32_t displayHz;
 
-		bool operator==(const VideoMode& other) const
-		{
+		[[nodiscard]] bool operator==(const VideoMode& other) const {
 			return other.width == width && other.height == height && other.displayHz == displayHz;
 		}
+
+		[[nodiscard]] bool operator<(const VideoMode& x) const {
+			if (displayHz != x.displayHz)
+				return displayHz > x.displayHz;
+			if (width != x.width)
+				return width > x.width;
+			return height > x.height;
+		}
 	};
+
+	[[nodiscard]] WindowInfo GetWindowInfo(WindowHandle window);
 
 	// only save modes that:
 	//  * have 32 pixels depth
@@ -76,16 +69,11 @@ namespace cyb::platform
 	//  * where vertival resolution is higher than 720 pixels
 	//  * is a fixed resolution for the display (no stretching or centerd with black bars)
 	//  * where aspect (width/height) >= 1.6
-	bool GetVideoModesForDisplay(int32_t displayNum, std::vector<VideoMode>& modeList);
+	bool GetVideoModesForDisplay(std::vector<VideoMode>& modes, int32_t displayNum);
 	
 	void Exit(int exitCode);
-	void CreateMessageWindow(const std::string& msg, const std::string& windowTitle = "Warning!");
-
-	enum class FileDialogMode
-	{
-		Open,
-		Save
-	};
-
-	[[nodiscard]] bool FileDialog(FileDialogMode mode, const std::string& filters, std::string& output);
+	void FatalError(const std::string& text);
+	
+	[[nodiscard]] bool FileOpenDialog(std::string& path, const std::string& filters);
+	[[nodiscard]] bool FileSaveDialog(std::string& path, const std::string& filters);
 }

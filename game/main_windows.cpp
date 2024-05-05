@@ -23,9 +23,9 @@ bool EnterFullscreenMode(uint32_t modeIndex)
     DEVMODE fullscreenSettings = {};
     bool isChangeSuccessful;
     
-    std::vector<cyb::platform::VideoMode> modeList;
-    cyb::platform::GetVideoModesForDisplay(0, modeList);
-    cyb::platform::VideoMode& mode = modeList[modeIndex];
+    std::vector<cyb::VideoMode> modeList;
+    cyb::GetVideoModesForDisplay(modeList, 0);
+    cyb::VideoMode& mode = modeList[modeIndex];
 
     fullscreenSettings.dmSize = sizeof(fullscreenSettings);
     EnumDisplaySettings(NULL, 0, &fullscreenSettings);

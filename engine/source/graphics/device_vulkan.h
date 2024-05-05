@@ -216,7 +216,7 @@ namespace cyb::graphics
         GraphicsDevice_Vulkan();
         virtual ~GraphicsDevice_Vulkan();
 
-        bool CreateSwapChain(const SwapChainDesc* desc, platform::WindowType window, SwapChain* swapchain) const override;
+        bool CreateSwapChain(const SwapChainDesc* desc, WindowHandle window, SwapChain* swapchain) const override;
         bool CreateBuffer(const GPUBufferDesc* desc, const void* init_data, GPUBuffer* buffer) const override;
         bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const override;
         bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const override;

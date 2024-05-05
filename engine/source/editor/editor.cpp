@@ -46,7 +46,7 @@ namespace cyb::editor
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::BOUNDS;
     bool guizmo_world_mode = true;
     SceneGraphView scenegraph_view;
-    std::vector<platform::VideoMode> videoModeList;
+    std::vector<VideoMode> videoModeList;
 
     // fps counter data
     double deltatimes[30] = {};
@@ -815,7 +815,7 @@ namespace cyb::editor
 
                 ImGui::Separator();
                 if (ImGui::MenuItem("Exit", "ALT+F4"))
-                    platform::Exit(0);
+                    Exit(0);
                 ImGui::EndMenu();
             }
 
@@ -886,7 +886,7 @@ namespace cyb::editor
                 {
                     for (size_t i = 0; i < videoModeList.size(); i++)
                     {
-                        platform::VideoMode& mode = videoModeList[i];
+                        VideoMode& mode = videoModeList[i];
                         std::string str = fmt::format("{}x{} @ {}hz", mode.width, mode.height, mode.displayHz);
                         if (ImGui::MenuItem(str.c_str()))
                         {
@@ -1083,7 +1083,7 @@ namespace cyb::editor
 #endif
 
         // Grab available fullscreen resolutions
-        platform::GetVideoModesForDisplay(0, videoModeList);
+        GetVideoModesForDisplay(videoModeList, 0);
 
         initialized = true;
     }

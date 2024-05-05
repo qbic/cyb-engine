@@ -627,14 +627,14 @@ namespace cyb::graphics
     {
     protected:
         static const uint32_t BUFFERCOUNT = 2;
-        const bool VALIDATION_MODE_ENABLED = false;
+        const bool VALIDATION_MODE_ENABLED = true;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 
     public:
         virtual ~GraphicsDevice() = default;
 
-        virtual bool CreateSwapChain(const SwapChainDesc* desc, platform::WindowType window, SwapChain* swapchain) const = 0;
+        virtual bool CreateSwapChain(const SwapChainDesc* desc, WindowHandle window, SwapChain* swapchain) const = 0;
         virtual bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const = 0;
         virtual bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const = 0;
         virtual bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const = 0;

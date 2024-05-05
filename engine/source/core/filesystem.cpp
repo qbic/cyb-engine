@@ -67,7 +67,7 @@ namespace cyb::filesystem
     {
         std::thread([=] {
             std::string filename;
-            if (platform::FileDialog(platform::FileDialogMode::Open, filters, filename))
+            if (FileOpenDialog(filename, filters))
                 onSuccess(filename);
             }).detach();
     }
@@ -76,7 +76,7 @@ namespace cyb::filesystem
     {
         std::thread([=] {
             std::string filename;
-            if (platform::FileDialog(platform::FileDialogMode::Save, filters, filename))
+            if (FileSaveDialog(filename, filters))
                 onSuccess(filename);
             }).detach();
     }

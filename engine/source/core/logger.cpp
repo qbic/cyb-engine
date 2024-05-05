@@ -99,10 +99,7 @@ namespace cyb::logger
 
 #if CYB_ERRORS_ARE_FATAL
         if (severity == Level::Error)
-        {
-            platform::CreateMessageWindow(input, "CybEngine Error");
-            platform::Exit(1);
-        }
+            FatalError(input);
 #endif
     }
 }

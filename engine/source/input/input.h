@@ -67,7 +67,7 @@ namespace cyb::input
     void Initialize();
 
     // Call once per frame (before processing new input events)
-    void Update(platform::WindowType window);
+    void Update(WindowHandle window);
 
     [[nodiscard]] const KeyboardState& GetKeyboardState();
     [[nodiscard]] const MouseState& GetMouseState();

@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <algorithm>
 #include <fstream>
+#include <thread>
 #include "core/logger.h"
 #include "core/platform.h"
 #include "core/filesystem.h"

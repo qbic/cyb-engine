@@ -18,6 +18,7 @@ namespace cyb::eventsystem
 	{
 		std::shared_ptr<EventManager> manager;
 		int id = 0;
+		Handle handle;
 		std::function<void(uint64_t)> callback;
 
 		~EventInternal()
@@ -36,6 +37,7 @@ namespace cyb::eventsystem
 		handle.internal_state = eventinternal;
 		eventinternal->manager = manager;
 		eventinternal->id = id;
+		eventinternal->handle = handle;
 		eventinternal->callback = callback;
 
 		manager->locker.lock();

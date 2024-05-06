@@ -11,6 +11,7 @@ namespace cyb {
 		GetClientRect(window, &rect);
 		info.width = int(rect.right - rect.left);
 		info.height = int(rect.bottom - rect.top);
+		
 		return info;
 	}
 
@@ -42,7 +43,7 @@ namespace cyb {
 				break;
 
 			float aspect = (float)devmode.dmPelsWidth / (float)devmode.dmPelsHeight;
-			if (devmode.dmBitsPerPel != 32 ||
+			if (devmode.dmBitsPerPel < 16 ||
 				devmode.dmDisplayFrequency != systemDisplayHz ||
 				devmode.dmPelsHeight < 720 ||
 				devmode.dmDisplayFixedOutput != DMDFO_DEFAULT ||
@@ -52,7 +53,8 @@ namespace cyb {
 			VideoMode mode;
 			mode.width = devmode.dmPelsWidth;
 			mode.height = devmode.dmPelsHeight;
-			mode.displayHz = devmode.dmDisplayFrequency;
+			mode.bitsPerPixel = devmode.dmBitsPerPel;
+			mode.displayFrequency = devmode.dmDisplayFrequency;
 			if (std::find(modes.begin(), modes.end(), mode) == modes.end())
 				modes.push_back(mode);
 		}

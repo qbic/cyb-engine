@@ -20,16 +20,16 @@
 #include "editor/widgets.h"
 #include "editor/terrain_generator.h"
 
-namespace cyb::editor 
-{
-    // Pre-defined filters for open/save dialoge window
-    // Using string literals solves the issue of using '\0' in std::string and 
-    // keep the flixabilaty of creating long filter strings with simple +overloading
-    using namespace std::string_literals;
-    const std::string FILE_FILTER_ALL = "All Files (*.*)\0*.*\0"s;
-    const std::string FILE_FILTER_SCENE = "CybEngine Binary Scene Files (*.cbs)\0*.cbs\0"s;
-    const std::string FILE_FILTER_GLTF = "GLTF Files (*.gltf; *.glb)\0*.gltf;*.glb\0"s;
-    const std::string FILE_FILTER_IMPORT_MODEL = FILE_FILTER_GLTF + FILE_FILTER_SCENE + FILE_FILTER_ALL;
+using namespace std::string_literals;
+
+// filters are passed to FileDialog function as std::string, thus we 
+// need to use string literals to avoid them of being stripped
+#define FILE_FILTER_ALL             "All Files (*.*)\0*.*\0"s
+#define FILE_FILTER_SCENE           "CybEngine Binary Scene Files (*.cbs)\0*.cbs\0"s
+#define FILE_FILTER_GLTF            "GLTF Files (*.gltf; *.glb)\0*.gltf;*.glb\0"s
+#define FILE_FILTER_IMPORT_MODEL    FILE_FILTER_GLTF FILE_FILTER_SCENE FILE_FILTER_ALL
+
+namespace cyb::editor {
 
     bool initialized = false;
     bool vsync_enabled = true;      // FIXME: initial value has to be synced with SwapChainDesc::vsync
@@ -49,7 +49,7 @@ namespace cyb::editor
     std::vector<VideoMode> videoModeList;
 
     // fps counter data
-    double deltatimes[30] = {};
+    double deltatimes[100] = {};
     uint32_t fpsAgvCounter = 0;
     uint32_t avgFps = 0;
 
@@ -585,9 +585,11 @@ namespace cyb::editor
             ImGui::Text("GPU Frame: %.2fms", gpuFrame->second.time);
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8);
             ImGui::Indent();
-            for (auto& [entryID, entry] : profilerContext.entries)
+            for (auto& [entryID, entry] : profilerContext.entries) {
                 if (!entry.IsCPUEntry() && entryID != gpuFrame->first)
                     ImGui::Text("%s: %.2fms", entry.name.c_str(), entry.time);
+            }
+
             ImGui::Unindent();
             ImGui::PopStyleVar();
             ImGui::EndTable();
@@ -887,7 +889,7 @@ namespace cyb::editor
                     for (size_t i = 0; i < videoModeList.size(); i++)
                     {
                         VideoMode& mode = videoModeList[i];
-                        std::string str = fmt::format("{}x{} @ {}hz", mode.width, mode.height, mode.displayHz);
+                        std::string str = fmt::format("{}x{} {}bpp @ {}hz", mode.width, mode.height, mode.bitsPerPixel, mode.displayFrequency);
                         if (ImGui::MenuItem(str.c_str()))
                         {
                             eventsystem::FireEvent(eventsystem::Event_SetFullScreen, i);

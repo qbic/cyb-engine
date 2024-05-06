@@ -3,6 +3,8 @@
 #include "game.h"
 #include "resource.h"
 
+using namespace cyb;
+
 #define MAX_LOADSTRING 100
 
 WCHAR szTitle[MAX_LOADSTRING]; 
@@ -31,8 +33,8 @@ bool EnterFullscreenMode(uint32_t modeIndex)
     EnumDisplaySettings(NULL, 0, &fullscreenSettings);
     fullscreenSettings.dmPelsWidth = mode.width;
     fullscreenSettings.dmPelsHeight = mode.height;
-    fullscreenSettings.dmBitsPerPel = 32;
-    fullscreenSettings.dmDisplayFrequency = mode.displayHz;
+    fullscreenSettings.dmBitsPerPel = mode.bitsPerPixel;
+    fullscreenSettings.dmDisplayFrequency = mode.displayFrequency;
     fullscreenSettings.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL | DM_DISPLAYFREQUENCY;
 
     HWND hwnd = (HWND)application.GetWindow();
@@ -57,8 +59,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDS_TEXTLOG, szTextlogFile, MAX_LOADSTRING);
 
     // setup engine logger output modules
-    cyb::logger::RegisterOutputModule<cyb::logger::LogOutputModule_VisualStudio>();
-    cyb::logger::RegisterOutputModule<cyb::logger::OutputModule_File>(szTextlogFile);
+    logger::RegisterOutputModule<logger::LogOutputModule_VisualStudio>();
+    logger::RegisterOutputModule<logger::OutputModule_File>(szTextlogFile);
 
     BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     assert(dpiSuccess);
@@ -70,8 +72,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
         return FALSE;
     }
 
-    static auto setFullscreenEvent = cyb::eventsystem::Subscribe(cyb::eventsystem::Event_SetFullScreen, [](uint64_t mode)
-    {
+    eventsystem::Subscribe(eventsystem::Event_SetFullScreen, [](uint64_t mode) {
         EnterFullscreenMode(mode);
     });
 
@@ -178,7 +179,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_INPUT:
-        cyb::input::rawinput::ParseMessage((HRAWINPUT)lParam);
+        input::rawinput::ParseMessage((HRAWINPUT)lParam);
         break;
 
     default:

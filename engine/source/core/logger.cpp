@@ -1,13 +1,14 @@
-#include "core/platform.h"
-#include "core/spinlock.h"
-#include "core/logger.h"
 #include <sstream>
 #include <deque>
 #include <list>
 #include <typeinfo>
 #include <typeindex>
+#include <mutex>
 #include <stdio.h>
 #include <stdarg.h>
+#include "core/platform.h"
+#include "core/spinlock.h"
+#include "core/logger.h"
 
 namespace cyb::logger
 {

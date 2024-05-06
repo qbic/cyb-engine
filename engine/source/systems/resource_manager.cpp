@@ -1,3 +1,4 @@
+#include <mutex>
 #include "core/logger.h"
 #include "core/filesystem.h"
 #include "core/timer.h"

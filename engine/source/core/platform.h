@@ -1,23 +1,18 @@
 #pragma once
-#include <functional>
-#include <mutex>
 #include <string>
-#include <assert.h>
+#include <vector>
 #include "core/mathlib.h"
 #include "core/enum_flags.h"
 
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
-#endif // NOMINMAX
-#ifndef WIN32_LEAN_AND_MEAN
+#endif
 #define WIN32_LEAN_AND_MEAN
-#endif // WIN32_LEAN_AND_MEAN
-#include <SDKDDKVer.h>
-#include <windows.h>
+#include <Windows.h>
 #ifdef CYB_DEBUG_BUILD
 #define CYB_DEBUGBREAK() __debugbreak()
-#endif // CYB_DEBUG_BUILD
+#endif
 #endif // _WIN32
 
 #ifndef CYB_DEBUG_BUILD
@@ -34,7 +29,7 @@ namespace cyb {
 #ifdef _WIN32
 	using WindowHandle = HWND;
 #else
-	using WindowHandle = void* :
+	using WindowHandle = void*;
 #endif // _WIN32
 
 	struct WindowInfo {
@@ -46,18 +41,21 @@ namespace cyb {
 	struct VideoMode {
 		uint32_t width;
 		uint32_t height;
-		uint32_t displayHz;
+		uint32_t bitsPerPixel;
+		uint32_t displayFrequency;
 
-		[[nodiscard]] bool operator==(const VideoMode& other) const {
-			return other.width == width && other.height == height && other.displayHz == displayHz;
+		[[nodiscard]] bool operator==(const VideoMode& rhs) const {
+			return rhs.width == width && rhs.height == height && bitsPerPixel == rhs.bitsPerPixel && displayFrequency == rhs.displayFrequency;
 		}
 
-		[[nodiscard]] bool operator<(const VideoMode& x) const {
-			if (displayHz != x.displayHz)
-				return displayHz > x.displayHz;
-			if (width != x.width)
-				return width > x.width;
-			return height > x.height;
+		[[nodiscard]] bool operator<(const VideoMode& rhs) const {
+			if (bitsPerPixel != rhs.bitsPerPixel)
+				return bitsPerPixel > rhs.bitsPerPixel;
+			if (displayFrequency != rhs.displayFrequency)
+				return displayFrequency > rhs.displayFrequency;
+			if (width != rhs.width)
+				return width > rhs.width;
+			return height > rhs.height;
 		}
 	};
 

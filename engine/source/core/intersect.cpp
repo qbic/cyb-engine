@@ -4,8 +4,8 @@
 namespace cyb::spatial {
 
     AxisAlignedBox::AxisAlignedBox() {
-        m_min = XMVectorSet(FLT_MAX, FLT_MAX, FLT_MAX, 0.0f);
-        m_max = XMVectorSet(-FLT_MAX, -FLT_MAX, -FLT_MAX, 0.0f);
+        m_min = XMVectorZero();
+        m_max = XMVectorZero();
     }
 
     AxisAlignedBox::AxisAlignedBox(const XMVECTOR& min, const XMVECTOR& max) :
@@ -16,6 +16,11 @@ namespace cyb::spatial {
     AxisAlignedBox::AxisAlignedBox(const XMFLOAT3& min, const XMFLOAT3& max) {
         m_min = XMLoadFloat3(&min);
         m_max = XMLoadFloat3(&max);
+    }
+
+    void AxisAlignedBox::Invalidate() {
+        m_min = XMVectorReplicate(FLT_MAX);
+        m_max = -m_min;
     }
 
     void AxisAlignedBox::Set(const XMFLOAT3& boxMin, const XMFLOAT3& boxMax) {
@@ -36,6 +41,17 @@ namespace cyb::spatial {
         XMVECTOR R = XMVectorReplicate(radius);
         m_min = XMVectorSubtract(C, R);
         m_max = XMVectorAdd(C, R);
+    }
+
+    void AxisAlignedBox::GrowPoint(const XMFLOAT3& point) {
+        XMVECTOR p = XMLoadFloat3(&point);
+        m_min = XMVectorMin(m_min, p);
+        m_max = XMVectorMax(m_max, p);
+    }
+
+    void AxisAlignedBox::GrowAABB(const AxisAlignedBox& box) {
+        m_max = XMVectorMax(m_max, box.m_max);
+        m_min = XMVectorMin(m_min, box.m_min);
     }
 
     const XMVECTOR AxisAlignedBox::GetCenter() const {
@@ -88,7 +104,7 @@ namespace cyb::spatial {
         s.Serialize(min);
         s.Serialize(max);
 
-        // update local data if are reading
+        // update local data if we are reading
         if (s.IsReading())
             Set(min, max);
     }

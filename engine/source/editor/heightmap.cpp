@@ -1,33 +1,27 @@
 #include "core/profiler.h"
 #include "editor/heightmap.h"
 
-namespace cyb::editor
-{
-    float ApplyStrata(float value, StrataOp op, float strength)
-    {
-        switch (op)
-        {
-        case StrataOp::SharpSub:
-        {
+namespace cyb::editor {
+
+    float ApplyStrata(float value, StrataOp op, float strength) {
+        switch (op) {
+        case StrataOp::SharpSub: {
             const float steps = -std::abs(std::sin(value * strength * math::PI) * (0.1f / strength * math::PI));
-            value = (value * 0.5f + steps * 0.5f);
+            value = (value + steps) * 0.5f;
         } break;
-        case StrataOp::SharpAdd:
-        {
+        case StrataOp::SharpAdd: {
             const float steps = std::abs(std::sin(value * strength * math::PI) * (0.1f / strength * math::PI));
-            value = (value * 0.5f + steps * 0.5f);
+            value = (value + steps) * 0.5f;
 
         } break;
-        case StrataOp::Quantize:
-        {
+        case StrataOp::Quantize: {
             const float strata = strength * 2.0f;
             value = int(value * strata) * 1.0f / strata;
         } break;
-        case StrataOp::Smooth:
-        {
+        case StrataOp::Smooth: {
             const float strata = strength * 2.0f;
             const float steps = std::sin(value * strata * math::PI) * (0.1f / strata * math::PI);
-            value = value * 0.5f + steps * 0.5f;
+            value = (value + steps) * 0.5f;
         } break;
         default:
             break;
@@ -60,8 +54,8 @@ namespace cyb::editor
 
     void HeightmapGenerator::UnlockMinMax()
     {
-        minValue = std::numeric_limits<float>::max();
-        maxValue = std::numeric_limits<float>::min();
+        minHeight = std::numeric_limits<float>::max();
+        maxHeight = std::numeric_limits<float>::min();
         lockedMinMax = false;
     }
 
@@ -100,13 +94,13 @@ namespace cyb::editor
 
         if (!lockedMinMax)
         {
-            minValue = math::Min(minValue, valueA);
-            maxValue = math::Max(maxValue, valueA);
+            minHeight = math::Min(minHeight, valueA);
+            maxHeight = math::Max(maxHeight, valueA);
         }
         else
         {
-            const float scale = 1.0f / (maxValue - minValue);
-            valueA = (valueA - minValue) * scale;
+            const float scale = 1.0f / (maxHeight - minHeight);
+            valueA = (valueA - minHeight) * scale;
         }
 
         return valueA;

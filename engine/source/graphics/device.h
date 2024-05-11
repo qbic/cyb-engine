@@ -9,23 +9,21 @@ namespace cyb::graphics
     struct Texture;
     struct Shader;
 
-    enum class BindFlags
-    {
+    enum class BindFlags {
         None = 0,
-        VertexBufferBit = (1 << 0),
-        IndexBufferBit = (1 << 1),
-        ConstantBufferBit = (1 << 2),
-        RenderTargetBit = (1 << 3),
-        DepthStencilBit = (1 << 4),
-        ShaderResourceBit = (1 << 5)
+        VertexBufferBit = BIT(0),
+        IndexBufferBit = BIT(1),
+        ConstantBufferBit = BIT(2),
+        RenderTargetBit = BIT(3),
+        DepthStencilBit = BIT(4),
+        ShaderResourceBit = BIT(5)
     };
     CYB_ENABLE_BITMASK_OPERATORS(BindFlags);
 
-    enum class ResourceMiscFlag
-    {
+    enum class ResourceMiscFlag {
         None = 0,
-        BufferRawBit = (1 << 0),
-        BufferStructuredBit = (1 << 1),
+        BufferRawBit = BIT(0),
+        BufferStructuredBit = BIT(1),
     };
     CYB_ENABLE_BITMASK_OPERATORS(ResourceMiscFlag);
 
@@ -176,28 +174,27 @@ namespace cyb::graphics
         _Count
     };
 
-    enum class ResourceState
-    {
+    enum class ResourceState {
         // Common resource states:
         Undefined = 0,                      // Invalid state (doesen't preserve contents)
-        ShaderResourceBit = 1 << 0,         // Shader resource, read only
-        ShaderResourceComputeBit = 1 << 1,  // Shader resource, read only, non-pixel shader
-        UnorderedAccessBit = 1 << 2,        // Shader resource, write enabled
-        CopySrcBit = 1 << 3,                // Copy from
-        CopyDstBit = 1 << 4,                // Copy to
+        ShaderResourceBit = BIT(0),         // Shader resource, read only
+        ShaderResourceComputeBit = BIT(1),  // Shader resource, read only, non-pixel shader
+        UnorderedAccessBit = BIT(2),        // Shader resource, write enabled
+        CopySrcBit = BIT(3),                // Copy from
+        CopyDstBit = BIT(4),                // Copy to
 
         // Texture specific resource states:
-        RenderTargetBit = 1 << 5,	        // Render target, write enabled
-        DepthStencilBit = 1 << 6,	        // Depth stencil, write enabled
-        DepthStencil_ReadOnlyBit = 1 << 7,  // Depth stencil, read only
+        RenderTargetBit = BIT(10),	        // Render target, write enabled
+        DepthStencilBit = BIT(11),	        // Depth stencil, write enabled
+        DepthStencil_ReadOnlyBit = BIT(12),  // Depth stencil, read only
 
         // GPUBuffer specific resource states:
-        VertexBufferBit = 1 << 9,           // Vertex buffer, read only
-        IndexBufferBit = 1 << 10,           // Index buffer, read only
-        ConstantBufferBit = 1 << 11,        // Constant buffer, read only
-        IndirectArgumentBit = 1 << 12,      // Argument buffer to DrawIndirect() or DispatchIndirect()
-        RaytracingAccelerationStructureBit = 1 << 13, // Acceleration structure storage or scratch
-        PredictionBit = 1 << 14             // Storage for predication comparison value
+        VertexBufferBit = BIT(20),          // Vertex buffer, read only
+        IndexBufferBit = BIT(21),           // Index buffer, read only
+        ConstantBufferBit = BIT(22),        // Constant buffer, read only
+        IndirectArgumentBit = BIT(23),      // Argument buffer to DrawIndirect() or DispatchIndirect()
+        RaytracingAccelerationStructureBit = BIT(24), // Acceleration structure storage or scratch
+        PredictionBit = BIT(25)             // Storage for predication comparison value
     };
     CYB_ENABLE_BITMASK_OPERATORS(ResourceState);
 
@@ -208,8 +205,7 @@ namespace cyb::graphics
         OcclusionBinary 	                // Depth test passed or not?
     };
 
-    struct GPUBufferDesc
-    {
+    struct GPUBufferDesc {
         uint64_t size = 0;
         MemoryAccess usage = MemoryAccess::Default;
         BindFlags bindFlags = BindFlags::None;

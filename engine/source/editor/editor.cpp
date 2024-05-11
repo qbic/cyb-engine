@@ -508,10 +508,9 @@ namespace cyb::editor {
                 mesh = scene.meshes.GetComponent(meshID);
                 InspectMeshComponent(mesh);
                 ImGui::Unindent();
-            }
-
-            if (mesh == nullptr)
+            } else {
                 mesh = scene.meshes.GetComponent(object->meshID);
+            }                
 
             if (ImGui::CollapsingHeader(ICON_FA_PALETTE " Materials *"))
             {

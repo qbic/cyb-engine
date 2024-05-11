@@ -13,11 +13,7 @@ using namespace DirectX::PackedVector;
 
 namespace cyb::math {
 
-    constexpr float PI = 3.14159265358979323846f;
-    constexpr float PI2 = 6.28318530717958647692f;
-    constexpr float PIDIV2 = 1.57079632679489661923f;
-    constexpr float PIDIV4 = 0.78539816339744830962f;
-
+    constexpr float PI = 3.14159265358979323846264338327950288f;
     constexpr XMFLOAT4X4 MATRIX_IDENTITY = XMFLOAT4X4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 
     template <typename T>
@@ -50,14 +46,6 @@ namespace cyb::math {
     template <typename Tfloat>
     [[nodiscard]] constexpr int Round(Tfloat f) noexcept {
         return f >= 0 ? (int)(f + 0.5f) : (int)(f - 0.5f);
-    }
-
-    [[nodiscard]] constexpr XMFLOAT3 Max(const XMFLOAT3& a, const XMFLOAT3& b) noexcept {
-        return XMFLOAT3(Max(a.x, b.x), Max(a.y, b.y), Max(a.z, b.z));
-    }
-
-    [[nodiscard]] constexpr XMFLOAT3 Min(const XMFLOAT3& a, const XMFLOAT3& b) noexcept {
-        return XMFLOAT3(Min(a.x, b.x), Min(a.y, b.y), Min(a.z, b.z));
     }
 
     [[nodiscard]] constexpr XMINT2 Min(const XMINT2& a, const XMINT2& b) noexcept {

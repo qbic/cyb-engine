@@ -2,6 +2,8 @@
 #include "core/logger.h"
 #include "systems/scene.h"
 
+using namespace cyb::graphics;
+
 namespace cyb::scene
 {
     void TransformComponent::SetDirty(bool value)
@@ -156,15 +158,13 @@ namespace cyb::scene
         {
             graphics::GPUBufferDesc desc;
             desc.size = uint32_t(sizeof(uint32_t) * indices.size());
-            desc.usage = graphics::MemoryAccess::Default;
             desc.bindFlags = graphics::BindFlags::IndexBufferBit;
 
             bool result = device->CreateBuffer(&desc, indices.data(), &index_buffer);
             assert(result == true);
         }
 
-        XMFLOAT3 _min = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
-        XMFLOAT3 _max = XMFLOAT3(FLT_MIN, FLT_MIN, FLT_MIN);
+        aabb.Invalidate();
 
         // vertex_buffer_pos - POSITION + NORMAL
         {
@@ -176,12 +176,10 @@ namespace cyb::scene
                 XMStoreFloat3(&nor, XMVector3Normalize(XMLoadFloat3(&nor)));
                 _vertices[i].Set(pos, nor);
 
-                _min = math::Min(_min, pos);
-                _max = math::Max(_max, pos);
+                aabb.GrowPoint(pos);
             }
 
             graphics::GPUBufferDesc desc;
-            desc.usage = graphics::MemoryAccess::Default;
             desc.size = uint32_t(sizeof(Vertex_Pos) * _vertices.size());
             desc.bindFlags = graphics::BindFlags::VertexBufferBit;
             bool result = device->CreateBuffer(&desc, _vertices.data(), &vertex_buffer_pos);
@@ -192,14 +190,11 @@ namespace cyb::scene
         if (!vertex_colors.empty())
         {
             graphics::GPUBufferDesc desc;
-            desc.usage = graphics::MemoryAccess::Default;
             desc.size = uint32_t(sizeof(uint32_t) * vertex_colors.size());
             desc.bindFlags = graphics::BindFlags::VertexBufferBit;
             bool result = device->CreateBuffer(&desc, vertex_colors.data(), &vertex_buffer_col);
             assert(result == true);
         }
-
-        aabb = spatial::AxisAlignedBox(_min, _max);
     }
 
     void MeshComponent::ComputeHardNormals()
@@ -682,23 +677,18 @@ namespace cyb::scene
         });
     }
 
-    void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
-    {
-        jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
-        {
+    void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx) {
+        jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args) {
             ecs::Entity entity = objects.GetEntity(args.jobIndex);
             ObjectComponent& object = objects[args.jobIndex];
-            spatial::AxisAlignedBox& aabb = aabb_objects[args.jobIndex];
 
-            aabb = spatial::AxisAlignedBox();
-            if (object.meshID != ecs::INVALID_ENTITY && meshes.Contains(object.meshID) && transforms.Contains(entity))
-            {
+            if (object.meshID != ecs::INVALID_ENTITY && meshes.Contains(object.meshID) && transforms.Contains(entity)) {
                 const MeshComponent* mesh = meshes.GetComponent(object.meshID);
-                if (mesh != nullptr)
-                {
+                if (mesh != nullptr) {
                     object.transformIndex = (int32_t)transforms.GetIndex(entity);
                     const TransformComponent* transform = transforms.GetComponent(entity);
 
+                    spatial::AxisAlignedBox& aabb = aabb_objects[args.jobIndex];
                     aabb = mesh->aabb.Transform(XMLoadFloat4x4(&transform->world));
                 }
             }

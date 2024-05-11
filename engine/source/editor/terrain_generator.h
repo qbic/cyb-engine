@@ -64,8 +64,7 @@ namespace cyb::editor
 
         // have a seperate preview generation jobsystem to be able 
         // to wait for previous render without stalling other jobsystems
-        jobsystem::Context previewGenContext;
-        int32_t previewResolution = 256;
+        jobsystem::Context m_updatePreviewCtx;
         XMINT2 previewOffset = XMINT2(0, 0);
         graphics::Texture previewTex;
 

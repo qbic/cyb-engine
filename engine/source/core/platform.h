@@ -19,6 +19,8 @@
 #define CYB_DEBUGBREAK()
 #endif
 
+#define BIT(n)			(1 << (n))
+
 namespace cyb {
 
 	template <typename T, std::size_t N>

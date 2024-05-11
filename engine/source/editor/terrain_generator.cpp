@@ -12,6 +12,9 @@
 #include "editor/icons_font_awesome6.h"
 #include "json.hpp"
 
+#define PREVIEW_RESOLUTION      128         // increase for higher quality, but slower to update preview
+#define PREVIEW_FREQ_SCALE      1024        // higher value shows more terrain, but might get noisy
+
 namespace cyb::editor
 {
     static const std::unordered_map<StrataOp, std::string> g_strataFuncCombo2 = {
@@ -190,7 +193,7 @@ namespace cyb::editor
             ImGui::EndMenuBar();
         }
 
-        const auto updatePreview = [this]() { CreatePreviewImage(); };
+        const auto updatePreviewCb = std::bind(&TerrainGenerator::CreatePreviewImage, this);
 
         if (ImGui::BeginTable("TerrainGenerator", 2, ImGuiTableFlags_SizingFixedFit))
         {
@@ -217,35 +220,35 @@ namespace cyb::editor
                     HeightmapGenerator::Input& input = heightmap.inputList[i];
 
                     const ui::ScopedID idGuard(&input);
-                    ui::ComboBox("NoiseType", input.noise.type, g_noiseTypeCombo, updatePreview);
+                    ui::ComboBox("NoiseType", input.noise.type, g_noiseTypeCombo, updatePreviewCb);
                     if (input.noise.type == noise::Type::Cellular)
                     {
-                        ui::ComboBox("CelReturn", input.noise.cellularReturnType, g_cellularReturnTypeCombo, updatePreview);
+                        ui::ComboBox("CelReturn", input.noise.cellularReturnType, g_cellularReturnTypeCombo, updatePreviewCb);
                     }
 
-                    ui::SliderInt("Seed", (int*)&input.noise.seed, updatePreview, 0, std::numeric_limits<int>::max() / 2);
-                    ui::SliderFloat("Frequency", &input.noise.frequency, updatePreview, 0.0f, 10.0f);
-                    ui::ComboBox("StrataOp", input.strataOp, g_strataFuncCombo2, updatePreview);
+                    ui::SliderInt("Seed", (int*)&input.noise.seed, updatePreviewCb, 0, std::numeric_limits<int>::max() / 2);
+                    ui::SliderFloat("Frequency", &input.noise.frequency, updatePreviewCb, 0.0f, 10.0f);
+                    ui::ComboBox("StrataOp", input.strataOp, g_strataFuncCombo2, updatePreviewCb);
                     if (input.strataOp != StrataOp::None)
                     {
-                        ui::SliderFloat("Strata", &input.strata, updatePreview, 1.0f, 15.0f);
+                        ui::SliderFloat("Strata", &input.strata, updatePreviewCb, 1.0f, 15.0f);
                     }
-                    ui::SliderFloat("Exponent", &input.exponent, updatePreview, 0.0f, 4.0f);
+                    ui::SliderFloat("Exponent", &input.exponent, updatePreviewCb, 0.0f, 4.0f);
 
                     if (ImGui::TreeNode("FBM"))
                     {
-                        ui::SliderInt("Octaves", (int*)&input.noise.octaves, updatePreview, 1, 8);
-                        ui::SliderFloat("Lacunarity", &input.noise.lacunarity, updatePreview, 0.0f, 4.0f);
-                        ui::SliderFloat("Gain", &input.noise.gain, updatePreview, 0.0f, 4.0f);
+                        ui::SliderInt("Octaves", (int*)&input.noise.octaves, updatePreviewCb, 1, 8);
+                        ui::SliderFloat("Lacunarity", &input.noise.lacunarity, updatePreviewCb, 0.0f, 4.0f);
+                        ui::SliderFloat("Gain", &input.noise.gain, updatePreviewCb, 0.0f, 4.0f);
                         ImGui::TreePop();
                     }
 
                     if (i + 1 < heightmap.inputList.size())
                     {
-                        ui::ComboBox("MixOp", input.mixOp, g_mixOpCombo, updatePreview);
+                        ui::ComboBox("MixOp", input.mixOp, g_mixOpCombo, updatePreviewCb);
                         if (input.mixOp == MixOp::Lerp)
                         {
-                            ui::SliderFloat("Mix", &input.mixing, updatePreview, 0.0f, 1.0f);
+                            ui::SliderFloat("Mix", &input.mixing, updatePreviewCb, 0.0f, 1.0f);
                         }
                     }
 
@@ -315,7 +318,7 @@ namespace cyb::editor
                     ImGuiIO& io = ImGui::GetIO();
                     previewOffset.x -= static_cast<int>(io.MouseDelta.x);
                     previewOffset.y -= static_cast<int>(io.MouseDelta.y);
-                    updatePreview();
+                    updatePreviewCb();
                 }
                 ImGui::PopItemWidth();
             }
@@ -324,35 +327,22 @@ namespace cyb::editor
         }
     }
 
-    void TerrainGenerator::CreatePreviewImage()
-    {
-        // generate preview texture aswell as generating some min
-        // max values in heightmap for psuedo normalization
-        jobsystem::Wait(previewGenContext);
-        jobsystem::Execute(previewGenContext, [&](jobsystem::JobArgs)
-        {
-            heightmap.UnlockMinMax();
+    // generate preview texture aswell as generating some min
+    // max values in heightmap generator for psuedo normalization
+    void TerrainGenerator::CreatePreviewImage() {
+        jobsystem::Wait(m_updatePreviewCtx);
+        jobsystem::Execute(m_updatePreviewCtx, [&](jobsystem::JobArgs) {
             std::vector<float> image;
-            image.resize(previewResolution * previewResolution);
-            for (int32_t i = 0; i < previewResolution; i++)
-            {
-                for (int32_t j = 0; j < previewResolution; j++)
-                {
-                    const float scale = (1.0f / (float)previewResolution) * 1024.0f;
-                    int sampleX = (int)std::round((float)(j + previewOffset.x) * scale);
-                    int sampleY = (int)std::round((float)(i + previewOffset.y) * scale);
 
-                    image[i * previewResolution + j] = heightmap.GetHeightAt(XMINT2(sampleX, sampleY));
-                }
-            }
+            heightmap.UnlockMinMax();
+            CreateHeightmapImage(image, PREVIEW_RESOLUTION, PREVIEW_RESOLUTION, heightmap, previewOffset.x, previewOffset.y, PREVIEW_FREQ_SCALE);
             heightmap.LockMinMax();
-            //CYB_TRACE("MIN={} MAX={}", heightmap.minValue, heightmap.maxValue);
+            //CYB_TRACE("MIN={} MAX={}", heightmap.minHeight, heightmap.maxHeight);
 
             // normalize preview image values to 0.0f - 1.0f range
-            const float scale = 1.0f / (heightmap.maxValue - heightmap.minValue);
-            for (uint32_t i = 0; i < (uint32_t)(previewResolution * previewResolution); ++i)
-            {
-                image[i] = (image[i] - heightmap.minValue) * scale;
+            const float invHeight = 1.0f / (heightmap.maxHeight - heightmap.minHeight);
+            for (uint32_t i = 0; i < PREVIEW_RESOLUTION * PREVIEW_RESOLUTION; ++i) {
+                image[i] = (image[i] - heightmap.minHeight) * invHeight;
             }
 
             // create a one channel float texture with all components
@@ -362,8 +352,8 @@ namespace cyb::editor
             desc.components.r = graphics::TextureComponentSwizzle::R;
             desc.components.g = graphics::TextureComponentSwizzle::R;
             desc.components.b = graphics::TextureComponentSwizzle::R;
-            desc.width = previewResolution;
-            desc.height = previewResolution;
+            desc.width = PREVIEW_RESOLUTION;
+            desc.height = PREVIEW_RESOLUTION;
             desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
 
             graphics::SubresourceData subresourceData;

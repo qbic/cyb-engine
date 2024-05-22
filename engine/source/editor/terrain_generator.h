@@ -29,7 +29,7 @@ namespace cyb::editor
 
     private:
         void SetDefaultHeightmapValues();
-        void CreatePreviewImage();
+        void UpdatePreview();
 
         void RemoveTerrainData();
         void GenerateTerrainMesh();
@@ -62,11 +62,11 @@ namespace cyb::editor
             scene::Scene scene;
         };
 
-        // have a seperate preview generation jobsystem to be able 
-        // to wait for previous render without stalling other jobsystems
+        // have a seperate preview generation jobsystem to be able to wait for
+        // previous preview update without stalling other jobsystems
         jobsystem::Context m_updatePreviewCtx;
-        XMINT2 previewOffset = XMINT2(0, 0);
-        graphics::Texture previewTex;
+        XMINT2 m_previewOffset = XMINT2(0, 0);
+        graphics::Texture m_preview;
 
         jobsystem::Context jobContext;
         HeightmapGenerator heightmap;

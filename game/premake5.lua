@@ -3,11 +3,10 @@ project "game"
 	language "C++"
 	cppdialect "C++17"
 
-	targetdir ("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
-	objdir ("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")
+	targetdir("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
+	objdir("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")
 
-	files
-	{
+	files {
 		"**.h",
 		"**.cpp"
 	}
@@ -15,8 +14,7 @@ project "game"
 	filter "system:windows"
 		files { "game.rc" }
 
-	includedirs
-	{
+	includedirs {
 		"%{wks.location}/engine/source",
 		"%{wks.location}/engine/third_party"
 	}

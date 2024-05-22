@@ -35,7 +35,7 @@
    *
    * - release mode:
    *
-   *   No error message is sent or generated.  The code is free from any
+   *   No error text is sent or generated.  The code is free from any
    *   debugging parts.
    *
    */
@@ -61,13 +61,13 @@
    * 3. `ft_component` is a string that holds the name of `FT_COMPONENT`.
    *
    * 4. The flag `ft_component_flag` prints the name of `FT_COMPONENT` along
-   *    with the actual log message if set to true.
+   *    with the actual log text if set to true.
    *
    * 5. The flag `ft_timestamp_flag` prints time along with the actual log
-   *    message if set to ture.
+   *    text if set to ture.
    *
    * 6. `ft_have_newline_char` is used to differentiate between a log
-   *    message with and without a trailing newline character.
+   *    text with and without a trailing newline character.
    *
    * 7. `ft_custom_trace_level` stores the custom trace level value, which
    *    is provided by the user at run-time.
@@ -509,7 +509,7 @@
       }
     }
 
-    /* Finally add the format string for the tracing message. */
+    /* Finally add the format string for the tracing text. */
     *bufp++ = '%';
     *bufp++ = 'c';
     *bufp   = '\0';

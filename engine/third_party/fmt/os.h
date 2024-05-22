@@ -142,19 +142,19 @@ FMT_API std::system_error vwindows_error(int error_code, string_view format_str,
  of the form
 
  .. parsed-literal::
-   *<message>*: *<system-message>*
+   *<text>*: *<system-text>*
 
- where *<message>* is the formatted message and *<system-message>* is the
- system message corresponding to the error code.
+ where *<text>* is the formatted text and *<system-text>* is the
+ system text corresponding to the error code.
  *error_code* is a Windows error code as given by ``GetLastError``.
- If *error_code* is not a valid error code such as -1, the system message
+ If *error_code* is not a valid error code such as -1, the system text
  will look like "error -1".
 
  **Example**::
 
    // This throws a system_error with the description
    //   cannot open file 'madeup': The system cannot find the file specified.
-   // or similar (system message may vary).
+   // or similar (system text may vary).
    const char *filename = "madeup";
    LPOFSTRUCT of = LPOFSTRUCT();
    HFILE file = OpenFile(filename, &of, OF_READ);

@@ -52,12 +52,13 @@ namespace cyb::ui {
     bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags = 0);
     bool ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flags = 0);
     bool EditTransformComponent(const char* label, float component[3], scene::TransformComponent* transform);
+    
     void ComboBox(const char* label, uint32_t& value, const std::unordered_map<uint32_t, std::string>& combo, const std::function<void()>& onChange = nullptr);
 
-    template <typename T>
+    template <typename T,
+        typename std::enable_if<std::is_enum<T>{} ||
+        std::is_integral<std::underlying_type_t<T>>{}, bool>::type = true>
     void ComboBox(const char* label, T& value, const std::unordered_map<T, std::string>& combo, const std::function<void()>& onChange = nullptr) {
-        static_assert(std::is_enum_v<T>, "ComboBox only supports enum class types");
-        static_assert(std::is_integral_v<std::underlying_type<T>::type>, "Underlying type of std::unordered_map is not an integral.");
         ComboBox(label, (uint32_t&)value, reinterpret_cast<const std::unordered_map<uint32_t, std::string>&>(combo), onChange);
     }
 

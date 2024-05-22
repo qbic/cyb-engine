@@ -30,7 +30,7 @@
 #include "zutil.h"      /* for Z_U4, Z_U8, z_crc_t, and FAR definitions */
 
  /*
-  A CRC of a message is computed on N braids of words in the message, where
+  A CRC of a text is computed on N braids of words in the text, where
   each word consists of W bytes (4 or 8). If N is 3, for example, then three
   running sparse CRCs are calculated respectively on each braid, at these
   indices in the array of words: 0, 3, 6, ..., 1, 4, 7, ..., and 2, 5, 8, ...

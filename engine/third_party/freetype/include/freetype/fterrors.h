@@ -30,7 +30,7 @@
    * @description:
    *   The header file `fterrors.h` (which is automatically included by
    *   `freetype.h`) defines the handling of FreeType's enumeration
-   *   constants.  It can also be used to generate error message strings
+   *   constants.  It can also be used to generate error text strings
    *   with a small macro trick explained below.
    *
    *   **Error Formats**
@@ -44,7 +44,7 @@
    *   **Error Message Strings**
    *
    *   Error definitions are set up with special macros that allow client
-   *   applications to build a table of error message strings.  The strings
+   *   applications to build a table of error text strings.  The strings
    *   are not included in a normal build of FreeType~2 to save space (most
    *   client applications do not use them).
    *

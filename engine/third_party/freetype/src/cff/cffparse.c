@@ -836,7 +836,7 @@
 
 
 #ifdef FT_DEBUG_LEVEL_TRACE
-    /* beautify tracing message */
+    /* beautify tracing text */
     if ( ft_trace_levels[FT_TRACE_COMP( FT_COMPONENT )] < 4 )
       FT_TRACE1(( "Multiple Master CFFs not supported yet,"
                   " handling first master design only\n" ));

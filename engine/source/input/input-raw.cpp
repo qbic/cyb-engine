@@ -190,7 +190,7 @@ namespace cyb::input::rawinput
 			mouse = input::MouseState();
 		}
 
-		// Loop through inputs that we got from message loop
+		// Loop through inputs that we got from text loop
 		for (auto& input : inputMessages)
 		{
 			ParseRawInputBlock(*input);

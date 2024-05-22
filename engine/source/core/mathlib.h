@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <type_traits>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
 #include <DirectXCollision.h>
@@ -38,13 +39,13 @@ namespace cyb::math {
         return a < b ? a : b;
     }
 
-    template <typename Tfloat>
-    [[nodiscard]] constexpr int Floor(Tfloat f) noexcept {
+    template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+    [[nodiscard]] constexpr int Floor(T f) noexcept {
         return f >= 0 ? (int)f : (int)f - 1; 
     }
 
-    template <typename Tfloat>
-    [[nodiscard]] constexpr int Round(Tfloat f) noexcept {
+    template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+    [[nodiscard]] constexpr int Round(T f) noexcept {
         return f >= 0 ? (int)(f + 0.5f) : (int)(f - 0.5f);
     }
 
@@ -68,24 +69,16 @@ namespace cyb::math {
         return Min(Max(x, 0.0f), 1.0f);
     }
 
-    [[nodiscard]] constexpr uint32_t GetNextPowerOfTwo(uint32_t x) noexcept {
+    template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+    [[nodiscard]] constexpr T GetNextPowerOfTwo(T x) noexcept {
         --x;
         x |= x >> 1;
         x |= x >> 2;
         x |= x >> 4;
         x |= x >> 8;
         x |= x >> 16;
-        return ++x;
-    }
-
-    [[nodiscard]] constexpr uint64_t GetNextPowerOfTwo(uint64_t x) noexcept {
-        --x;
-        x |= x >> 1;
-        x |= x >> 2;
-        x |= x >> 4;
-        x |= x >> 8;
-        x |= x >> 16;
-        x |= x >> 32u;
+        if constexpr (sizeof(x) == 8)
+            x |= x >> 32u;
         return ++x;
     }
 
@@ -97,7 +90,8 @@ namespace cyb::math {
         return num + (divisor - bits);
     }
 
-    [[nodiscard]] constexpr float Lerp(float a, float b, float t) noexcept {
+    template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+    [[nodiscard]] constexpr T Lerp(const T a, const T b, const T t) noexcept {
         return a + (b - a) * t;
     }
 

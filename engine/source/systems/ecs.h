@@ -122,7 +122,7 @@ namespace cyb::ecs
         // ecs::INVALID_ENTITY is not allowed!
         // only one of this component type per entity is allowed!
         template <typename... Args>
-        T& Create(Entity entity, [[maybe_unused]] Args&&... args)
+        T& Create(Entity entity, Args&&... args)
         {
             assert(entity != INVALID_ENTITY);
             assert(lookup.find(entity) == lookup.end());

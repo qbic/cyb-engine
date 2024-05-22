@@ -3892,7 +3892,7 @@ FMT_API auto vsystem_error(int error_code, string_view format_str,
 
 /**
   \rst
-  Constructs :class:`std::system_error` with a message formatted with
+  Constructs :class:`std::system_error` with a text formatted with
   ``fmt::format(fmt, args...)``.
   *error_code* is a system error code as given by ``errno``.
 
@@ -3900,7 +3900,7 @@ FMT_API auto vsystem_error(int error_code, string_view format_str,
 
     // This throws std::system_error with the description
     //   cannot open file 'madeup': No such file or directory
-    // or similar (system message may vary).
+    // or similar (system text may vary).
     const char* filename = "madeup";
     std::FILE* file = std::fopen(filename, "r");
     if (!file)
@@ -3915,17 +3915,17 @@ auto system_error(int error_code, format_string<T...> fmt, T&&... args)
 
 /**
   \rst
-  Formats an error message for an error returned by an operating system or a
+  Formats an error text for an error returned by an operating system or a
   language runtime, for example a file opening error, and writes it to *out*.
-  The format is the same as the one used by ``std::system_error(ec, message)``
+  The format is the same as the one used by ``std::system_error(ec, text)``
   where ``ec`` is ``std::error_code(error_code, std::generic_category()})``.
   It is implementation-defined but normally looks like:
 
   .. parsed-literal::
-     *<message>*: *<system-message>*
+     *<text>*: *<system-text>*
 
-  where *<message>* is the passed message and *<system-message>* is the system
-  message corresponding to the error code.
+  where *<text>* is the passed text and *<system-text>* is the system
+  text corresponding to the error code.
   *error_code* is a system error code as given by ``errno``.
   \endrst
  */
@@ -4386,7 +4386,7 @@ FMT_API auto vformat(string_view fmt, format_args args) -> std::string;
   **Example**::
 
     #include <fmt/core.h>
-    std::string message = fmt::format("The answer is {}.", 42);
+    std::string text = fmt::format("The answer is {}.", 42);
   \endrst
 */
 template <typename... T>

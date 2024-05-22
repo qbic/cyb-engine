@@ -2181,14 +2181,14 @@ JSON_HEDLEY_DIAGNOSTIC_POP
       JSON_HEDLEY_INTEL_VERSION_CHECK(13,0,0) || \
       defined(_Static_assert) \
     )
-#  define JSON_HEDLEY_STATIC_ASSERT(expr, message) _Static_assert(expr, message)
+#  define JSON_HEDLEY_STATIC_ASSERT(expr, text) _Static_assert(expr, text)
 #elif \
   (defined(__cplusplus) && (__cplusplus >= 201103L)) || \
   JSON_HEDLEY_MSVC_VERSION_CHECK(16,0,0) || \
   JSON_HEDLEY_INTEL_CL_VERSION_CHECK(2021,1,0)
 #  define JSON_HEDLEY_STATIC_ASSERT(expr, message) JSON_HEDLEY_DIAGNOSTIC_DISABLE_CPP98_COMPAT_WRAP_(static_assert(expr, message))
 #else
-#  define JSON_HEDLEY_STATIC_ASSERT(expr, message)
+#  define JSON_HEDLEY_STATIC_ASSERT(expr, text)
 #endif
 
 #if defined(JSON_HEDLEY_NULL)
@@ -2215,18 +2215,18 @@ JSON_HEDLEY_DIAGNOSTIC_POP
 #  define JSON_HEDLEY_MESSAGE(msg) \
     JSON_HEDLEY_DIAGNOSTIC_PUSH \
     JSON_HEDLEY_DIAGNOSTIC_DISABLE_UNKNOWN_PRAGMAS \
-    JSON_HEDLEY_PRAGMA(message msg) \
+    JSON_HEDLEY_PRAGMA(text msg) \
     JSON_HEDLEY_DIAGNOSTIC_POP
 #elif \
   JSON_HEDLEY_GCC_VERSION_CHECK(4,4,0) || \
   JSON_HEDLEY_INTEL_VERSION_CHECK(13,0,0)
-#  define JSON_HEDLEY_MESSAGE(msg) JSON_HEDLEY_PRAGMA(message msg)
+#  define JSON_HEDLEY_MESSAGE(msg) JSON_HEDLEY_PRAGMA(text msg)
 #elif JSON_HEDLEY_CRAY_VERSION_CHECK(5,0,0)
-#  define JSON_HEDLEY_MESSAGE(msg) JSON_HEDLEY_PRAGMA(_CRI message msg)
+#  define JSON_HEDLEY_MESSAGE(msg) JSON_HEDLEY_PRAGMA(_CRI text msg)
 #elif JSON_HEDLEY_IAR_VERSION_CHECK(8,0,0)
-#  define JSON_HEDLEY_MESSAGE(msg) JSON_HEDLEY_PRAGMA(message(msg))
+#  define JSON_HEDLEY_MESSAGE(msg) JSON_HEDLEY_PRAGMA(text(msg))
 #elif JSON_HEDLEY_PELLES_VERSION_CHECK(2,0,0)
-#  define JSON_HEDLEY_MESSAGE(msg) JSON_HEDLEY_PRAGMA(message(msg))
+#  define JSON_HEDLEY_MESSAGE(msg) JSON_HEDLEY_PRAGMA(text(msg))
 #else
 #  define JSON_HEDLEY_MESSAGE(msg)
 #endif
@@ -7509,7 +7509,7 @@ class lexer : public lexer_base<BasicJsonType>
 
     Adds the current byte and, for each passed range, reads a new byte and
     checks if it is inside the range. If a violation was detected, set up an
-    error message and return false. Otherwise, return true.
+    error text and return false. Otherwise, return true.
 
     @param[in] ranges  list of integers; interpreted as list of pairs of
                        inclusive lower and upper bound, respectively
@@ -8773,7 +8773,7 @@ scan_number_done:
         return result;
     }
 
-    /// return syntax error message
+    /// return syntax error text
     JSON_HEDLEY_RETURNS_NON_NULL
     constexpr const char* get_error_message() const noexcept
     {
@@ -11985,9 +11985,9 @@ class binary_reader
 
     /*!
     @param[in] format   the current format
-    @param[in] detail   a detailed error message
+    @param[in] detail   a detailed error text
     @param[in] context  further context information
-    @return a message string to use in the parse_error exceptions
+    @return a text string to use in the parse_error exceptions
     */
     std::string exception_message(const input_format_t format,
                                   const std::string& detail,
@@ -12438,7 +12438,7 @@ class parser
 
                     case token_type::parse_error:
                     {
-                        // using "uninitialized" to avoid "expected" message
+                        // using "uninitialized" to avoid "expected" text
                         return sax->parse_error(m_lexer.get_position(),
                                                 m_lexer.get_token_string(),
                                                 parse_error::create(101, m_lexer.get_position(), exception_message(token_type::uninitialized, "value"), nullptr));
@@ -24071,7 +24071,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                 // find value
                 auto it = val.m_data.m_value.object->find(member);
 
-                // context-sensitive error message
+                // context-sensitive error text
                 const auto error_msg = (op == "op") ? "operation" : detail::concat("operation '", op, '\'');
 
                 // check if desired value is present

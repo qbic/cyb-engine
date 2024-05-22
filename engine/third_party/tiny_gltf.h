@@ -1288,7 +1288,7 @@ class TinyGLTF {
 
   ///
   /// Loads glTF ASCII asset from a file.
-  /// Set warning message to `warn` for example it fails to load asserts.
+  /// Set warning text to `warn` for example it fails to load asserts.
   /// Returns false and set error string to `err` if there's an error.
   ///
   bool LoadASCIIFromFile(Model *model, std::string *err, std::string *warn,
@@ -1298,7 +1298,7 @@ class TinyGLTF {
   ///
   /// Loads glTF ASCII asset from string(memory).
   /// `length` = strlen(str);
-  /// Set warning message to `warn` for example it fails to load asserts.
+  /// Set warning text to `warn` for example it fails to load asserts.
   /// Returns false and set error string to `err` if there's an error.
   ///
   bool LoadASCIIFromString(Model *model, std::string *err, std::string *warn,
@@ -1308,7 +1308,7 @@ class TinyGLTF {
 
   ///
   /// Loads glTF binary asset from a file.
-  /// Set warning message to `warn` for example it fails to load asserts.
+  /// Set warning text to `warn` for example it fails to load asserts.
   /// Returns false and set error string to `err` if there's an error.
   ///
   bool LoadBinaryFromFile(Model *model, std::string *err, std::string *warn,
@@ -1318,7 +1318,7 @@ class TinyGLTF {
   ///
   /// Loads glTF binary asset from memory.
   /// `length` = strlen(str);
-  /// Set warning message to `warn` for example it fails to load asserts.
+  /// Set warning text to `warn` for example it fails to load asserts.
   /// Returns false and set error string to `err` if there's an error.
   ///
   bool LoadBinaryFromMemory(Model *model, std::string *err, std::string *warn,
@@ -1387,7 +1387,7 @@ class TinyGLTF {
   ///
   /// Loads glTF asset from string(memory).
   /// `length` = strlen(str);
-  /// Set warning message to `warn` for example it fails to load asserts
+  /// Set warning text to `warn` for example it fails to load asserts
   /// Returns false and set error string to `err` if there's an error.
   ///
   bool LoadFromString(Model *model, std::string *err, std::string *warn,

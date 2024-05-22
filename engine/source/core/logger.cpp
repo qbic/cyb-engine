@@ -1,79 +1,57 @@
-#include <sstream>
 #include <deque>
-#include <list>
-#include <typeinfo>
-#include <typeindex>
 #include <mutex>
-#include <stdio.h>
-#include <stdarg.h>
-#include "core/platform.h"
-#include "core/spinlock.h"
 #include "core/logger.h"
+#include "core/spinlock.h"
 
-namespace cyb::logger
-{
+namespace cyb::logger {
+
     std::vector<std::unique_ptr<OutputModule>> outputModules;
     std::deque<Message> logHistory;
     SpinLock postLock;
     Level logLevelThreshold = Level::Trace;
 
     OutputModule_StringBuffer::OutputModule_StringBuffer(std::string* output) :
-        stringBuffer(output)
-    {
+        m_stringBuffer(output) {
     }
 
-    void OutputModule_StringBuffer::Write(const logger::Message& log) 
-    {
-        logStream << log.message;
-        if (stringBuffer != nullptr)
-        {
-            // FIXME: This has bad performance on larger streams
-            *stringBuffer = logStream.str();
-        }
+    // FIXME: we're copying the whole stringstream on each write, this will
+    //        lead to some bad performace when the stringstream gets big
+    void OutputModule_StringBuffer::Write(const logger::Message& log) {
+        m_logStream << log.text;
+        if (m_stringBuffer != nullptr)
+            *m_stringBuffer = m_logStream.str();
     }
 
     OutputModule_File::OutputModule_File(const std::filesystem::path& filename, bool timestampMessages) :
-        filename(filename),
-        timestampMessages(timestampMessages)
-    {
-        output.open(filename);
+        m_filename(filename),
+        m_useTimestamp(timestampMessages) {
+        m_output.open(filename);
     }
 
-    void OutputModule_File::Write(const logger::Message& log)
-    {
-        if (output.is_open())
-        {
-            if (timestampMessages)
-            {
-                const auto time = std::chrono::system_clock::to_time_t(log.timestamp);
-                output << std::put_time(std::localtime(&time), "%Y-%m-%d %X ");
+    void OutputModule_File::Write(const logger::Message& log) {
+        if (!m_output.is_open())
+            return;
+
+        if (m_useTimestamp) {
+            const auto time = std::chrono::system_clock::to_time_t(log.timestamp);
+            m_output << std::put_time(std::localtime(&time), "%Y-%m-%d %X ");
+        }
+
+        m_output << log.text;
+    }
+
+    namespace detail {
+        void RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule) {
+            for (const auto& it : logHistory) {
+                outputModule->Write(it);
             }
 
-            output << log.message;
+            outputModules.push_back(std::move(outputModule));
         }
     }
 
-    void priv::RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule)
-    {
-        for (const auto& it : logHistory)
-        {
-            outputModule->Write(it);
-        }
-
-        outputModules.push_back(std::move(outputModule));
-    }
-
-    // Check if the log level is under the global log level threshold.
-    inline bool IsUnderLevelThreshold(Level level)
-    {
-        return static_cast<std::underlying_type<Level>::type>(level) <
-            static_cast<std::underlying_type<Level>::type>(logLevelThreshold);
-    }
-
-    inline std::string GetLogLevelPrefix(Level severity)
-    {
-        switch (severity)
-        {
+    [[nodiscard]] inline std::string GetLogLevelPrefix(Level severity) {
+        switch (severity) {
         case Level::Trace:   return "[TRACE]";
         case Level::Info:    return "[INFO]";
         case Level::Warning: return "[WARNING]";
@@ -83,24 +61,18 @@ namespace cyb::logger
         return {};
     }
 
-    void Post(Level severity, const std::string& input)
-    {
-        if (IsUnderLevelThreshold(severity))
+    void Post(Level severity, const std::string& text) {
+        if (severity < logLevelThreshold)
             return;
+
         std::scoped_lock<SpinLock> lock(postLock);
-        
         Message log;
-        log.message = fmt::format("{0} {1}\n", GetLogLevelPrefix(severity), input);
+        log.text = fmt::format("{0} {1}\n", GetLogLevelPrefix(severity), text);
         log.timestamp = std::chrono::system_clock::now();
         log.severity = severity;
         logHistory.push_back(log);
 
         for (auto& output : outputModules)
             output->Write(log);
-
-#if CYB_ERRORS_ARE_FATAL
-        if (severity == Level::Error)
-            FatalError(input);
-#endif
     }
 }

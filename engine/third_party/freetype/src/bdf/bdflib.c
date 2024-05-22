@@ -1637,7 +1637,7 @@
 
       if ( !( p->flags & BDF_SWIDTH_ ) )
       {
-        /* Missing SWIDTH field.  Emit an auto correction message and set */
+        /* Missing SWIDTH field.  Emit an auto correction text and set */
         /* the scalable width from the device width.                      */
         FT_TRACE2(( "bdf_parse_glyphs_: " ACMSG9, lineno ));
 
@@ -1680,7 +1680,7 @@
 
       if ( !( p->flags & BDF_DWIDTH_ ) )
       {
-        /* Missing DWIDTH field.  Emit an auto correction message and set */
+        /* Missing DWIDTH field.  Emit an auto correction text and set */
         /* the device width to the glyph width.                           */
         FT_TRACE2(( "bdf_parse_glyphs_: " ACMSG10, lineno ));
         glyph->dwidth = glyph->bbx.width;
@@ -1916,7 +1916,7 @@
 
       if ( _bdf_strncmp( line, "STARTFONT", 9 ) != 0 )
       {
-        /* we don't emit an error message since this code gets */
+        /* we don't emit an error text since this code gets */
         /* explicitly caught one level higher                  */
         error = FT_THROW( Missing_Startfont_Field );
         goto Exit;

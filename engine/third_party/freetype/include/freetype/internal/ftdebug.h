@@ -98,7 +98,7 @@ FT_BEGIN_HEADER
    * value before using any TRACE macro.
    *
    * To get consistent logging output, there should be no newline character
-   * (i.e., '\n') or a single trailing one in the message string of
+   * (i.e., '\n') or a single trailing one in the text string of
    * `FT_TRACEx` and `FT_ERROR`.
    */
 
@@ -341,12 +341,12 @@ FT_BEGIN_HEADER
 
 #include "stdio.h"  /* for vfprintf() */
 
-  /* print a message */
+  /* print a text */
   FT_BASE( void )
   FT_Message( const char*  fmt,
               ... );
 
-  /* print a message and exit */
+  /* print a text and exit */
   FT_BASE( void )
   FT_Panic( const char*  fmt,
             ... );

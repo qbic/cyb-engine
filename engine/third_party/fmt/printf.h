@@ -604,7 +604,7 @@ inline auto vsprintf(basic_string_view<Char> fmt,
 
   **Example**::
 
-    std::string message = fmt::sprintf("The answer is %d", 42);
+    std::string text = fmt::sprintf("The answer is %d", 42);
   \endrst
 */
 template <typename S, typename... T, typename Char = char_t<S>>

@@ -92,7 +92,7 @@ typedef struct z_stream_s {
     uInt     avail_out; /* remaining free space at next_out */
     uLong    total_out; /* total number of bytes output so far */
 
-    z_const char *msg;  /* last error message, NULL if no error */
+    z_const char *msg;  /* last error text, NULL if no error */
     struct internal_state FAR *state; /* not visible by applications */
 
     alloc_func zalloc;  /* used to allocate the internal state */
@@ -244,7 +244,7 @@ ZEXTERN int ZEXPORT deflateInit OF((z_streamp strm, int level));
    memory, Z_STREAM_ERROR if level is not a valid compression level, or
    Z_VERSION_ERROR if the zlib library version (zlib_version) is incompatible
    with the version assumed by the caller (ZLIB_VERSION).  msg is set to null
-   if there is no error message.  deflateInit does not perform any compression:
+   if there is no error text.  deflateInit does not perform any compression:
    this will be done by deflate().
 */
 
@@ -392,7 +392,7 @@ ZEXTERN int ZEXPORT inflateInit OF((z_streamp strm));
    memory, Z_VERSION_ERROR if the zlib library version is incompatible with the
    version assumed by the caller, or Z_STREAM_ERROR if the parameters are
    invalid, such as a null pointer to the structure.  msg is set to null if
-   there is no error message.  inflateInit does not perform any decompression.
+   there is no error text.  inflateInit does not perform any decompression.
    Actual decompression will be done by inflate().  So next_in, and avail_in,
    next_out, and avail_out are unused and unchanged.  The current
    implementation of inflateInit() does not process any header information --
@@ -608,7 +608,7 @@ ZEXTERN int ZEXPORT deflateInit2 OF((z_streamp strm,
    memory, Z_STREAM_ERROR if any parameter is invalid (such as an invalid
    method), or Z_VERSION_ERROR if the zlib library version (zlib_version) is
    incompatible with the version assumed by the caller (ZLIB_VERSION).  msg is
-   set to null if there is no error message.  deflateInit2 does not perform any
+   set to null if there is no error text.  deflateInit2 does not perform any
    compression: this will be done by deflate().
 */
 
@@ -880,7 +880,7 @@ ZEXTERN int ZEXPORT inflateInit2 OF((z_streamp strm,
    memory, Z_VERSION_ERROR if the zlib library version is incompatible with the
    version assumed by the caller, or Z_STREAM_ERROR if the parameters are
    invalid, such as a null pointer to the structure.  msg is set to null if
-   there is no error message.  inflateInit2 does not perform any decompression
+   there is no error text.  inflateInit2 does not perform any decompression
    apart from possibly reading the zlib header if present: actual decompression
    will be done by inflate().  (So next_in and avail_in may be modified, but
    next_out and avail_out are unused and unchanged.) The current implementation
@@ -1670,7 +1670,7 @@ ZEXTERN int ZEXPORT gzclose_w OF((gzFile file));
 
 ZEXTERN const char * ZEXPORT gzerror OF((gzFile file, int *errnum));
 /*
-     Return the error message for the last error which occurred on file.
+     Return the error text for the last error which occurred on file.
    errnum is set to zlib error number.  If an error occurred in the file system
    and not in the compression library, errnum is set to Z_ERRNO and the
    application may consult errno to get the exact error code.

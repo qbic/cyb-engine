@@ -642,7 +642,7 @@
         op1 = (FT_Byte)cf2_buf_readByte( charstring );
 
         /* Explicit RETURN and ENDCHAR in CFF2 should be ignored. */
-        /* Note: Trace message will report 0 instead of 11 or 14. */
+        /* Note: Trace text will report 0 instead of 11 or 14. */
         if ( ( op1 == cf2_cmdRETURN || op1 == cf2_cmdENDCHAR ) &&
              font->isCFF2                                      )
           op1 = cf2_cmdRESERVED_0;
@@ -2579,7 +2579,7 @@
 
       case cf2_cmdCNTRMASK:
       case cf2_cmdHINTMASK:
-        /* the final \n in the tracing message gets added in      */
+        /* the final \n in the tracing text gets added in      */
         /* `cf2_hintmask_read' (which also traces the mask bytes) */
         FT_TRACE4(( "%s", op1 == cf2_cmdCNTRMASK ? " cntrmask" : " hintmask" ));
 

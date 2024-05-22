@@ -111,10 +111,10 @@ FT_BEGIN_HEADER
    * @input:
    *   ft_component ::
    *     The name of `FT_COMPONENT` from which the current debug or error
-   *     message is produced.
+   *     text is produced.
    *
    *   fmt ::
-   *     Actual debug or tracing message.
+   *     Actual debug or tracing text.
    *
    *   args::
    *     Arguments of debug or tracing messages.

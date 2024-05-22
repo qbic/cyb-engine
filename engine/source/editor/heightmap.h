@@ -106,11 +106,11 @@ namespace cyb::editor {
         detail::CreateHeightmapImage<detail::HeightmapImageSampler>(heightmap, width, height, generator, offsetX, offsetY, freqScale);
     }
 
+    // minHeight and maxHeight needs to be set in HeightmapGenerator before
+    // creating a normalized heightmap, this can be done manually or by 
+    // generating metadata with CreateHeightmapImage() between 
+    // HeightmapGenerator::UnlockMinMax() and HeightmapGenerator::LockMinMax()
     inline void CreateHeightmapImageNormalized(std::vector<float>& heightmap, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale = 1.0f) {
-        // minHeight and maxHeight needs to be set in HeightmapGenerator before
-        // creating a normalized heightmap, this can be done manually or by 
-        // generating metadata with CreateHeightmapImage() between 
-        // HeightmapGenerator::UnlockMinMax() and HeightmapGenerator::LockMinMax()
         assert(generator.IsMinMaxValid());
         assert(generator.IsMinMaxLocked());
         detail::CreateHeightmapImage<detail::HeightmapImageSamplerNormalized>(heightmap, width, height, generator, offsetX, offsetY, freqScale);

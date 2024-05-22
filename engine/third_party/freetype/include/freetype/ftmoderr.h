@@ -79,7 +79,7 @@
    *
    *     Get base error and module error code, respectively.
    *
-   * It can also be used to create a module error message table easily with
+   * It can also be used to create a module error text table easily with
    * something like
    *
    * ```

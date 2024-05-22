@@ -196,7 +196,7 @@ typedef struct {
     int seek;               /* true if seek request pending */
         /* error information */
     int err;                /* error code */
-    char *msg;              /* error message */
+    char *msg;              /* error text */
         /* zlib inflate or deflate stream */
     z_stream strm;          /* stream structure in-place (not a pointer) */
 } gz_state;

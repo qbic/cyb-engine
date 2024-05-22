@@ -1,33 +1,31 @@
 
 project "engine"
 	kind "StaticLib"
-   	language "C++"
-   	cppdialect "C++17"
+	language "C++"
+	cppdialect "C++17"
 
-   	targetdir ("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
-	objdir ("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")
+	targetdir("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
+	objdir("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")
 
 	VULKAN_SDK = os.getenv("VULKAN_SDK")
 	
-   	files
-	{
-		-- Add cyb-engine source files
+	files {
+		-- cyb-engine source files
 		"source/**.h",
 		"source/**.cpp",
 
-		-- Add built-in shaders
+		-- built-in shaders
 		"shaders/*",
 
-		-- Add staticly linked third party libraries
+		-- staticly linked third party libraries
 		"third_party/*.h",
 		"third_party/*.hpp",
 		"third_party/*.cpp",
 		"third_party/*.c",
 		"third_party/fmt/*.h",
-   	}
+	}
 
-	includedirs
-	{
+	includedirs {
 		"source",
 		"%{VULKAN_SDK}/Include",
 		"%{wks.location}/engine/third_party",
@@ -35,8 +33,7 @@ project "engine"
 		"%{wks.location}/engine/third_party/freetype/include",
 	}
 
-	links
-	{
+	inks {
 		"imgui",
 		"freetype",
 		"comctl32.lib",		-- High DPI awareness interface
@@ -47,14 +44,14 @@ project "engine"
    
 	-- The debug version of shaderc compiles super slow, only use it over the release version
 	-- if debugging the shader compiler is really necessary
-   	filter "configurations:Debug"
+	filter "configurations:Debug"
 		runtime "Debug"
 		symbols "On"
 		optimize "Off"		
 		links { "%{VULKAN_SDK}/Lib/shaderc_shared.lib" }
 		--links {"%{VULKAN_SDK}/Lib/shaderc_sharedd.lib" }
 
-   	filter "configurations:Release"
+	filter "configurations:Release"
 		runtime "Release"
 		optimize "On"
 		symbols "on"

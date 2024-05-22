@@ -1140,7 +1140,8 @@ namespace cyb::editor {
 
                         XMVECTOR disV = XMVector3LinePointDistance(pick_ray.GetOrigin(), pick_ray.GetOrigin() + pick_ray.GetDirection(), transform.GetPositionV());
                         float dis = XMVectorGetX(disV);
-                        if (dis > 0.01f && dis < math::Distance(XMLoadFloat3(&transform.GetPosition()), pick_ray.GetOrigin()) * 0.05f && dis < pick_result.distance) {
+                        const XMFLOAT3& pos = transform.GetPosition();
+                        if (dis > 0.01f && dis < math::Distance(XMLoadFloat3(&pos), pick_ray.GetOrigin()) * 0.05f && dis < pick_result.distance) {
                             pick_result = scene::PickResult();
                             pick_result.entity = entity;
                             pick_result.distance = dis;

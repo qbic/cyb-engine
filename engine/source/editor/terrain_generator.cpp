@@ -17,7 +17,7 @@
 
 namespace cyb::editor
 {
-    static const std::unordered_map<StrataOp, std::string> g_strataFuncCombo2 = {
+    static const std::unordered_map<StrataOp, std::string> g_strataFuncCombo = {
         { StrataOp::None,                       "None"     },
         { StrataOp::SharpSub,                   "SharpSub" },
         { StrataOp::SharpAdd,                   "SharpAdd" },
@@ -61,7 +61,7 @@ namespace cyb::editor
         };
 
         SetDefaultHeightmapValues();
-        CreatePreviewImage();
+        UpdatePreview();
     }
 
     void TerrainGenerator::SetDefaultHeightmapValues()
@@ -175,7 +175,7 @@ namespace cyb::editor
                         m_heightmapDesc.device2.strata = input2["strata"];
                         m_heightmapDesc.device2.blur = input2["blur"];
 #endif
-                        CreatePreviewImage();
+                        UpdatePreview();
                         ui::GetUndoManager().ClearHistory();
                         });
                 }
@@ -193,7 +193,7 @@ namespace cyb::editor
             ImGui::EndMenuBar();
         }
 
-        const auto updatePreviewCb = std::bind(&TerrainGenerator::CreatePreviewImage, this);
+        const auto updatePreviewCb = std::bind(&TerrainGenerator::UpdatePreview, this);
 
         if (ImGui::BeginTable("TerrainGenerator", 2, ImGuiTableFlags_SizingFixedFit))
         {
@@ -228,7 +228,7 @@ namespace cyb::editor
 
                     ui::SliderInt("Seed", (int*)&input.noise.seed, updatePreviewCb, 0, std::numeric_limits<int>::max() / 2);
                     ui::SliderFloat("Frequency", &input.noise.frequency, updatePreviewCb, 0.0f, 10.0f);
-                    ui::ComboBox("StrataOp", input.strataOp, g_strataFuncCombo2, updatePreviewCb);
+                    ui::ComboBox("StrataOp", input.strataOp, g_strataFuncCombo, updatePreviewCb);
                     if (input.strataOp != StrataOp::None)
                     {
                         ui::SliderFloat("Strata", &input.strata, updatePreviewCb, 1.0f, 15.0f);
@@ -259,7 +259,7 @@ namespace cyb::editor
             ImGui::Spacing();
             if (ui::GradientButton("ColorBand", &m_biomeColorBand))
             {
-                CreatePreviewImage();
+                UpdatePreview();
             }
 
             ImGui::EndChild();
@@ -268,7 +268,7 @@ namespace cyb::editor
             if (ImGui::Button("Set Default Params", ImVec2(-1, 0)))
             {
                 SetDefaultHeightmapValues();
-                CreatePreviewImage();
+                UpdatePreview();
             }
 
             if (ImGui::Button("Random seed", ImVec2(-1, 0)))
@@ -278,7 +278,7 @@ namespace cyb::editor
                     input.noise.seed = random::GetNumber<uint32_t>(0, std::numeric_limits<int>::max());
                 }
 
-                CreatePreviewImage();
+                UpdatePreview();
             }
 
             if (!jobsystem::IsBusy(jobContext))
@@ -299,7 +299,7 @@ namespace cyb::editor
 
             // in the second column, display a preview of the terrain as an image
             ImGui::TableNextColumn();
-            if (previewTex.IsValid())
+            if (m_preview.IsValid())
             {
                 ImGui::PushItemWidth(300);
                 const ImVec2 available = ImGui::GetContentRegionAvail();
@@ -309,15 +309,15 @@ namespace cyb::editor
 
                 ImGui::InvisibleButton("##HeightPreviewImage", ImVec2(size, size));
                 ImDrawList* drawList = ImGui::GetWindowDrawList();
-                drawList->AddImage((ImTextureID)&previewTex, p0, p1);
-                const std::string info = fmt::format("offset ({}, {}), use left mouse button to drag", previewOffset.x, previewOffset.y);
+                drawList->AddImage((ImTextureID)&m_preview, p0, p1);
+                const std::string info = fmt::format("offset ({}, {}), use left mouse button to drag", m_previewOffset.x, m_previewOffset.y);
                 drawList->AddText(ImVec2(p0.x + 8, p0.y + 8), 0xFFFFFFFF, info.c_str());
 
                 if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
                 {
                     ImGuiIO& io = ImGui::GetIO();
-                    previewOffset.x -= static_cast<int>(io.MouseDelta.x);
-                    previewOffset.y -= static_cast<int>(io.MouseDelta.y);
+                    m_previewOffset.x -= static_cast<int>(io.MouseDelta.x);
+                    m_previewOffset.y -= static_cast<int>(io.MouseDelta.y);
                     updatePreviewCb();
                 }
                 ImGui::PopItemWidth();
@@ -329,13 +329,13 @@ namespace cyb::editor
 
     // generate preview texture aswell as generating some min
     // max values in heightmap generator for psuedo normalization
-    void TerrainGenerator::CreatePreviewImage() {
+    void TerrainGenerator::UpdatePreview() {
         jobsystem::Wait(m_updatePreviewCtx);
         jobsystem::Execute(m_updatePreviewCtx, [&](jobsystem::JobArgs) {
             std::vector<float> image;
 
             heightmap.UnlockMinMax();
-            CreateHeightmapImage(image, PREVIEW_RESOLUTION, PREVIEW_RESOLUTION, heightmap, previewOffset.x, previewOffset.y, PREVIEW_FREQ_SCALE);
+            CreateHeightmapImage(image, PREVIEW_RESOLUTION, PREVIEW_RESOLUTION, heightmap, m_previewOffset.x, m_previewOffset.y, PREVIEW_FREQ_SCALE);
             heightmap.LockMinMax();
             //CYB_TRACE("MIN={} MAX={}", heightmap.minHeight, heightmap.maxHeight);
 
@@ -360,7 +360,7 @@ namespace cyb::editor
             subresourceData.mem = image.data();
             subresourceData.rowPitch = desc.width * graphics::GetFormatStride(graphics::Format::R32_Float);
 
-            graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &previewTex);
+            graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &m_preview);
         });
     }
 

@@ -718,23 +718,21 @@ namespace cyb::editor {
 
     // Clears the current scene and loads in a new from a selected file.
     // TODO: Add a dialog to prompt user about unsaved progress
-    void OpenDialog_Open()
-    {
+    void OpenDialog_Open() {
         filesystem::OpenDialog(FILE_FILTER_SCENE, [](std::string filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
                 Timer timer;
                 scene::Scene& scene = scene::GetScene();
-                std::vector<uint8_t> sceneFile;
-                if (filesystem::ReadFile(filename, sceneFile))
-                {
-                    Archive archive(sceneFile.data(), sceneFile.size());
-                    Serializer ser(archive);
-                    scene.Clear();
-                    scene.Serialize(ser);
-                    CYB_TRACE("Loaded scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+                scene.Clear();
+
+                if (!SerializeFromFile(filename, scene)) {
+                    CYB_ERROR("Failed to serialize file: {}", filename);
+                    return;
                 }
-                });
+
+                CYB_TRACE("Loaded scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
             });
+        });
     }
 
     // Import a new model to the scene, once the loading is complete
@@ -763,7 +761,7 @@ namespace cyb::editor {
             Archive archive;
             Serializer ser(archive);
             scene::GetScene().Serialize(ser);
-            if (!filesystem::WriteFile(filename, archive.GetWriteData(), archive.GetSize()))
+            if (!filesystem::WriteFile(filename, archive.GetWriteData(), archive.Size()))
                 return;
 
             CYB_TRACE("Saved scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());

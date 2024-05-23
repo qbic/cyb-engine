@@ -596,23 +596,23 @@ namespace cyb::scene
     constexpr uint64_t SCENE_FILE_VERSION = 4;
     constexpr uint64_t SCENE_FILE_LEAST_SUPPORTED_VERSION = 4;
 
-    void Scene::Serialize(Serializer& ser)
-    {
+    void Scene::Serialize(Serializer& ser) {
         ecs::SceneSerializeContext context;
 
         context.archiveVersion = SCENE_FILE_VERSION;
         ser.Serialize(context.archiveVersion);
-        if (context.archiveVersion < SCENE_FILE_LEAST_SUPPORTED_VERSION)
-        {
+        if (context.archiveVersion < SCENE_FILE_LEAST_SUPPORTED_VERSION) {
             CYB_ERROR("Unsupported archive version (version={} LeastUupportedVersion={})", context.archiveVersion, SCENE_FILE_LEAST_SUPPORTED_VERSION);
             return;
         }
-        if (context.archiveVersion > SCENE_FILE_VERSION)
-        {
+        if (context.archiveVersion > SCENE_FILE_VERSION) {
             CYB_ERROR("Corrupt archive version (version={})", context.archiveVersion);
             return;
         }
         CYB_CWARNING(context.archiveVersion < SCENE_FILE_VERSION, "Old (but supported) archive version (version={} currentVersion={})", context.archiveVersion, SCENE_FILE_VERSION);
+
+        if (ser.IsReading())
+            Clear();
 
         names.Serialize(ser, context);
         transforms.Serialize(ser, context);

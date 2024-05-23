@@ -2,17 +2,17 @@
 #include <vector>
 #include <string>
 #include <DirectXMath.h>
+#include "core/filesystem.h"
 
 using DirectX::XMFLOAT3;
 using DirectX::XMFLOAT4;
 using DirectX::XMFLOAT4X4;
 
-namespace cyb
-{
+namespace cyb {
+
     constexpr size_t ARCHIVE_INIT_SIZE = 128;
 
-    class Archive
-    {
+    class Archive {
     public:
         Archive(const Archive&) = delete;
         Archive(Archive&&) = delete;
@@ -24,95 +24,87 @@ namespace cyb
         // initializes the archive for reading
         Archive(const uint8_t* data, size_t length);
 
-        void InitWrite(size_t initWriteBufferSize = ARCHIVE_INIT_SIZE);
         void InitRead(const uint8_t* data, size_t length);
+        void InitWrite(size_t initWriteBufferSize = ARCHIVE_INIT_SIZE);
 
-        [[nodiscard]] bool IsReading() const { return readData != nullptr; }
-        [[nodiscard]] bool IsWriting() const { return writeData != nullptr; }
+        [[nodiscard]] bool IsReading() const { return m_readData != nullptr; }
+        [[nodiscard]] bool IsWriting() const { return m_writeData != nullptr; }
 
-        [[nodiscard]] const uint8_t* GetWriteData() const { return writeData; }
-        [[nodiscard]] size_t GetSize() const { return curSize; }
-
-        //=============================================================
-        //  Write Operations
-        //=============================================================
-
-        void Write(void* data, size_t length);
-        void WriteChar(char value);
-        void WriteByte(uint8_t value);
-        void WriteLong(uint32_t value);
-        void WriteLongLong(uint64_t value);
-        void WriteFloat(float value);
-        void WriteString(const std::string& str);
-        void WriteXMFLOAT3(const XMFLOAT3& value);
-        void WriteXMFLOAT4(const XMFLOAT4& value);
-        void WriteXMFLOAT4X4(const XMFLOAT4X4& value);
-
-        //=============================================================
-        //  Read Operations
-        //=============================================================
+        [[nodiscard]] const uint8_t* GetWriteData() const { return m_writeData; }
+        [[nodiscard]] size_t Size() const { return m_curSize; }
 
         size_t Read(void* data, size_t length) const;
         [[nodiscard]] char ReadChar() const;
         [[nodiscard]] uint8_t ReadByte() const;
-        [[nodiscard]] uint32_t ReadLong() const;
-        [[nodiscard]] uint64_t ReadLongLong() const;
+        [[nodiscard]] uint32_t ReadInt() const;
+        [[nodiscard]] uint64_t ReadLong() const;
         [[nodiscard]] float ReadFloat() const;
         [[nodiscard]] std::string ReadString() const;
-        [[nodiscard]] XMFLOAT3 ReadXMFLOAT3() const;
-        [[nodiscard]] XMFLOAT4 ReadXMFLOAT4() const;
-        [[nodiscard]] XMFLOAT4X4 ReadXMFLOAT4X4() const;
+
+        void Write(void* data, size_t length);
+        void WriteChar(char value);
+        void WriteByte(uint8_t value);
+        void WriteInt(uint32_t value);
+        void WriteLong(uint64_t value);
+        void WriteFloat(float value);
+        void WriteString(const std::string& str);
 
     private:
-        std::vector<uint8_t> writeBuffer;
-        uint8_t* writeData = nullptr;
-        size_t curSize = 0;
+        std::vector<uint8_t> m_writeBuffer;
+        uint8_t* m_writeData = nullptr;
+        size_t m_curSize = 0;
 
-        const uint8_t* readData = nullptr;
-        size_t readDataLength = 0;
-        mutable size_t readCount = 0;
+        const uint8_t* m_readData = nullptr;
+        size_t m_readDataLength = 0;
+        mutable size_t m_readCount = 0;
     };
 
-    class Serializer
-    {
+    class Serializer {
     public:
         Serializer(Archive& ar_) :
-            archive(&ar_)
-        {
-            writing = archive->IsWriting();
+            m_archive(&ar_) {
+            m_writing = m_archive->IsWriting();
         }
 
-        [[nodiscard]] bool IsReading() const { return !writing; }
-        [[nodiscard]] bool IsWriting() const { return writing; }
+        [[nodiscard]] bool IsReading() const { return !m_writing; }
+        [[nodiscard]] bool IsWriting() const { return m_writing; }
 
-        void Serialize(char& value) { if (writing) { archive->WriteChar(value); } else { value = archive->ReadChar(); }}
-        void Serialize(uint8_t& value) { if (writing) { archive->WriteByte(value); } else { value = archive->ReadByte(); }}
-        void Serialize(uint32_t& value) { if (writing) { archive->WriteLong(value); } else { value = archive->ReadLong(); }}
-        void Serialize(uint64_t& value) { if (writing) { archive->WriteLongLong(value); } else { value = archive->ReadLongLong(); }}
-        void Serialize(float& value) { if (writing) { archive->WriteFloat(value); } else { value = archive->ReadFloat(); }}
-        void Serialize(std::string& value) { if (writing) { archive->WriteString(value); } else { value = archive->ReadString(); }}
-        void Serialize(XMFLOAT3& value) { if (writing) { archive->WriteXMFLOAT3(value); } else { value = archive->ReadXMFLOAT3(); }}
-        void Serialize(XMFLOAT4& value) { if (writing) { archive->WriteXMFLOAT4(value); } else { value = archive->ReadXMFLOAT4(); }}
-        void Serialize(XMFLOAT4X4& value) { if (writing) { archive->WriteXMFLOAT4X4(value); } else { value = archive->ReadXMFLOAT4X4(); }}
+        void Serialize(char& value) { if (m_writing) { m_archive->WriteChar(value); } else { value = m_archive->ReadChar(); }}
+        void Serialize(uint8_t& value) { if (m_writing) { m_archive->WriteByte(value); } else { value = m_archive->ReadByte(); }}
+        void Serialize(uint32_t& value) { if (m_writing) { m_archive->WriteInt(value); } else { value = m_archive->ReadInt(); }}
+        void Serialize(uint64_t& value) { if (m_writing) { m_archive->WriteLong(value); } else { value = m_archive->ReadLong(); }}
+        void Serialize(float& value) { if (m_writing) { m_archive->WriteFloat(value); } else { value = m_archive->ReadFloat(); }}
+        void Serialize(std::string& value) { if (m_writing) { m_archive->WriteString(value); } else { value = m_archive->ReadString(); }}
+        void Serialize(XMFLOAT3& value);
+        void Serialize(XMFLOAT4& value);
+        void Serialize(XMFLOAT4X4& value);
 
         template <typename T>
-        void Serialize(std::vector<T>& vec)
-        {
+        void Serialize(std::vector<T>& vec) {
             size_t size = vec.size();
             Serialize(size);
-            if (writing)
-            {
-                archive->Write(vec.data(), size * sizeof(T));
-            }
-            else
-            {
+            if (m_writing) {
+                m_archive->Write(vec.data(), size * sizeof(T));
+            } else {
                 vec.resize(size);
-                archive->Read(vec.data(), size * sizeof(T));
+                m_archive->Read(vec.data(), size * sizeof(T));
             }
         }
 
     private:
-        Archive* archive;
-        bool writing;
+        Archive* m_archive;
+        bool m_writing;
     };
+
+    template <typename T>
+    bool SerializeFromFile(const std::string filename, T& serializeable) {
+        std::vector<uint8_t> buffer;
+        if (!filesystem::ReadFile(filename, buffer))
+            return false;
+
+        Archive archive(buffer.data(), buffer.size());
+        Serializer ser(archive);
+        serializeable.Serialize(ser);
+        return true;
+    }
 }

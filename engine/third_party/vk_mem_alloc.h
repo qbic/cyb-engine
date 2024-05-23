@@ -6881,7 +6881,7 @@ bool VmaBlockMetadata_Generic::Validate() const
             if (!IsVirtual())
             {
                 VMA_VALIDATE((VkDeviceSize)alloc->GetAllocHandle() == subAlloc.offset + 1);
-                VMA_VALIDATE(alloc->GetSize() == subAlloc.size);
+                VMA_VALIDATE(alloc->Size() == subAlloc.size);
             }
 
             // Margin required between allocations - previous allocation must be free.
@@ -6911,7 +6911,7 @@ bool VmaBlockMetadata_Generic::Validate() const
 
     // Check if totals match calculated values.
     VMA_VALIDATE(ValidateFreeSuballocationList());
-    VMA_VALIDATE(calculatedOffset == GetSize());
+    VMA_VALIDATE(calculatedOffset == Size());
     VMA_VALIDATE(calculatedSumFreeSize == m_SumFreeSize);
     VMA_VALIDATE(calculatedFreeCount == m_FreeCount);
 
@@ -6922,7 +6922,7 @@ void VmaBlockMetadata_Generic::AddDetailedStatistics(VmaDetailedStatistics& inou
 {
     const uint32_t rangeCount = (uint32_t)m_Suballocations.size();
     inoutStats.statistics.blockCount++;
-    inoutStats.statistics.blockBytes += GetSize();
+    inoutStats.statistics.blockBytes += Size();
 
     for (const auto& suballoc : m_Suballocations)
     {
@@ -6937,8 +6937,8 @@ void VmaBlockMetadata_Generic::AddStatistics(VmaStatistics& inoutStats) const
 {
     inoutStats.blockCount++;
     inoutStats.allocationCount += (uint32_t)m_Suballocations.size() - m_FreeCount;
-    inoutStats.blockBytes += GetSize();
-    inoutStats.allocationBytes += GetSize() - m_SumFreeSize;
+    inoutStats.blockBytes += Size();
+    inoutStats.allocationBytes += Size() - m_SumFreeSize;
 }
 
 #if VMA_STATS_STRING_ENABLED
@@ -7185,7 +7185,7 @@ VmaAllocHandle VmaBlockMetadata_Generic::GetNextAllocation(VmaAllocHandle prevAl
 
 void VmaBlockMetadata_Generic::Clear()
 {
-    const VkDeviceSize size = GetSize();
+    const VkDeviceSize size = Size();
 
     VMA_ASSERT(IsVirtual());
     m_FreeCount = 1;
@@ -7509,7 +7509,7 @@ if(m_2ndVectorMode == SECOND_VECTOR_EMPTY):
           |       |
           |       |
           |       |
-GetSize() +-------+
+Size() +-------+
 
 if(m_2ndVectorMode == SECOND_VECTOR_RING_BUFFER):
 
@@ -7535,7 +7535,7 @@ if(m_2ndVectorMode == SECOND_VECTOR_RING_BUFFER):
           | Alloc |  1st[1st.size() - 1]
           +-------+
           |       |
-GetSize() +-------+
+Size() +-------+
 
 if(m_2ndVectorMode == SECOND_VECTOR_DOUBLE_STACK):
 
@@ -7563,7 +7563,7 @@ if(m_2ndVectorMode == SECOND_VECTOR_DOUBLE_STACK):
           | Alloc |  2nd[1]
           +-------+
           | Alloc |  2nd[0]
-GetSize() +-------+
+Size() +-------+
 
 */
 class VmaBlockMetadata_Linear : public VmaBlockMetadata
@@ -9214,7 +9214,7 @@ bool VmaBlockMetadata_Linear::CreateAllocationRequest_UpperAddress(
 #if 0
 #ifndef _VMA_BLOCK_METADATA_BUDDY
 /*
-- GetSize() is the original size of allocated memory block.
+- Size() is the original size of allocated memory block.
 - m_UsableSize is this size aligned down to a power of two.
   All allocations and calculations happen relative to m_UsableSize.
 - GetUnusableSize() is the difference between them.
@@ -9329,7 +9329,7 @@ private:
     // Doesn't include unusable size.
     VkDeviceSize m_SumFreeSize;
 
-    VkDeviceSize GetUnusableSize() const { return GetSize() - m_UsableSize; }
+    VkDeviceSize GetUnusableSize() const { return Size() - m_UsableSize; }
     VkDeviceSize LevelToNodeSize(uint32_t level) const { return m_UsableSize >> level; }
 
     VkDeviceSize AlignAllocationSize(VkDeviceSize size) const
@@ -9451,7 +9451,7 @@ bool VmaBlockMetadata_Buddy::Validate() const
 void VmaBlockMetadata_Buddy::AddDetailedStatistics(VmaDetailedStatistics& inoutStats) const
 {
     inoutStats.statistics.blockCount++;
-    inoutStats.statistics.blockBytes += GetSize();
+    inoutStats.statistics.blockBytes += Size();
 
     AddNodeToDetailedStatistics(inoutStats, m_Root, LevelToNodeSize(0));
 
@@ -9464,8 +9464,8 @@ void VmaBlockMetadata_Buddy::AddStatistics(VmaStatistics& inoutStats) const
 {
     inoutStats.blockCount++;
     inoutStats.allocationCount += (uint32_t)m_AllocationCount;
-    inoutStats.blockBytes += GetSize();
-    inoutStats.allocationBytes += GetSize() - m_SumFreeSize;
+    inoutStats.blockBytes += Size();
+    inoutStats.allocationBytes += Size() - m_SumFreeSize;
 }
 
 #if VMA_STATS_STRING_ENABLED

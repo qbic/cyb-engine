@@ -3,12 +3,15 @@
 #include "core/logger.h"
 #include "core/spinlock.h"
 
+// history is only used to append logs to newly registrated output
+// modules and should't need to be very big
+#define MAX_HISTORY_SIZE     40
+
 namespace cyb::logger {
 
     std::vector<std::unique_ptr<OutputModule>> outputModules;
     std::deque<Message> logHistory;
     SpinLock postLock;
-    Level logLevelThreshold = Level::Trace;
 
     OutputModule_StringBuffer::OutputModule_StringBuffer(std::string* output) :
         m_stringBuffer(output) {
@@ -48,31 +51,30 @@ namespace cyb::logger {
 
             outputModules.push_back(std::move(outputModule));
         }
-    }
 
-    [[nodiscard]] inline std::string GetLogLevelPrefix(Level severity) {
-        switch (severity) {
-        case Level::Trace:   return "[TRACE]";
-        case Level::Info:    return "[INFO]";
-        case Level::Warning: return "[WARNING]";
-        case Level::Error:   return "[ERROR]";
+        [[nodiscard]] static inline std::string GetLogLevelPrefix(uint8_t severity) {
+            switch (severity) {
+            case CYB_LOGLEVEL_TRACE:   return "[TRACE]";
+            case CYB_LOGLEVEL_INFO:    return "[INFO]";
+            case CYB_LOGLEVEL_WARNING: return "[WARNING]";
+            case CYB_LOGLEVEL_ERROR:   return "[ERROR]";
+            }
+
+            return {};
         }
 
-        return {};
-    }
+        void Post(uint8_t severity, const std::string& text) {
+            Message log;
+            log.text = fmt::format("{0} {1}\n", GetLogLevelPrefix(severity), text);
+            log.timestamp = std::chrono::system_clock::now();
+            log.severity = severity;
+            logHistory.push_back(log);
+            while (logHistory.size() > MAX_HISTORY_SIZE)
+                logHistory.pop_front();
 
-    void Post(Level severity, const std::string& text) {
-        if (severity < logLevelThreshold)
-            return;
-
-        std::scoped_lock<SpinLock> lock(postLock);
-        Message log;
-        log.text = fmt::format("{0} {1}\n", GetLogLevelPrefix(severity), text);
-        log.timestamp = std::chrono::system_clock::now();
-        log.severity = severity;
-        logHistory.push_back(log);
-
-        for (auto& output : outputModules)
-            output->Write(log);
+            std::scoped_lock<SpinLock> lock(postLock);
+            for (auto& output : outputModules)
+                output->Write(log);
+        }
     }
 }

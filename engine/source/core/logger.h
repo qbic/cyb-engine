@@ -8,24 +8,48 @@
 #include <fmt/format.h>
 #include "core/platform.h"
 
+#define CYB_LOGLEVEL_TRACE		1
+#define CYB_LOGLEVEL_INFO		2
+#define CYB_LOGLEVEL_WARNING	3
+#define CYB_LOGLEVEL_ERROR		4
+
+// configures the verbosity of the logs
+#define	CYB_LOGLEVEL_THRESHOLD	CYB_LOGLEVEL_TRACE
+
+#if CYB_LOGLEVEL_THRESHOLD <= CYB_LOGLEVEL_TRACE
+#define CYB_TRACE(...)		cyb::logger::PostTrace(__VA_ARGS__)
+#else
+#define CYB_TRACE(...)
+#endif
+
+#if CYB_LOGLEVEL_THRESHOLD <= CYB_LOGLEVEL_INFO
+#define CYB_INFO(...)		cyb::logger::PostInfo(__VA_ARGS__)
+#else
+#define CYB_INFO(...)
+#endif
+
+#if CYB_LOGLEVEL_THRESHOLD <= CYB_LOGLEVEL_WARNING
+#define CYB_WARNING(...)	cyb::logger::PostWarning(__VA_ARGS__)
+#define CYB_CWARNING(expr, ...) { if (expr) { CYB_WARNING(__VA_ARGS__); }}
+#else
+#define CYB_WARNING(...)
+#define CYB_CWARNING(expr, ...)
+#endif
+
+#if CYB_LOGLEVEL_THRESHOLD <= CYB_LOGLEVEL_ERROR
+#define CYB_ERROR(...)		cyb::logger::PostError(__VA_ARGS__)
+#define CYB_CERROR(expr, ...)	{ if (expr) { CYB_ERROR(__VA_ARGS__); }}
+#else
+#define CYB_ERROR(...)
+#define CYB_CERROR(expr, ...)
+#endif
+
 namespace cyb::logger {
-
-	enum class Level {
-		Trace,
-		Info,
-		Warning,
-		Error
-	};
-
-	inline [[nodiscard]] bool operator<(const Level lhs, const Level rhs) {
-		typedef typename std::underlying_type<Level>::type underlying;
-		return static_cast<underlying>(lhs) < static_cast<underlying>(rhs);
-	}
 
 	struct Message {
 		std::string text;
 		std::chrono::system_clock::time_point timestamp;
-		Level severity;
+		uint8_t severity;
 	};
 
 	class OutputModule {
@@ -56,7 +80,7 @@ namespace cyb::logger {
 	};
 
 #ifdef _WIN32
-	class LogOutputModule_VisualStudio : public cyb::logger::OutputModule {
+	class LogOutputModule_VisualStudio : public OutputModule {
 	public:
 		void Write(const cyb::logger::Message& log) override {
 			OutputDebugStringA(log.text.c_str());
@@ -66,46 +90,37 @@ namespace cyb::logger {
 
 	namespace detail {
 		void RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule);
+	
+		// Prefixes the input text with a log level identifier and 
+		// sends a LogMessage to all registered output modules
+		void Post(uint8_t severity, const std::string& text);
 	}
 
 	template <typename T, typename ...Args,
 		typename std::enable_if<
-		std::is_base_of<cyb::logger::OutputModule, T>{} &&
+		std::is_base_of<OutputModule, T>{} &&
 		std::is_constructible<T, Args&&...>{}, bool>::type = true>
 	void RegisterOutputModule(Args&&... args) {
 		detail::RegisterOutputModule(std::make_unique<T>(std::forward<Args>(args)...));
 	}
 
-	// Prefixes the input text with a log level identifier and 
-	// sends a LogMessage to all registered output modules
-	void Post(Level severity, const std::string& text);
-
 	template <typename ...T>
 	void PostTrace(fmt::format_string<T...> fmt, T&&... args) {
-		Post(Level::Trace, fmt::format(fmt, std::forward<T>(args)...));
+		detail::Post(CYB_LOGLEVEL_TRACE, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostInfo(fmt::format_string<T...> fmt, T&&... args) {
-		Post(Level::Info, fmt::format(fmt, std::forward<T>(args)...));
+		detail::Post(CYB_LOGLEVEL_INFO, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostWarning(fmt::format_string<T...> fmt, T&&... args) {
-		Post(Level::Warning, fmt::format(fmt, std::forward<T>(args)...));
+		detail::Post(CYB_LOGLEVEL_WARNING, fmt::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
 	void PostError(fmt::format_string<T...> fmt, T&&... args) {
-		Post(Level::Error, fmt::format(fmt, std::forward<T>(args)...));
+		detail::Post(CYB_LOGLEVEL_ERROR, fmt::format(fmt, std::forward<T>(args)...));
 	}
 }
-
-#define CYB_TRACE(...)		cyb::logger::PostTrace(__VA_ARGS__)
-#define CYB_INFO(...)		cyb::logger::PostInfo(__VA_ARGS__)
-#define CYB_WARNING(...)	cyb::logger::PostWarning(__VA_ARGS__)
-#define CYB_ERROR(...)		cyb::logger::PostError(__VA_ARGS__)
-
-#define CYB_CWARNING(expr, ...) { if (expr) { CYB_WARNING(__VA_ARGS__); }}
-#define CYB_CERROR(expr, ...)	{ if (expr) { CYB_ERROR(__VA_ARGS__); }}
-

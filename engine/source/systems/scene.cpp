@@ -593,23 +593,20 @@ namespace cyb::scene
         weathers.Remove(entity);
     }
 
-    constexpr uint64_t SCENE_FILE_VERSION = 4;
-    constexpr uint64_t SCENE_FILE_LEAST_SUPPORTED_VERSION = 4;
-
     void Scene::Serialize(Serializer& ser) {
+        constexpr uint64_t LEAST_SUPPORTED_VERSION = 4;
         ecs::SceneSerializeContext context;
 
-        context.archiveVersion = SCENE_FILE_VERSION;
-        ser.Serialize(context.archiveVersion);
-        if (context.archiveVersion < SCENE_FILE_LEAST_SUPPORTED_VERSION) {
-            CYB_ERROR("Unsupported archive version (version={} LeastUupportedVersion={})", context.archiveVersion, SCENE_FILE_LEAST_SUPPORTED_VERSION);
+        context.archiveVersion = ser.GetVersion();
+        if (context.archiveVersion < LEAST_SUPPORTED_VERSION) {
+            CYB_ERROR("Unsupported archive version (version={} LeastUupportedVersion={})", context.archiveVersion, LEAST_SUPPORTED_VERSION);
             return;
         }
-        if (context.archiveVersion > SCENE_FILE_VERSION) {
+        if (context.archiveVersion > ARCHIVE_VERSION) {
             CYB_ERROR("Corrupt archive version (version={})", context.archiveVersion);
             return;
         }
-        CYB_CWARNING(context.archiveVersion < SCENE_FILE_VERSION, "Old (but supported) archive version (version={} currentVersion={})", context.archiveVersion, SCENE_FILE_VERSION);
+        CYB_CWARNING(context.archiveVersion < ARCHIVE_VERSION, "Old (but supported) archive version (version={} currentVersion={})", context.archiveVersion, ARCHIVE_VERSION);
 
         if (ser.IsReading())
             Clear();

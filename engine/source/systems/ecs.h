@@ -121,7 +121,8 @@ namespace cyb::ecs
 
         // ecs::INVALID_ENTITY is not allowed!
         // only one of this component type per entity is allowed!
-        template <typename... Args>
+        template <typename... Args,
+            typename std::enable_if<std::is_constructible<T, Args&&...>{}, bool>::type = true>
         T& Create(Entity entity, Args&&... args)
         {
             assert(entity != INVALID_ENTITY);

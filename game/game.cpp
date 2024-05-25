@@ -23,7 +23,7 @@ void GameRenderer::Load()
         scene::Scene& scene = scene::GetScene();
         std::string filename = "../terrain_04.cbs";
         SerializeFromFile(filename, scene);
-        CYB_TRACE("Loaded scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+        CYB_INFO("Serialized scene from file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
     }
 
     //scene::LoadModel("../terrain_04.cbs");
@@ -54,7 +54,7 @@ void GameRenderer::Load()
     camera->zFarPlane = 1500.f;
     cameraTransform.Translate(XMFLOAT3(0, 2, -10));
 
-    // NOTE: i feel like this should be handled by the engine initialization somewhere sence
+    // NOTE: this should be handled by the engine initialization somewhere sence
     // all this really does is loding icons for the editor
     RenderPath3D::Load();
 }

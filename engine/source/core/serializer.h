@@ -10,7 +10,7 @@ using DirectX::XMFLOAT4X4;
 
 namespace cyb {
 
-    constexpr size_t ARCHIVE_INIT_SIZE = 128;
+    constexpr uint64_t ARCHIVE_VERSION = 4;
 
     class Archive {
     public:
@@ -19,13 +19,13 @@ namespace cyb {
         Archive& operator=(const Archive&) = delete;
 
         // initializes the archive for writing
-        Archive();
+        Archive(size_t initWriteBufferSize);
 
         // initializes the archive for reading
         Archive(const uint8_t* data, size_t length);
 
         void InitRead(const uint8_t* data, size_t length);
-        void InitWrite(size_t initWriteBufferSize = ARCHIVE_INIT_SIZE);
+        void InitWrite(size_t initWriteBufferSize);
 
         [[nodiscard]] bool IsReading() const { return m_readData != nullptr; }
         [[nodiscard]] bool IsWriting() const { return m_writeData != nullptr; }
@@ -61,13 +61,12 @@ namespace cyb {
 
     class Serializer {
     public:
-        Serializer(Archive& ar_) :
-            m_archive(&ar_) {
-            m_writing = m_archive->IsWriting();
-        }
+        Serializer(Archive& ar);
+        ~Serializer() = default;
 
         [[nodiscard]] bool IsReading() const { return !m_writing; }
         [[nodiscard]] bool IsWriting() const { return m_writing; }
+        [[nodiscard]] uint64_t GetVersion() const { return m_version; }
 
         void Serialize(char& value) { if (m_writing) { m_archive->WriteChar(value); } else { value = m_archive->ReadChar(); }}
         void Serialize(uint8_t& value) { if (m_writing) { m_archive->WriteByte(value); } else { value = m_archive->ReadByte(); }}
@@ -94,6 +93,7 @@ namespace cyb {
     private:
         Archive* m_archive;
         bool m_writing;
+        uint64_t m_version;
     };
 
     template <typename T>
@@ -106,5 +106,14 @@ namespace cyb {
         Serializer ser(archive);
         serializeable.Serialize(ser);
         return true;
+    }
+
+    template <typename T>
+    bool SerializeToFile(const std::string& filename, T& serializeable) {
+        Archive ar(4 * 1024);  // pre-allocate 4k write buffer
+        Serializer ser(ar);
+        serializeable.Serialize(ser);
+
+        return filesystem::WriteFile(filename, ar.GetWriteData(), ar.Size());
     }
 }

@@ -730,7 +730,7 @@ namespace cyb::editor {
                     return;
                 }
 
-                CYB_TRACE("Loaded scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+                CYB_INFO("Serialized scene from file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
             });
         });
     }
@@ -758,13 +758,8 @@ namespace cyb::editor {
                 filename += ".cbs";
 
             Timer timer;
-            Archive archive;
-            Serializer ser(archive);
-            scene::GetScene().Serialize(ser);
-            if (!filesystem::WriteFile(filename, archive.GetWriteData(), archive.Size()))
-                return;
-
-            CYB_TRACE("Saved scene (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+            if (SerializeToFile(filename, scene::GetScene()))
+                CYB_INFO("Serialized scene to file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
         });
     }
 

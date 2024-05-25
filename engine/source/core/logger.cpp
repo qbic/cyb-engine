@@ -45,6 +45,7 @@ namespace cyb::logger {
 
     namespace detail {
         void RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule) {
+            std::scoped_lock<SpinLock> lock(postLock);
             for (const auto& it : logHistory) {
                 outputModule->Write(it);
             }

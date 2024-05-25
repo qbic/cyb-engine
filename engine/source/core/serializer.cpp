@@ -2,8 +2,8 @@
 
 namespace cyb {
 
-    Archive::Archive() {
-        InitWrite();
+    Archive::Archive(size_t initWriteBufferSize) {
+        InitWrite(initWriteBufferSize);
     }
 
     Archive::Archive(const uint8_t* data, size_t length) {
@@ -80,7 +80,7 @@ namespace cyb {
         assert(IsWriting());
         assert(m_writeData != nullptr);
 
-        // dynamically stretch m_writeBuffer to fit new writes
+        // dynamically stretch write buffer to fit new writes
         while (m_curSize + length > m_writeBuffer.size()) {
             m_writeBuffer.resize((m_curSize + length) * 2);
             m_writeData = m_writeBuffer.data();
@@ -112,6 +112,14 @@ namespace cyb {
 
     void Archive::WriteString(const std::string& str) {
         Write((void*)str.data(), str.length());
+    }
+
+    Serializer::Serializer(Archive& ar) :
+        m_archive(&ar) {
+        m_writing = m_archive->IsWriting();
+
+        m_version = ARCHIVE_VERSION;
+        Serialize(m_version);
     }
 
     void Serializer::Serialize(XMFLOAT3& value) { 

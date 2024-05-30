@@ -33,7 +33,7 @@ project "engine"
 		"%{wks.location}/engine/third_party/freetype/include",
 	}
 
-	inks {
+	links {
 		"imgui",
 		"freetype",
 		"comctl32.lib",		-- High DPI awareness interface

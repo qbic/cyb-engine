@@ -69,11 +69,13 @@ namespace cyb::logger {
             log.text = fmt::format("{0} {1}\n", GetLogLevelPrefix(severity), text);
             log.timestamp = std::chrono::system_clock::now();
             log.severity = severity;
+
+            std::scoped_lock<SpinLock> lock(postLock);
+
             logHistory.push_back(log);
             while (logHistory.size() > MAX_HISTORY_SIZE)
                 logHistory.pop_front();
 
-            std::scoped_lock<SpinLock> lock(postLock);
             for (auto& output : outputModules)
                 output->Write(log);
         }

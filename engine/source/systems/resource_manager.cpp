@@ -37,15 +37,14 @@ namespace cyb
     }
 }
 
-namespace cyb::resourcemanager
-{
+namespace cyb::resourcemanager {
+
     std::mutex locker;
     std::unordered_map<Resource::HashType, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
     Mode mode = Mode::DiscardFiledataAfterLoad;
 
-    static const std::unordered_map<std::string, ResourceType> types = 
-    {
+    static const std::unordered_map<std::string, ResourceType> types =  {
         std::make_pair("jpg",  ResourceType::Image),
         std::make_pair("jpeg", ResourceType::Image),
         std::make_pair("png",  ResourceType::Image),
@@ -69,11 +68,8 @@ namespace cyb::resourcemanager
         return filename;
     }
 
-
-    const char* GetResourceTypeString(ResourceType type)
-    {
-        switch (type)
-        {
+    const char* GetResourceTypeString(ResourceType type) {
+        switch (type) {
         case ResourceType::None:    return "None";
         case ResourceType::Image:   return "Image";
         case ResourceType::Sound:   return "Sound";
@@ -87,8 +83,7 @@ namespace cyb::resourcemanager
         const std::string& name,
         Flags flags,
         const uint8_t* filedata,
-        size_t filesize)
-    {
+        size_t filesize) {
         Timer timer;
 
         if (mode == Mode::DiscardFiledataAfterLoad)
@@ -96,8 +91,7 @@ namespace cyb::resourcemanager
 
         // dynamic type selection
         const auto& typeIt = types.find(filesystem::GetExtension(name));
-        if (typeIt == types.end())
-        {
+        if (typeIt == types.end()) {
             CYB_ERROR("Failed to determine resource type (filename={0})", name);
             return Resource();
         }
@@ -106,8 +100,7 @@ namespace cyb::resourcemanager
         const Resource::HashType hash = hash::String(name);
         locker.lock();
         std::shared_ptr<ResourceInternal> resource = resourceCache[hash].lock();
-        if (resource != nullptr)
-        {
+        if (resource != nullptr) {
             locker.unlock();
             return Resource{ resource };
         }
@@ -120,36 +113,23 @@ namespace cyb::resourcemanager
         locker.unlock();
 
         // load filedata if nothing was assigned
-        if (filedata == nullptr || filesize == 0)
-        {
-            std::string filepath = name;
-            if (!std::filesystem::exists(filepath)) {
-                for (const auto& basepath : searchPaths) {
-                    filepath = basepath + name;
-                    if (std::filesystem::exists(filepath))
-                        break;
-                }
-            }
-
-            if (!filesystem::ReadFile(filepath, resource->data))
+        if (filedata == nullptr || filesize == 0) {
+            if (!filesystem::ReadFile(FindFile(name), resource->data))
                 return Resource();
 
             filedata = resource->data.data();
             filesize = resource->data.size();
         }
 
-        switch (resource->type)
-        {
-        case ResourceType::Image:
-        {
+        switch (resource->type) {
+        case ResourceType::Image: {
             const int channels = 4;
             int width, height, bpp;
 
             const bool flipImage = HasFlag(flags, Flags::FlipImageBit);
             stbi_set_flip_vertically_on_load(flipImage);
             stbi_uc* rawImage = stbi_load_from_memory(filedata, (int)filesize, &width, &height, &bpp, channels);
-            if (rawImage == nullptr)
-            {
+            if (rawImage == nullptr) {
                 CYB_ERROR("Failed to decode image (filename={0}): {1}", name, stbi_failure_reason());
                 stbi_image_free(rawImage);
                 return Resource();
@@ -183,8 +163,7 @@ namespace cyb::resourcemanager
         return Resource{ resource };
     }
 
-    void Clear()
-    {
+    void Clear() {
         std::scoped_lock lock(locker);
         resourceCache.clear();
     }

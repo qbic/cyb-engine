@@ -49,6 +49,7 @@ namespace cyb::resourcemanager
 
     void AddSearchPath(const std::string& path);
     [[nodiscard]] std::string FindFile(const std::string& filename);
+
     [[nodiscard]] const char* GetResourceTypeString(ResourceType type);
 
     // Load a resource:

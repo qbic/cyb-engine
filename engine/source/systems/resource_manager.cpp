@@ -20,16 +20,13 @@
 #include "stb_image.h"
 #include <filesystem>
 
-namespace cyb
-{
-    struct ResourceInternal : public Resource::InternalBaseData
-    {
+namespace cyb {
+    struct ResourceInternal : public Resource::InternalBaseData {
         std::vector<uint8_t> data;
         cyb::graphics::Texture texture;
     };
 
-    const graphics::Texture& Resource::GetTexture() const
-    {
+    const graphics::Texture& Resource::GetTexture() const {
         assert(internal_state != nullptr);
         assert(internal_state->type == ResourceType::Image);
         const ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();

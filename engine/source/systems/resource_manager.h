@@ -2,21 +2,18 @@
 #include "graphics/device.h"
 #include "core/enum_flags.h"
 
-namespace cyb
-{
-    enum class ResourceType
-    {
+namespace cyb {
+
+    enum class ResourceType {
         None,
         Image,
         Sound
     };
 
-    struct Resource
-    {
+    struct Resource {
         using HashType = uint64_t;
 
-        struct InternalBaseData
-        {
+        struct InternalBaseData {
             HashType hash = 0;
             ResourceType type = ResourceType::None;
             std::string name;
@@ -31,16 +28,14 @@ namespace cyb
     };
 }
 
-namespace cyb::resourcemanager
-{
-    enum class Mode
-    {
+namespace cyb::resourcemanager {
+
+    enum class Mode {
         DiscardFiledataAfterLoad,
         AllowRetainFiledata
     };
 
-    enum class Flags
-    {
+    enum class Flags {
         None = 0,
         FlipImageBit = (1 << 1),            // Flip image vertically on load
         RetainFiledataBit = (1 << 2)        // File data will be kept for later reuse.

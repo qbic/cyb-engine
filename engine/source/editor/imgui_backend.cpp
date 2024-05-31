@@ -1,5 +1,6 @@
 #include "core/logger.h"
 #include "systems/event_system.h"
+#include "systems/resource_manager.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include "imgui/imgui_freetype.h"
@@ -25,7 +26,7 @@ struct ImGui_Impl_Data
 
 	ImGui_Impl_Data()
 	{
-		memset(this, 0, sizeof(ImGui_ImplWin32_Data));
+		memset(this, 0, sizeof(ImGui_Impl_Data));
 	}
 };
 
@@ -45,7 +46,8 @@ ImFont* AddFont(const char* filename, const ImWchar* ranges, float size, bool me
 	fontConfig.MergeMode = merge;
 	fontConfig.PixelSnapH = true;
 	float pixelSize = std::round(size * 96.0f / 72.0f);
-	return ImGui::GetIO().Fonts->AddFontFromFileTTF(filename, pixelSize, &fontConfig, ranges);
+	const std::string asset = cyb::resourcemanager::FindFile(filename);
+	return ImGui::GetIO().Fonts->AddFontFromFileTTF(asset.c_str(), pixelSize, &fontConfig, ranges);
 }
 
 void ImGui_Impl_CybEngine_CreateDeviceObject()
@@ -58,10 +60,10 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	static const ImWchar notoSansRanges[] = { 0x20, 0x52f, 0x1ab0, 0x2189, 0x2c60, 0x2e44, 0xa640, 0xab65, 0 };
 	static const ImWchar notoMonoRanges[] = { 0x20, 0x513, 0x1e00, 0x1f4d, 0 };
 
-	AddFont("Assets/CascadiaCode-Regular.ttf", notoSansRanges, 14.0f, false);
-	AddFont("Assets/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 13.f, true);
-	AddFont("Assets/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 12.f, true);
-	AddFont("Assets/NotoMono-Regular.ttf", notoMonoRanges, 14.0, false);
+	AddFont("fonts/CascadiaCode-Regular.ttf", notoSansRanges, 14.0f, false);
+	AddFont("fonts/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 13.f, true);
+	AddFont("fonts/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 12.f, true);
+	AddFont("fonts/NotoMono-Regular.ttf", notoMonoRanges, 14.0, false);
 
 	// Build texture atlas:
 	unsigned char* pixels;

@@ -1056,13 +1056,13 @@ namespace cyb::editor {
         AttachToolToMenu(std::make_unique<Tool_LogDisplay>("Backlog"));
 
         // Icons rendered by ImGui need's to be flipped manually at loadtime
-        import_icon = resourcemanager::Load("assets/import.png");
-        delete_icon = resourcemanager::Load("assets/delete.png");
-        light_icon = resourcemanager::Load("assets/add.png");
-        editor_icon_select = resourcemanager::Load("assets/select.png");
-        translate_icon = resourcemanager::Load("assets/move.png");
-        rotate_icon = resourcemanager::Load("assets/rotate.png");
-        scale_icon = resourcemanager::Load("assets/resize.png");
+        import_icon = resourcemanager::Load("textures/import.png");
+        delete_icon = resourcemanager::Load("textures/delete.png");
+        light_icon = resourcemanager::Load("textures/add.png");
+        editor_icon_select = resourcemanager::Load("textures/select.png");
+        translate_icon = resourcemanager::Load("textures/move.png");
+        rotate_icon = resourcemanager::Load("textures/rotate.png");
+        scale_icon = resourcemanager::Load("textures/resize.png");
 
 #if 1
         // ImGuizmo style

@@ -47,6 +47,8 @@ namespace cyb::resourcemanager
     };
     CYB_ENABLE_BITMASK_OPERATORS(Flags);
 
+    void AddSearchPath(const std::string& path);
+    [[nodiscard]] std::string FindFile(const std::string& filename);
     [[nodiscard]] const char* GetResourceTypeString(ResourceType type);
 
     // Load a resource:

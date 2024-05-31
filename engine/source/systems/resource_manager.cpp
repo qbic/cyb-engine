@@ -18,6 +18,7 @@
 #define STBI_NO_PNM
 #define STBI_FAILURE_USERMSG
 #include "stb_image.h"
+#include <filesystem>
 
 namespace cyb
 {
@@ -40,6 +41,7 @@ namespace cyb::resourcemanager
 {
     std::mutex locker;
     std::unordered_map<Resource::HashType, std::weak_ptr<ResourceInternal>> resourceCache;
+    std::vector<std::string> searchPaths;
     Mode mode = Mode::DiscardFiledataAfterLoad;
 
     static const std::unordered_map<std::string, ResourceType> types = 
@@ -51,6 +53,22 @@ namespace cyb::resourcemanager
         std::make_pair("tga",  ResourceType::Image),
         std::make_pair("bmp",  ResourceType::Image)
     };
+
+    void AddSearchPath(const std::string& path) {
+        std::scoped_lock l(locker);
+        searchPaths.push_back(path);
+    }
+
+    std::string FindFile(const std::string& filename) {
+        for (const auto& basepath : searchPaths) {
+            std::string filepath = basepath + filename;
+            if (std::filesystem::exists(filepath))
+                return filepath;
+        }
+
+        return filename;
+    }
+
 
     const char* GetResourceTypeString(ResourceType type)
     {
@@ -104,7 +122,16 @@ namespace cyb::resourcemanager
         // load filedata if nothing was assigned
         if (filedata == nullptr || filesize == 0)
         {
-            if (!filesystem::ReadFile(name, resource->data))
+            std::string filepath = name;
+            if (!std::filesystem::exists(filepath)) {
+                for (const auto& basepath : searchPaths) {
+                    filepath = basepath + name;
+                    if (std::filesystem::exists(filepath))
+                        break;
+                }
+            }
+
+            if (!filesystem::ReadFile(filepath, resource->data))
                 return Resource();
 
             filedata = resource->data.data();

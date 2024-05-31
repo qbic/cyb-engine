@@ -62,6 +62,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
     logger::RegisterOutputModule<logger::LogOutputModule_VisualStudio>();
     logger::RegisterOutputModule<logger::OutputModule_File>(szTextlogFile);
 
+    // configure asset saerch paths
+    cyb::resourcemanager::AddSearchPath("assets/");
+    cyb::resourcemanager::AddSearchPath("../assets/");
+
     BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     assert(dpiSuccess);
 

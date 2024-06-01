@@ -32,7 +32,7 @@ struct ImGui_Impl_Data
 
 struct ImGuiConstants
 {
-	float mvp[4][4];
+	XMMATRIX mvp;
 };
 
 static ImGui_Impl_Data* ImGui_Impl_GetBackendData()
@@ -247,16 +247,9 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 	const float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
 	const float T = draw_data->DisplayPos.y;
 	const float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
-	float mvp[4][4] =
-	{
-		{ 2.0f / (R - L),    0.0f,              0.0f, 0.0f },
-		{ 0.0f,              2.0f / (T - B),    0.0f, 0.0f },
-		{ 0.0f,              0.0f,              0.5f, 0.0f },
-		{ (R + L) / (L - R), (T + B) / (B - T), 0.5f, 1.0f },
-	};
 
-	ImGuiConstants constants = {};
-	memcpy(&constants.mvp, mvp, sizeof(mvp));
+	ImGuiConstants constants;
+	constants.mvp = XMMatrixOrthographicOffCenterRH(L, R, B, T, 1.0f, -1.0f);
 	device->BindDynamicConstantBuffer(constants, 0, cmd);
 
 	const GPUBuffer* vbs[] = {

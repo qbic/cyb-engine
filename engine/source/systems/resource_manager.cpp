@@ -27,8 +27,8 @@ namespace cyb {
     };
 
     const graphics::Texture& Resource::GetTexture() const {
-        assert(internal_state != nullptr);
-        assert(internal_state->type == ResourceType::Image);
+        assert(m_internalState != nullptr);
+        assert(m_internalState->type == ResourceType::Image);
         const ResourceInternal* resourceinternal = (ResourceInternal*)m_internalState.get();
         return resourceinternal->texture;
     }

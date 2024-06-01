@@ -23,11 +23,6 @@ struct ImGui_Impl_Data
 	VertexInputLayout inputLayout;
 	PipelineState pso;
 	IndexBufferFormat indexFormat;
-
-	ImGui_Impl_Data()
-	{
-		memset(this, 0, sizeof(ImGui_Impl_Data));
-	}
 };
 
 struct ImGuiConstants

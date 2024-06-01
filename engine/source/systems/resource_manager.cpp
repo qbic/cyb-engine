@@ -29,7 +29,7 @@ namespace cyb {
     const graphics::Texture& Resource::GetTexture() const {
         assert(internal_state != nullptr);
         assert(internal_state->type == ResourceType::Image);
-        const ResourceInternal* resourceinternal = (ResourceInternal*)internal_state.get();
+        const ResourceInternal* resourceinternal = (ResourceInternal*)m_internalState.get();
         return resourceinternal->texture;
     }
 }
@@ -76,58 +76,17 @@ namespace cyb::resourcemanager {
         return "None";
     }
 
-    Resource Load(
-        const std::string& name,
-        Flags flags,
-        const uint8_t* filedata,
-        size_t filesize) {
-        Timer timer;
-
-        if (mode == Mode::DiscardFiledataAfterLoad)
-            flags &= ~Flags::RetainFiledataBit;
-
-        // dynamic type selection
-        const auto& typeIt = types.find(filesystem::GetExtension(name));
-        if (typeIt == types.end()) {
-            CYB_ERROR("Failed to determine resource type (filename={0})", name);
-            return Resource();
-        }
-
-        // compute hash for the asset and try locate it in the cache
-        const Resource::HashType hash = hash::String(name);
-        locker.lock();
-        std::shared_ptr<ResourceInternal> resource = resourceCache[hash].lock();
-        if (resource != nullptr) {
-            locker.unlock();
-            return Resource{ resource };
-        }
-        
-        resource = std::make_shared<ResourceInternal>();
-        resource->name = name;
-        resource->hash = hash;
-        resource->type = typeIt->second;
-        resourceCache[hash] = resource;
-        locker.unlock();
-
-        // load filedata if nothing was assigned
-        if (filedata == nullptr || filesize == 0) {
-            if (!filesystem::ReadFile(FindFile(name), resource->data))
-                return Resource();
-
-            filedata = resource->data.data();
-            filesize = resource->data.size();
-        }
-
-        switch (resource->type) {
+    static Resource Load(std::shared_ptr<ResourceInternal> internalState) {
+        switch (internalState->type) {
         case ResourceType::Image: {
             const int channels = 4;
             int width, height, bpp;
 
-            const bool flipImage = HasFlag(flags, Flags::FlipImageBit);
+            const bool flipImage = HasFlag(internalState->flags, Resource::Flags::FlipImageBit);
             stbi_set_flip_vertically_on_load(flipImage);
-            stbi_uc* rawImage = stbi_load_from_memory(filedata, (int)filesize, &width, &height, &bpp, channels);
+            stbi_uc* rawImage = stbi_load_from_memory(internalState->data.data(), (int)internalState->data.size(), &width, &height, &bpp, channels);
             if (rawImage == nullptr) {
-                CYB_ERROR("Failed to decode image (filename={0}): {1}", name, stbi_failure_reason());
+                CYB_ERROR("Failed to decode image (filename={0}): {1}", internalState->name, stbi_failure_reason());
                 stbi_image_free(rawImage);
                 return Resource();
             }
@@ -142,8 +101,8 @@ namespace cyb::resourcemanager {
             graphics::SubresourceData subresourceData;
             subresourceData.mem = rawImage;
             subresourceData.rowPitch = width * channels;
-            
-            graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &resource->texture);
+
+            graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &internalState->texture);
             stbi_image_free(rawImage);
         } break;
 
@@ -153,11 +112,51 @@ namespace cyb::resourcemanager {
             break;
         }
 
-        if (!HasFlag(flags, Flags::RetainFiledataBit))
-            resource->data.clear();
+        if (!HasFlag(internalState->flags, Resource::Flags::RetainFiledataBit))
+            internalState->data.clear();
 
-        CYB_INFO("Loaded {} resource {} in {:.2f}ms", GetResourceTypeString(resource->type), name, timer.ElapsedMilliseconds());
-        return Resource{ resource };
+        return Resource(internalState);
+    }
+
+    Resource LoadFile(const std::string& name, Resource::Flags flags) {
+        Timer timer;
+
+        if (mode == Mode::DiscardFiledataAfterLoad)
+            flags &= ~Resource::Flags::RetainFiledataBit;
+
+        // dynamic type selection
+        const auto& typeIt = types.find(filesystem::GetExtension(name));
+        if (typeIt == types.end()) {
+            CYB_ERROR("Failed to determine resource type (filename={0})", name);
+            return Resource();
+        }
+
+        // compute hash for the asset and try locate it in the cache
+        const Resource::HashType hash = hash::String(name);
+        locker.lock();
+        std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
+        if (internalState != nullptr) {
+            locker.unlock();
+            CYB_TRACE("Grabbed {} asset from cache (name={})", GetResourceTypeString(internalState->type), name);
+            return Resource(internalState);
+        }
+        
+        CYB_TRACE("Creating new asset, name={} hash=0x{:x}, type={}", name, hash, GetResourceTypeString(typeIt->second));
+        internalState = std::make_shared<ResourceInternal>();
+        internalState->name = name;
+        internalState->hash = hash;
+        internalState->type = typeIt->second;
+        internalState->flags = flags;
+        resourceCache[hash] = internalState;
+        locker.unlock();
+
+        if (!filesystem::ReadFile(FindFile(name), internalState->data))
+            return Resource();
+
+        Resource loadedAsset = Load(internalState);
+        CYB_INFO("Loaded {} resource {} in {:.2f}ms", GetResourceTypeString(internalState->type), internalState->name, timer.ElapsedMilliseconds());
+
+        return loadedAsset;
     }
 
     void Clear() {

@@ -6,8 +6,9 @@ workspace "cyb-engine"
 
    -- Setup compiler flags
    flags { "MultiProcessorCompile" }
-   floatingpoint "fast"
-   staticruntime "on"
+   floatingpoint "Fast"
+   staticruntime "On"
+   omitframepointer "On"
 
    outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
    targetdir ("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")

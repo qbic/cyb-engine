@@ -198,8 +198,8 @@ namespace cyb::renderer {
     }
 
     static void LoadBuiltinTextures(jobsystem::Context& ctx) {
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::Load("textures/light_point2.png", resourcemanager::Flags::FlipImageBit); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::Load("textures/light_directional2.png", resourcemanager::Flags::FlipImageBit); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::LoadFile("textures/light_point2.png", Resource::Flags::FlipImageBit); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::LoadFile("textures/light_directional2.png", Resource::Flags::FlipImageBit); });
     }
 
     static void LoadShaders() {

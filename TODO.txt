@@ -3,6 +3,7 @@ BUGS:
  * Depth buffer only goes from 0 - 0.01 according to renderdoc (seems fine in-game though so not sure it's a bug)
 
 TODO FEATURES:
+ * Make editor texture assets load asynchronous during engine initialization
  * Draw outline around selected entity
  * LOD support
  * Editor default window layout

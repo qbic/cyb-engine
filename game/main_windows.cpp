@@ -70,8 +70,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
     assert(dpiSuccess);
 
     RegisterWindowClass(hInstance);
-    if (!InitInstance(hInstance, nShowCmd))
-    {
+    if (!InitInstance(hInstance, nShowCmd)) {
         CYB_ERROR("Failed to initialize instance: {}", GetLastErrorMessage());
         return FALSE;
     }

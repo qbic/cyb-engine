@@ -20,8 +20,7 @@ std::string GetLastErrorMessage();
 
 Game application;
 
-bool EnterFullscreenMode(uint32_t modeIndex)
-{
+bool EnterFullscreenMode(uint64_t modeIndex) {
     DEVMODE fullscreenSettings = {};
     bool isChangeSuccessful;
     
@@ -51,8 +50,7 @@ bool EnterFullscreenMode(uint32_t modeIndex)
 int WINAPI WinMain(_In_ HINSTANCE hInstance, 
     _In_opt_ HINSTANCE hPrevInstance, 
     _In_ LPSTR lpCmdLine,
-    _In_ int nShowCmd)
-{
+    _In_ int nShowCmd) {
     // load resource strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_CYBGAME, szWindowClass, MAX_LOADSTRING);
@@ -75,20 +73,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
         return FALSE;
     }
 
-    eventsystem::Subscribe(eventsystem::Event_SetFullScreen, [](uint64_t mode) {
-        EnterFullscreenMode(mode);
-    });
+    eventsystem::Subscribe(eventsystem::Event_SetFullScreen, EnterFullscreenMode);
 
     MSG msg = { 0 };
-    while (msg.message != WM_QUIT)
-    {
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-        {
+    while (msg.message != WM_QUIT) {
+        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
-        }
-        else 
-        {
+        } else  {
             application.Run();
         }
     }
@@ -96,8 +88,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
     return (int)msg.wParam;
 }
 
-std::string GetLastErrorMessage()
-{
+std::string GetLastErrorMessage() {
     LPSTR s = 0;
     const DWORD code = GetLastError();
     FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -109,8 +100,7 @@ std::string GetLastErrorMessage()
     return str;
 }
 
-ATOM RegisterWindowClass(HINSTANCE hInstance)
-{
+ATOM RegisterWindowClass(HINSTANCE hInstance) {
     WNDCLASS wc = {};
     wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = WndProc;
@@ -121,12 +111,11 @@ ATOM RegisterWindowClass(HINSTANCE hInstance)
     return RegisterClass(&wc);
 }
 
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
-{
-    uint32_t width = 1920;
-    uint32_t height = 1080;
+BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
+    CONST LONG width = 1920;
+    CONST LONG height = 1080;
 
-    RECT rc = { 0, 0, (LONG)width, (LONG)height };
+    RECT rc = { 0, 0, width, height };
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
     HWND hWnd = CreateWindow(
@@ -153,15 +142,12 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    // if imgui takes an input from the user we need to return
+    // so that it doesen't follow though to the game.
     if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
-    {
-        // if imgui takes an input from the user we need to return
-        // so that it doesen't follow though to the game.
         return true;
-    }
 
-    switch (message)
-    {
+    switch (message) {
     case WM_CREATE:
         application.SetWindow(hWnd);
         break;
@@ -188,5 +174,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
+
     return 0;
 }

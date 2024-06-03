@@ -39,7 +39,6 @@ namespace cyb::resourcemanager {
     std::mutex locker;
     std::unordered_map<Resource::HashType, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
-    Mode mode = Mode::DiscardFiledataAfterLoad;
 
     static const std::unordered_map<std::string, ResourceType> types =  {
         std::make_pair("jpg",  ResourceType::Image),
@@ -82,7 +81,7 @@ namespace cyb::resourcemanager {
             const int channels = 4;
             int width, height, bpp;
 
-            const bool flipImage = HasFlag(internalState->flags, Resource::Flags::FlipImageBit);
+            const bool flipImage = HasFlag(internalState->flags, Resource::Flags::ImageFipBit);
             stbi_set_flip_vertically_on_load(flipImage);
             stbi_uc* rawImage = stbi_load_from_memory(internalState->data.data(), (int)internalState->data.size(), &width, &height, &bpp, channels);
             if (rawImage == nullptr) {
@@ -120,9 +119,6 @@ namespace cyb::resourcemanager {
 
     Resource LoadFile(const std::string& name, Resource::Flags flags) {
         Timer timer;
-
-        if (mode == Mode::DiscardFiledataAfterLoad)
-            flags &= ~Resource::Flags::RetainFiledataBit;
 
         // dynamic type selection
         const auto& typeIt = types.find(filesystem::GetExtension(name));

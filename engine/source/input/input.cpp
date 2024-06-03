@@ -30,7 +30,7 @@ namespace cyb::input
 
         rawinput::Initialize();
 
-        CYB_INFO("Input system initialized ({:.2f}ms)", timer.ElapsedMilliseconds());
+        CYB_INFO("Input system initialized in {:.2f}ms", timer.ElapsedMilliseconds());
         initialized.store(true);
     }
 

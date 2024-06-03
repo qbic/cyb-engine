@@ -16,8 +16,8 @@ namespace cyb {
 
         enum class Flags {
             None = 0,
-            FlipImageBit = BIT(0),            // Flip image vertically on load
-            RetainFiledataBit = BIT(1)        // File data will be kept for later reuse.
+            RetainFiledataBit = BIT(0),     // file data will be kept for later reuse.
+            ImageFipBit = BIT(1)            // flip image vertically on load
         };
 
         struct InternalBaseData {
@@ -43,11 +43,6 @@ namespace cyb {
 }
 
 namespace cyb::resourcemanager {
-
-    enum class Mode {
-        DiscardFiledataAfterLoad,
-        AllowRetainFiledata
-    };
 
     void AddSearchPath(const std::string& path);
     [[nodiscard]] std::string FindFile(const std::string& filename);

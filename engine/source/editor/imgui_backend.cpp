@@ -51,9 +51,9 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	ImGuiIO& io = ImGui::GetIO();
 
 	// Load fonts:
-	static const ImWchar fontAwesomeIconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-	static const ImWchar notoSansRanges[] = { 0x20, 0x52f, 0x1ab0, 0x2189, 0x2c60, 0x2e44, 0xa640, 0xab65, 0 };
-	static const ImWchar notoMonoRanges[] = { 0x20, 0x513, 0x1e00, 0x1f4d, 0 };
+	const ImWchar fontAwesomeIconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+	const ImWchar notoSansRanges[] = { 0x20, 0x52f, 0x1ab0, 0x2189, 0x2c60, 0x2e44, 0xa640, 0xab65, 0 };
+	const ImWchar notoMonoRanges[] = { 0x20, 0x513, 0x1e00, 0x1f4d, 0 };
 
 	AddFont("fonts/CascadiaCode-Regular.ttf", notoSansRanges, 14.0f, false);
 	AddFont("fonts/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 13.f, true);

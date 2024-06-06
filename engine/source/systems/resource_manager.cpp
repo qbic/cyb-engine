@@ -18,6 +18,7 @@
 #define STBI_NO_PNM
 #define STBI_FAILURE_USERMSG
 #include "stb_image.h"
+#include "flat_hash_map.hpp"
 #include <filesystem>
 
 namespace cyb {
@@ -40,13 +41,17 @@ namespace cyb::resourcemanager {
     std::unordered_map<AssetHash, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
 
-    static const std::unordered_map<std::string, ResourceType> types =  {
+    static const ska::flat_hash_map<std::string_view, ResourceType> types =  {
         std::make_pair("jpg",  ResourceType::Image),
         std::make_pair("jpeg", ResourceType::Image),
         std::make_pair("png",  ResourceType::Image),
         std::make_pair("dds",  ResourceType::Image),
         std::make_pair("tga",  ResourceType::Image),
-        std::make_pair("bmp",  ResourceType::Image)
+        std::make_pair("bmp",  ResourceType::Image),
+        std::make_pair("frag",  ResourceType::Shader),
+        std::make_pair("vert",  ResourceType::Shader),
+        std::make_pair("geom",  ResourceType::Shader),
+        std::make_pair("comp",  ResourceType::Shader)
     };
 
     void AddSearchPath(const std::string& path) {

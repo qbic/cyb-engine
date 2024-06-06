@@ -7,6 +7,7 @@ namespace cyb {
     enum class ResourceType {
         None,
         Image,
+        Shader,
         Sound
     };
 

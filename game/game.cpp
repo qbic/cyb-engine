@@ -21,7 +21,8 @@ void GameRenderer::Load()
     {
         Timer timer;
         scene::Scene& scene = scene::GetScene();
-        std::string filename = "../terrain_04.cbs";
+
+        std::string filename = resourcemanager::FindFile("scenes/terrain_04.cbs");
         SerializeFromFile(filename, scene);
         CYB_INFO("Serialized scene from file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
     }

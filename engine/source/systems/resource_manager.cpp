@@ -37,7 +37,7 @@ namespace cyb {
 namespace cyb::resourcemanager {
 
     std::mutex locker;
-    std::unordered_map<Resource::HashType, std::weak_ptr<ResourceInternal>> resourceCache;
+    std::unordered_map<AssetHash, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
 
     static const std::unordered_map<std::string, ResourceType> types =  {
@@ -51,7 +51,8 @@ namespace cyb::resourcemanager {
 
     void AddSearchPath(const std::string& path) {
         std::scoped_lock l(locker);
-        searchPaths.push_back(path);
+        const std::string slash = (path[path.length() - 1] != '/') ? "/" : "";
+        searchPaths.push_back(path + slash);
     }
 
     std::string FindFile(const std::string& filename) {
@@ -64,7 +65,7 @@ namespace cyb::resourcemanager {
         return filename;
     }
 
-    const char* GetResourceTypeString(ResourceType type) {
+    const char* GetTypeAsString(ResourceType type) {
         switch (type) {
         case ResourceType::None:    return "None";
         case ResourceType::Image:   return "Image";
@@ -75,13 +76,13 @@ namespace cyb::resourcemanager {
         return "None";
     }
 
-    static Resource Load(std::shared_ptr<ResourceInternal> internalState) {
+    static [[nodiscard]] Resource Load(std::shared_ptr<ResourceInternal> internalState) {
         switch (internalState->type) {
         case ResourceType::Image: {
             const int channels = 4;
             int width, height, bpp;
 
-            const bool flipImage = HasFlag(internalState->flags, Resource::Flags::ImageFipBit);
+            const bool flipImage = HasFlag(internalState->flags, AssetFlags::ImageFipBit);
             stbi_set_flip_vertically_on_load(flipImage);
             stbi_uc* rawImage = stbi_load_from_memory(internalState->data.data(), (int)internalState->data.size(), &width, &height, &bpp, channels);
             if (rawImage == nullptr) {
@@ -111,13 +112,13 @@ namespace cyb::resourcemanager {
             break;
         }
 
-        if (!HasFlag(internalState->flags, Resource::Flags::RetainFiledataBit))
+        if (!HasFlag(internalState->flags, AssetFlags::RetainFiledataBit))
             internalState->data.clear();
 
         return Resource(internalState);
     }
 
-    Resource LoadFile(const std::string& name, Resource::Flags flags) {
+    Resource LoadFile(const std::string& name, AssetFlags flags) {
         Timer timer;
 
         // dynamic type selection
@@ -128,16 +129,16 @@ namespace cyb::resourcemanager {
         }
 
         // compute hash for the asset and try locate it in the cache
-        const Resource::HashType hash = hash::String(name);
+        const AssetHash hash = hash::String(name);
         locker.lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
         if (internalState != nullptr) {
             locker.unlock();
-            CYB_TRACE("Grabbed {} asset from cache (name={})", GetResourceTypeString(internalState->type), name);
+            CYB_TRACE("Grabbed {} asset from cache (name={})", GetTypeAsString(internalState->type), name);
             return Resource(internalState);
         }
         
-        CYB_TRACE("Creating new asset, name={} hash=0x{:x}, type={}", name, hash, GetResourceTypeString(typeIt->second));
+        CYB_TRACE("Creating new asset, name={} hash=0x{:x}, type={}", name, hash, GetTypeAsString(typeIt->second));
         internalState = std::make_shared<ResourceInternal>();
         internalState->name = name;
         internalState->hash = hash;
@@ -150,7 +151,7 @@ namespace cyb::resourcemanager {
             return Resource();
 
         Resource loadedAsset = Load(internalState);
-        CYB_INFO("Loaded {} resource {} in {:.2f}ms", GetResourceTypeString(internalState->type), internalState->name, timer.ElapsedMilliseconds());
+        CYB_INFO("Loaded {} resource {} in {:.2f}ms", GetTypeAsString(internalState->type), internalState->name, timer.ElapsedMilliseconds());
 
         return loadedAsset;
     }

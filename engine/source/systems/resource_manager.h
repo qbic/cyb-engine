@@ -10,21 +10,22 @@ namespace cyb {
         Sound
     };
 
+    enum class AssetFlags {
+        None = 0,
+        RetainFiledataBit = BIT(0),     // file data will be kept for later reuse.
+        ImageFipBit = BIT(1)            // flip image vertically on load
+    };
+    CYB_ENABLE_BITMASK_OPERATORS(AssetFlags);
+
+    using AssetHash = uint64_t;
+
     class Resource {
     public:
-        using HashType = uint64_t;
-
-        enum class Flags {
-            None = 0,
-            RetainFiledataBit = BIT(0),     // file data will be kept for later reuse.
-            ImageFipBit = BIT(1)            // flip image vertically on load
-        };
-
         struct InternalBaseData {
             std::string name;
-            HashType hash;
+            AssetHash hash;
             ResourceType type;
-            Flags flags;
+            AssetFlags flags;
         };
 
         Resource() = default;
@@ -39,7 +40,6 @@ namespace cyb {
     private:
         std::shared_ptr<InternalBaseData> m_internalState;
     };
-    CYB_ENABLE_BITMASK_OPERATORS(Resource::Flags);
 }
 
 namespace cyb::resourcemanager {
@@ -47,12 +47,12 @@ namespace cyb::resourcemanager {
     void AddSearchPath(const std::string& path);
     [[nodiscard]] std::string FindFile(const std::string& filename);
 
-    [[nodiscard]] const char* GetResourceTypeString(ResourceType type);
+    [[nodiscard]] const char* GetTypeAsString(ResourceType type);
 
     // Load a resource file:
     //  name : Filename of a resource
     //  flags : Specify flags that modify behaviour (optional)
-    [[nodiscard]] Resource LoadFile(const std::string& name, Resource::Flags flags = Resource::Flags::None);
+    [[nodiscard]] Resource LoadFile(const std::string& name, AssetFlags flags = AssetFlags::None);
 
     // Note that even if resource manager is cleared, the resource might still
     // be loaded if anything hold a reference to it.

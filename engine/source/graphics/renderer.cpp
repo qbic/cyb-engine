@@ -11,6 +11,7 @@ using namespace cyb::graphics;
 using namespace cyb::scene;
 
 namespace cyb::renderer {
+
     Shader shaders[SHADERTYPE_COUNT];
     GPUBuffer constantbuffers[CBTYPE_COUNT];
     Sampler samplerStates[SSLOT_COUNT] = {};
@@ -109,9 +110,8 @@ namespace cyb::renderer {
     bool LoadShader(ShaderStage stage, Shader& shader, const std::string& filename) {
         const std::string fullPath = SHADERPATH + filename;
         std::vector<uint8_t> fileData;
-        if (!filesystem::ReadFile(fullPath, fileData)) {
+        if (!filesystem::ReadFile(fullPath, fileData))
             return false;
-        }
 
         if (!filesystem::HasExtension(filename, "spv")) {
             ShaderCompilerInput input = {};
@@ -198,8 +198,8 @@ namespace cyb::renderer {
     }
 
     static void LoadBuiltinTextures(jobsystem::Context& ctx) {
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::LoadFile("textures/light_point.png", Resource::Flags::ImageFipBit); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::LoadFile("textures/light_directional.png", Resource::Flags::ImageFipBit); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::LoadFile("textures/light_point.png", AssetFlags::ImageFipBit); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::LoadFile("textures/light_directional.png", AssetFlags::ImageFipBit); });
     }
 
     static void LoadShaders() {
@@ -372,7 +372,6 @@ namespace cyb::renderer {
         jobsystem::Wait(ctx);
 
         static eventsystem::Handle handle = eventsystem::Subscribe(eventsystem::Event_ReloadShaders, [](uint64_t userdata) { LoadShaders(); });
-
     }
 
     void SceneView::Clear() {
@@ -412,7 +411,6 @@ namespace cyb::renderer {
     void UpdatePerFrameData(const SceneView& view, float time, FrameCB& frameCB) {
         frameCB.time = time;
         frameCB.gamma = GAMMA;
-
 
         // Setup weather
         const scene::WeatherComponent& weather = view.scene->active_weather;
@@ -503,14 +501,12 @@ namespace cyb::renderer {
                 const MeshComponent* mesh = view.scene->meshes.GetComponent(object.meshID);
                 if (mesh != nullptr) {
                     if (mesh->vertex_buffer_col.IsValid()) {
-                        const graphics::GPUBuffer* vertex_buffers[] =
-                        {
+                        const graphics::GPUBuffer* vertex_buffers[] = {
                             &mesh->vertex_buffer_pos,
                             &mesh->vertex_buffer_col
                         };
 
-                        const uint32_t strides[] =
-                        {
+                        const uint32_t strides[] = {
                             sizeof(scene::MeshComponent::Vertex_Pos),
                             sizeof(scene::MeshComponent::Vertex_Col)
                         };
@@ -583,8 +579,7 @@ namespace cyb::renderer {
             const XMFLOAT4 min = XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f);
             const XMFLOAT4 max = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
-            const XMFLOAT4 verts[] =
-            {
+            const XMFLOAT4 verts[] = {
                 min,                                 XMFLOAT4(1, 1, 1, 1),
                 XMFLOAT4(min.x, max.y, min.z, 1.0f), XMFLOAT4(1, 1, 1, 1),
                 XMFLOAT4(min.x, max.y, max.z, 1.0f), XMFLOAT4(1, 1, 1, 1),
@@ -601,8 +596,7 @@ namespace cyb::renderer {
             vertexbuffer_desc.bindFlags = BindFlags::VertexBufferBit;
             device->CreateBuffer(&vertexbuffer_desc, &verts, &wirecube_vb);
 
-            const uint16_t indices[] =
-            {
+            const uint16_t indices[] = {
                 0,1,1,2,0,3,0,4,1,5,4,5,
                 5,6,4,7,2,6,3,7,2,3,6,7
             };

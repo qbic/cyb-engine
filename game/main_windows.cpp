@@ -48,8 +48,8 @@ bool EnterFullscreenMode(uint64_t modeIndex) {
 }
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, 
-    _In_opt_ HINSTANCE hPrevInstance, 
-    _In_ LPSTR lpCmdLine,
+    _In_opt_ HINSTANCE /* hPrevInstance */,
+    _In_ LPSTR /* lpCmdLine */ ,
     _In_ int nShowCmd) {
     // load resource strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -64,7 +64,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
     cyb::resourcemanager::AddSearchPath("assets/");
     cyb::resourcemanager::AddSearchPath("../assets/");
 
-    BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    [[maybe_unused]] BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     assert(dpiSuccess);
 
     RegisterWindowClass(hInstance);

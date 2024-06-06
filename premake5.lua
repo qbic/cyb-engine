@@ -5,6 +5,7 @@ workspace "cyb-engine"
    configurations { "Debug", "Release" }
 
    -- Setup compiler flags
+   warnings "Default"
    flags { "MultiProcessorCompile" }
    floatingpoint "Fast"
    staticruntime "On"

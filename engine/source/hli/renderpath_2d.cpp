@@ -4,30 +4,24 @@
 #include "editor/imgui_backend.h"
 #include "ImGuizmo.h"
 
-namespace cyb::hli
-{
-    void RenderPath2D::ResizeBuffers()
-    {
+namespace cyb::hli {
+
+    void RenderPath2D::ResizeBuffers() {
         currentBufferSize = GetInternalResolution();
     }
 
-    void RenderPath2D::Load()
-    {
+    void RenderPath2D::Load() {
 #ifndef NO_EDITOR
         editor::Initialize();
-        //ImGui_Impl_CybEngine_Init();
 #endif
     }
 
-    void RenderPath2D::PreUpdate()
-    {
+    void RenderPath2D::PreUpdate() {
     }
 
-    void RenderPath2D::Update(double dt)
-    {
+    void RenderPath2D::Update(double dt) {
         const XMUINT2 internalResolution = GetInternalResolution();
-        if (currentBufferSize.x != internalResolution.x || currentBufferSize.y != internalResolution.y)
-        {
+        if (currentBufferSize.x != internalResolution.x || currentBufferSize.y != internalResolution.y) {
             CYB_TRACE("Resizing buffers (width={}, height={})", internalResolution.x, internalResolution.y);
             ResizeBuffers();
         }
@@ -46,16 +40,13 @@ namespace cyb::hli
 #endif
     }
 
-    void RenderPath2D::PostUpdate()
-    {
+    void RenderPath2D::PostUpdate() {
     }
 
-    void RenderPath2D::Render() const
-    {
+    void RenderPath2D::Render() const {
     }
 
-    void RenderPath2D::Compose(graphics::CommandList cmd) const
-    {
+    void RenderPath2D::Compose(graphics::CommandList cmd) const {
 #ifndef NO_EDITOR
         {
             CYB_PROFILE_CPU_SCOPE("GUI Render");

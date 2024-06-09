@@ -18,7 +18,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow);
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 std::string GetLastErrorMessage();
 
-Game application;
+GameApplication application;
 
 bool EnterFullscreenMode(uint64_t modeIndex) {
     DEVMODE fullscreenSettings = {};
@@ -140,8 +140,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
     return TRUE;
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     // if imgui takes an input from the user we need to return
     // so that it doesen't follow though to the game.
     if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))

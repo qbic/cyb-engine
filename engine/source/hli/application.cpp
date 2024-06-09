@@ -80,6 +80,11 @@ namespace cyb::hli
 		jobsystem::Execute(ctx, [](jobsystem::JobArgs) { input::Initialize(); });
 		jobsystem::Execute(ctx, [](jobsystem::JobArgs) { renderer::Initialize(); });
 		jobsystem::Execute(ctx, [&](jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(window); });
+		jobsystem::Execute(ctx, [&](jobsystem::JobArgs) { 
+			RenderPath* renderPath = GetRenderPath();
+			renderPath->Load();
+			ActivePath(renderPath);
+		});
 		jobsystem::Wait(ctx);
 
 		CYB_INFO("cyb-engine initialized in {:.2f}ms", timer.ElapsedMilliseconds());

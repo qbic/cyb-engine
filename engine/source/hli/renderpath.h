@@ -2,10 +2,9 @@
 #include "graphics/device.h"
 #include "hli/canvas.h"
 
-namespace cyb::hli
-{
-    class RenderPath : public Canvas
-    {
+namespace cyb::hli {
+
+    class RenderPath : public Canvas {
     public:
         virtual void Load() = 0;
 

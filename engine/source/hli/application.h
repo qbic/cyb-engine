@@ -10,7 +10,7 @@ namespace cyb::hli {
         virtual ~Application() = default;
 
         void ActivePath(RenderPath* component);
-        RenderPath* GetActivePath() { return activePath; }
+        [[nodiscard]] RenderPath* GetActivePath() { return activePath; }
 
         void Run();
         virtual void Initialize();
@@ -18,9 +18,12 @@ namespace cyb::hli {
         virtual void Render();
         virtual void Compose(graphics::CommandList cmd);
 
+        // implemented by game, returned object must be kept alive until application exit
+        [[nodiscard]] virtual RenderPath* GetRenderPath() const = 0;
+
         // Call this before calling Run() or Initialize() if you want to render to a UWP window
         void SetWindow(WindowHandle window);
-        WindowHandle GetWindow() const { return window; }
+        [[nodiscard]] WindowHandle GetWindow() const { return window; }
 
         void KillWindowFocus() { isWindowActive = false; }
         void SetWindowFocus() { isWindowActive = true; }

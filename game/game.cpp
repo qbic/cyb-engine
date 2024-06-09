@@ -7,16 +7,7 @@
 
 using namespace cyb;
 
-void Game::Initialize()
-{
-    Application::Initialize();
-
-    renderer.Load();
-    ActivePath(&renderer);
-}
-
-void GameRenderer::Load()
-{
+void Game::Load() {
 #if 1 
     {
         Timer timer;
@@ -60,8 +51,7 @@ void GameRenderer::Load()
     RenderPath3D::Load();
 }
 
-void GameRenderer::Update(double dt)
-{
+void Game::Update(double dt) {
 #ifndef NO_EDITOR
     // Stop input from going though the editor
     if (!editor::WantInput())
@@ -73,8 +63,7 @@ void GameRenderer::Update(double dt)
     RenderPath3D::Update(dt);
 }
 
-void GameRenderer::CameraControl(double dt)
-{
+void Game::CameraControl(double dt) {
     float xDif = 0;
     float yDif = 0;
     if (input::IsDown(input::MOUSE_BUTTON_RIGHT))

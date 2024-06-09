@@ -15,7 +15,6 @@
 - Change buildsystem to CMake
 
 ### Todo (editor)
-- Make editor texture assets load asynchronous during engine initialization
 - Draw outline around selected entity
 - LOD generation for terrain
 - Editor default window layout

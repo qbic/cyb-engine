@@ -41,6 +41,8 @@ void Game::Load() {
 
     camera->zFarPlane = 1500.f;
     cameraTransform.Translate(XMFLOAT3(0, 2, -10));
+
+    RenderPath3D::Load();
 }
 
 void Game::Update(double dt) {

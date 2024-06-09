@@ -79,18 +79,6 @@ namespace cyb::hli {
 			RenderPath* renderPath = GetRenderPath();
 			renderPath->Load();
 
-			// manually load 3d & 2d stuff (editor etc...)
-			RenderPath3D* rp3d = dynamic_cast<RenderPath3D*>(renderPath);
-			if (rp3d) {
-				rp3d->RenderPath3D::Load();
-			}
-			else {
-				RenderPath2D* rp2d = dynamic_cast<RenderPath2D*>(renderPath);
-				if (rp2d) {
-					rp2d->RenderPath2D::Load();
-				}
-			}
-
 			ActivePath(renderPath);
 		});
 		jobsystem::Wait(ctx);

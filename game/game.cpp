@@ -9,16 +9,12 @@ using namespace cyb;
 
 void Game::Load() {
 #if 1 
-    {
-        Timer timer;
-        scene::Scene& scene = scene::GetScene();
+    Timer timer;
+    scene::Scene& scene = scene::GetScene();
 
-        std::string filename = resourcemanager::FindFile("scenes/terrain_04.cbs");
-        SerializeFromFile(filename, scene);
-        CYB_INFO("Serialized scene from file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
-    }
-
-    //scene::LoadModel("../terrain_04.cbs");
+    std::string filename = resourcemanager::FindFile("scenes/terrain_04.cbs");
+    SerializeFromFile(filename, scene);
+    CYB_INFO("Serialized scene from file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
 #else
     editor::TerrainMeshDesc terrainDesc;
     terrainDesc.size = 1000;
@@ -45,10 +41,6 @@ void Game::Load() {
 
     camera->zFarPlane = 1500.f;
     cameraTransform.Translate(XMFLOAT3(0, 2, -10));
-
-    // NOTE: this should be handled by the engine initialization somewhere sence
-    // all this really does is loding icons for the editor
-    RenderPath3D::Load();
 }
 
 void Game::Update(double dt) {

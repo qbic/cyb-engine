@@ -46,8 +46,13 @@ namespace cyb {
 namespace cyb::resourcemanager {
 
     void AddSearchPath(const std::string& path);
+
+    // try to locate `filename` in any of the added search paths and return
+    // it's full filepath if found, or just `filename` it was not found in any 
+    // of the search paths
     [[nodiscard]] std::string FindFile(const std::string& filename);
 
+    // translate `type` enum to string
     [[nodiscard]] const char* GetTypeAsString(ResourceType type);
 
     // Load a resource file:

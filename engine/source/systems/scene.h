@@ -204,7 +204,7 @@ namespace cyb::scene
         float fogHeight = 0.0f;
 
         float cloudiness = 0.6f;
-        float cloudTurbulence = 0.9;
+        float cloudTurbulence = 0.9f;
         float cloudHeight = 500.0f;
         float windSpeed = 10.0f;
     };

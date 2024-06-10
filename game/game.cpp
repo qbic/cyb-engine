@@ -1,19 +1,13 @@
 #include "editor/editor.h"
-#include "editor/terrain_generator.h"
 #include "game.h"
-
-#include "core/filesystem.h"
-#include "hli/canvas.h"
 
 using namespace cyb;
 
 void Game::Load() {
 #if 1 
     Timer timer;
-    scene::Scene& scene = scene::GetScene();
-
     std::string filename = resourcemanager::FindFile("scenes/terrain_04.cbs");
-    SerializeFromFile(filename, scene);
+    SerializeFromFile(filename, scene::GetScene());
     CYB_INFO("Serialized scene from file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
 #else
     editor::TerrainMeshDesc terrainDesc;

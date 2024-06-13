@@ -13,13 +13,11 @@
 </div>
 
 ## Getting started...
-Clone the project to your computer and create project files:
+Run the following commands to clone the git repository and generate project files
+for visual studio 2022
 ```bash
 git clone https://github.com/qbic/cyb-engine
-cd cyb-engine
-
-# Running the setup script will generate projet files for Visual Studio 2022 on Windows and GMake build files on Linux.
-python tools/scripts/setup.py
+cd cyb-engine && tools\generate-project-files.bat
 ```
 
 ## Dependency graph

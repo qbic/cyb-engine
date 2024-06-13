@@ -13,7 +13,7 @@
 </div>
 
 ## Getting started...
-1. Clone the project to your computer and create project files:
+Clone the project to your computer and create project files:
 ```bash
 git clone https://github.com/qbic/cyb-engine
 cd cyb-engine
@@ -22,12 +22,14 @@ cd cyb-engine
 python tools/scripts/setup.py
 ```
 
-2. Build the project by opening the project with Visual Studio and pressing build.
-Or on Linux:
-> [!NOTE]  
-> cyb-engine does currently NOT build on Linux.
-```bash
-# change release to debug if you whant to create a debug build
-make config=release
+## Dependency graph
+```mermaid
+flowchart TD
+    A(Game) --> B(HLI)
+    A --> I(Input)
+    B --> C(Renderer)
+    C --> D(Systems)
+    D --> E(Graphics)
+    E --> F(Core)
+    I --> F
 ```
-

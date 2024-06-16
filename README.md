@@ -23,11 +23,13 @@ cd cyb-engine && tools\generate-project-files.bat
 ## Dependency graph
 ```mermaid
 flowchart TD
-    A(Game) --> B(HLI)
-    A --> I(Input)
-    B --> C(Renderer)
-    C --> D(Systems)
-    D --> E(Graphics)
-    E --> F(Core)
-    I --> F
+    Game --> HLI
+    Game --> Input
+    HLI --> Renderer
+    HLI --> Editor
+    Renderer --> Systems
+    Systems --> Graphics
+    Graphics --> Core
+    Input --> Core
+    Editor --> Renderer
 ```

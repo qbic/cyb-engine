@@ -41,7 +41,7 @@ void Game::Load() {
 
 void Game::Update(double dt) {
 #ifndef NO_EDITOR
-    // Stop input from going though the editor
+    // stop input from going though the editor
     if (!editor::WantInput())
         CameraControl(dt);
 #else

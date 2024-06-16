@@ -67,6 +67,7 @@ namespace cyb::hli {
 #ifdef CYB_DEBUG_BUILD
 		CYB_INFO("Running debug build, performance will be slow!");
 #endif
+		CYB_INFO_HR();
 		CYB_INFO("Initializing cyb-engine (asynchronous), please wait...");
 
 		jobsystem::Initialize();
@@ -83,7 +84,9 @@ namespace cyb::hli {
 		});
 		jobsystem::Wait(ctx);
 
-		CYB_INFO("cyb-engine initialized in {:.2f}ms", timer.ElapsedMilliseconds());
+		CYB_INFO("cyb-engine initialized in {:.2f}ms ", timer.ElapsedMilliseconds());
+		CYB_INFO_HR();
+
 	}
 
 	void Application::Update(double dt) {

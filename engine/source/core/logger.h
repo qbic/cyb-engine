@@ -44,6 +44,8 @@
 #define CYB_CERROR(expr, ...)
 #endif
 
+#define CYB_INFO_HR()		CYB_INFO("=======================================================================");
+
 namespace cyb::logger {
 
 	struct Message {

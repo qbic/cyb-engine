@@ -20,13 +20,21 @@ if not exist "%PREMAKE_EXE%" (
     echo [OK]
 )
 
+:CheckVulkan
 set VULKAN_VERSION_REQUIRED=1.2.170.0
+set VULKAN_SDK_URL="https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe"
 echo | set /p="Checking Vulkan SDK: "
 if not defined VULKAN_SDK (
     echo [Failed]
     echo cyb-engine requires Vulkan SDK %VULKAN_VERSION_REQUIRED% or later.
-    echo Visit https://vulkan.lunarg.com/sdk/home/ to download the latest version.
-    goto Error
+    set /p "answer=Would you like to download and install the latest vulkan sdk? [Y/n]: "
+    if not "%answer%" == "n" (
+        curl -OJL %VULKAN_SDK_URL%
+        goto CheckVulkan
+    )
+    else (
+        goto Error
+    )
 ) else (
     echo [OK]
 )

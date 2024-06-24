@@ -785,38 +785,34 @@ namespace cyb::scene
 }
 
 // Scene component serializers
-namespace cyb::ecs
+namespace cyb::ecs 
 {
-    void SerializeComponent(scene::NameComponent& x, Serializer& ser, SceneSerializeContext& context)
-    {
+    void SerializeComponent(scene::NameComponent& x, Serializer& ser, SceneSerializeContext& context) {
         ser.Serialize(x.name);
     }
 
-    void SerializeComponent(scene::TransformComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
+    void SerializeComponent(scene::TransformComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
         ser.Serialize((uint32_t&)x.flags);
         ser.Serialize(x.scale_local);
         ser.Serialize(x.rotation_local);
         ser.Serialize(x.translation_local);
 
-        if (ser.IsReading())
-        {
-            x.SetDirty();
-            jobsystem::Execute(context.ctx, [&x](jobsystem::JobArgs) { x.UpdateTransform(); });
+        if (ser.IsReading()) {
+            jobsystem::Execute(context.ctx, [&x](jobsystem::JobArgs) {
+                x.SetDirty();
+                x.UpdateTransform();
+            });
         }
     }
 
-    void SerializeComponent(scene::GroupComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
+    void SerializeComponent(scene::GroupComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
     }
 
-    void SerializeComponent(scene::HierarchyComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
+    void SerializeComponent(scene::HierarchyComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
         ecs::SerializeEntity(x.parentID, ser, context);
     }
 
-    void SerializeComponent(scene::MaterialComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
+    void SerializeComponent(scene::MaterialComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
         ser.Serialize((uint32_t&)x.flags);
         ser.Serialize((uint32_t&)x.shaderType);
         ser.Serialize(x.baseColor);
@@ -824,13 +820,11 @@ namespace cyb::ecs
         ser.Serialize(x.metalness);
     }
 
-    void SerializeComponent(scene::MeshComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
+    void SerializeComponent(scene::MeshComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
         size_t subsetCount = x.subsets.size();
         ser.Serialize(subsetCount);
         x.subsets.resize(subsetCount);
-        for (size_t i = 0; i < subsetCount; ++i)
-        {
+        for (size_t i = 0; i < subsetCount; ++i) {
             ecs::SerializeEntity(x.subsets[i].materialID, ser, context);
             ser.Serialize(x.subsets[i].indexOffset);
             ser.Serialize(x.subsets[i].indexCount);
@@ -841,20 +835,17 @@ namespace cyb::ecs
         ser.Serialize(x.vertex_colors);
         ser.Serialize(x.indices);
 
-        if (ser.IsReading())
-        {
+        if (ser.IsReading()) {
             jobsystem::Execute(context.ctx, [&x](jobsystem::JobArgs) { x.CreateRenderData(); });
         }
     }
 
-    void SerializeComponent(scene::ObjectComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
+    void SerializeComponent(scene::ObjectComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
         ser.Serialize((uint32_t&)x.flags);
         ecs::SerializeEntity(x.meshID, ser, context);
     }
 
-    void SerializeComponent(scene::LightComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
+    void SerializeComponent(scene::LightComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
         ser.Serialize((uint32_t&)x.flags);
         ser.Serialize(x.color);
         ser.Serialize((uint32_t&)x.type);
@@ -862,8 +853,7 @@ namespace cyb::ecs
         ser.Serialize(x.range);
     }
 
-    void SerializeComponent(scene::CameraComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
+    void SerializeComponent(scene::CameraComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
         ser.Serialize(x.aspect);
         ser.Serialize(x.zNearPlane);
         ser.Serialize(x.zFarPlane);
@@ -873,14 +863,12 @@ namespace cyb::ecs
         ser.Serialize(x.up);
     }
 
-    void SerializeComponent(scene::WeatherComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
+    void SerializeComponent(scene::WeatherComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
         ser.Serialize(x.horizon);
         ser.Serialize(x.zenith);
     }
 
-    void SerializeComponent(spatial::AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
+    void SerializeComponent(spatial::AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& context) {
         x.Serialize(ser);
     }
 }

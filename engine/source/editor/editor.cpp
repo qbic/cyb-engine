@@ -82,9 +82,8 @@ namespace cyb::editor {
     }
 
     void InspectMeshComponent(scene::MeshComponent* mesh) {
-        if (!mesh) {
+        if (!mesh)
             return;
-        }
 
         scene::Scene& scene = scene::GetScene();
 

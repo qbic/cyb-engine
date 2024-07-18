@@ -40,13 +40,14 @@ void Game::Load() {
 }
 
 void Game::Update(double dt) {
-#ifndef NO_EDITOR
-    // stop input from going though the editor
-    if (!editor::WantInput())
-        CameraControl(dt);
+#ifdef NO_EDITOR
+    const bool editorWantsInput = false;
 #else
-    CameraControl(dt);
+    const bool editorWantsInput = editor::WantInput();
 #endif
+
+    if (!editorWantsInput)
+        CameraControl(dt);
 
     RenderPath3D::Update(dt);
 }
@@ -54,18 +55,18 @@ void Game::Update(double dt) {
 void Game::CameraControl(double dt) {
     float xDif = 0;
     float yDif = 0;
-    if (input::IsDown(input::MOUSE_BUTTON_RIGHT))
-    {
+
+    if (input::IsDown(input::MOUSE_BUTTON_RIGHT)) {
         const input::MouseState& mouse = input::GetMouseState();
         xDif = m_mouseSensitivity * mouse.deltaPosition.x * (1.0f / 60.0f);
         yDif = m_mouseSensitivity * mouse.deltaPosition.y * (1.0f / 60.0f);
     }
 
     // if dt > 100 millisec, don't allow the camera to jump too far...
-    const double clampedDt = std::min(dt, 0.1);
+    const float clampedDt = std::min((float)dt, 0.1f);
 
-    const double speed = (input::IsDown('F') ? 3.0 : 1.0) * 10.0 * m_moveSpeed * clampedDt;
-    XMVECTOR velocity = XMLoadFloat3(&m_cameraVelocity);
+    const float speed = (input::IsDown('F') ? 3.0f : 1.0f) * 10.0f * m_moveSpeed * clampedDt;
+    XMVECTOR move = XMLoadFloat3(&m_cameraVelocity);
     XMVECTOR moveNew = XMVectorSet(0, 0, 0, 0);
 
     if (input::IsDown('A'))
@@ -80,19 +81,17 @@ void Game::CameraControl(double dt) {
         moveNew += XMVectorSet(0, -1, 0, 0);
     if (input::IsDown(input::KEYBOARD_BUTTON_SPACE))
         moveNew += XMVectorSet(0, 1, 0, 0);
-    moveNew = XMVector3Normalize(moveNew) * static_cast<float>(speed);
+    moveNew = XMVector3Normalize(moveNew) * speed;
 
-    const double blend = m_moveAcceleration * clampedDt / 0.0166;
-    velocity = XMVectorLerp(velocity, moveNew, static_cast<float>(blend)); // smooth the movement a bit
-    const float moveLength = XMVectorGetX(XMVector3Length(velocity));
+    move = XMVectorLerp(move, moveNew, m_moveAcceleration * clampedDt / 0.0166f);
+    const float moveLength = XMVectorGetX(XMVector3Length(move));
 
     if (moveLength < 0.0001f)
-        velocity = XMVectorSet(0, 0, 0, 0);
+        move = XMVectorSet(0, 0, 0, 0);
 
-    //if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f)
-    {
+    if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f) {
         XMMATRIX cameraRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&cameraTransform.rotation_local));
-        XMVECTOR rotatedMove = XMVector3TransformNormal(velocity, cameraRotation);
+        XMVECTOR rotatedMove = XMVector3TransformNormal(move, cameraRotation);
         XMFLOAT3 rotatedMoveStored;
         XMStoreFloat3(&rotatedMoveStored, rotatedMove);
         cameraTransform.Translate(rotatedMoveStored);
@@ -100,7 +99,7 @@ void Game::CameraControl(double dt) {
     }
 
     cameraTransform.UpdateTransform();
-    XMStoreFloat3(&m_cameraVelocity, velocity);
+    XMStoreFloat3(&m_cameraVelocity, move);
 }
 
 

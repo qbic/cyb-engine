@@ -18,13 +18,11 @@ namespace cyb {
     };
     CYB_ENABLE_BITMASK_OPERATORS(AssetFlags);
 
-    using AssetHash = uint64_t;
-
     class Resource {
     public:
         struct InternalBaseData {
             std::string name;
-            AssetHash hash;
+            uint64_t hash;
             ResourceType type;
             AssetFlags flags;
         };
@@ -46,6 +44,10 @@ namespace cyb {
 namespace cyb::resourcemanager {
 
     void AddSearchPath(const std::string& path);
+
+    // return true if asset type could be resolved
+    // `type` can be nullptr if only filename validation is required
+    [[nodiscard]] bool GetAssetTypeFromFilename(ResourceType* type, const std::string& filename);
 
     // try to locate `filename` in any of the added search paths and return
     // it's full filepath if found, or just `filename` it was not found in any 

@@ -17,9 +17,9 @@
 #define STBI_NO_PIC
 #define STBI_NO_PNM
 #define STBI_FAILURE_USERMSG
+#include <filesystem>
 #include "stb_image.h"
 #include "flat_hash_map.hpp"
-#include <filesystem>
 
 namespace cyb {
     struct ResourceInternal : public Resource::InternalBaseData {
@@ -38,7 +38,7 @@ namespace cyb {
 namespace cyb::resourcemanager {
 
     std::mutex locker;
-    std::unordered_map<AssetHash, std::weak_ptr<ResourceInternal>> resourceCache;
+    std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
 
     static const ska::flat_hash_map<std::string_view, ResourceType> types =  {
@@ -70,10 +70,21 @@ namespace cyb::resourcemanager {
         return filename;
     }
 
+    bool GetAssetTypeFromFilename(ResourceType* type, const std::string& filename) {
+        const auto& it = types.find(filesystem::GetExtension(filename));
+        if (it == types.end())
+            return false;
+
+        if (type != nullptr)
+            *type = it->second;
+        return true;
+    }
+
     const char* GetTypeAsString(ResourceType type) {
         switch (type) {
         case ResourceType::None:    return "None";
         case ResourceType::Image:   return "Image";
+        case ResourceType::Shader:  return "Shader";
         case ResourceType::Sound:   return "Sound";
         }
 
@@ -111,8 +122,10 @@ namespace cyb::resourcemanager {
             stbi_image_free(rawImage);
         } break;
 
+        case ResourceType::Shader:
         case ResourceType::Sound:
         case ResourceType::None:
+        default:
             assert(0 && "Unimplemented");
             break;
         }
@@ -126,37 +139,37 @@ namespace cyb::resourcemanager {
     Resource LoadFile(const std::string& name, AssetFlags flags) {
         Timer timer;
 
-        // dynamic type selection
-        const auto& typeIt = types.find(filesystem::GetExtension(name));
-        if (typeIt == types.end()) {
-            CYB_ERROR("Failed to determine resource type (filename={0})", name);
-            return Resource();
-        }
-
         // compute hash for the asset and try locate it in the cache
-        const AssetHash hash = hash::String(name);
+        const uint64_t hash = hash::String(name);
         locker.lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
         if (internalState != nullptr) {
             locker.unlock();
-            CYB_TRACE("Grabbed {} asset from cache (name={})", GetTypeAsString(internalState->type), name);
+            CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), name, hash);
             return Resource(internalState);
         }
         
-        CYB_TRACE("Creating new asset, name={} hash=0x{:x}, type={}", name, hash, GetTypeAsString(typeIt->second));
         internalState = std::make_shared<ResourceInternal>();
         internalState->name = name;
         internalState->hash = hash;
-        internalState->type = typeIt->second;
         internalState->flags = flags;
+
+        if (!GetAssetTypeFromFilename(&internalState->type, name)) {
+            locker.unlock();
+            CYB_ERROR("Failed to determine resource type (filename={0})", name);
+            return Resource();
+        }
+
         resourceCache[hash] = internalState;
         locker.unlock();
 
+        // NOTE: Move the lock bellow ReadFile() so that we don't start to many asynchonous
+        //       file reads wich might hurt perfomance on mechanical hard drives?
         if (!filesystem::ReadFile(FindFile(name), internalState->data))
             return Resource();
 
         Resource loadedAsset = Load(internalState);
-        CYB_INFO("Loaded {} resource {} in {:.2f}ms", GetTypeAsString(internalState->type), internalState->name, timer.ElapsedMilliseconds());
+        CYB_INFO("Loaded {} asset name={} hash=0x{:x} in {:.2f}ms", GetTypeAsString(internalState->type), name, hash, timer.ElapsedMilliseconds());
 
         return loadedAsset;
     }

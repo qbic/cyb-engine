@@ -9,6 +9,7 @@
 
 namespace cyb::logger {
 
+    Level severityThreshold = Level::Trace;
     std::vector<std::unique_ptr<OutputModule>> outputModules;
     std::deque<Message> logHistory;
     SpinLock postLock;
@@ -43,6 +44,10 @@ namespace cyb::logger {
         m_output << log.text;
     }
 
+    void SetMessageSeverityThreshold(Level severity) {
+        severityThreshold = severity;
+    }
+
     namespace detail {
         void RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule) {
             std::scoped_lock<SpinLock> lock(postLock);
@@ -53,18 +58,21 @@ namespace cyb::logger {
             outputModules.push_back(std::move(outputModule));
         }
 
-        [[nodiscard]] static inline std::string GetLogLevelPrefix(uint8_t severity) {
+        [[nodiscard]] static inline std::string GetLogLevelPrefix(Level severity) {
             switch (severity) {
-            case CYB_LOGLEVEL_TRACE:   return "[TRACE]";
-            case CYB_LOGLEVEL_INFO:    return "[INFO]";
-            case CYB_LOGLEVEL_WARNING: return "[WARNING]";
-            case CYB_LOGLEVEL_ERROR:   return "[ERROR]";
+            case Level::Trace:   return "[TRACE]";
+            case Level::Info:    return "[INFO]";
+            case Level::Warning: return "[WARNING]";
+            case Level::Error:   return "[ERROR]";
             }
 
             return {};
         }
 
-        void Post(uint8_t severity, const std::string& text) {
+        void Post(Level severity, const std::string& text) {
+            if (int(severity) < int(severityThreshold))
+                return;
+
             Message log;
             log.text = fmt::format("{0} {1}\n", GetLogLevelPrefix(severity), text);
             log.timestamp = std::chrono::system_clock::now();

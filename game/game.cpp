@@ -4,6 +4,8 @@
 using namespace cyb;
 
 void Game::Load() {
+    //logger::SetMessageSeverityThreshold(logger::Level::Info);
+
 #if 1 
     Timer timer;
     std::string filename = resourcemanager::FindFile("scenes/terrain_04.cbs");

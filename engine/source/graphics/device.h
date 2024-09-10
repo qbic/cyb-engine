@@ -741,7 +741,7 @@ namespace cyb::graphics
                 SetName(&allocator.buffer, "FrameAllocationBuffer");
                 allocator.offset = 0;
                 
-                CYB_TRACE("Increasing GPU frame allocation buffer to {:.1f}kb (commandList=0x{:0x}, bufferIndex={})", desc.size / 1024.0f, (ptrdiff_t)cmd.internal_state, GetBufferIndex());
+                CYB_TRACE("Increasing GPU frame allocation for cmd(0x{:x}) bufferIndex {} to {:.1f}kb", (ptrdiff_t)cmd.internal_state, GetBufferIndex(), desc.size / 1024.0f);
             }
 
             allocation.buffer = allocator.buffer;

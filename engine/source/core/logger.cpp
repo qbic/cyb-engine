@@ -70,7 +70,7 @@ namespace cyb::logger {
         }
 
         void Post(Level severity, const std::string& text) {
-            if (int(severity) < int(severityThreshold))
+            if ((int)severity < (int)severityThreshold)
                 return;
 
             Message log;

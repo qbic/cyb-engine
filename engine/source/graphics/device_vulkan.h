@@ -304,187 +304,62 @@ namespace cyb::graphics
             // Deferred destroy of resources that the GPU is already finished with:
             void Update(uint64_t frameCount, uint32_t BUFFERCOUNT)
             {
+                const auto destroy = [&](auto&& queue, auto&& handler) {
+                    while (!queue.empty()) {
+                        if (queue.front().second + BUFFERCOUNT >= frameCount)
+                            break;
+
+                        auto item = queue.front();
+                        queue.pop_front();
+                        handler(item.first);
+                    }
+                };
+
                 destroylocker.lock();
                 framecount = frameCount;
 
-                while (!destroyer_images.empty())
-                {
-                    if (destroyer_images.front().second + BUFFERCOUNT >= frameCount)
-                        break;
-
-                    auto& item = destroyer_images.front();
-                    destroyer_images.pop_front();
-                    vmaDestroyImage(allocator, item.first.first, item.first.second);
-                }
-                while (!destroyer_imageviews.empty())
-                {
-                    if (destroyer_imageviews.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_imageviews.front();
-                        destroyer_imageviews.pop_front();
-                        vkDestroyImageView(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_buffers.empty())
-                {
-                    if (destroyer_buffers.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_buffers.front();
-                        destroyer_buffers.pop_front();
-                        vmaDestroyBuffer(allocator, item.first.first, item.first.second);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_bufferviews.empty())
-                {
-                    if (destroyer_bufferviews.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_bufferviews.front();
-                        destroyer_bufferviews.pop_front();
-                        vkDestroyBufferView(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_querypools.empty())
-                {
-                    if (destroyer_querypools.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_querypools.front();
-                        destroyer_querypools.pop_front();
-                        vkDestroyQueryPool(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_samplers.empty())
-                {
-                    if (destroyer_samplers.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_samplers.front();
-                        destroyer_samplers.pop_front();
-                        vkDestroySampler(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_descriptorPools.empty())
-                {
-                    if (destroyer_descriptorPools.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_descriptorPools.front();
-                        destroyer_descriptorPools.pop_front();
-                        vkDestroyDescriptorPool(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_descriptorSetLayouts.empty())
-                {
-                    if (destroyer_descriptorSetLayouts.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_descriptorSetLayouts.front();
-                        destroyer_descriptorSetLayouts.pop_front();
-                        vkDestroyDescriptorSetLayout(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_shadermodules.empty())
-                {
-                    if (destroyer_shadermodules.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_shadermodules.front();
-                        destroyer_shadermodules.pop_front();
-                        vkDestroyShaderModule(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_pipelineLayouts.empty())
-                {
-                    if (destroyer_pipelineLayouts.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_pipelineLayouts.front();
-                        destroyer_pipelineLayouts.pop_front();
-                        vkDestroyPipelineLayout(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_pipelines.empty())
-                {
-                    if (destroyer_pipelines.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_pipelines.front();
-                        destroyer_pipelines.pop_front();
-                        vkDestroyPipeline(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_swapchains.empty())
-                {
-                    if (destroyer_swapchains.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_swapchains.front();
-                        destroyer_swapchains.pop_front();
-                        vkDestroySwapchainKHR(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_surfaces.empty())
-                {
-                    if (destroyer_surfaces.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_surfaces.front();
-                        destroyer_surfaces.pop_front();
-                        vkDestroySurfaceKHR(instance, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                while (!destroyer_semaphores.empty())
-                {
-                    if (destroyer_semaphores.front().second + BUFFERCOUNT < frameCount)
-                    {
-                        auto& item = destroyer_semaphores.front();
-                        destroyer_semaphores.pop_front();
-                        vkDestroySemaphore(device, item.first, nullptr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
+                destroy(destroyer_images, [&](auto& item) {
+                    vmaDestroyImage(allocator, item.first, item.second);
+                });
+                destroy(destroyer_imageviews, [&](auto& item) {
+                    vkDestroyImageView(device, item, nullptr);
+                });
+                destroy(destroyer_buffers, [&](auto& item) {
+                    vmaDestroyBuffer(allocator, item.first, item.second);
+                });
+                destroy(destroyer_bufferviews, [&](auto& item) {
+                    vkDestroyBufferView(device, item, nullptr);
+                });
+                destroy(destroyer_querypools, [&](auto& item) {
+                    vkDestroyQueryPool(device, item, nullptr);
+                });
+                destroy(destroyer_samplers, [&](auto& item) {
+                    vkDestroySampler(device, item, nullptr);
+                });
+                destroy(destroyer_descriptorPools, [&](auto& item) {
+                    vkDestroyDescriptorPool(device, item, nullptr);
+                });
+                destroy(destroyer_descriptorSetLayouts, [&](auto& item) {
+                    vkDestroyDescriptorSetLayout(device, item, nullptr);
+                });
+                destroy(destroyer_shadermodules, [&](auto& item) {
+                    vkDestroyShaderModule(device, item, nullptr);
+                });
+                destroy(destroyer_pipelineLayouts, [&](auto& item) {
+                    vkDestroyPipelineLayout(device, item, nullptr);
+                });
+                destroy(destroyer_pipelines, [&](auto& item) {
+                    vkDestroyPipeline(device, item, nullptr);
+                });
+                destroy(destroyer_swapchains, [&](auto& item) {
+                    vkDestroySwapchainKHR(device, item, nullptr);
+                });
+                destroy(destroyer_surfaces, [&](auto& item) {
+                    vkDestroySurfaceKHR(instance, item, nullptr);
+                });
+                destroy(destroyer_semaphores, [&](auto& item) {
+                    vkDestroySemaphore(device, item, nullptr);
+                });
 
                 destroylocker.unlock();
             }

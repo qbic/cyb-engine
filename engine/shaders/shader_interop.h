@@ -22,7 +22,7 @@ using namespace DirectX;
 #define CBPADDING(num) CBPADDING_LINE(num, __LINE__)
 #else
 // glsl shader-side types
-#define CBUFFER(blockname, slot) layout(binding = slot) uniform blockname
+#define CBUFFER(blockname, slot) layout(std140, binding = slot) uniform blockname
 #define CBUFFER_NAME(name) name
 #define CBPADDING(num)
 #endif

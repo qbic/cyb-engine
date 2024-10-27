@@ -112,4 +112,16 @@ vec3 FaceNormal(in vec3 a, in vec3 b, in vec3 c) {
     return normalize(cross(ab, cb));
 }
 
+float AverageValue(in float a, in float b, in float c) {
+    return (a + b + c) * (1.0 / 3.0);
+}
+
+vec3 AverageValue(in vec3 a, in vec3 b, in vec3 c) {
+    return (a + b + c) * (1.0 / 3.0);
+}
+
+vec3 AverageValue(in vec3 v[3]) {
+    return (v[0] + v[1] + v[2]) * (1.0 / 3.0);
+}
+
 #endif

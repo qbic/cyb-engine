@@ -286,7 +286,7 @@ namespace cyb::editor {
 
     void InspectObjectComponent(scene::ObjectComponent* object)
     {
-        ui::CheckboxFlags("Renderable (unimplemented)", (uint32_t*)&object->flags, (uint32_t)scene::ObjectComponent::Flags::RenderableBit, nullptr);
+        ui::CheckboxFlags("Renderable", (uint32_t*)&object->flags, (uint32_t)scene::ObjectComponent::Flags::RenderableBit, nullptr);
         ui::CheckboxFlags("Cast shadow (unimplemented)", (uint32_t*)&object->flags, (uint32_t)scene::ObjectComponent::Flags::CastShadowBit, nullptr);
     }
 
@@ -407,7 +407,7 @@ namespace cyb::editor {
 
     void SceneGraphView::DrawNode(const Node* node)
     {
-        ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+        ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap;
         node_flags |= (node->children.empty()) ? ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen : 0;
         node_flags |= (node->entity == selected_entity) ? ImGuiTreeNodeFlags_Selected : 0;
 

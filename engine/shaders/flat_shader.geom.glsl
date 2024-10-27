@@ -24,19 +24,16 @@ void main()  {
 #ifdef COMPUTE_HARD_NORMALS
     const vec3 normal = FaceNormal(gs_in[0].pos, gs_in[1].pos, gs_in[2].pos);
 #else
-    const vec3 normal = (gs_in[0].normal + gs_in[1].normal + gs_in[2].normal) / 3.0;
+    const vec3 normal = AverageValue(gs_in[0].normal, gs_in[1].normal, gs_in[2].normal);
 #endif // COMPUTE_HARD_NORMALS
 #endif // NO_LIGHTING
 
-    vec4 faceColor = gs_in[0].col;
-    if (gs_in[1].col == gs_in[2].col) {
-        faceColor = gs_in[1].col;
-    }
+    vec4 faceColor = mix(gs_in[0].col, gs_in[1].col, float(gs_in[1].col == gs_in[2].col));
 
     #ifdef ONE_VERTEX_LIGHTING
     vec3 vertex_colors[1];
     int vertex_index = 0;
-    const vec3 vertex_pos = (gs_in[0].pos + gs_in[1].pos + gs_in[2].pos) / 3.0;
+    const vec3 vertex_pos = AverageValue(gs_in[0].pos, gs_in[1].pos, gs_in[2].pos);
     #else
     vec3 vertex_colors[3];
     for (int vertex_index = 0; vertex_index < 3; vertex_index++)
@@ -71,8 +68,8 @@ void main()  {
     const float alpha = faceColor.a;
     vec4 final_color = vec4(vertex_colors[0], alpha);
     #else
-    const float alpha = (gs_in[0].col.a + gs_in[1].col.a + gs_in[2].col.a) / 3.0;
-    vec4 final_color = vec4((vertex_colors[0] + vertex_colors[1] + vertex_colors[2]) / 3.0, alpha);
+    const float alpha = AverageValue(gs_in[0].col.a, gs_in[1].col.a, gs_in[2].col.a);
+    vec4 final_color = vec4(AverageValue(vertex_colors), alpha);
     #endif // ONE_VERTEX_LIGHTING
 
     // add a slight sky color tint to the object, giving it the apperance 

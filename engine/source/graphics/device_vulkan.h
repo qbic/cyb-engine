@@ -270,8 +270,7 @@ namespace cyb::graphics
             return GetCommandList(cmd).frame_allocators[GetBufferIndex()];
         }
 
-        struct AllocationHandler
-        {
+        struct AllocationHandler {
             VmaAllocator allocator = VK_NULL_HANDLE;
             VkDevice device = VK_NULL_HANDLE;
             VkInstance instance = VK_NULL_HANDLE;
@@ -293,8 +292,7 @@ namespace cyb::graphics
             std::deque<std::pair<VkSurfaceKHR, uint64_t>> destroyer_surfaces;
             std::deque<std::pair<VkSemaphore, uint64_t>> destroyer_semaphores;
 
-            ~AllocationHandler()
-            {
+            ~AllocationHandler() {
                 Update(~0, 0); // destroy all remaining
                 vmaDestroyAllocator(allocator);
                 vkDestroyDevice(device, nullptr);
@@ -302,8 +300,7 @@ namespace cyb::graphics
             }
 
             // Deferred destroy of resources that the GPU is already finished with:
-            void Update(uint64_t frameCount, uint32_t BUFFERCOUNT)
-            {
+            void Update(uint64_t frameCount, uint32_t BUFFERCOUNT) {
                 const auto destroy = [&](auto&& queue, auto&& handler) {
                     while (!queue.empty()) {
                         if (queue.front().second + BUFFERCOUNT >= frameCount)

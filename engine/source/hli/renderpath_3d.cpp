@@ -81,8 +81,7 @@ namespace cyb::hli
                     RenderPassImage::DepthStencil(
                         &depthBuffer_Main,
                         RenderPassImage::LoadOp::Clear,
-                        RenderPassImage::StoreOp::Store
-                    )
+                        RenderPassImage::StoreOp::Store)
         };
         device->BeginRenderPass(renderPassImages, _countof(renderPassImages), cmd);
 
@@ -110,8 +109,8 @@ namespace cyb::hli
         params.fullscreen = true;
 
         device->BeginEvent("Composition", cmd);
-        const graphics::Sampler* pointerSampler = renderer::GetSamplerState(renderer::SSLOT_POINT_WRAP);
-        device->BindSampler(pointerSampler, 0, cmd);
+        const graphics::Sampler* pointSampler = renderer::GetSamplerState(renderer::SSLOT_POINT_WRAP);
+        device->BindSampler(pointSampler, 0, cmd);
         renderer::DrawImage(&renderTarget_Main, params, cmd);
         device->EndEvent(cmd);
 

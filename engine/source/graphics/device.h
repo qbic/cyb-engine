@@ -50,9 +50,7 @@ namespace cyb::graphics
         Border
     };
 
-    enum class TextureComponentSwizzle
-    {
-        Identity,
+    enum class ComponentSwizzle {
         Zero,
         One,
         R,
@@ -265,12 +263,11 @@ namespace cyb::graphics
         float maxLOD = FLT_MAX;
     };
 
-    struct TextureComponentMapping
-    {
-        TextureComponentSwizzle r = TextureComponentSwizzle::Identity;
-        TextureComponentSwizzle g = TextureComponentSwizzle::Identity;
-        TextureComponentSwizzle b = TextureComponentSwizzle::Identity;
-        TextureComponentSwizzle a = TextureComponentSwizzle::Identity;
+    struct Swizzle {
+        ComponentSwizzle r = ComponentSwizzle::R;
+        ComponentSwizzle g = ComponentSwizzle::G;
+        ComponentSwizzle b = ComponentSwizzle::B;
+        ComponentSwizzle a = ComponentSwizzle::A;
     };
 
     union ClearValue
@@ -299,7 +296,7 @@ namespace cyb::graphics
         uint32_t height = 0;
         uint32_t arraySize = 1;
         Format format = Format::Unknown;
-        TextureComponentMapping components;
+        Swizzle swizzle;
         uint32_t mipLevels = 1;
         BindFlags bindFlags = BindFlags::None;
         ClearValue clear = {};

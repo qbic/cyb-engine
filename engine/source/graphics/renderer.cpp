@@ -397,7 +397,9 @@ namespace cyb::renderer {
             size_t visibleObjectsCount = 0;
             for (size_t i = 0; i < scene->aabb_objects.Size(); ++i) {
                 const spatial::AxisAlignedBox& aabb = scene->aabb_objects[i];
-                if (frustum.IntersectsBoundingBox(aabb)) {
+                const scene::ObjectComponent& object= scene->objects[i];
+                if (HasFlag(object.flags, scene::ObjectComponent::Flags::RenderableBit) &&
+                    frustum.IntersectsBoundingBox(aabb)) {
                     visibleObjects[visibleObjectsCount] = static_cast<uint32_t>(i);
                     visibleObjectsCount++;
                 }

@@ -33,7 +33,7 @@ namespace cyb {
         [[nodiscard]] const uint8_t* GetWriteData() const { return m_writeData; }
         [[nodiscard]] size_t Size() const { return m_curSize; }
 
-        size_t Read(void* data, size_t length) const;
+        [[nodiscard]] size_t Read(void* data, size_t length) const;
         [[nodiscard]] char ReadChar() const;
         [[nodiscard]] uint8_t ReadByte() const;
         [[nodiscard]] uint32_t ReadInt() const;
@@ -80,13 +80,16 @@ namespace cyb {
 
         template <typename T>
         void Serialize(std::vector<T>& vec) {
-            size_t size = vec.size();
-            Serialize(size);
+            size_t numElements = vec.size();
+            Serialize(numElements);
+
+            const size_t numBytes = numElements * sizeof(T);
             if (m_writing) {
-                m_archive->Write(vec.data(), size * sizeof(T));
+                m_archive->Write(vec.data(), numBytes);
             } else {
-                vec.resize(size);
-                m_archive->Read(vec.data(), size * sizeof(T));
+                vec.resize(numElements);
+                size_t bytesRead = m_archive->Read(vec.data(), numBytes);
+                assert(bytesRead == numBytes);
             }
         }
 

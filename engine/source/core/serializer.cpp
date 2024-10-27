@@ -37,10 +37,11 @@ namespace cyb {
         return length;
     }
 
-#define READ_TYPE_IMPL(type, length) {  \
-    type value;                         \
-    Read(&value, length);               \
-    return value;                       \
+#define READ_TYPE_IMPL(type, length) {          \
+    type value;                                 \
+    size_t bytesRead = Read(&value, length);    \
+    assert(bytesRead == length);                \
+    return value;                               \
 }
 
     char Archive::ReadChar() const {
@@ -126,7 +127,8 @@ namespace cyb {
         if (m_writing) {
             m_archive->Write(&value, sizeof(XMFLOAT3));
         } else {
-            m_archive->Read(&value, sizeof(XMFLOAT3));
+            size_t bytesRead = m_archive->Read(&value, sizeof(XMFLOAT3));
+            assert(bytesRead == sizeof(XMFLOAT3));
         }
     }
 
@@ -135,7 +137,8 @@ namespace cyb {
             m_archive->Write(&value, sizeof(XMFLOAT4));
         }
         else {
-            m_archive->Read(&value, sizeof(XMFLOAT4));
+            size_t bytesRead = m_archive->Read(&value, sizeof(XMFLOAT4));
+            assert(bytesRead == sizeof(XMFLOAT4));
         }
     }
 
@@ -144,7 +147,8 @@ namespace cyb {
             m_archive->Write(&value, sizeof(XMFLOAT4X4));
         }
         else {
-            m_archive->Read(&value, sizeof(XMFLOAT4X4));
+            size_t bytesRead = m_archive->Read(&value, sizeof(XMFLOAT4X4));
+            assert(bytesRead == sizeof(XMFLOAT4X4));
         }
     }
 }

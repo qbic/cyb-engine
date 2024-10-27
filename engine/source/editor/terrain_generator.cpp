@@ -349,9 +349,9 @@ namespace cyb::editor
             // swizzled for easy grayscale viewing
             graphics::TextureDesc desc;
             desc.format = graphics::Format::R32_Float;
-            desc.components.r = graphics::TextureComponentSwizzle::R;
-            desc.components.g = graphics::TextureComponentSwizzle::R;
-            desc.components.b = graphics::TextureComponentSwizzle::R;
+            desc.swizzle.r = graphics::ComponentSwizzle::R;
+            desc.swizzle.g = graphics::ComponentSwizzle::R;
+            desc.swizzle.b = graphics::ComponentSwizzle::R;
             desc.width = PREVIEW_RESOLUTION;
             desc.height = PREVIEW_RESOLUTION;
             desc.bindFlags = graphics::BindFlags::ShaderResourceBit;

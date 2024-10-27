@@ -55,15 +55,14 @@ namespace cyb::graphics::vulkan_internal {
         return VK_FORMAT_UNDEFINED;
     }
 
-    constexpr VkComponentSwizzle _ConvertComponentSwizzle(TextureComponentSwizzle swizzle) {
+    constexpr VkComponentSwizzle _ConvertComponentSwizzle(ComponentSwizzle swizzle) {
         switch (swizzle) {
-        case TextureComponentSwizzle::Identity: return VK_COMPONENT_SWIZZLE_IDENTITY;
-        case TextureComponentSwizzle::Zero:     return VK_COMPONENT_SWIZZLE_ZERO;
-        case TextureComponentSwizzle::One:      return VK_COMPONENT_SWIZZLE_ONE;
-        case TextureComponentSwizzle::R:        return VK_COMPONENT_SWIZZLE_R;
-        case TextureComponentSwizzle::G:        return VK_COMPONENT_SWIZZLE_G;
-        case TextureComponentSwizzle::B:        return VK_COMPONENT_SWIZZLE_B;
-        case TextureComponentSwizzle::A:        return VK_COMPONENT_SWIZZLE_A;
+        case ComponentSwizzle::Zero:     return VK_COMPONENT_SWIZZLE_ZERO;
+        case ComponentSwizzle::One:      return VK_COMPONENT_SWIZZLE_ONE;
+        case ComponentSwizzle::R:        return VK_COMPONENT_SWIZZLE_R;
+        case ComponentSwizzle::G:        return VK_COMPONENT_SWIZZLE_G;
+        case ComponentSwizzle::B:        return VK_COMPONENT_SWIZZLE_B;
+        case ComponentSwizzle::A:        return VK_COMPONENT_SWIZZLE_A;
         }
 
         assert(0);
@@ -1739,14 +1738,14 @@ namespace cyb::graphics {
         viewInfo.subresourceRange.baseMipLevel = firstMip;
         viewInfo.subresourceRange.levelCount = mipCount;
 
-        const TextureComponentMapping& swizzle = texture->GetDesc().components;
-        viewInfo.components.r = _ConvertComponentSwizzle(swizzle.r);
-        viewInfo.components.g = _ConvertComponentSwizzle(swizzle.g);
-        viewInfo.components.b = _ConvertComponentSwizzle(swizzle.b);
-        viewInfo.components.a = _ConvertComponentSwizzle(swizzle.a);
-
         switch (type) {
         case SubresourceType::SRV: {
+            const Swizzle& swizzle = texture->GetDesc().swizzle;
+            viewInfo.components.r = _ConvertComponentSwizzle(swizzle.r);
+            viewInfo.components.g = _ConvertComponentSwizzle(swizzle.g);
+            viewInfo.components.b = _ConvertComponentSwizzle(swizzle.b);
+            viewInfo.components.a = _ConvertComponentSwizzle(swizzle.a);
+
             switch (format) {
             case Format::D32_Float_S8_Uint:
                 viewInfo.format = VK_FORMAT_D32_SFLOAT_S8_UINT;

@@ -63,19 +63,19 @@ void main()  {
 #endif  // NO_LIGHTING
     }
 
-    // calculate average color of the triangle
-    #ifdef ONE_VERTEX_LIGHTING
-    const float alpha = faceColor.a;
-    vec4 final_color = vec4(vertex_colors[0], alpha);
-    #else
-    const float alpha = AverageValue(gs_in[0].col.a, gs_in[1].col.a, gs_in[2].col.a);
-    vec4 final_color = vec4(AverageValue(vertex_colors), alpha);
-    #endif // ONE_VERTEX_LIGHTING
-
     // add a slight sky color tint to the object, giving it the apperance 
     // of some object to sky reflectance (maybe add-in material property)
-    const vec3 sky_reflectance = mix(clamp(mix(cbFrame.horizon, cbFrame.zenith, vec3(0.5)) * 1.5, 0, 1), vec3(1.0), 0.8);
-    final_color.rgb *= sky_reflectance;
+    const vec3 avg_sky_color = (cbFrame.horizon + cbFrame.zenith) * 0.75;
+    const vec3 sky_reflectance = mix(clamp(avg_sky_color, 0, 1), vec3(1.0), 0.8);
+
+    // calculate average color of the triangle
+    #ifdef ONE_VERTEX_LIGHTING
+    const vec3 final_rgb = vertex_colors[0] * sky_reflectance;
+    const vec4 final_color = vec4(final_rgb, faceColor.a);
+    #else
+    const float alpha = AverageValue(gs_in[0].col.a, gs_in[1].col.a, gs_in[2].col.a);
+    const vec4 final_color = vec4(AverageValue(vertex_colors), alpha);
+    #endif // ONE_VERTEX_LIGHTING
 
     for (int i = 0; i < gl_in.length(); i++) {
         gl_Position = gl_in[i].gl_Position;

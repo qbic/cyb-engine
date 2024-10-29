@@ -58,14 +58,14 @@ vec3 DecodeNormal(const in uint packedBits)
 }
 
 // Compact, self-contained version of IQ's 3D value noise function.
-float noise(vec3 p)
+float noise(in vec3 p)
 {
 	const vec3 s = vec3(7, 157, 113);
 	const vec3 i = floor(p);
     vec4 h = vec4(0.0, s.yz, s.y + s.z) + dot(i, s);
     p -= i; 
     p = p*p*(3.0 - 2.0*p);
-    h = mix(fract(sin(h)*43758.5453), fract(sin(h + s.x)*43758.5453), p.x);
+    h = mix(fract(sin(h) * 4375.85453), fract(sin(h + s.x) * 4375.85453), p.x);
     h.xy = mix(h.xz, h.yw, p.y);
     return mix(h.x, h.y, p.z); // Range: [0, 1].
 }
@@ -73,9 +73,9 @@ float noise(vec3 p)
 float fbm(in vec3 p)
 {
     return noise(p)*.57 + 
-           noise(p*2.)*.28 + 
-           noise(p*4.)*.14 + 
-           noise(p*6.)*.05;
+           noise(p * 2.0) * 0.28 + 
+           noise(p * 4.0) * 0.14 + 
+           noise(p * 6.0) * 0.05;
 }
 
 vec3 GetDynamicSkyColor(in vec3 V, bool drawSun)

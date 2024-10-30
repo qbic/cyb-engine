@@ -8,6 +8,8 @@
 #define GAMMA(x)		(ApplySRGBCurve_Fast(x))
 #define DEGAMMA(x)		(RemoveSRGBCurve_Fast(x))
 
+#define saturate(x)     (clamp(x, 0.0, 1.0))
+
 vec3 ApplySRGBCurve(vec3 x)
 {
 	// Approximately pow(x, 1.0 / 2.2)
@@ -86,7 +88,7 @@ vec3 GetDynamicSkyColor(in vec3 V, bool drawSun)
     if (drawSun)
     {
 		vec3 sunDir = normalize(cbFrame.lights[cbFrame.mostImportantLightIndex].position.xyz);
-        float sundot = clamp(dot(V, sunDir), 0.0, 1.0);
+        float sundot = saturate(dot(V, sunDir));
         color += 0.18 * vec3(1.0, 0.7, 0.4) * pow(sundot, 12.0);
         color += 0.18 * vec3(1.0, 0.7, 0.4) * pow(sundot, 32.0);
         color += 0.36 * vec3(1.0, 0.7, 0.4) * pow(sundot, 256.0);
@@ -103,7 +105,7 @@ vec3 GetDynamicSkyColor(in vec3 V, bool drawSun)
 
 float GetFogAmount(float dist)
 {
-	return clamp((dist - cbFrame.fog.x) / (cbFrame.fog.y - cbFrame.fog.x), 0.0, 1.0);
+	return saturate((dist - cbFrame.fog.x) / (cbFrame.fog.y - cbFrame.fog.x));
 }
 
 vec3 FaceNormal(in vec3 a, in vec3 b, in vec3 c) {

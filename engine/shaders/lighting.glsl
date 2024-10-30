@@ -30,6 +30,8 @@ struct SurfaceToLight
     vec3 H;		        // half-vector between view vector and light vector
     float NdotL;        // cos angle between normal and light direction
     float NdotH;        // cos angle between normal and half vector
+    float NdotV;
+    float LdotH;
 };
 
 SurfaceToLight CreateSurfaceToLight(in Surface surface, in vec3 Lnormalized)
@@ -37,9 +39,10 @@ SurfaceToLight CreateSurfaceToLight(in Surface surface, in vec3 Lnormalized)
     SurfaceToLight surfaceToLight;
     surfaceToLight.L = Lnormalized;
     surfaceToLight.H = normalize(surfaceToLight.L + surface.V);
-    surfaceToLight.NdotL = clamp(dot(surface.N, surfaceToLight.L), 0.0, 1.0);
-    surfaceToLight.NdotH = clamp(dot(surface.N, surfaceToLight.H), 0.0, 1.0);
-
+    surfaceToLight.NdotL = saturate(dot(surface.N, surfaceToLight.L));
+    surfaceToLight.NdotH = saturate(dot(surface.N, surfaceToLight.H));
+    surfaceToLight.NdotV = saturate(dot(surface.N, surface.V));
+    surfaceToLight.LdotH = saturate(dot(surfaceToLight.L, surfaceToLight.H));
     return surfaceToLight;
 }
 
@@ -51,18 +54,16 @@ float BRDF_GetDiffuse(in Surface surface, in SurfaceToLight surfaceToLight)
 }
 
 float SchlickWeight(float cosTheta) {
-    float m = clamp(1. - cosTheta, 0., 1.);
+    const float m = saturate(1.0 - cosTheta);
     return (m * m) * (m * m) * m;
 }
 
 float DisneyDiffuse(in Surface surface, in SurfaceToLight surfaceToLight) {
-    float NdotV = clamp(dot(surface.N, surface.V), 0.0, 1.0);
-    float LdotH = clamp(dot(surfaceToLight.L, surfaceToLight.H), 0.0, 1.0);
-    float FL = SchlickWeight(surfaceToLight.NdotL);
-    float FV = SchlickWeight(NdotV);
+    const float FL = SchlickWeight(surfaceToLight.NdotL);
+    const float FV = SchlickWeight(surfaceToLight.NdotV);
     
-    float Fd90 = 0.5 + 2.0 * LdotH*LdotH * surface.roughness;
-    float Fd = mix(1.0, Fd90, FL) * mix(1.0, Fd90, FV);
+    const float Fd90 = 0.5 + 2.0 * surfaceToLight.LdotH*surfaceToLight.LdotH * surface.roughness;
+    const float Fd = mix(1.0, Fd90, FL) * mix(1.0, Fd90, FV);
     
     return (1.0/PI) * Fd * 0.75 + 0.25;
 }
@@ -82,19 +83,28 @@ struct Lighting
     vec3 specular;
 };
 
+float Diffuse_Lighting(in Surface surface, in SurfaceToLight surfaceToLight)
+{
+#ifdef DISNEY_BRDF
+    return DisneyDiffuse(surface, surfaceToLight);
+#else
+    return BRDF_GetDiffuse(surface, surfaceToLight);
+#endif
+}
+
+float Specular_Lighting(in Surface surface, in SurfaceToLight surfaceToLight)
+{
+    return BRDF_GetSpecular(surface, surfaceToLight);
+}
+
 void Light_Directional(in LightSource light, in Surface surface, inout Lighting lighting)
 {
     const vec3 L = normalize(light.position.xyz);
     SurfaceToLight surfaceToLight = CreateSurfaceToLight(surface, L);
     
     const vec3 lightColor = light.color.rgb * light.energy;
-#ifdef DISNEY_BRDF
-    lighting.diffuse += lightColor * DisneyDiffuse(surface, surfaceToLight);
-    lighting.specular += lightColor * BRDF_GetSpecular(surface, surfaceToLight);
-#else
-    lighting.diffuse += lightColor * BRDF_GetDiffuse(surface, surfaceToLight);
-    lighting.specular += lightColor * BRDF_GetSpecular(surface, surfaceToLight);
-#endif
+    lighting.diffuse += lightColor * Diffuse_Lighting(surface, surfaceToLight);
+    lighting.specular += lightColor * Specular_Lighting(surface, surfaceToLight);
 }
 
 void Light_Point(in LightSource light, in Surface surface, inout Lighting lighting)
@@ -108,15 +118,10 @@ void Light_Point(in LightSource light, in Surface surface, inout Lighting lighti
         const float dist = sqrt(dist2);
         SurfaceToLight surfaceToLight = CreateSurfaceToLight(surface, L / dist);
 
-        const float attenuation = clamp(1.0 - (dist2 / range2), 0.0, 1.0);
+        const float attenuation = saturate(1.0 - (dist2 / range2));
         const vec3 lightColor = light.color.rgb * light.energy * (attenuation * attenuation);
-#ifdef DISNEY_BRDF
-        lighting.diffuse += lightColor * DisneyDiffuse(surface, surfaceToLight);
-        lighting.specular += lightColor * BRDF_GetSpecular(surface, surfaceToLight);
-#else
-        lighting.diffuse += lightColor * BRDF_GetDiffuse(surface, surfaceToLight);
-        lighting.specular += lightColor * BRDF_GetSpecular(surface, surfaceToLight);
-#endif
+        lighting.diffuse += lightColor * Diffuse_Lighting(surface, surfaceToLight);
+        lighting.specular += lightColor * Specular_Lighting(surface, surfaceToLight);
     }
 }
 

@@ -232,6 +232,7 @@ namespace cyb::renderer {
         });
 
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_DISNEY_SHADING], "flat_shader_disney.geom"); });
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
 
         jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
@@ -307,6 +308,18 @@ namespace cyb::renderer {
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
             desc.pt = PrimitiveTopology::TriangleList;
             device->CreatePipelineState(&desc, &pso_object[MaterialComponent::Shadertype_BDRF]);
+        }
+        {
+            // PSO_FLAT_DISNEY_SHADING
+            PipelineStateDesc desc;
+            desc.vs = GetShader(VSTYPE_FLAT_SHADING);
+            desc.gs = GetShader(GSTYPE_FLAT_DISNEY_SHADING);
+            desc.fs = GetShader(FSTYPE_FLAT_SHADING);
+            desc.rs = &rasterizers[RSTYPE_FRONT];
+            desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
+            desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
+            desc.pt = PrimitiveTopology::TriangleList;
+            device->CreatePipelineState(&desc, &pso_object[MaterialComponent::Shadertype_Disney_BDRF]);
         }
         {
             // PSO_FLAT_UNLIT

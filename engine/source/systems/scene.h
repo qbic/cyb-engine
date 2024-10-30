@@ -77,6 +77,7 @@ namespace cyb::scene
         enum Shadertype
         {
             Shadertype_BDRF,
+            Shadertype_Disney_BDRF,
             Shadertype_Unlit,
             Shadertype_Terrain,
             Shadertype_Count

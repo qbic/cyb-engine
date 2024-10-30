@@ -50,6 +50,23 @@ float BRDF_GetDiffuse(in Surface surface, in SurfaceToLight surfaceToLight)
     return f0 * (surfaceToLight.NdotL * 0.75 + 0.25);
 }
 
+float SchlickWeight(float cosTheta) {
+    float m = clamp(1. - cosTheta, 0., 1.);
+    return (m * m) * (m * m) * m;
+}
+
+float DisneyDiffuse(in Surface surface, in SurfaceToLight surfaceToLight) {
+    float NdotV = clamp(dot(surface.N, surface.V), 0.0, 1.0);
+    float LdotH = clamp(dot(surfaceToLight.L, surfaceToLight.H), 0.0, 1.0);
+    float FL = SchlickWeight(surfaceToLight.NdotL);
+    float FV = SchlickWeight(NdotV);
+    
+    float Fd90 = 0.5 + 2.0 * LdotH*LdotH * surface.roughness;
+    float Fd = mix(1.0, Fd90, FL) * mix(1.0, Fd90, FV);
+    
+    return (1.0/PI) * Fd * 0.75 + 0.25;
+}
+
 float BRDF_GetSpecular(in Surface surface, in SurfaceToLight surfaceToLight)
 {
     // Blinn-phong specular adjusted for metallic/roughness workflow
@@ -71,8 +88,13 @@ void Light_Directional(in LightSource light, in Surface surface, inout Lighting 
     SurfaceToLight surfaceToLight = CreateSurfaceToLight(surface, L);
     
     const vec3 lightColor = light.color.rgb * light.energy;
+#ifdef DISNEY_BRDF
+    lighting.diffuse += lightColor * DisneyDiffuse(surface, surfaceToLight);
+    lighting.specular += lightColor * BRDF_GetSpecular(surface, surfaceToLight);
+#else
     lighting.diffuse += lightColor * BRDF_GetDiffuse(surface, surfaceToLight);
     lighting.specular += lightColor * BRDF_GetSpecular(surface, surfaceToLight);
+#endif
 }
 
 void Light_Point(in LightSource light, in Surface surface, inout Lighting lighting)
@@ -88,8 +110,13 @@ void Light_Point(in LightSource light, in Surface surface, inout Lighting lighti
 
         const float attenuation = clamp(1.0 - (dist2 / range2), 0.0, 1.0);
         const vec3 lightColor = light.color.rgb * light.energy * (attenuation * attenuation);
+#ifdef DISNEY_BRDF
+        lighting.diffuse += lightColor * DisneyDiffuse(surface, surfaceToLight);
+        lighting.specular += lightColor * BRDF_GetSpecular(surface, surfaceToLight);
+#else
         lighting.diffuse += lightColor * BRDF_GetDiffuse(surface, surfaceToLight);
         lighting.specular += lightColor * BRDF_GetSpecular(surface, surfaceToLight);
+#endif
     }
 }
 

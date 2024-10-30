@@ -38,6 +38,7 @@ namespace cyb::renderer
 
         // Geometry shaders
         GSTYPE_FLAT_SHADING,
+        GSTYPE_FLAT_DISNEY_SHADING,
         GSTYPE_FLAT_UNLIT,
 
         SHADERTYPE_COUNT
@@ -77,6 +78,7 @@ namespace cyb::renderer
     {
         PSO_NULL,
         PSO_FLAT_SHADING,
+        PSO_FLAT_DISNEY_SHADING,
         PSO_IMAGE,
         PSO_SKY,
         PSO_DEBUG_CUBE,

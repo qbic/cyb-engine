@@ -136,6 +136,7 @@ namespace cyb::editor {
         static const std::unordered_map<scene::MaterialComponent::Shadertype, std::string> shadertype_names =
         {
             { scene::MaterialComponent::Shadertype_BDRF,    "Flat BRDF" },
+            { scene::MaterialComponent::Shadertype_Disney_BDRF, "Flat Disney BRDF" },
             { scene::MaterialComponent::Shadertype_Unlit,   "Flat Unlit" },
             { scene::MaterialComponent::Shadertype_Terrain, "Terrain (NOT IMPLEMENTED)" }
         };

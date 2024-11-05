@@ -60,8 +60,7 @@ vec3 DecodeNormal(const in uint packedBits)
 }
 
 // Compact, self-contained version of IQ's 3D value noise function.
-float noise(in vec3 p)
-{
+float Noise_3D(in vec3 p) {
 	const vec3 s = vec3(7, 157, 113);
 	const vec3 i = floor(p);
     vec4 h = vec4(0.0, s.yz, s.y + s.z) + dot(i, s);
@@ -72,21 +71,11 @@ float noise(in vec3 p)
     return mix(h.x, h.y, p.z); // Range: [0, 1].
 }
 
-float fbm(in vec3 p)
-{
-    return noise(p)*.57 + 
-           noise(p * 2.0) * 0.28 + 
-           noise(p * 4.0) * 0.14 + 
-           noise(p * 6.0) * 0.05;
-}
-
-vec3 GetDynamicSkyColor(in vec3 V, bool drawSun)
-{
+vec3 GetDynamicSkyColor(in vec3 V, bool drawSun) {
     float a = V.y * 0.5 + 0.5;
     vec3 color = mix(cbFrame.horizon, cbFrame.zenith, a);
 
-    if (drawSun)
-    {
+    if (drawSun) {
 		vec3 sunDir = normalize(cbFrame.lights[cbFrame.mostImportantLightIndex].position.xyz);
         float sundot = saturate(dot(V, sunDir));
         color += 0.18 * vec3(1.0, 0.7, 0.4) * pow(sundot, 12.0);
@@ -94,12 +83,17 @@ vec3 GetDynamicSkyColor(in vec3 V, bool drawSun)
         color += 0.36 * vec3(1.0, 0.7, 0.4) * pow(sundot, 256.0);
     }
 
-    float t = (cbFrame.cloudHeight - cbCamera.pos.y - .15)/(V.y + .15);
-    if (t > 0.0)
-    {
+    float t = (cbFrame.cloudHeight - cbCamera.pos.y - 0.15)/(V.y + 0.15);
+    if (t > 0.0) {
         vec3 uv = (cbCamera.pos.xyz + t*V) + vec3(vec2(cbFrame.windSpeed * cbFrame.time), 0);
-        color = mix(color, vec3(2), smoothstep(1.0-cbFrame.cloudiness, 1.0, fbm(cbFrame.cloudTurbulence*uv/cbFrame.cloudHeight))*smoothstep(0.45, 0.65, V.y*0.5 + 0.5) * 0.4);
+        uv = cbFrame.cloudTurbulence * uv / cbFrame.cloudHeight;
+        const float fbm_noise = Noise_3D(uv * 1.0) * 0.73 + 
+                                Noise_3D(uv * 2.0) * 0.38 + 
+                                Noise_3D(uv * 4.0) * 0.14 + 
+                                Noise_3D(uv * 6.0) * 0.06;
+        color = mix(color, vec3(2), smoothstep(1.0-cbFrame.cloudiness, 1.0, fbm_noise)*smoothstep(0.45, 0.65, V.y*0.5 + 0.5) * 0.4);
     }
+
     return color;
 }
 

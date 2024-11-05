@@ -44,7 +44,7 @@ void main()  {
         const vec3 vertex_pos = gs_in[vertex_index].pos;
 #endif // ONE_VERTEX_LIGHTING
         Surface surface = CreateSurface(normal, vertex_pos, faceColor.rgb);
-        Lighting lighting = Lighting(vec3(0.0), vec3(0.0));
+        LightingPart lighting = LightingPart(vec3(0.0), vec3(0.0));
 
         for (int light_index = 0; light_index < cbFrame.numLights; light_index++) {
             switch (cbFrame.lights[light_index].type) {
@@ -57,16 +57,16 @@ void main()  {
             }
         }
 
-        ApplyLighting(surface, lighting, vertex_colors[vertex_index]);
+        vertex_colors[vertex_index] = GetSurfaceLighting(surface, lighting);
 #else
-        vertex_colors[vertex_index] = gs_in[vertex_index].col.rgb * cbMaterial.baseColor.rgb;
+        vertex_colors[vertex_index] = faceColor.rgb * cbMaterial.baseColor.rgb;
 #endif  // NO_LIGHTING
     }
 
     // add a slight sky color tint to the object, giving it the apperance 
     // of some object to sky reflectance (maybe add-in material property)
     const vec3 avg_sky_color = (cbFrame.horizon + cbFrame.zenith) * 0.75;
-    const vec3 sky_reflectance = mix(clamp(avg_sky_color, 0, 1), vec3(1.0), 0.8);
+    const vec3 sky_reflectance = mix(clamp(avg_sky_color, 0.0, 1.0), vec3(1.0), 0.75);
 
     // calculate average color of the triangle
     #ifdef ONE_VERTEX_LIGHTING

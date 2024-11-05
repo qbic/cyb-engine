@@ -15,6 +15,7 @@
 - Change buildsystem to CMake
 
 ### Todo (editor)
+- in terrain_generator.cpp:void ColorizeMountains(): generate new vertices when face  has both ground and rock vertices for cleaner seperation 
 - Draw outline around selected entity
 - LOD generation for terrain
 - Editor default window layout

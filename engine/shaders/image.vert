@@ -5,7 +5,8 @@ layout(location = 0) out vec2 frag_uv;
 
 void main() {
     if ((cbImage.flags & IMAGE_FULLSCREEN_BIT) != IMAGE_FULLSCREEN_BIT) {
-        CreateFullscreenTriangleUV(gl_VertexIndex, gl_Position, frag_uv);
+		gl_Position = CreateFullscreenTriangle(gl_VertexIndex);
+		frag_uv = CreateFullscreenTriangleUV(gl_VertexIndex);
     } else {
 		// This vertex shader generates a trianglestrip like this:
 		//	1--2

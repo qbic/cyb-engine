@@ -162,8 +162,6 @@ namespace cyb::renderer
     void SetDebugObjectAABB(bool value);
     bool GetDebugLightsources();
     void SetDebugLightsources(bool value);
-    bool GetDebugLightsourcesAABB();
-    void SetDebugLightsourcesAABB(bool value);
 
     // Draw debug primitives according to the debug states
     void DrawDebugScene(const SceneView& view, graphics::CommandList cmd);

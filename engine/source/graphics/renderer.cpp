@@ -574,14 +574,11 @@ namespace cyb::renderer {
 
     bool debug_object_aabb = false;
     bool debug_lightsources = false;
-    bool debug_lightsources_aabb = false;
 
     bool GetDebugObjectAABB() { return debug_object_aabb; }
     void SetDebugObjectAABB(bool value) { debug_object_aabb = value; }
     bool GetDebugLightsources() { return debug_lightsources; }
     void SetDebugLightsources(bool value) { debug_lightsources = value; }
-    bool GetDebugLightsourcesAABB() { return debug_lightsources_aabb; }
-    void SetDebugLightsourcesAABB(bool value) { debug_lightsources_aabb = value; }
 
     void DrawDebugScene(const SceneView& view, CommandList cmd) {
         static GPUBuffer wirecube_vb;
@@ -652,11 +649,12 @@ namespace cyb::renderer {
             device->EndEvent(cmd);
         }
 
-        // Draw all the visible lightsources
-        // FIXME: Currently draws all lightsources in the scene
+        
         if (debug_lightsources) {
             device->BeginEvent("DebugLightsources", cmd);
             const scene::Scene& scene = *view.scene;
+
+            // Draw icons over all the lightsources
             for (uint32_t i = 0; i < scene.lights.Size(); ++i) {
                 const ecs::Entity lightID = scene.lights.GetEntity(i);
                 const scene::LightComponent* light = scene.lights.GetComponent(lightID);
@@ -680,14 +678,9 @@ namespace cyb::renderer {
                     break;
                 }
             }
-            device->EndEvent(cmd);
-        }
 
-        // Draw bounding boxes for all point lights
-        if (debug_lightsources_aabb) {
-            device->BeginEvent("DebugLightsourcesAABB", cmd);
+            // Draw all the aabb boxes for lightsources
             device->BindPipelineState(&pso_debug[DEBUGRENDERING_CUBE], cmd);
-
             const GPUBuffer* vbs[] = {
                 &wirecube_vb,
             };
@@ -701,7 +694,6 @@ namespace cyb::renderer {
             cbMaterial.baseColor = XMFLOAT4(0.666f, 0.874f, 0.933f, 1.0f);
             device->BindDynamicConstantBuffer(cbMaterial, CBSLOT_MATERIAL, cmd);
 
-            scene::Scene& scene = scene::GetScene();
             for (uint32_t i = 0; i < scene.aabb_lights.Size(); ++i) {
                 ecs::Entity entity = scene.aabb_lights.GetEntity(i);
                 const LightComponent* light = scene.lights.GetComponent(entity);
@@ -714,6 +706,7 @@ namespace cyb::renderer {
                     device->DrawIndexed(24, 0, 0, cmd);
                 }
             }
+
             device->EndEvent(cmd);
         }
 

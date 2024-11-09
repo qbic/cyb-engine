@@ -54,6 +54,7 @@ float LambertBRDF_Specular(in Surface surface, in SurfaceToLight surfaceToLight)
     return pow(spec, shininess) * surface.metallic * (invRoughness * 0.6 + 0.4);
 }
 
+#ifdef DISNEY_BRDF
 float SchlickWeight(in float cosTheta) {
     const float m = saturate(1.0 - cosTheta);
     const float m2 = m * m;
@@ -65,10 +66,11 @@ float DisneyBRDF_Diffuse(in Surface surface, in SurfaceToLight surfaceToLight) {
     const float FV = SchlickWeight(surface.NdotV);
     
     const float Fd90 = 0.5 + 2.0 * surfaceToLight.LdotH*surfaceToLight.LdotH * surface.roughness;
-    const float Fd = mix(1.0, Fd90, FL) * mix(1.0, Fd90, FV);
+    const float Fd = mix(1.0, Fd90, FL) * mix(1.0, Fd90, FV) * (1.0 / PI);
     
-    return (1.0/PI) * Fd * 0.75 + 0.25;
+    return Fd * 0.75 + 0.25;
 }
+#endif // DISNEY_BRDF
 
 struct LightingPart {
     vec3 diffuse;
@@ -89,7 +91,7 @@ float SpecularLighting(in Surface surface, in SurfaceToLight surfaceToLight) {
 
 void Light_Directional(in LightSource light, in Surface surface, inout LightingPart lighting) {
     const vec3 L = normalize(light.position.xyz);
-    SurfaceToLight surfaceToLight = CreateSurfaceToLight(surface, L);
+    const SurfaceToLight surfaceToLight = CreateSurfaceToLight(surface, L);
     
     const vec3 lightColor = light.color.rgb * light.energy;
     lighting.diffuse += lightColor * DiffuseLighting(surface, surfaceToLight);
@@ -103,7 +105,7 @@ void Light_Point(in LightSource light, in Surface surface, inout LightingPart li
 
     if (dist2 < range2) {
         const float dist = sqrt(dist2);
-        SurfaceToLight surfaceToLight = CreateSurfaceToLight(surface, L / dist);
+        const SurfaceToLight surfaceToLight = CreateSurfaceToLight(surface, L / dist);
 
         const float attenuation = saturate(1.0 - (dist2 / range2));
         const vec3 lightColor = light.color.rgb * light.energy * (attenuation * attenuation);

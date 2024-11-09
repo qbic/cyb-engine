@@ -870,9 +870,6 @@ namespace cyb::editor {
                     bool debug_lightsources = renderer::GetDebugLightsources();
                     if (ImGui::Checkbox("Draw Lightsources", &debug_lightsources))
                         renderer::SetDebugLightsources(debug_lightsources);
-                    bool debug_lightsources_abb = renderer::GetDebugLightsourcesAABB();
-                    if (ImGui::Checkbox("Draw Lightsources AABB", &debug_lightsources_abb))
-                        renderer::SetDebugLightsourcesAABB(debug_lightsources_abb);
                     ImGui::EndMenu();
                 }
 

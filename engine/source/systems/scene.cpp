@@ -95,7 +95,7 @@ namespace cyb::scene
     {
         if (!IsDirty())
             return;
-     
+
         SetDirty(false);
         XMStoreFloat4x4(&world, GetLocalMatrix());
     }
@@ -785,7 +785,7 @@ namespace cyb::scene
 }
 
 // Scene component serializers
-namespace cyb::ecs 
+namespace cyb::ecs
 {
     void SerializeComponent(scene::NameComponent& x, Serializer& ser, SceneSerializeContext& context) {
         ser.Serialize(x.name);

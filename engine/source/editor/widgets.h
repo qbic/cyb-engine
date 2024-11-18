@@ -63,7 +63,6 @@ namespace cyb::ui {
     }
 
     bool ListBox(const char* label, int* selectedIndex, std::vector<std::string_view>& values);
-    void FilledBar(const char* label, float v, float vMin, float vMax, const char* format = "{:.2f}");
 
     struct GradientMark {
         ImColor color;

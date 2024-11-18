@@ -64,7 +64,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
     cyb::resourcemanager::AddSearchPath("assets/");
     cyb::resourcemanager::AddSearchPath("../assets/");
 
-    [[maybe_unused]] BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     assert(dpiSuccess);
 
     RegisterWindowClass(hInstance);

@@ -121,7 +121,6 @@ namespace cyb::input::rawinput {
 		BYTE* lpb = inputArena.Allocate(dwSize);
 		if (lpb == nullptr) {
 			CYB_WARNING("Input message queue full, dropping input data");
-			CYB_DEBUGBREAK();	// (need to increase allocator size if this hits)
 			return;
 		}
 

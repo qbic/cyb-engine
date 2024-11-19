@@ -5,10 +5,6 @@
 
 namespace cyb {
 
-    enum ArenaFlags {
-        ClearToZero
-    };
-
     struct ArenaBlock {
         size_t size;
         uint8_t* base;
@@ -62,9 +58,9 @@ namespace cyb {
             size_t allocationSize = AlignPow2(size, m_alignment);
 
             // try to find a block with memory available for the allocation
-            ArenaBlock* block = BlockForAllocation(allocationSize);;
+            ArenaBlock* block = BlockForAllocation(allocationSize);
             if (!block) {
-                // if no available block create a new and try again
+                // if no available block, create a new and try again
                 AllocateNewBlock(size + m_alignment);
                 return Allocate(size);
             }
@@ -100,8 +96,19 @@ namespace cyb {
 
     private:
         [[nodiscard]] ArenaBlock* BlockForAllocation(size_t allocationSize) {
+            const auto hasFreespace = [](const ArenaBlock* block, size_t size) -> bool {
+                return (block->used + size) <= block->size;
+            };
+
+            // check last used block first
+            if (m_lastUsedBlock != nullptr && hasFreespace(m_lastUsedBlock, allocationSize)) {
+                return m_lastUsedBlock;
+            }
+
+            // fallback to linear search
             for (auto& block : m_blocks) {
-                if ((block.used + allocationSize) <= block.size) {
+                if (hasFreespace(&block, allocationSize)) {
+                    m_lastUsedBlock = &block;
                     return &block;
                 }
             }
@@ -111,23 +118,29 @@ namespace cyb {
         
         void AllocateNewBlock(size_t blockSize) {
             if (!m_minimumBlockSize) {
-                m_minimumBlockSize = 1024 * 1024;
+                m_minimumBlockSize = DEFAULT_BLOCK_SIZE;
             }
 
             ArenaBlock& block = m_blocks.emplace_back();
             block.size = std::max(blockSize, m_minimumBlockSize);
             block.used = 0;
             block.base = (uint8_t*)_aligned_malloc(block.size, m_alignment);
+
+            // we assume all previous block doesent fit the allocation and
+            // update the last used cache to the new block
+            m_lastUsedBlock = &block;
+
             m_totalAllocatedMemory += AlignPow2(block.size, m_alignment);
         }
 
     private:
         std::vector<ArenaBlock> m_blocks;
+        ArenaBlock* m_lastUsedBlock = nullptr;  // cache last used block
         size_t m_alignment = 1;
-        size_t m_minimumBlockSize = 0;  // if set to 0, DEFAULT_BLOCK_SIZE will be used
+        size_t m_minimumBlockSize = 0;          // if set to 0, DEFAULT_BLOCK_SIZE will be used
 
         size_t m_totalAllocatedMemory = 0;
         size_t m_totalUsedMemory = 0;
-        size_t m_maxUsedMemory = 0;     // ignoring resets
+        size_t m_maxUsedMemory = 0;             // ignoring resets
     };
 }

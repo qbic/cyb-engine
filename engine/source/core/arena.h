@@ -38,10 +38,12 @@ namespace cyb {
 
     public:
         Arena() = default;
+        Arena(size_t minimumBlockSize, size_t alignment) :
+            m_minimumBlockSize(minimumBlockSize),
+            m_alignment(alignment) {
+        }
         ~Arena() {
-            for (auto& block : m_blocks) {
-                _aligned_free(block.base);
-            }
+            Clear();
         }
 
         // this must _NOT_ be called after any allocations to the arena
@@ -80,7 +82,17 @@ namespace cyb {
                 block.used = 0;
             }
 
+            m_lastUsedBlock = nullptr;
             m_totalUsedMemory = 0;
+        }
+
+        // free all memory and clear all blocks
+        void Clear() {
+            for (auto& block : m_blocks) {
+                _aligned_free(block.base);
+            }
+
+            m_blocks.clear();
         }
 
         [[nodiscard]] ArenaStats GetStats() const {
@@ -126,7 +138,7 @@ namespace cyb {
             block.used = 0;
             block.base = (uint8_t*)_aligned_malloc(block.size, m_alignment);
 
-            // we assume all previous block doesent fit the allocation and
+            // we assume no previous block fit the allocation and
             // update the last used cache to the new block
             m_lastUsedBlock = &block;
 
@@ -142,5 +154,31 @@ namespace cyb {
         size_t m_totalAllocatedMemory = 0;
         size_t m_totalUsedMemory = 0;
         size_t m_maxUsedMemory = 0;             // ignoring resets
+    };
+
+    template <typename T>
+    class ArenaStlProxy {
+    public:
+        using value_type = T;
+
+        ArenaStlProxy() = default;
+        explicit ArenaStlProxy(Arena* arena) noexcept : m_arena(arena) {}
+
+        template <typename U>
+        ArenaStlProxy(const ArenaStlProxy<U>& other) noexcept : m_arena(other.m_arena) {}
+
+        T* allocate(std::size_t n) {
+            if (!m_arena) {
+                throw std::bad_alloc();
+            }
+           return reinterpret_cast<T*>(m_arena->Allocate(n * sizeof(T)));
+        }
+
+        void deallocate(T* p, std::size_t) noexcept {
+            // arena allocator never deletes memory
+        }
+
+    private:
+        Arena* m_arena = nullptr;
     };
 }

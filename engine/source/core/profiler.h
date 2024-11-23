@@ -35,15 +35,14 @@
 #define CYB_TIMED_FUNCTION()
 #endif // CYB_ENABLE_PROFILER
 
-namespace cyb::profiler
-{
+namespace cyb::profiler {
+
     using EntryId = size_t;
 
     constexpr uint32_t AVERAGE_COUNTER_SAMPLES = 20;
     constexpr uint32_t FRAME_GRAPH_ENTRIES = 144;
 
-    struct Entry
-    {
+    struct Entry {
         bool inUse = false;
         std::string name;
         float times[AVERAGE_COUNTER_SAMPLES] = {};
@@ -57,8 +56,7 @@ namespace cyb::profiler
         bool IsCPUEntry() const { return !cmd.IsValid(); }
     };
 
-    struct Context
-    {
+    struct Context {
         std::unordered_map<EntryId, Entry> entries;
         EntryId cpuFrame = 0;
         EntryId gpuFrame = 0;
@@ -74,8 +72,7 @@ namespace cyb::profiler
 
     void EndEntry(EntryId id);
 
-    class ScopedCpuEntry
-    {
+    class ScopedCpuEntry {
     public:
         ScopedCpuEntry(const std::string& name);
         ~ScopedCpuEntry();
@@ -84,8 +81,7 @@ namespace cyb::profiler
         EntryId m_id;
     };
 
-    class ScopedGpuEntry
-    {
+    class ScopedGpuEntry {
     public:
         ScopedGpuEntry(const std::string& name, graphics::CommandList cmd);
         ~ScopedGpuEntry();
@@ -94,8 +90,7 @@ namespace cyb::profiler
         EntryId m_id;
     };
 
-    class ScopedTimedFunction
-    {
+    class ScopedTimedFunction {
     public:
         ScopedTimedFunction(const std::string& name);
         ~ScopedTimedFunction();

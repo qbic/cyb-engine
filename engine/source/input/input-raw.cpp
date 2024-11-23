@@ -10,7 +10,7 @@ namespace cyb::input::rawinput {
 
 	Arena inputArena;
 
-	std::vector<RAWINPUT *> inputMessages;
+	std::vector<RAWINPUT*> inputMessages;
 
 	input::KeyboardState keyboard;
     input::MouseState mouse;

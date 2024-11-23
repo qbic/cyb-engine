@@ -13,7 +13,7 @@ namespace cyb::graphics
     class GraphicsDevice_Vulkan final : public GraphicsDevice
     {
     private:
-        bool debugUtils = true;
+        bool debugUtils = false;
         VkInstance instance = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;

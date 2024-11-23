@@ -71,7 +71,7 @@ vec3 GetDynamicSkyColor(in vec3 V, bool drawSun) {
 }
 
 float GetFogAmount(float dist) {
-	return saturate((dist - cbFrame.fog.x) / (cbFrame.fog.y - cbFrame.fog.x));
+	return saturate((dist - cbFrame.fog.x) * cbFrame.fog.w);
 }
 
 vec3 FaceNormal(in vec3 a, in vec3 b, in vec3 c) {

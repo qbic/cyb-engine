@@ -433,7 +433,7 @@ namespace cyb::renderer {
         frameCB.zenith = weather.zenith;
         frameCB.drawSun = weather.drawSun;
         frameCB.mostImportantLightIndex = 0;
-        frameCB.fog = XMFLOAT3(weather.fogStart, weather.fogEnd, weather.fogHeight);
+        frameCB.fog = XMFLOAT4(weather.fogStart, weather.fogEnd, weather.fogHeight, 1.0f / (weather.fogEnd - weather.fogStart));
         frameCB.cloudiness = weather.cloudiness;
         frameCB.cloudTurbulence = weather.cloudTurbulence;
         frameCB.cloudHeight = weather.cloudHeight;

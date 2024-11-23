@@ -54,10 +54,9 @@ CBUFFER(FrameCB, CBSLOT_FRAME)
     float time;                 // game runtime in ms
 
     vec3 zenith;
-    CBPADDING(1)
-    
-    vec3 fog;                   // fog [start, end, height]
     float gamma;
+
+    vec4 fog;                   // fog [start, end, height, 1/(end-start)]
 
     float cloudiness;           // [0..1]
     float cloudTurbulence;

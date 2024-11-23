@@ -15,7 +15,6 @@ layout(location = 0) in GS_IN_DATA {
 
 layout(location = 0) out GS_OUT_DATA {
     vec3 pos;
-    vec3 viewDir;
     flat vec4 color;
 } gs_out;
 
@@ -80,7 +79,7 @@ void main()  {
     for (int i = 0; i < gl_in.length(); i++) {
         gl_Position = gl_in[i].gl_Position;
         gs_out.pos = gs_in[i].pos;
-        gs_out.viewDir = normalize(cbCamera.pos.xyz - gs_in[i].pos);
+        //gs_out.viewDir = normalize(cbCamera.pos.xyz - gs_in[i].pos);
         gs_out.color = final_color;
         EmitVertex();
     }

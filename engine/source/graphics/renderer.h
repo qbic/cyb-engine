@@ -105,8 +105,7 @@ namespace cyb::renderer
         SSLOT_COUNT
     };
 
-    struct ImageParams
-    {
+    struct ImageParams {
         bool fullscreen = false;
         XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
         XMFLOAT2 size = XMFLOAT2(1.0f, 1.0f);
@@ -117,6 +116,12 @@ namespace cyb::renderer
             XMFLOAT2(0.0f, 1.0f),
             XMFLOAT2(1.0f, 1.0f)
         };
+
+        static ImageParams DefaultFullscreen() {
+            ImageParams params;
+            params.fullscreen = true;
+            return params;
+        }
     };
 
     // Contains a fully clipped view of the scene from the camera perspective
@@ -166,5 +171,5 @@ namespace cyb::renderer
     // Draw debug primitives according to the debug states
     void DrawDebugScene(const SceneView& view, graphics::CommandList cmd);
 
-    void DrawImage(const graphics::Texture* texture, ImageParams& params, graphics::CommandList cmd);
+    void DrawImage(const graphics::Texture* texture, const ImageParams& params, graphics::CommandList cmd);
 }

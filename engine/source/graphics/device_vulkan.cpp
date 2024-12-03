@@ -715,17 +715,19 @@ namespace cyb::graphics {
 
     void GraphicsDevice_Vulkan::DescriptorBinder::Reset() {
         table = {};
-        dirty = true;
+        dirtyFlags = true;
     }
 
     void GraphicsDevice_Vulkan::DescriptorBinder::Flush(CommandList cmd) {
-        if (dirty == DIRTY_NONE)
+        if (dirtyFlags == DIRTY_NONE) {
             return;
+        }
 
         CommandList_Vulkan& commandlist = device->GetCommandList(cmd);
         auto pso_internal = ToInternal(commandlist.active_pso);
-        if (pso_internal->layout_bindings.empty())
+        if (pso_internal->layout_bindings.empty()) {
             return;
+        }
 
         VkCommandBuffer commandbuffer = commandlist.GetCommandBuffer();
 
@@ -737,7 +739,7 @@ namespace cyb::graphics {
             uniform_buffer_dynamic_offsets[i] = (uint32_t)table.CBV_offset[pso_internal->uniform_buffer_dynamic_slots[i]];
         }
 
-        if (dirty & DIRTY_DESCRIPTOR) {
+        if (dirtyFlags & DIRTY_DESCRIPTOR) {
             auto& binder_pool = commandlist.binder_pools[device->GetBufferIndex()];
 
             VkDescriptorSetAllocateInfo alloc_info = {};
@@ -770,8 +772,7 @@ namespace cyb::graphics {
                 for (uint32_t descriptor_index = 0; descriptor_index < x.descriptorCount; ++descriptor_index) {
                     uint32_t unrolled_binding = x.binding + descriptor_index;
 
-                    auto& write = descriptor_writes.emplace_back();
-                    write = {};
+                    auto& write = descriptor_writes.emplace_back(VkWriteDescriptorSet{});
                     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                     write.dstSet = descriptorset;
                     write.dstArrayElement = descriptor_index;
@@ -781,8 +782,7 @@ namespace cyb::graphics {
 
                     switch (write.descriptorType) {
                     case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
-                        image_infos.emplace_back();
-                        write.pImageInfo = &image_infos.back();
+                        write.pImageInfo = &image_infos.emplace_back(VkDescriptorImageInfo{});
                         const GPUResource& resource = table.SRV[unrolled_binding];
                         auto texture_internal = ToInternal((const Texture*)&resource);
                         const Sampler& sampler = table.SAM[unrolled_binding];
@@ -793,9 +793,7 @@ namespace cyb::graphics {
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-                        buffer_infos.emplace_back();
-                        write.pBufferInfo = &buffer_infos.back();
-                        write.pBufferInfo = {};
+                        write.pBufferInfo = &buffer_infos.emplace_back(VkDescriptorBufferInfo{});
                         const uint32_t binding_location = unrolled_binding;
                         const GPUBuffer& buffer = table.CBV[binding_location];
                         assert(buffer.IsBuffer() && "No buffer bound to slot");
@@ -805,15 +803,13 @@ namespace cyb::graphics {
                         buffer_infos.back().buffer = internal_state->resource;
                         buffer_infos.back().offset = offset;
                         buffer_infos.back().range = pso_internal->uniform_buffer_sizes[binding_location];
-                        if (buffer_infos.back().range == 0ull)
+                        if (buffer_infos.back().range == 0ull) {
                             buffer_infos.back().range = VK_WHOLE_SIZE;
+                        }
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: {
-                        buffer_infos.emplace_back();
-                        write.pBufferInfo = &buffer_infos.back();
-                        buffer_infos.back() = {};
-
+                        write.pBufferInfo = &buffer_infos.emplace_back(VkDescriptorBufferInfo{});
                         const uint32_t binding_location = unrolled_binding;
                         const GPUBuffer& buffer = table.CBV[binding_location];
                         assert(buffer.IsBuffer());
@@ -821,8 +817,9 @@ namespace cyb::graphics {
                         auto internal_state = ToInternal(&buffer);
                         buffer_infos.back().buffer = internal_state->resource;
                         buffer_infos.back().range = pso_internal->uniform_buffer_sizes[binding_location];
-                        if (buffer_infos.back().range == 0ull)
+                        if (buffer_infos.back().range == 0ull) {
                             buffer_infos.back().range = VK_WHOLE_SIZE;
+                        }
                     } break;
 
                     default: assert(0);
@@ -849,7 +846,7 @@ namespace cyb::graphics {
             uniform_buffer_dynamic_offsets);
 
         descriptorset_graphics = descriptorset;
-        dirty = DIRTY_NONE;
+        dirtyFlags = DIRTY_NONE;
     }
 
     void GraphicsDevice_Vulkan::DescriptorBinderPool::Init(GraphicsDevice_Vulkan* device) {
@@ -1664,7 +1661,7 @@ namespace cyb::graphics {
         if (binder.table.SRV[slot].internal_state != resource->internal_state)
         {
             binder.table.SRV[slot] = *resource;
-            binder.dirty |= DescriptorBinder::DIRTY_DESCRIPTOR;
+            binder.dirtyFlags |= DescriptorBinder::DIRTY_DESCRIPTOR;
         }
     }
 
@@ -1676,7 +1673,7 @@ namespace cyb::graphics {
         if (binder.table.SAM[slot].internal_state != sampler->internal_state)
         {
             binder.table.SAM[slot] = *sampler;
-            binder.dirty |= DescriptorBinder::DIRTY_DESCRIPTOR;
+            binder.dirtyFlags |= DescriptorBinder::DIRTY_DESCRIPTOR;
         }
     }
 
@@ -1689,13 +1686,13 @@ namespace cyb::graphics {
         if (binder.table.CBV[slot].internal_state != buffer->internal_state)
         {
             binder.table.CBV[slot] = *buffer;
-            binder.dirty |= DescriptorBinder::DIRTY_DESCRIPTOR;
+            binder.dirtyFlags |= DescriptorBinder::DIRTY_DESCRIPTOR;
         }
 
         if (binder.table.CBV_offset[slot] != offset)
         {
             binder.table.CBV_offset[slot] = offset;
-            binder.dirty |= DescriptorBinder::DIRTY_DESCRIPTOR;
+            binder.dirtyFlags |= DescriptorBinder::DIRTY_DESCRIPTOR;
         }
     }
 
@@ -2485,30 +2482,28 @@ namespace cyb::graphics {
         vkCmdSetViewport(commandlist.GetCommandBuffer(), 0, viewportCount, vp);
     }
 
-    void GraphicsDevice_Vulkan::BindPipelineState(const PipelineState* pso, CommandList cmd)
-    {
+    void GraphicsDevice_Vulkan::BindPipelineState(const PipelineState* pso, CommandList cmd) {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
 
         size_t pipelineHash = 0;
         hash::Combine(pipelineHash, pso->hash);
         hash::Combine(pipelineHash, commandlist.renderpassInfo.GetHash());
-        if (pipelineHash == commandlist.prevPipelineHash)
+        if (pipelineHash == commandlist.prevPipelineHash) {
             return;
+        }
 
         commandlist.prevPipelineHash = pipelineHash;
         commandlist.dirty_pso = true;
 
         auto internal_state = ToInternal(pso);
 
-        if (commandlist.active_pso == nullptr)
-        {
-            commandlist.binder.dirty |= DescriptorBinder::DIRTY_ALL;
-        }
-        else
-        {
+        if (commandlist.active_pso == nullptr) {
+            commandlist.binder.dirtyFlags |= DescriptorBinder::DIRTY_ALL;
+        } else {
             auto active_internal = ToInternal(commandlist.active_pso);
-            if (internal_state->binding_hash != active_internal->binding_hash)
-                commandlist.binder.dirty |= DescriptorBinder::DIRTY_ALL;
+            if (internal_state->binding_hash != active_internal->binding_hash) {
+                commandlist.binder.dirtyFlags |= DescriptorBinder::DIRTY_ALL;
+            }
         }
 
         commandlist.active_pso = pso;
@@ -3034,8 +3029,9 @@ namespace cyb::graphics {
         auto dst_internal = static_cast<Buffer_Vulkan*>(dest->internal_state.get());
 
         VkQueryResultFlags flags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT;
-        if (query->desc.type == GPUQueryType::OcclusionBinary)
+        if (query->desc.type == GPUQueryType::OcclusionBinary) {
             flags |= VK_QUERY_RESULT_PARTIAL_BIT;
+        }
 
         vkCmdCopyQueryPoolResults(
             commandlist.GetCommandBuffer(),
@@ -3060,8 +3056,9 @@ namespace cyb::graphics {
     }
 
     void GraphicsDevice_Vulkan::SetName(GPUResource* resource, const char* name) {
-        if (!debugUtils || resource == nullptr || !resource->IsValid())
+        if (!debugUtils || resource == nullptr || !resource->IsValid()) {
             return;
+        }
 
         VkDebugUtilsObjectNameInfoEXT info = {};
         info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
@@ -3082,8 +3079,9 @@ namespace cyb::graphics {
     }
 
     void GraphicsDevice_Vulkan::SetName(Shader* shader, const char* name) {
-        if (!debugUtils || shader == nullptr || !shader->IsValid())
+        if (!debugUtils || shader == nullptr || !shader->IsValid()) {
             return;
+        }
 
         VkDebugUtilsObjectNameInfoEXT info = {};
         info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
@@ -3091,15 +3089,17 @@ namespace cyb::graphics {
         info.objectHandle = (uint64_t)ToInternal(shader)->shadermodule;
         info.pObjectName = name;
 
-        if (info.objectHandle == (uint64_t)VK_NULL_HANDLE)
+        if (info.objectHandle == (uint64_t)VK_NULL_HANDLE) {
             return;
+        }
 
         VK_CHECK_RESULT(vkSetDebugUtilsObjectNameEXT(device, &info));
     }
 
     void GraphicsDevice_Vulkan::BeginEvent(const char* name, CommandList cmd) {
-        if (!debugUtils)
+        if (!debugUtils) {
             return;
+        }
 
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         const uint64_t hash = hash::String(name);
@@ -3111,13 +3111,24 @@ namespace cyb::graphics {
         label.color[2] = ((hash >> 8) & 0xFF) / 255.0f;
         label.color[3] = 1.0f;
         vkCmdBeginDebugUtilsLabelEXT(commandlist.GetCommandBuffer(), &label);
+
+#ifdef CYB_DEBUG_BUILD
+        assert(commandlist.eventCount <= std::numeric_limits<decltype(commandlist.eventCount)>::max());
+        ++commandlist.eventCount;
+#endif
     }
 
     void GraphicsDevice_Vulkan::EndEvent(CommandList cmd) {
-        if (!debugUtils)
+        if (!debugUtils) {
             return;
+        }
 
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         vkCmdEndDebugUtilsLabelEXT(commandlist.GetCommandBuffer());
+
+#ifdef CYB_DEBUG_BUILD
+        --commandlist.eventCount;
+        assert(commandlist.eventCount >= 0);
+#endif
     }
 }

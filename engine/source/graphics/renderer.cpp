@@ -198,8 +198,8 @@ namespace cyb::renderer {
     }
 
     static void LoadBuiltinTextures(jobsystem::Context& ctx) {
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::LoadFile("textures/light_point.png", AssetFlags::ImageFipBit); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::LoadFile("textures/light_directional.png", AssetFlags::ImageFipBit); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::LoadFile("textures/light_point.png"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::LoadFile("textures/light_directional.png"); });
     }
 
     static void LoadShaders() {
@@ -713,7 +713,7 @@ namespace cyb::renderer {
         device->EndEvent(cmd);
     }
 
-    void DrawImage(const Texture* texture, ImageParams& params, CommandList cmd) {
+    void DrawImage(const Texture* texture, const ImageParams& params, CommandList cmd) {
         GraphicsDevice* device = GetDevice();
         device->BeginEvent("Image", cmd);
 

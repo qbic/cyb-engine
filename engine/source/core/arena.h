@@ -161,24 +161,36 @@ namespace cyb {
     public:
         using value_type = T;
 
-        ArenaStlProxy() = default;
-        explicit ArenaStlProxy(Arena* arena) noexcept : m_arena(arena) {}
+        ArenaStlProxy() noexcept = default;
+        ArenaStlProxy(Arena* arena) noexcept : m_arena(arena) {}
 
-        template <typename U>
-        ArenaStlProxy(const ArenaStlProxy<U>& other) noexcept : m_arena(other.m_arena) {}
+        template <class U>
+        ArenaStlProxy(const ArenaStlProxy<U>& other) noexcept : 
+            m_arena(other.m_arena) {
+        }
 
         T* allocate(std::size_t n) {
             if (!m_arena) {
                 throw std::bad_alloc();
             }
-           return reinterpret_cast<T*>(m_arena->Allocate(n * sizeof(T)));
+           T* ptr = reinterpret_cast<T*>(m_arena->Allocate(n * sizeof(T)));
+           return ptr;
         }
 
         void deallocate(T* p, std::size_t) noexcept {
             // arena allocator never deletes memory
         }
 
-    private:
+        template <class U>
+        bool operator==(const ArenaStlProxy<U>& b) const noexcept {
+            return m_arena == b.m_arena;
+        }
+
+        template <class U>
+        bool operator!=(const ArenaStlProxy<U>& b) const noexcept {
+            return m_arena != b.m_arena;
+        }
+
         Arena* m_arena = nullptr;
     };
 }

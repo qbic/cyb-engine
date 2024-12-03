@@ -1,9 +1,8 @@
-/************************************************************************************
- Derived from:
- https://www.justsoftwaresolutions.co.uk/cplusplus/using-enum-classes-as-bitfields.html
-************************************************************************************/
 #pragma once
 #include <type_traits>
+
+// Derived from Anthony Williams "Using Enum Classes as Bitfields"
+// https://www.justsoftwaresolutions.co.uk/cplusplus/using-enum-classes-as-bitfields.html
 
 #define CYB_ENABLE_BITMASK_OPERATORS(E) constexpr bool EnableBitmaskOperators(E) noexcept { return true; }
 

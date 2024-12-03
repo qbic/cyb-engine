@@ -3,13 +3,12 @@
 #include "input/input.h"
 #include "input/input-raw.h"
 #include <hidsdi.h>
-
+#include <list>
 #pragma comment(lib, "Hid.lib")
 
 namespace cyb::input::rawinput {
 
 	Arena inputArena;
-
 	std::vector<RAWINPUT*> inputMessages;
 
 	input::KeyboardState keyboard;
@@ -36,7 +35,7 @@ namespace cyb::input::rawinput {
             assert(0);
         }
 
-		inputArena.SetBlockSizeAndAlignment(16 * 1024, 8); // 16k block size, 8byte alignment
+		inputArena.SetBlockSizeAndAlignment(16 * 1024, 64); // 16k block size, 8byte alignment
 		inputMessages.reserve(64);
 		initialized.store(true);
     }

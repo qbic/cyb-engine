@@ -526,7 +526,7 @@ namespace cyb::graphics
             return hasher.value;
         }
 
-        static const RenderPassInfo GetFrom(const RenderPassImage* images, uint32_t imageCount)
+        static RenderPassInfo GetFrom(const RenderPassImage* images, uint32_t imageCount)
         {
             RenderPassInfo info;
             for (uint32_t i = 0; i < imageCount; ++i)
@@ -546,7 +546,7 @@ namespace cyb::graphics
             return info;
         }
 
-        static const RenderPassInfo GetFrom(const SwapChainDesc& swapchainDesc)
+        static RenderPassInfo GetFrom(const SwapChainDesc& swapchainDesc)
         {
             RenderPassInfo info;
             info.rtCount = 1;

@@ -16,6 +16,12 @@ namespace cyb::math {
 
     constexpr float PI = 3.14159265358979323846264338327950288f;
     constexpr XMFLOAT4X4 MATRIX_IDENTITY = XMFLOAT4X4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+    constexpr XMFLOAT3 VECTOR_ZERO = XMFLOAT3(0, 0, 0);
+    constexpr XMFLOAT3 VECTOR_IDENTITY = XMFLOAT3(1, 1, 1);
+    constexpr XMFLOAT3 VECTOR_UP = XMFLOAT3(0, 1, 0);
+    constexpr XMFLOAT3 VECTOR_FORWARD = XMFLOAT3(0, 0, 1);
+    constexpr XMFLOAT3 VECTOR_RIGHT = XMFLOAT3(1, 0, 0);
+    constexpr XMFLOAT4 QUATERNION_IDENTITY = XMFLOAT4(0, 0, 0, 1);
 
     template <typename T>
     [[nodiscard]] constexpr T ToRadians(const T degrees) noexcept {

@@ -1,27 +1,25 @@
 #pragma once
 #include <atomic>
 #include <functional>
-#include <array>
 #include <mutex>
 
-namespace cyb::jobsystem
-{
-	struct JobArgs
-	{
+namespace cyb::jobsystem {
+
+	struct JobArgs {
 		uint32_t jobIndex;
 		uint32_t groupID;
 		uint32_t groupIndex;
 		bool isFirstJobInGroup;
 		bool isLastJobInGroup;
+		void* sharedMemory;			// large allocation may be allocated on the heap
 	};
 
 	void Initialize();
 	uint32_t GetThreadCount();
 
 	// Defines a state of execution, can be waited on
-	struct Context
-	{
-		std::atomic<uint32_t> counter{ 0 };
+	struct Context {
+		std::atomic<uint32_t> counter = 0;
 	};
 
 	void Execute(Context& ctx, const std::function<void(JobArgs)>& task);

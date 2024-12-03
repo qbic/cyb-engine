@@ -59,6 +59,6 @@ namespace cyb::spatial {
 
         [[nodiscard]] bool IntersectsBoundingBox(const AxisAlignedBox& aabb) const;
 
-        XMFLOAT4 planes[6];
+        XMFLOAT4 planes[6] = {};
     };
 }

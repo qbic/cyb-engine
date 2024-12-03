@@ -20,7 +20,7 @@ vec4 CreateFullscreenTriangle(in uint vertexID) {
 // Create vertex uv for a full screen triangle from 3 vertices
 vec2 CreateFullscreenTriangleUV(in uint vertexID) {
 	const float u = (vertexID / 2) * 2.0;
-    const float v = ((vertexID+1) % 2) * 2.0;	// flip y axis
+    const float v = ((vertexID + 1) % 2) * 2.0;	// flip y axis
     return vec2(u, v);
 }
 

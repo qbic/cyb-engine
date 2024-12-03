@@ -116,10 +116,9 @@ namespace cyb::graphics
                 DIRTY_NONE = 0,
                 DIRTY_DESCRIPTOR = 1 << 1,
                 DIRTY_OFFSET = 1 << 2,
-
                 DIRTY_ALL = ~0,
             };
-            uint32_t dirty = DIRTY_NONE;
+            uint32_t dirtyFlags = DIRTY_NONE;
 
             void Init(GraphicsDevice_Vulkan* device);
             void Reset();
@@ -137,8 +136,7 @@ namespace cyb::graphics
             void Reset();
         };
 
-        struct CommandList_Vulkan
-        {
+        struct CommandList_Vulkan {
             VkCommandPool commandpools[BUFFERCOUNT][static_cast<uint32_t>(QueueType::_Count)] = {};
             VkCommandBuffer commandbuffers[BUFFERCOUNT][static_cast<uint32_t>(QueueType::_Count)] = {};
             uint32_t buffer_index = 0;
@@ -161,18 +159,17 @@ namespace cyb::graphics
             RenderPassInfo renderpassInfo = {};
             std::vector<VkImageMemoryBarrier> renderpassBarriersBegin;
             std::vector<VkImageMemoryBarrier> renderpassBarriersEnd;
-
-            inline VkCommandPool GetCommandPool() const
-            {
+#ifdef CYB_DEBUG_BUILD
+            int32_t eventCount = 0;
+#endif
+            inline VkCommandPool GetCommandPool() const {
                 return commandpools[buffer_index][static_cast<uint32_t>(queue)];
             }
-            inline VkCommandBuffer GetCommandBuffer() const
-            {
+            inline VkCommandBuffer GetCommandBuffer() const {
                 return commandbuffers[buffer_index][static_cast<uint32_t>(queue)];
             }
 
-            void Reset(uint32_t newBufferIndex)
-            {
+            void Reset(uint32_t newBufferIndex) {
                 buffer_index = newBufferIndex;
                 binder.Reset();
                 binder_pools[buffer_index].Reset();
@@ -180,12 +177,14 @@ namespace cyb::graphics
                 prevPipelineHash = 0;
                 active_pso = nullptr;
                 vertexbuffer_hash = 0;
-                for (int i = 0; i < _countof(vertexbuffer_strides); ++i)
-                {
+                for (int i = 0; i < _countof(vertexbuffer_strides); ++i) {
                     vertexbuffer_strides[i] = 0;
                 }
                 dirty_pso = false;
                 prev_swapchains.clear();
+#ifdef CYB_DEBUG_BUILD
+                eventCount = 0;
+#endif
             }
         };
 

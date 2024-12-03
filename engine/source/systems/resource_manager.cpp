@@ -92,35 +92,42 @@ namespace cyb::resourcemanager {
         return "None";
     }
 
+    static bool LoadImageResouce(std::shared_ptr<ResourceInternal> resource) {
+        const int channels = 4;
+        int width, height, bpp;
+
+        const bool flipImage = HasFlag(resource->flags, AssetFlags::ImageFipBit);
+        stbi_set_flip_vertically_on_load(flipImage);
+        stbi_uc* rawImage = stbi_load_from_memory(resource->data.data(), (int)resource->data.size(), &width, &height, &bpp, channels);
+        if (rawImage == nullptr) {
+            CYB_ERROR("Failed to decode image (filename={0}): {1}", resource->name, stbi_failure_reason());
+            stbi_image_free(rawImage);
+            return false;
+        }
+
+        graphics::TextureDesc desc;
+        desc.width = width;
+        desc.height = height;
+        desc.format = graphics::Format::R8G8B8A8_Unorm;
+        desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
+        desc.mipLevels = 1;     // generate full mip chain at runtime
+
+        graphics::SubresourceData subresourceData;
+        subresourceData.mem = rawImage;
+        subresourceData.rowPitch = width * channels;
+
+        graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &resource->texture);
+        stbi_image_free(rawImage);
+        return true;
+    }
+
     static [[nodiscard]] Resource Load(std::shared_ptr<ResourceInternal> internalState) {
         switch (internalState->type) {
-        case ResourceType::Image: {
-            const int channels = 4;
-            int width, height, bpp;
-
-            const bool flipImage = HasFlag(internalState->flags, AssetFlags::ImageFipBit);
-            stbi_set_flip_vertically_on_load(flipImage);
-            stbi_uc* rawImage = stbi_load_from_memory(internalState->data.data(), (int)internalState->data.size(), &width, &height, &bpp, channels);
-            if (rawImage == nullptr) {
-                CYB_ERROR("Failed to decode image (filename={0}): {1}", internalState->name, stbi_failure_reason());
-                stbi_image_free(rawImage);
+        case ResourceType::Image:
+            if (!LoadImageResouce(internalState)) {
                 return Resource();
             }
-
-            graphics::TextureDesc desc;
-            desc.width = width;
-            desc.height = height;
-            desc.format = graphics::Format::R8G8B8A8_Unorm;
-            desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
-            desc.mipLevels = 1;     // generate full mip chain at runtime
-
-            graphics::SubresourceData subresourceData;
-            subresourceData.mem = rawImage;
-            subresourceData.rowPitch = width * channels;
-
-            graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &internalState->texture);
-            stbi_image_free(rawImage);
-        } break;
+            break;
 
         case ResourceType::Shader:
         case ResourceType::Sound:
@@ -130,8 +137,9 @@ namespace cyb::resourcemanager {
             break;
         }
 
-        if (!HasFlag(internalState->flags, AssetFlags::RetainFiledataBit))
+        if (!HasFlag(internalState->flags, AssetFlags::RetainFiledataBit)) {
             internalState->data.clear();
+        }
 
         return Resource(internalState);
     }

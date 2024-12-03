@@ -15,6 +15,6 @@ void main() {
 		//	3--4
 		gl_Position = cbImage.corners[gl_VertexIndex];
 		frag_uv.x = gl_VertexIndex % 2;
-		frag_uv.y = gl_VertexIndex / 2;
+		frag_uv.y = 1 - (gl_VertexIndex / 2);
     }
 }

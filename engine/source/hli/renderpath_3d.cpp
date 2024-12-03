@@ -89,15 +89,14 @@ namespace cyb::hli
             CYB_PROFILE_GPU_SCOPE("Opaque Scene", cmd);
             renderer::DrawScene(sceneViewMain, cmd);
             renderer::DrawSky(sceneViewMain.camera, cmd);
-            device->EndEvent(cmd);
         }
 
         {
             CYB_PROFILE_GPU_SCOPE("Debug Scene", cmd);
             renderer::DrawDebugScene(sceneViewMain, cmd);
-            device->EndEvent(cmd);
         }
 
+        device->EndEvent(cmd);
         device->EndRenderPass(cmd);
         RenderPath2D::Render();
     }
@@ -105,8 +104,7 @@ namespace cyb::hli
     void RenderPath3D::Compose(CommandList cmd) const
     {
         GraphicsDevice* device = graphics::GetDevice();
-        renderer::ImageParams params;
-        params.fullscreen = true;
+        const renderer::ImageParams params = renderer::ImageParams::DefaultFullscreen();
 
         device->BeginEvent("Composition", cmd);
         const graphics::Sampler* pointSampler = renderer::GetSamplerState(renderer::SSLOT_POINT_WRAP);

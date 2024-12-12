@@ -15,7 +15,7 @@ project "game"
 		files { "game.rc" }
 
 	includedirs {
-		"%{wks.location}/engine/source",
+		"%{wks.location}/engine",
 		"%{wks.location}/engine/third_party"
 	}
 	

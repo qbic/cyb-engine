@@ -8,13 +8,19 @@ project "engine"
 	objdir("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")
 
 	VULKAN_SDK = os.getenv("VULKAN_SDK")
-	
+	filter "system:windows"
+		defines { "VK_USE_PLATFORM_WIN32_KHR" }
+
 	files {
 		-- cyb-engine source files
-		"source/**.h",
-		"source/**.cpp",
+		"core/**.h",		"core/**.cpp",
+		"editor/**.h",		"editor/**.cpp",
+		"graphics/**.h",	"graphics/**.cpp",
+		"hli/**.h",			"hli/**.cpp",
+		"input/**.h",		"input/**.cpp",
+		"systems/**.h",		"systems/**.cpp",
 
-		-- built-in shaders
+		-- glsl shaders
 		"shaders/*",
 
 		-- staticly linked third party libraries
@@ -26,11 +32,11 @@ project "engine"
 	}
 
 	includedirs {
-		"source",
-		"%{VULKAN_SDK}/Include",
+		"%{wks.location}/engine",
 		"%{wks.location}/engine/third_party",
 		"%{wks.location}/engine/third_party/imgui",
 		"%{wks.location}/engine/third_party/freetype/include",
+		"%{VULKAN_SDK}/Include"
 	}
 
 	links {
@@ -38,9 +44,6 @@ project "engine"
 		"freetype",
 		"comctl32.lib",		-- High DPI awareness interface
 	}
-
-	filter "system:windows"
-		defines { "VK_USE_PLATFORM_WIN32_KHR" }
    
 	-- The debug version of shaderc compiles super slow, only use it over the release version
 	-- if debugging the shader compiler is really necessary

@@ -21,13 +21,13 @@ namespace cyb {
     };
 
     template <typename T>
-    [[nodiscard]] constexpr T AlignPow2(const T value, const T alignment) {
-        T result = ((value + (alignment - 1)) & ~((value - value) + alignment - 1));
+    [[nodiscard]] T AlignPow2(const T value, const T align) noexcept {
+        T result = (value + (align - 1)) & (~(align - 1));
         return result;
     }
 
     template <typename T>
-    [[nodiscard]] constexpr bool IsPow2(T value) {
+    [[nodiscard]] constexpr bool IsPow2(T value) noexcept {
         const bool result = ((value & ~(value - 1)) == value);
         return result;
     }

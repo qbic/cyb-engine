@@ -2,7 +2,6 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
-#include <fmt/format.h>
 #include "imgui/imgui.h"
 #include "editor/undo_manager.h"
 

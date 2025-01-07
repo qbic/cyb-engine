@@ -310,7 +310,7 @@ namespace cyb::editor
                 ImGui::InvisibleButton("##HeightPreviewImage", ImVec2(size, size));
                 ImDrawList* drawList = ImGui::GetWindowDrawList();
                 drawList->AddImage((ImTextureID)&m_preview, p0, p1);
-                const std::string info = fmt::format("offset ({}, {}), use left mouse button to drag", m_previewOffset.x, m_previewOffset.y);
+                const std::string info = std::format("offset ({}, {}), use left mouse button to drag", m_previewOffset.x, m_previewOffset.y);
                 drawList->AddText(ImVec2(p0.x + 8, p0.y + 8), 0xFFFFFFFF, info.c_str());
 
                 if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
@@ -460,7 +460,7 @@ namespace cyb::editor
             // generate a new chunk
             ChunkData& chunkData = chunks[chunk];
             scene::Scene& chunkScene = chunkData.scene;
-            chunkData.entity = chunkScene.CreateObject(fmt::format("Chunk_{}_{}", xOffset, zOffset));
+            chunkData.entity = chunkScene.CreateObject(std::format("Chunk_{}_{}", xOffset, zOffset));
             scene::ObjectComponent* object = chunkScene.objects.GetComponent(chunkData.entity);
 
             scene::TransformComponent* transform = chunkScene.transforms.GetComponent(chunkData.entity);

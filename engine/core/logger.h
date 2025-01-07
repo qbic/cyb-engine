@@ -1,11 +1,10 @@
 #pragma once
 #include <string>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <sstream>
 #include <chrono>
-#define FMT_HEADER_ONLY
-#include <fmt/format.h>
 #include "core/platform.h"
 
 #define CYB_TRACE(...)		cyb::logger::PostTrace(__VA_ARGS__)
@@ -88,22 +87,22 @@ namespace cyb::logger {
 	}
 
 	template <typename ...T>
-	void PostTrace(fmt::format_string<T...> fmt, T&&... args) {
-		detail::Post(Level::Trace, fmt::format(fmt, std::forward<T>(args)...));
+	void PostTrace(std::format_string<T...> fmt, T&&... args) {
+		detail::Post(Level::Trace, std::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
-	void PostInfo(fmt::format_string<T...> fmt, T&&... args) {
-		detail::Post(Level::Info, fmt::format(fmt, std::forward<T>(args)...));
+	void PostInfo(std::format_string<T...> fmt, T&&... args) {
+		detail::Post(Level::Info, std::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
-	void PostWarning(fmt::format_string<T...> fmt, T&&... args) {
-		detail::Post(Level::Warning, fmt::format(fmt, std::forward<T>(args)...));
+	void PostWarning(std::format_string<T...> fmt, T&&... args) {
+		detail::Post(Level::Warning, std::format(fmt, std::forward<T>(args)...));
 	}
 
 	template <typename ...T>
-	void PostError(fmt::format_string<T...> fmt, T&&... args) {
-		detail::Post(Level::Error, fmt::format(fmt, std::forward<T>(args)...));
+	void PostError(std::format_string<T...> fmt, T&&... args) {
+		detail::Post(Level::Error, std::format(fmt, std::forward<T>(args)...));
 	}
 }

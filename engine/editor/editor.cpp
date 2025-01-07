@@ -1,6 +1,7 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <stack>
 #include <numeric>
+#include <format>
 #include "core/logger.h"
 #include "core/timer.h"
 #include "core/profiler.h"
@@ -190,7 +191,7 @@ namespace cyb::editor {
                 if (filter.PassFilter(entity.name.data()))
                 {
                     // Create a uniqe label for each entity
-                    const std::string label = fmt::format("{}##{}", entity.name, entity.id);
+                    const std::string label = std::format("{}##{}", entity.name, entity.id);
                     
                     if (ImGui::Selectable(label.c_str(), currentEntity == entity.id))
                     {
@@ -562,7 +563,7 @@ namespace cyb::editor {
             ImGui::BeginTable("CPU/GPU Profiling", 2, ImGuiTableFlags_Borders);
             ImGui::TableNextColumn();
             ui::ScopedStyleColor cpuFrameLineColor(ImGuiCol_PlotLines, ImColor(255, 0, 0));
-            const std::string cpuOverlayText = fmt::format("CPU Frame: {:.1f}ms", cpuFrame->second.time);
+            const std::string cpuOverlayText = std::format("CPU Frame: {:.1f}ms", cpuFrame->second.time);
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##CPUFrame", profilerContext.cpuFrameGraph, profiler::FRAME_GRAPH_ENTRIES, 0, cpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
             ImGui::Spacing();
@@ -577,7 +578,7 @@ namespace cyb::editor {
 
             ImGui::TableNextColumn();
             ui::ScopedStyleColor gpuFrameLineColor(ImGuiCol_PlotLines, ImColor(0, 0, 255));
-            const std::string gpuOverlayText = fmt::format("GPU Frame: {:.1f}ms", gpuFrame->second.time);
+            const std::string gpuOverlayText = std::format("GPU Frame: {:.1f}ms", gpuFrame->second.time);
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##GPUFrame", profilerContext.gpuFrameGraph, profiler::FRAME_GRAPH_ENTRIES, 0, gpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
             ImGui::Separator();
@@ -878,7 +879,7 @@ namespace cyb::editor {
                     for (size_t i = 0; i < videoModeList.size(); i++)
                     {
                         VideoMode& mode = videoModeList[i];
-                        std::string str = fmt::format("{}x{} {}bpp @ {}hz", mode.width, mode.height, mode.bitsPerPixel, mode.displayFrequency);
+                        std::string str = std::format("{}x{} {}bpp @ {}hz", mode.width, mode.height, mode.bitsPerPixel, mode.displayFrequency);
                         if (ImGui::MenuItem(str.c_str()))
                         {
                             eventsystem::FireEvent(eventsystem::Event_SetFullScreen, i);

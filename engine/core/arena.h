@@ -1,7 +1,6 @@
 #pragma once
 #include <cassert>
 #include <vector>
-#include "core/enum_flags.h"
 
 namespace cyb {
 
@@ -127,7 +126,7 @@ namespace cyb {
 
             return nullptr;
         }
-        
+
         void AllocateNewBlock(size_t blockSize) {
             if (!m_minimumBlockSize) {
                 m_minimumBlockSize = DEFAULT_BLOCK_SIZE;
@@ -165,7 +164,7 @@ namespace cyb {
         ArenaStlProxy(Arena* arena) noexcept : m_arena(arena) {}
 
         template <class U>
-        ArenaStlProxy(const ArenaStlProxy<U>& other) noexcept : 
+        ArenaStlProxy(const ArenaStlProxy<U>& other) noexcept :
             m_arena(other.m_arena) {
         }
 
@@ -173,8 +172,8 @@ namespace cyb {
             if (!m_arena) {
                 throw std::bad_alloc();
             }
-           T* ptr = reinterpret_cast<T*>(m_arena->Allocate(n * sizeof(T)));
-           return ptr;
+            T* ptr = reinterpret_cast<T*>(m_arena->Allocate(n * sizeof(T)));
+            return ptr;
         }
 
         void deallocate(T* p, std::size_t) noexcept {

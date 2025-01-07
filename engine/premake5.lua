@@ -2,7 +2,7 @@
 project "engine"
 	kind "StaticLib"
 	language "C++"
-	cppdialect "C++17"
+	cppdialect "C++20"
 
 	targetdir("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
 	objdir("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")
@@ -41,8 +41,7 @@ project "engine"
 
 	links {
 		"imgui",
-		"freetype",
-		"comctl32.lib",		-- High DPI awareness interface
+		"freetype"
 	}
    
 	-- The debug version of shaderc compiles super slow, only use it over the release version
@@ -58,5 +57,4 @@ project "engine"
 		runtime "Release"
 		optimize "On"
 		symbols "On"
-   		buildoptions { "/GT" }
 		links { "%{VULKAN_SDK}/Lib/shaderc_shared.lib" }

@@ -13,14 +13,14 @@ namespace cyb::jobsystem {
 
     struct Job {
         std::function<void(JobArgs)> task;
-        Context* ctx;
-        uint32_t groupID;
-        uint32_t groupJobOffset;
-        uint32_t groupJobEnd;
-        uint32_t sharedMemorySize;
+        Context* ctx = nullptr;
+        uint32_t groupID = 0;
+        uint32_t groupJobOffset = 0;
+        uint32_t groupJobEnd = 0;
+        uint32_t sharedMemorySize = 0;
 
         void Execute() {
-            JobArgs args;
+            JobArgs args = {};
             args.groupID = groupID;
             if (sharedMemorySize > 0) {
                 args.sharedMemory = _malloca(sharedMemorySize);

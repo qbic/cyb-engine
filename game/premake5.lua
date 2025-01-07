@@ -1,7 +1,7 @@
 project "game"
 	kind "WindowedApp"
 	language "C++"
-	cppdialect "C++17"
+	cppdialect "C++20"
 
 	targetdir("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
 	objdir("%{wks.location}/build/bin-int/" .. outputdir .. "/%{prj.name}")

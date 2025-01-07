@@ -74,7 +74,7 @@ namespace cyb::logger {
                 return;
 
             Message log;
-            log.text = fmt::format("{0} {1}\n", GetLogLevelPrefix(severity), text);
+            log.text = std::format("{0} {1}\n", GetLogLevelPrefix(severity), text);
             log.timestamp = std::chrono::system_clock::now();
             log.severity = severity;
 

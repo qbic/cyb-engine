@@ -69,7 +69,7 @@ namespace cyb {
 	}
 
 	void FatalError(const std::string& text) {
-		MessageBoxA(GetActiveWindow(), fmt::format("Fatal error from application:\n{}", text).c_str(), "Error", MB_OK);
+		MessageBoxA(GetActiveWindow(), std::format("Fatal error from application:\n{}", text).c_str(), "Error", MB_OK);
 		Exit(1);
 	}
 

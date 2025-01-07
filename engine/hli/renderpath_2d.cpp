@@ -5,8 +5,8 @@
 #include "ImGuizmo.h"
 
 namespace cyb::hli {
-
-    void RenderPath2D::ResizeBuffers() {
+    void RenderPath2D::ResizeBuffers()
+    {
         currentBufferSize = GetInternalResolution();
     }
 
@@ -17,6 +17,7 @@ namespace cyb::hli {
     }
 
     void RenderPath2D::PreUpdate() {
+
     }
 
     void RenderPath2D::Update(double dt) {

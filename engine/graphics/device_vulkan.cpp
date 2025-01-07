@@ -22,7 +22,7 @@
 #define VK_CHECK_RESULT(f) {                                        \
     VkResult res = (f);                                             \
     if (res != VK_SUCCESS) {                                        \
-        FatalError(fmt::format("{0} failed! ({1})", #f, (int)res)); \
+        FatalError(std::format("{0} failed! ({1})", #f, (int)res)); \
     }                                                               \
 }
 #else
@@ -1197,7 +1197,7 @@ namespace cyb::graphics {
 
             auto checkFeature = [](bool expr, const char* name) {
                 if (!expr) {
-                    FatalError(fmt::format("Failed to initialize!\nNo hardware support for {}", name));
+                    FatalError(std::format("Failed to initialize!\nNo hardware support for {}", name));
                 }
             };
 

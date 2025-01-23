@@ -2,9 +2,10 @@
 #include "core/serializer.h"
 #include "core/mathlib.h"
 
-namespace cyb::spatial {
-    
-    class AxisAlignedBox {
+namespace cyb::spatial
+{
+    class AxisAlignedBox
+    {
     public:
         AxisAlignedBox();
         explicit AxisAlignedBox(const XMFLOAT3& min, const XMFLOAT3& max);
@@ -20,8 +21,8 @@ namespace cyb::spatial {
         void GrowPoint(const XMFLOAT3& point);
         void GrowAABB(const AxisAlignedBox& box);
 
-        [[nodiscard]] const XMVECTOR& GetMin() const { return m_min; }
-        [[nodiscard]] const XMVECTOR& GetMax() const { return m_max; }
+        [[nodiscard]] const XMVECTOR& GetMin() const;
+        [[nodiscard]] const XMVECTOR& GetMax() const;
         [[nodiscard]] const XMVECTOR GetCenter() const;
         [[nodiscard]] const XMVECTOR GetExtent() const;
 
@@ -37,14 +38,14 @@ namespace cyb::spatial {
         XMVECTOR m_max;
     };
 
-    class Ray {
+    class Ray
+    {
     public:
         Ray() = default;
         explicit Ray(const XMVECTOR& origin, const XMVECTOR& direction);
 
-        [[nodiscard]] const XMVECTOR GetOrigin() const { return m_origin; }
-        [[nodiscard]] const XMVECTOR GetDirection() const { return m_direction; }
-
+        [[nodiscard]] const XMVECTOR GetOrigin() const;
+        [[nodiscard]] const XMVECTOR GetDirection() const;
         [[nodiscard]] bool IntersectsBoundingBox(const AxisAlignedBox& aabb) const;
 
     private:
@@ -53,7 +54,8 @@ namespace cyb::spatial {
         XMVECTOR m_invDirection;
     };
 
-    struct Frustum {
+    struct Frustum
+    {
         Frustum() = default;
         Frustum(const XMMATRIX& viewProjection);
 

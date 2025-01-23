@@ -5,9 +5,11 @@
 #include "imgui/imgui.h"
 #include "editor/undo_manager.h"
 
-namespace cyb::ui {
+namespace cyb::ui
+{
     // Set a color or colorscheme for imgui that will be reset when out of scope
-    class ScopedStyleColor final {
+    class ScopedStyleColor final
+    {
     public:
         ScopedStyleColor(ImGuiCol id, const ImVec4& color);
         ScopedStyleColor(ImGuiCol id, ImColor color);

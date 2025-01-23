@@ -5,18 +5,21 @@
 #include "systems/ecs.h"
 #include "graphics/renderer.h"
 
-namespace cyb::scene {
-
-    struct NameComponent {
+namespace cyb::scene
+{
+    struct NameComponent
+    {
         std::string name;
 
         NameComponent() = default;
         NameComponent(const std::string& name_) : name(name_) {}
     };
 
-    struct TransformComponent {
-        enum class Flags {
-            None     = 0,
+    struct TransformComponent
+    {
+        enum class Flags
+        {
+            None = 0,
             DirtyBit = (1 << 0),
         };
 
@@ -44,7 +47,7 @@ namespace cyb::scene {
 
         void MatrixTransform(const XMFLOAT4X4& matrix);
         void MatrixTransform(const XMMATRIX& matrix);
-        
+
         void UpdateTransform();
         void UpdateTransformParented(const TransformComponent& parent);
         void Translate(const XMFLOAT3& value);
@@ -52,21 +55,26 @@ namespace cyb::scene {
     };
     CYB_ENABLE_BITMASK_OPERATORS(TransformComponent::Flags);
 
-    struct GroupComponent {
+    struct GroupComponent
+    {
     };
 
-    struct HierarchyComponent {
+    struct HierarchyComponent
+    {
         ecs::Entity parentID = ecs::INVALID_ENTITY;
     };
 
-    struct MaterialComponent {
-        enum class Flags : uint32_t {
-            None                = 0,
-            DirtyBit            = (1 << 0),
-            UseVertexColorsBit  = (1 << 1)
+    struct MaterialComponent
+    {
+        enum class Flags : uint32_t
+        {
+            None = 0,
+            DirtyBit = (1 << 0),
+            UseVertexColorsBit = (1 << 1)
         };
 
-        enum Shadertype {
+        enum Shadertype
+        {
             Shadertype_BDRF,
             Shadertype_Disney_BDRF,
             Shadertype_Unlit,
@@ -85,13 +93,15 @@ namespace cyb::scene {
     };
     CYB_ENABLE_BITMASK_OPERATORS(MaterialComponent::Flags);
 
-    struct MeshComponent {
+    struct MeshComponent
+    {
         std::vector<XMFLOAT3> vertex_positions;
         std::vector<XMFLOAT3> vertex_normals;
         std::vector<uint32_t> vertex_colors;
         std::vector<uint32_t> indices;
 
-        struct MeshSubset {
+        struct MeshSubset
+        {
             ecs::Entity materialID = ecs::INVALID_ENTITY;
             uint32_t indexOffset = 0;
             uint32_t indexCount = 0;
@@ -114,7 +124,8 @@ namespace cyb::scene {
         // internal format for vertex_buffer_pos
         //      0: positions
         //      12: normal (normalized & encoded)
-        struct Vertex_Pos {
+        struct Vertex_Pos
+        {
             static constexpr graphics::Format FORMAT = graphics::Format::R32G32B32A32_Float;
             XMFLOAT3 pos = math::VECTOR_ZERO;
             uint32_t normal = 0;
@@ -126,18 +137,21 @@ namespace cyb::scene {
         };
 
         // internal format for vertex_buffer_col
-        struct Vertex_Col {
+        struct Vertex_Col
+        {
             static constexpr graphics::Format FORMAT = graphics::Format::R8G8B8A8_Unorm;
             uint32_t color = 0;
         };
     };
 
-    struct ObjectComponent {
-        enum class Flags : uint32_t {
-            None            = 0,
-            RenderableBit   = (1 << 0),
-            CastShadowBit   = (1 << 1),
-            DefaultFlags    = RenderableBit | CastShadowBit
+    struct ObjectComponent
+    {
+        enum class Flags : uint32_t
+        {
+            None = 0,
+            RenderableBit = (1 << 0),
+            CastShadowBit = (1 << 1),
+            DefaultFlags = RenderableBit | CastShadowBit
         };
 
         Flags flags = Flags::DefaultFlags;
@@ -149,16 +163,19 @@ namespace cyb::scene {
     CYB_ENABLE_BITMASK_OPERATORS(ObjectComponent::Flags);
 
     // NOTE: must be precisely mapped to LIGHTSOURCE_TYPE_ defs
-    enum class LightType {
+    enum class LightType
+    {
         Directional = LIGHTSOURCE_TYPE_DIRECTIONAL,
         Point = LIGHTSOURCE_TYPE_POINT
     };
 
-    struct LightComponent {
-        enum class Flags : uint32_t {
-            CastShadowsBit  = (1 << 0),
+    struct LightComponent
+    {
+        enum class Flags : uint32_t
+        {
+            CastShadowsBit = (1 << 0),
             AffectsSceneBit = (1 << 1),
-            DefaultFlags    = AffectsSceneBit
+            DefaultFlags = AffectsSceneBit
         };
 
         Flags flags = Flags::DefaultFlags;
@@ -178,7 +195,8 @@ namespace cyb::scene {
     };
     CYB_ENABLE_BITMASK_OPERATORS(LightComponent::Flags);
 
-    struct WeatherComponent {
+    struct WeatherComponent
+    {
         XMFLOAT3 horizon = XMFLOAT3(1, 1, 1);
         XMFLOAT3 zenith = XMFLOAT3(0, 0, 0);
         bool drawSun = true;
@@ -192,7 +210,8 @@ namespace cyb::scene {
         float windSpeed = 10.0f;
     };
 
-    struct CameraComponent {
+    struct CameraComponent
+    {
         float aspect = 1.0f;
         float zNearPlane = 0.001f;
         float zFarPlane = 800.0f;
@@ -205,7 +224,7 @@ namespace cyb::scene {
         // non-serialized data
         XMFLOAT3X3 rotation = {};
         XMFLOAT4X4 view = {}, projection = {}, VP = {};
-        XMFLOAT4X4 inv_view = {}, inv_projection = {}, inv_VP= {};
+        XMFLOAT4X4 inv_view = {}, inv_projection = {}, inv_VP = {};
         spatial::Frustum frustum;
 
         CameraComponent() = default;
@@ -216,7 +235,8 @@ namespace cyb::scene {
         void TransformCamera(const TransformComponent& transform);
     };
 
-    struct Scene {
+    struct Scene
+    {
         ecs::ComponentManager<NameComponent> names;
         ecs::ComponentManager<TransformComponent> transforms;
         ecs::ComponentManager<GroupComponent> groups;
@@ -278,18 +298,21 @@ namespace cyb::scene {
     };
 
     // getter to the global scene
-    inline Scene& GetScene()  {
+    inline Scene& GetScene()
+    {
         static Scene scene;
         return scene;
     }
 
     // getter to the global camera
-    inline CameraComponent& GetCamera() {
+    inline CameraComponent& GetCamera()
+    {
         static CameraComponent camera;
         return camera;
     }
 
-    struct PickResult {
+    struct PickResult
+    {
         ecs::Entity entity = ecs::INVALID_ENTITY;
         XMFLOAT3 position = math::VECTOR_ZERO;
         float distance = FLT_MAX;
@@ -299,7 +322,8 @@ namespace cyb::scene {
 }
 
 // scene component serializers
-namespace cyb::ecs {
+namespace cyb::ecs
+{
     void SerializeComponent(scene::NameComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
     void SerializeComponent(scene::TransformComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
     void SerializeComponent(scene::GroupComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);

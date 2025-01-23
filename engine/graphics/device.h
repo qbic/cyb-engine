@@ -9,7 +9,8 @@ namespace cyb::graphics
     struct Texture;
     struct Shader;
 
-    enum class BindFlags {
+    enum class BindFlags
+    {
         None = 0,
         VertexBufferBit = BIT(0),
         IndexBufferBit = BIT(1),
@@ -20,7 +21,8 @@ namespace cyb::graphics
     };
     CYB_ENABLE_BITMASK_OPERATORS(BindFlags);
 
-    enum class ResourceMiscFlag {
+    enum class ResourceMiscFlag
+    {
         None = 0,
         BufferRawBit = BIT(0),
         BufferStructuredBit = BIT(1),
@@ -50,7 +52,8 @@ namespace cyb::graphics
         Border
     };
 
-    enum class ComponentSwizzle {
+    enum class ComponentSwizzle
+    {
         Zero,
         One,
         R,
@@ -172,7 +175,8 @@ namespace cyb::graphics
         _Count
     };
 
-    enum class ResourceState {
+    enum class ResourceState
+    {
         // Common resource states:
         Undefined = 0,                      // Invalid state (doesen't preserve contents)
         ShaderResourceBit = BIT(0),         // Shader resource, read only
@@ -203,7 +207,8 @@ namespace cyb::graphics
         OcclusionBinary 	                // Depth test passed or not?
     };
 
-    struct GPUBufferDesc {
+    struct GPUBufferDesc
+    {
         uint64_t size = 0;
         MemoryAccess usage = MemoryAccess::Default;
         BindFlags bindFlags = BindFlags::None;
@@ -229,14 +234,14 @@ namespace cyb::graphics
 
     struct VertexInputLayout
     {
-        static constexpr uint32_t APPEND_ALIGNMENT_ELEMENT = ~0u; 
+        static constexpr uint32_t APPEND_ALIGNMENT_ELEMENT = ~0u;
 
         struct Element
         {
             std::string inputName;
             uint32_t inputSlot = 0;
             Format format = Format::Unknown;
-            
+
             // setting alignedByteOffset to APPEND_ALIGNMENT_ELEMENT calculates offset using format
             uint32_t alignedByteOffset = APPEND_ALIGNMENT_ELEMENT;
         };
@@ -263,7 +268,8 @@ namespace cyb::graphics
         float maxLOD = FLT_MAX;
     };
 
-    struct Swizzle {
+    struct Swizzle
+    {
         ComponentSwizzle r = ComponentSwizzle::R;
         ComponentSwizzle g = ComponentSwizzle::G;
         ComponentSwizzle b = ComponentSwizzle::B;
@@ -507,11 +513,11 @@ namespace cyb::graphics
                     uint64_t rtFormat_5 : 6;
                     uint64_t rtFormat_6 : 6;
                     uint64_t rtFormat_7 : 6;
-                    uint64_t dsFormat   : 6;
+                    uint64_t dsFormat : 6;
                 } bits;
                 uint64_t value;
             };
-            
+
             Hasher hasher = {};
             static_assert(sizeof(Hasher) == sizeof(uint64_t));
             hasher.bits.rtFormat_0 = (uint64_t)rtFormats[0];
@@ -737,7 +743,7 @@ namespace cyb::graphics
                 CreateBuffer(&desc, nullptr, &allocator.buffer);
                 SetName(&allocator.buffer, "FrameAllocationBuffer");
                 allocator.offset = 0;
-                
+
                 CYB_TRACE("Increasing GPU frame allocation for cmd(0x{:x}) bufferIndex {} to {:.1f}kb", (ptrdiff_t)cmd.internal_state, GetBufferIndex(), desc.size / 1024.0f);
             }
 
@@ -758,7 +764,7 @@ namespace cyb::graphics
         {
             if (buffer == nullptr || data == nullptr)
                 return;
-     
+
             size = std::min(buffer->desc.size, size);
             if (size == 0)
                 return;

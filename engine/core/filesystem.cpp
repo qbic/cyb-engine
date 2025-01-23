@@ -58,7 +58,7 @@ namespace cyb::filesystem
             CYB_ERROR("Failed to write file (filename={0}): {1}\n", filename, strerror(errno));
             return false;
         }
-            
+
         file.write((const char*)data, size);
         return true;
     }
@@ -69,7 +69,7 @@ namespace cyb::filesystem
             std::string filename;
             if (FileOpenDialog(filename, filters))
                 onSuccess(filename);
-            }).detach();
+        }).detach();
     }
 
     void SaveDialog(const std::string& filters, std::function<void(std::string filename)> onSuccess)
@@ -78,6 +78,6 @@ namespace cyb::filesystem
             std::string filename;
             if (FileSaveDialog(filename, filters))
                 onSuccess(filename);
-            }).detach();
+        }).detach();
     }
 }

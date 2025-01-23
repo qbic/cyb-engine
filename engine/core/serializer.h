@@ -8,11 +8,12 @@ using DirectX::XMFLOAT3;
 using DirectX::XMFLOAT4;
 using DirectX::XMFLOAT4X4;
 
-namespace cyb {
-
+namespace cyb
+{
     constexpr uint64_t ARCHIVE_VERSION = 4;
 
-    class Archive {
+    class Archive
+    {
     public:
         Archive(const Archive&) = delete;
         Archive(Archive&&) = delete;
@@ -27,11 +28,11 @@ namespace cyb {
         void InitRead(const uint8_t* data, size_t length);
         void InitWrite(size_t initWriteBufferSize);
 
-        [[nodiscard]] bool IsReading() const { return m_readData != nullptr; }
-        [[nodiscard]] bool IsWriting() const { return m_writeData != nullptr; }
+        [[nodiscard]] bool IsReading() const;
+        [[nodiscard]] bool IsWriting() const;
 
-        [[nodiscard]] const uint8_t* GetWriteData() const { return m_writeData; }
-        [[nodiscard]] size_t Size() const { return m_curSize; }
+        [[nodiscard]] const uint8_t* GetWriteData() const;
+        [[nodiscard]] size_t Size() const;
 
         [[nodiscard]] size_t Read(void* data, size_t length) const;
         [[nodiscard]] char ReadChar() const;
@@ -59,34 +60,39 @@ namespace cyb {
         mutable size_t m_readCount = 0;
     };
 
-    class Serializer {
+    class Serializer
+    {
     public:
         Serializer(Archive& ar);
         ~Serializer() = default;
 
-        [[nodiscard]] bool IsReading() const { return !m_writing; }
-        [[nodiscard]] bool IsWriting() const { return m_writing; }
-        [[nodiscard]] uint64_t GetVersion() const { return m_version; }
+        [[nodiscard]] bool IsReading() const;
+        [[nodiscard]] bool IsWriting() const;
+        [[nodiscard]] uint64_t GetVersion() const;
 
-        void Serialize(char& value) { if (m_writing) { m_archive->WriteChar(value); } else { value = m_archive->ReadChar(); }}
-        void Serialize(uint8_t& value) { if (m_writing) { m_archive->WriteByte(value); } else { value = m_archive->ReadByte(); }}
-        void Serialize(uint32_t& value) { if (m_writing) { m_archive->WriteInt(value); } else { value = m_archive->ReadInt(); }}
-        void Serialize(uint64_t& value) { if (m_writing) { m_archive->WriteLong(value); } else { value = m_archive->ReadLong(); }}
-        void Serialize(float& value) { if (m_writing) { m_archive->WriteFloat(value); } else { value = m_archive->ReadFloat(); }}
-        void Serialize(std::string& value) { if (m_writing) { m_archive->WriteString(value); } else { value = m_archive->ReadString(); }}
+        void Serialize(char& value);
+        void Serialize(uint8_t& value);
+        void Serialize(uint32_t& value);
+        void Serialize(uint64_t& value);
+        void Serialize(float& value);
+        void Serialize(std::string& value);
         void Serialize(XMFLOAT3& value);
         void Serialize(XMFLOAT4& value);
         void Serialize(XMFLOAT4X4& value);
 
         template <typename T>
-        void Serialize(std::vector<T>& vec) {
+        void Serialize(std::vector<T>& vec)
+        {
             size_t numElements = vec.size();
             Serialize(numElements);
 
             const size_t numBytes = numElements * sizeof(T);
-            if (m_writing) {
+            if (m_writing)
+            {
                 m_archive->Write(vec.data(), numBytes);
-            } else {
+            }
+            else
+            {
                 vec.resize(numElements);
                 size_t bytesRead = m_archive->Read(vec.data(), numBytes);
                 assert(bytesRead == numBytes);
@@ -100,7 +106,8 @@ namespace cyb {
     };
 
     template <typename T>
-    bool SerializeFromFile(const std::string filename, T& serializeable) {
+    bool SerializeFromFile(const std::string filename, T& serializeable)
+    {
         std::vector<uint8_t> buffer;
         if (!filesystem::ReadFile(filename, buffer))
             return false;
@@ -112,7 +119,8 @@ namespace cyb {
     }
 
     template <typename T>
-    bool SerializeToFile(const std::string& filename, T& serializeable) {
+    bool SerializeToFile(const std::string& filename, T& serializeable)
+    {
         Archive ar(4 * 1024);  // pre-allocate 4k write buffer
         Serializer ser(ar);
         serializeable.Serialize(ser);

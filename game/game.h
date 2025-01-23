@@ -1,7 +1,8 @@
 #pragma once
 #include "cyb-engine.h"
 
-class Game : public cyb::hli::RenderPath3D {
+class Game : public cyb::hli::RenderPath3D
+{
 public:
     void Load() override;
     void Update(double dt) override;
@@ -16,11 +17,13 @@ private:
     XMFLOAT3 m_cameraVelocity = XMFLOAT3(0, 0, 0);
 };
 
-class GameApplication : public cyb::hli::Application {
+class GameApplication : public cyb::hli::Application
+{
 public:
     virtual ~GameApplication() = default;
 
-    cyb::hli::RenderPath* GetRenderPath() const override {
+    cyb::hli::RenderPath* GetRenderPath() const override
+    {
         static Game renderPath;
         return &renderPath;
     }

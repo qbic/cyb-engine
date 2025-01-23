@@ -21,13 +21,16 @@
 #include "stb_image.h"
 #include "flat_hash_map.hpp"
 
-namespace cyb {
-    struct ResourceInternal : public Resource::InternalBaseData {
+namespace cyb
+{
+    struct ResourceInternal : public Resource::InternalBaseData
+    {
         std::vector<uint8_t> data;
         cyb::graphics::Texture texture;
     };
 
-    const graphics::Texture& Resource::GetTexture() const {
+    const graphics::Texture& Resource::GetTexture() const
+    {
         assert(m_internalState != nullptr);
         assert(m_internalState->type == ResourceType::Image);
         const ResourceInternal* resourceinternal = (ResourceInternal*)m_internalState.get();
@@ -35,13 +38,13 @@ namespace cyb {
     }
 }
 
-namespace cyb::resourcemanager {
-
+namespace cyb::resourcemanager
+{
     std::mutex locker;
     std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
 
-    static const ska::flat_hash_map<std::string_view, ResourceType> types =  {
+    static const ska::flat_hash_map<std::string_view, ResourceType> types = {
         std::make_pair("jpg",  ResourceType::Image),
         std::make_pair("jpeg", ResourceType::Image),
         std::make_pair("png",  ResourceType::Image),
@@ -54,14 +57,17 @@ namespace cyb::resourcemanager {
         std::make_pair("comp",  ResourceType::Shader)
     };
 
-    void AddSearchPath(const std::string& path) {
+    void AddSearchPath(const std::string& path)
+    {
         std::scoped_lock l(locker);
         const std::string slash = (path[path.length() - 1] != '/') ? "/" : "";
         searchPaths.push_back(path + slash);
     }
 
-    std::string FindFile(const std::string& filename) {
-        for (const auto& basepath : searchPaths) {
+    std::string FindFile(const std::string& filename)
+    {
+        for (const auto& basepath : searchPaths)
+        {
             std::string filepath = basepath + filename;
             if (std::filesystem::exists(filepath))
                 return filepath;
@@ -70,7 +76,8 @@ namespace cyb::resourcemanager {
         return filename;
     }
 
-    bool GetAssetTypeFromFilename(ResourceType* type, const std::string& filename) {
+    bool GetAssetTypeFromFilename(ResourceType* type, const std::string& filename)
+    {
         const auto& it = types.find(filesystem::GetExtension(filename));
         if (it == types.end())
             return false;
@@ -80,8 +87,10 @@ namespace cyb::resourcemanager {
         return true;
     }
 
-    const char* GetTypeAsString(ResourceType type) {
-        switch (type) {
+    const char* GetTypeAsString(ResourceType type)
+    {
+        switch (type)
+        {
         case ResourceType::None:    return "None";
         case ResourceType::Image:   return "Image";
         case ResourceType::Shader:  return "Shader";
@@ -92,14 +101,16 @@ namespace cyb::resourcemanager {
         return "None";
     }
 
-    static bool LoadImageResouce(std::shared_ptr<ResourceInternal> resource) {
+    static bool LoadImageResouce(std::shared_ptr<ResourceInternal> resource)
+    {
         const int channels = 4;
         int width, height, bpp;
 
         const bool flipImage = HasFlag(resource->flags, AssetFlags::ImageFipBit);
         stbi_set_flip_vertically_on_load(flipImage);
         stbi_uc* rawImage = stbi_load_from_memory(resource->data.data(), (int)resource->data.size(), &width, &height, &bpp, channels);
-        if (rawImage == nullptr) {
+        if (rawImage == nullptr)
+        {
             CYB_ERROR("Failed to decode image (filename={0}): {1}", resource->name, stbi_failure_reason());
             stbi_image_free(rawImage);
             return false;
@@ -121,12 +132,13 @@ namespace cyb::resourcemanager {
         return true;
     }
 
-    static [[nodiscard]] Resource Load(std::shared_ptr<ResourceInternal> internalState) {
-        switch (internalState->type) {
+    static [[nodiscard]] Resource Load(std::shared_ptr<ResourceInternal> internalState)
+    {
+        switch (internalState->type)
+        {
         case ResourceType::Image:
-            if (!LoadImageResouce(internalState)) {
+            if (!LoadImageResouce(internalState))
                 return Resource();
-            }
             break;
 
         case ResourceType::Shader:
@@ -137,32 +149,34 @@ namespace cyb::resourcemanager {
             break;
         }
 
-        if (!HasFlag(internalState->flags, AssetFlags::RetainFiledataBit)) {
+        if (!HasFlag(internalState->flags, AssetFlags::RetainFiledataBit))
             internalState->data.clear();
-        }
 
         return Resource(internalState);
     }
 
-    Resource LoadFile(const std::string& name, AssetFlags flags) {
+    Resource LoadFile(const std::string& name, AssetFlags flags)
+    {
         Timer timer;
 
         // compute hash for the asset and try locate it in the cache
         const uint64_t hash = hash::String(name);
         locker.lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
-        if (internalState != nullptr) {
+        if (internalState != nullptr)
+        {
             locker.unlock();
             CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), name, hash);
             return Resource(internalState);
         }
-        
+
         internalState = std::make_shared<ResourceInternal>();
         internalState->name = name;
         internalState->hash = hash;
         internalState->flags = flags;
 
-        if (!GetAssetTypeFromFilename(&internalState->type, name)) {
+        if (!GetAssetTypeFromFilename(&internalState->type, name))
+        {
             locker.unlock();
             CYB_ERROR("Failed to determine resource type (filename={0})", name);
             return Resource();
@@ -182,7 +196,8 @@ namespace cyb::resourcemanager {
         return loadedAsset;
     }
 
-    void Clear() {
+    void Clear()
+    {
         std::scoped_lock lock(locker);
         resourceCache.clear();
     }

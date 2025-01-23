@@ -593,16 +593,19 @@ namespace cyb::scene
         weathers.Remove(entity);
     }
 
-    void Scene::Serialize(Serializer& ser) {
+    void Scene::Serialize(Serializer& ser)
+    {
         constexpr uint64_t LEAST_SUPPORTED_VERSION = 4;
         ecs::SceneSerializeContext context;
 
         context.archiveVersion = ser.GetVersion();
-        if (context.archiveVersion < LEAST_SUPPORTED_VERSION) {
+        if (context.archiveVersion < LEAST_SUPPORTED_VERSION)
+        {
             CYB_ERROR("Unsupported archive version (version={} LeastUupportedVersion={})", context.archiveVersion, LEAST_SUPPORTED_VERSION);
             return;
         }
-        if (context.archiveVersion > ARCHIVE_VERSION) {
+        if (context.archiveVersion > ARCHIVE_VERSION)
+        {
             CYB_ERROR("Corrupt archive version (version={})", context.archiveVersion);
             return;
         }
@@ -629,8 +632,7 @@ namespace cyb::scene
 
     void Scene::RunTransformUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)transforms.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
-        {
+        jobsystem::Dispatch(ctx, (uint32_t)transforms.Size(), SMALL_SUBTASK_GROUPSIZE, [&] (jobsystem::JobArgs args) {
             TransformComponent& transform = transforms[args.jobIndex];
             transform.UpdateTransform();
         });
@@ -638,8 +640,7 @@ namespace cyb::scene
 
     void Scene::RunHierarchyUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)hierarchy.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
-        {
+        jobsystem::Dispatch(ctx, (uint32_t)hierarchy.Size(), SMALL_SUBTASK_GROUPSIZE, [&] (jobsystem::JobArgs args) {
             const HierarchyComponent& hier = hierarchy[args.jobIndex];
             ecs::Entity entity = hierarchy.GetEntity(args.jobIndex);
             TransformComponent* transform = transforms.GetComponent(entity);
@@ -658,30 +659,27 @@ namespace cyb::scene
 
                 const HierarchyComponent* hierRecursive = hierarchy.GetComponent(parentID);
                 if (hierRecursive != nullptr)
-                {
                     parentID = hierRecursive->parentID;
-                }
                 else
-                {
                     parentID = ecs::INVALID_ENTITY;
-                }
             }
 
             if (transform != nullptr)
-            {
                 XMStoreFloat4x4(&transform->world, worldMatrix);
-            }
         });
     }
 
-    void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx) {
-        jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args) {
+    void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
+    {
+        jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), SMALL_SUBTASK_GROUPSIZE, [&] (jobsystem::JobArgs args) {
             ecs::Entity entity = objects.GetEntity(args.jobIndex);
             ObjectComponent& object = objects[args.jobIndex];
 
-            if (object.meshID != ecs::INVALID_ENTITY && meshes.Contains(object.meshID) && transforms.Contains(entity)) {
+            if (object.meshID != ecs::INVALID_ENTITY && meshes.Contains(object.meshID) && transforms.Contains(entity))
+            {
                 const MeshComponent* mesh = meshes.GetComponent(object.meshID);
-                if (mesh != nullptr) {
+                if (mesh != nullptr)
+                {
                     object.transformIndex = (int32_t)transforms.GetIndex(entity);
                     const TransformComponent* transform = transforms.GetComponent(entity);
 
@@ -694,8 +692,7 @@ namespace cyb::scene
 
     void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
-        {
+        jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), SMALL_SUBTASK_GROUPSIZE, [&] (jobsystem::JobArgs args) {
             const ecs::Entity entity = lights.GetEntity(args.jobIndex);
             const TransformComponent* transform = transforms.GetComponent(entity);
 
@@ -709,8 +706,7 @@ namespace cyb::scene
 
     void Scene::RunCameraUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)cameras.Size(), SMALL_SUBTASK_GROUPSIZE, [&](jobsystem::JobArgs args)
-        {
+        jobsystem::Dispatch(ctx, (uint32_t)cameras.Size(), SMALL_SUBTASK_GROUPSIZE, [&] (jobsystem::JobArgs args) {
             CameraComponent& camera = cameras[args.jobIndex];
             camera.UpdateCamera();
         });
@@ -719,9 +715,7 @@ namespace cyb::scene
     void Scene::RunWeatherUpdateSystem(jobsystem::Context& /* ctx */)
     {
         if (weathers.Size() > 0)
-        {
             active_weather = weathers[0];
-        }
     }
 
     PickResult Pick(const Scene& scene, const spatial::Ray& ray)
@@ -787,32 +781,38 @@ namespace cyb::scene
 // Scene component serializers
 namespace cyb::ecs
 {
-    void SerializeComponent(scene::NameComponent& x, Serializer& ser, SceneSerializeContext& context) {
+    void SerializeComponent(scene::NameComponent& x, Serializer& ser, SceneSerializeContext& context)
+    {
         ser.Serialize(x.name);
     }
 
-    void SerializeComponent(scene::TransformComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
+    void SerializeComponent(scene::TransformComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    {
         ser.Serialize((uint32_t&)x.flags);
         ser.Serialize(x.scale_local);
         ser.Serialize(x.rotation_local);
         ser.Serialize(x.translation_local);
 
-        if (ser.IsReading()) {
-            jobsystem::Execute(context.ctx, [&x](jobsystem::JobArgs) {
+        if (ser.IsReading())
+        {
+            jobsystem::Execute(context.ctx, [&x] (jobsystem::JobArgs) {
                 x.SetDirty();
                 x.UpdateTransform();
             });
         }
     }
 
-    void SerializeComponent(scene::GroupComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
+    void SerializeComponent(scene::GroupComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    {
     }
 
-    void SerializeComponent(scene::HierarchyComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
+    void SerializeComponent(scene::HierarchyComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    {
         ecs::SerializeEntity(x.parentID, ser, context);
     }
 
-    void SerializeComponent(scene::MaterialComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
+    void SerializeComponent(scene::MaterialComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    {
         ser.Serialize((uint32_t&)x.flags);
         ser.Serialize((uint32_t&)x.shaderType);
         ser.Serialize(x.baseColor);
@@ -820,11 +820,13 @@ namespace cyb::ecs
         ser.Serialize(x.metalness);
     }
 
-    void SerializeComponent(scene::MeshComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
+    void SerializeComponent(scene::MeshComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    {
         size_t subsetCount = x.subsets.size();
         ser.Serialize(subsetCount);
         x.subsets.resize(subsetCount);
-        for (size_t i = 0; i < subsetCount; ++i) {
+        for (size_t i = 0; i < subsetCount; ++i)
+        {
             ecs::SerializeEntity(x.subsets[i].materialID, ser, context);
             ser.Serialize(x.subsets[i].indexOffset);
             ser.Serialize(x.subsets[i].indexCount);
@@ -835,17 +837,20 @@ namespace cyb::ecs
         ser.Serialize(x.vertex_colors);
         ser.Serialize(x.indices);
 
-        if (ser.IsReading()) {
-            jobsystem::Execute(context.ctx, [&x](jobsystem::JobArgs) { x.CreateRenderData(); });
+        if (ser.IsReading())
+        {
+            jobsystem::Execute(context.ctx, [&x] (jobsystem::JobArgs) { x.CreateRenderData(); });
         }
     }
 
-    void SerializeComponent(scene::ObjectComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
+    void SerializeComponent(scene::ObjectComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    {
         ser.Serialize((uint32_t&)x.flags);
         ecs::SerializeEntity(x.meshID, ser, context);
     }
 
-    void SerializeComponent(scene::LightComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
+    void SerializeComponent(scene::LightComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    {
         ser.Serialize((uint32_t&)x.flags);
         ser.Serialize(x.color);
         ser.Serialize((uint32_t&)x.type);
@@ -853,7 +858,8 @@ namespace cyb::ecs
         ser.Serialize(x.range);
     }
 
-    void SerializeComponent(scene::CameraComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
+    void SerializeComponent(scene::CameraComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    {
         ser.Serialize(x.aspect);
         ser.Serialize(x.zNearPlane);
         ser.Serialize(x.zFarPlane);
@@ -863,12 +869,14 @@ namespace cyb::ecs
         ser.Serialize(x.up);
     }
 
-    void SerializeComponent(scene::WeatherComponent& x, Serializer& ser, ecs::SceneSerializeContext& context) {
+    void SerializeComponent(scene::WeatherComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    {
         ser.Serialize(x.horizon);
         ser.Serialize(x.zenith);
     }
 
-    void SerializeComponent(spatial::AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& context) {
+    void SerializeComponent(spatial::AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    {
         x.Serialize(ser);
     }
 }

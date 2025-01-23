@@ -2,25 +2,29 @@
 #include "graphics/device.h"
 #include "core/enum_flags.h"
 
-namespace cyb {
-
-    enum class ResourceType {
+namespace cyb
+{
+    enum class ResourceType
+    {
         None,
         Image,
         Shader,
         Sound
     };
 
-    enum class AssetFlags {
+    enum class AssetFlags
+    {
         None = 0,
         RetainFiledataBit = BIT(0),     // file data will be kept for later reuse.
         ImageFipBit = BIT(1)            // flip image vertically on load
     };
     CYB_ENABLE_BITMASK_OPERATORS(AssetFlags);
 
-    class Resource {
+    class Resource
+    {
     public:
-        struct InternalBaseData {
+        struct InternalBaseData
+        {
             std::string name;
             uint64_t hash;
             ResourceType type;
@@ -41,8 +45,8 @@ namespace cyb {
     };
 }
 
-namespace cyb::resourcemanager {
-
+namespace cyb::resourcemanager
+{
     void AddSearchPath(const std::string& path);
 
     // return true if asset type could be resolved

@@ -2,15 +2,17 @@
 #include <cassert>
 #include <vector>
 
-namespace cyb {
-
-    struct ArenaBlock {
+namespace cyb
+{
+    struct ArenaBlock
+    {
         size_t size;
         uint8_t* base;
         size_t used;
     };
 
-    struct ArenaStats {
+    struct ArenaStats
+    {
         size_t numBlocks;
         size_t totalAllocatedMemory;
         size_t totalUsedMemory;
@@ -20,18 +22,21 @@ namespace cyb {
     };
 
     template <typename T>
-    [[nodiscard]] T AlignPow2(const T value, const T align) noexcept {
+    [[nodiscard]] T AlignPow2(const T value, const T align) noexcept
+    {
         T result = (value + (align - 1)) & (~(align - 1));
         return result;
     }
 
     template <typename T>
-    [[nodiscard]] constexpr bool IsPow2(T value) noexcept {
+    [[nodiscard]] constexpr bool IsPow2(T value) noexcept
+    {
         const bool result = ((value & ~(value - 1)) == value);
         return result;
     }
 
-    class Arena {
+    class Arena
+    {
     private:
         const size_t DEFAULT_BLOCK_SIZE = 1024 * 1024;
 
@@ -39,29 +44,32 @@ namespace cyb {
         Arena() = default;
         Arena(size_t minimumBlockSize, size_t alignment) :
             m_minimumBlockSize(minimumBlockSize),
-            m_alignment(alignment) {
-        }
-        ~Arena() {
+            m_alignment(alignment) {}
+        ~Arena()
+        {
             Clear();
         }
 
         // this must _NOT_ be called after any allocations to the arena
-        void SetBlockSizeAndAlignment(size_t minimumBlockSize, size_t alignment) {
+        void SetBlockSizeAndAlignment(size_t minimumBlockSize, size_t alignment)
+        {
             assert(m_blocks.empty());
             m_minimumBlockSize = minimumBlockSize;
             m_alignment = alignment;
         }
 
-        [[nodiscard]] uint8_t* Allocate(size_t size) {
+        [[nodiscard]] uint8_t* Allocate(size_t size)
+        {
             assert(m_alignment <= 128);
             assert(IsPow2(m_alignment));
 
             size_t allocationSize = AlignPow2(size, m_alignment);
 
             // try to find a block with memory available for the allocation
+            // if no available block, create a new and try again
             ArenaBlock* block = BlockForAllocation(allocationSize);
-            if (!block) {
-                // if no available block, create a new and try again
+            if (!block)
+            {
                 AllocateNewBlock(size + m_alignment);
                 return Allocate(size);
             }
@@ -76,25 +84,26 @@ namespace cyb {
         }
 
         // reset all blocks in the arena, but does not free any memory
-        void Reset() {
-            for (auto& block : m_blocks) {
+        void Reset()
+        {
+            for (auto& block : m_blocks)
                 block.used = 0;
-            }
 
             m_lastUsedBlock = nullptr;
             m_totalUsedMemory = 0;
         }
 
         // free all memory and clear all blocks
-        void Clear() {
-            for (auto& block : m_blocks) {
+        void Clear()
+        {
+            for (auto& block : m_blocks)
                 _aligned_free(block.base);
-            }
 
             m_blocks.clear();
         }
 
-        [[nodiscard]] ArenaStats GetStats() const {
+        [[nodiscard]] ArenaStats GetStats() const
+        {
             ArenaStats stats = {};
             stats.numBlocks = m_blocks.size();
             stats.totalAllocatedMemory = m_totalAllocatedMemory;
@@ -106,19 +115,22 @@ namespace cyb {
         }
 
     private:
-        [[nodiscard]] ArenaBlock* BlockForAllocation(size_t allocationSize) {
-            const auto hasFreespace = [](const ArenaBlock* block, size_t size) -> bool {
+        [[nodiscard]] ArenaBlock* BlockForAllocation(size_t allocationSize)
+        {
+            const auto hasFreespace = [](const ArenaBlock* block, size_t size) -> bool
+            {
                 return (block->used + size) <= block->size;
             };
 
             // check last used block first
-            if (m_lastUsedBlock != nullptr && hasFreespace(m_lastUsedBlock, allocationSize)) {
+            if (m_lastUsedBlock != nullptr && hasFreespace(m_lastUsedBlock, allocationSize))
                 return m_lastUsedBlock;
-            }
 
             // fallback to linear search
-            for (auto& block : m_blocks) {
-                if (hasFreespace(&block, allocationSize)) {
+            for (auto& block : m_blocks)
+            {
+                if (hasFreespace(&block, allocationSize))
+                {
                     m_lastUsedBlock = &block;
                     return &block;
                 }
@@ -127,10 +139,10 @@ namespace cyb {
             return nullptr;
         }
 
-        void AllocateNewBlock(size_t blockSize) {
-            if (!m_minimumBlockSize) {
+        void AllocateNewBlock(size_t blockSize)
+        {
+            if (!m_minimumBlockSize)
                 m_minimumBlockSize = DEFAULT_BLOCK_SIZE;
-            }
 
             ArenaBlock& block = m_blocks.emplace_back();
             block.size = std::max(blockSize, m_minimumBlockSize);
@@ -156,7 +168,8 @@ namespace cyb {
     };
 
     template <typename T>
-    class ArenaStlProxy {
+    class ArenaStlProxy
+    {
     public:
         using value_type = T;
 
@@ -165,28 +178,33 @@ namespace cyb {
 
         template <class U>
         ArenaStlProxy(const ArenaStlProxy<U>& other) noexcept :
-            m_arena(other.m_arena) {
+            m_arena(other.m_arena)
+        {
         }
 
-        T* allocate(std::size_t n) {
-            if (!m_arena) {
+        T* allocate(std::size_t n)
+        {
+            if (!m_arena)
                 throw std::bad_alloc();
-            }
+            
             T* ptr = reinterpret_cast<T*>(m_arena->Allocate(n * sizeof(T)));
             return ptr;
         }
 
-        void deallocate(T* p, std::size_t) noexcept {
+        void deallocate(T* p, std::size_t) noexcept
+        {
             // arena allocator never deletes memory
         }
 
         template <class U>
-        bool operator==(const ArenaStlProxy<U>& b) const noexcept {
+        bool operator==(const ArenaStlProxy<U>& b) const noexcept
+        {
             return m_arena == b.m_arena;
         }
 
         template <class U>
-        bool operator!=(const ArenaStlProxy<U>& b) const noexcept {
+        bool operator!=(const ArenaStlProxy<U>& b) const noexcept
+        {
             return m_arena != b.m_arena;
         }
 

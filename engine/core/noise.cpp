@@ -75,7 +75,7 @@ namespace cyb::noise
     {
         switch (params.type)
         {
-        case Type::Perlin:  
+        case Type::Perlin:
             return SinglePerlin(seed, x, y);
         case Type::Cellular:
             return SingleCellular(seed, x, y);
@@ -149,7 +149,7 @@ namespace cyb::noise
             }
             xPrimed += primeX;
         }
-        
+
         // try to map the output to a [0..1] range
         // only CellularReturn::Distance mapping is checked
         switch (params.cellularReturnType)

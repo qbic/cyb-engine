@@ -10,8 +10,8 @@
 using namespace cyb::graphics;
 using namespace cyb::scene;
 
-namespace cyb::renderer {
-
+namespace cyb::renderer
+{
     Shader shaders[SHADERTYPE_COUNT];
     GPUBuffer constantbuffers[CBTYPE_COUNT];
     Sampler samplerStates[SSLOT_COUNT] = {};
@@ -23,13 +23,15 @@ namespace cyb::renderer {
     PipelineState pso_image;
     PipelineState pso_sky;
 
-    enum DEBUGRENDERING {
+    enum DEBUGRENDERING
+    {
         DEBUGRENDERING_CUBE,
         DEBUGRENDERING_COUNT
     };
     PipelineState pso_debug[DEBUGRENDERING_COUNT];
 
-    enum BUILTIN_TEXTURES {
+    enum BUILTIN_TEXTURES
+    {
         BUILTIN_TEXTURE_POINTLIGHT,
         BUILTIN_TEXTURE_DIRLIGHT,
         BUILTIN_TEXTURE_COUNT
@@ -40,28 +42,33 @@ namespace cyb::renderer {
 
     float GAMMA = 2.2f;
 
-    const Shader* GetShader(SHADERTYPE id) {
+    const Shader* GetShader(SHADERTYPE id)
+    {
         assert(id < SHADERTYPE_COUNT);
         return &shaders[id];
     }
 
-    const Sampler* GetSamplerState(SSLOT id) {
+    const Sampler* GetSamplerState(SSLOT id)
+    {
         assert(id < SSLOT_COUNT);
         return &samplerStates[id];
     }
 
-    const graphics::RasterizerState* GetRasterizerState(RSTYPES id) {
+    const graphics::RasterizerState* GetRasterizerState(RSTYPES id)
+    {
         assert(id < RSTYPE_COUNT);
         return &rasterizers[id];
     }
 
-    const graphics::DepthStencilState* GetDepthStencilState(DSSTYPES id) {
+    const graphics::DepthStencilState* GetDepthStencilState(DSSTYPES id)
+    {
         assert(id < DSSTYPE_COUNT);
         return &depth_stencils[id];
     }
 
-    void LoadBuffers(jobsystem::Context& ctx) {
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
+    void LoadBuffers(jobsystem::Context& ctx)
+    {
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
             auto device = GetDevice();
             GPUBufferDesc desc;
             desc.bindFlags = BindFlags::ConstantBufferBit;
@@ -99,41 +106,45 @@ namespace cyb::renderer {
         });
     }
 
-    void SetShaderPath(const std::string& path) {
+    void SetShaderPath(const std::string& path)
+    {
         SHADERPATH = path;
     }
 
-    const std::string& GetShaderPath() {
+    const std::string& GetShaderPath()
+    {
         return SHADERPATH;
     }
 
-    bool LoadShader(ShaderStage stage, Shader& shader, const std::string& filename) {
+    bool LoadShader(ShaderStage stage, Shader& shader, const std::string& filename)
+    {
         const std::string fullPath = SHADERPATH + filename;
         std::vector<uint8_t> fileData;
         if (!filesystem::ReadFile(fullPath, fileData))
             return false;
 
-        if (!filesystem::HasExtension(filename, "spv")) {
+        if (!filesystem::HasExtension(filename, "spv"))
+        {
             ShaderCompilerInput input = {};
             input.format = ShaderFormat::GLSL;
             input.name = fullPath;
             input.shadersource = (uint8_t*)fileData.data();
             input.shadersize = fileData.size();
             input.stage = stage;
-//#ifdef CYB_DEBUG_BUILD
+            //#ifdef CYB_DEBUG_BUILD
             input.flags |= ShaderCompilerFlags::GenerateDebugInfoBit;
-//#endif
+            //#endif
 
             ShaderCompilerOutput output;
-            if (!CompileShader(&input, &output)) {
+            if (!CompileShader(&input, &output))
+            {
                 CYB_ERROR("Failed to compile shader (filename={0}):\n{1}", filename, output.error_message);
                 return false;
             }
 
             bool success = GetDevice()->CreateShader(stage, output.shaderdata, output.shadersize, &shader);
-            if (success) {
+            if (success)
                 GetDevice()->SetName(&shader, filename.c_str());
-            }
 
             return success;
         }
@@ -141,7 +152,8 @@ namespace cyb::renderer {
         return GetDevice()->CreateShader(stage, fileData.data(), fileData.size(), &shader);
     }
 
-    static void LoadSamplerStates() {
+    static void LoadSamplerStates()
+    {
         SamplerDesc desc;
         desc.lodBias = 0.1f;
         desc.maxAnisotropy = 1;
@@ -197,16 +209,18 @@ namespace cyb::renderer {
         device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_CLAMP]);
     }
 
-    static void LoadBuiltinTextures(jobsystem::Context& ctx) {
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::LoadFile("textures/light_point.png"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::LoadFile("textures/light_directional.png"); });
+    static void LoadBuiltinTextures(jobsystem::Context& ctx)
+    {
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::LoadFile("textures/light_point.png"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::LoadFile("textures/light_directional.png"); });
     }
 
-    static void LoadShaders() {
+    static void LoadShaders()
+    {
         jobsystem::Context ctx = {};
         GraphicsDevice* device = GetDevice();
 
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_FLAT_SHADING] =
             {
                 { "in_position", 0, scene::MeshComponent::Vertex_Pos::FORMAT },
@@ -214,15 +228,15 @@ namespace cyb::renderer {
             };
             LoadShader(ShaderStage::VS, shaders[VSTYPE_FLAT_SHADING], "flat_shader.vert");
         });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::VS, shaders[VSTYPE_IMAGE], "image.vert"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::VS, shaders[VSTYPE_IMAGE], "image.vert"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_SKY] =
             {
                 { "in_pos",   0, scene::MeshComponent::Vertex_Pos::FORMAT }
             };
             LoadShader(ShaderStage::VS, shaders[VSTYPE_SKY], "sky.vert");
         });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) {
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_DEBUG_LINE] =
             {
                 { "in_position", 0, Format::R32G32B32A32_Float },
@@ -231,14 +245,14 @@ namespace cyb::renderer {
             LoadShader(ShaderStage::VS, shaders[VSTYPE_DEBUG_LINE], "debug_line.vert");
         });
 
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_DISNEY_SHADING], "flat_shader_disney.geom"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_DISNEY_SHADING], "flat_shader_disney.geom"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
 
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_IMAGE], "image.frag"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_SKY], "sky.frag"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_IMAGE], "image.frag"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_SKY], "sky.frag"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
 
         jobsystem::Wait(ctx);
 
@@ -368,12 +382,14 @@ namespace cyb::renderer {
         jobsystem::Wait(ctx);
     }
 
-    void ReloadShaders() {
+    void ReloadShaders()
+    {
         graphics::GetDevice()->ClearPipelineStateCache();
         eventsystem::FireEvent(eventsystem::Event_ReloadShaders, 0);
     }
 
-    void Initialize() {
+    void Initialize()
+    {
         GetCamera().CreatePerspective(1.78f, 0.1f, 1000.0f, 70.0f);
 
         jobsystem::Context ctx;
@@ -384,15 +400,17 @@ namespace cyb::renderer {
 
         jobsystem::Wait(ctx);
 
-        static eventsystem::Handle handle = eventsystem::Subscribe(eventsystem::Event_ReloadShaders, [](uint64_t userdata) { LoadShaders(); });
+        static eventsystem::Handle handle = eventsystem::Subscribe(eventsystem::Event_ReloadShaders, [] (uint64_t userdata) { LoadShaders(); });
     }
 
-    void SceneView::Clear() {
+    void SceneView::Clear()
+    {
         visibleObjects.clear();
         visibleLights.clear();
     }
 
-    void SceneView::Update(const scene::Scene* scene, const scene::CameraComponent* camera) {
+    void SceneView::Update(const scene::Scene* scene, const scene::CameraComponent* camera)
+    {
         assert(scene);
         assert(camera);
         assert(visibleObjects.empty());
@@ -408,11 +426,13 @@ namespace cyb::renderer {
             const spatial::Frustum& frustum = camera->frustum;
             visibleObjects.resize(scene->aabb_objects.Size());
             size_t visibleObjectsCount = 0;
-            for (size_t i = 0; i < scene->aabb_objects.Size(); ++i) {
+            for (size_t i = 0; i < scene->aabb_objects.Size(); ++i)
+            {
                 const spatial::AxisAlignedBox& aabb = scene->aabb_objects[i];
-                const scene::ObjectComponent& object= scene->objects[i];
+                const scene::ObjectComponent& object = scene->objects[i];
                 if (HasFlag(object.flags, scene::ObjectComponent::Flags::RenderableBit) &&
-                    frustum.IntersectsBoundingBox(aabb)) {
+                    frustum.IntersectsBoundingBox(aabb))
+                {
                     visibleObjects[visibleObjectsCount] = static_cast<uint32_t>(i);
                     visibleObjectsCount++;
                 }
@@ -423,7 +443,8 @@ namespace cyb::renderer {
         }
     }
 
-    void UpdatePerFrameData(const SceneView& view, float time, FrameCB& frameCB) {
+    void UpdatePerFrameData(const SceneView& view, float time, FrameCB& frameCB)
+    {
         frameCB.time = time;
         frameCB.gamma = GAMMA;
 
@@ -442,12 +463,14 @@ namespace cyb::renderer {
         // Setup lightsources
         frameCB.numLights = 0;
         float brightestLight = 0.0f;
-        for (size_t i = 0; i < view.scene->lights.Size(); ++i) {
+        for (size_t i = 0; i < view.scene->lights.Size(); ++i)
+        {
             const ecs::Entity lightID = view.scene->lights.GetEntity(i);
             const scene::LightComponent* light = view.scene->lights.GetComponent(lightID);
             const scene::TransformComponent* transform = view.scene->transforms.GetComponent(lightID);
 
-            if (light->IsAffectingScene()) {
+            if (light->IsAffectingScene())
+            {
                 LightSource& cbLight = frameCB.lights[frameCB.numLights];
                 cbLight.type = static_cast<uint32_t>(light->GetType());
                 cbLight.position = XMFLOAT4(transform->translation_local.x, transform->translation_local.y, transform->translation_local.z, 0.0f);
@@ -457,7 +480,8 @@ namespace cyb::renderer {
                 cbLight.range = light->range;
                 ++frameCB.numLights;
 
-                if (light->GetType() == scene::LightType::Directional && light->energy > brightestLight) {
+                if (light->GetType() == scene::LightType::Directional && light->energy > brightestLight)
+                {
                     frameCB.mostImportantLightIndex = (int)i;
                     brightestLight = light->energy;
                 }
@@ -467,7 +491,8 @@ namespace cyb::renderer {
         // TODO: Find the most important light
         frameCB.mostImportantLightIndex = 0;
 #if 0
-        for (size_t i = 0; i < view.scene->lights.Size(); ++i) {
+        for (size_t i = 0; i < view.scene->lights.Size(); ++i)
+        {
             const ecs::Entity lightID = view.scene->lights.GetEntity(i);
             const scene::LightComponent* light = view.scene->lights.GetComponent(lightID);
             if (light->type != scene::LightType::Directional)
@@ -477,14 +502,16 @@ namespace cyb::renderer {
 
     }
 
-    void UpdateRenderData(const SceneView& view, const FrameCB& frameCB, graphics::CommandList cmd) {
+    void UpdateRenderData(const SceneView& view, const FrameCB& frameCB, graphics::CommandList cmd)
+    {
         GraphicsDevice* device = GetDevice();
         device->BeginEvent("UpdateRenderData", cmd);
         GetDevice()->UpdateBuffer(&constantbuffers[CBTYPE_FRAME], &frameCB, cmd);
         device->EndEvent(cmd);
     }
 
-    void BindCameraCB(const scene::CameraComponent* camera, graphics::CommandList cmd) {
+    void BindCameraCB(const scene::CameraComponent* camera, graphics::CommandList cmd)
+    {
         assert(camera);
 
         CameraCB cameraCB = {};
@@ -499,7 +526,8 @@ namespace cyb::renderer {
         GetDevice()->UpdateBuffer(&constantbuffers[CBTYPE_CAMERA], &cameraCB, cmd);
     }
 
-    void DrawScene(const SceneView& view, CommandList cmd) {
+    void DrawScene(const SceneView& view, CommandList cmd)
+    {
         GraphicsDevice* device = GetDevice();
 
         device->BeginEvent("DrawScene", cmd);
@@ -509,13 +537,17 @@ namespace cyb::renderer {
         device->BindConstantBuffer(&constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA, cmd);
 
         // Draw all visiable objects
-        for (uint32_t instanceIndex : view.visibleObjects) {
+        for (uint32_t instanceIndex : view.visibleObjects)
+        {
             const ObjectComponent& object = view.scene->objects[instanceIndex];
 
-            if (object.meshID != ecs::INVALID_ENTITY) {
+            if (object.meshID != ecs::INVALID_ENTITY)
+            {
                 const MeshComponent* mesh = view.scene->meshes.GetComponent(object.meshID);
-                if (mesh != nullptr) {
-                    if (mesh->vertex_buffer_col.IsValid()) {
+                if (mesh != nullptr)
+                {
+                    if (mesh->vertex_buffer_col.IsValid())
+                    {
                         const graphics::GPUBuffer* vertex_buffers[] = {
                             &mesh->vertex_buffer_pos,
                             &mesh->vertex_buffer_col
@@ -528,7 +560,9 @@ namespace cyb::renderer {
 
                         device->BindVertexBuffers(vertex_buffers, (uint32_t)CountOf(vertex_buffers), strides, nullptr, cmd);
                         device->BindIndexBuffer(&mesh->index_buffer, IndexBufferFormat::Uint32, 0, cmd);
-                    } else {
+                    }
+                    else
+                    {
                         //device->BindVertexBuffer(&mesh->vertex_buffer_pos);
                     }
 
@@ -539,7 +573,8 @@ namespace cyb::renderer {
                     XMStoreFloat4x4(&cb.g_xTransform, XMMatrixTranspose(W * view.camera->GetViewProjection()));
                     device->BindDynamicConstantBuffer(cb, CBSLOT_MISC, cmd);
 
-                    for (const auto& subset : mesh->subsets) {
+                    for (const auto& subset : mesh->subsets)
+                    {
                         // Setup Object constant buffer
                         const MaterialComponent* material = view.scene->materials.GetComponent(subset.materialID);
                         MaterialCB material_cb;
@@ -559,7 +594,8 @@ namespace cyb::renderer {
         device->EndEvent(cmd);
     }
 
-    void DrawSky(const scene::CameraComponent* camera, CommandList cmd) {
+    void DrawSky(const scene::CameraComponent* camera, CommandList cmd)
+    {
         GraphicsDevice* device = GetDevice();
         device->BeginEvent("DrawSky", cmd);
         device->BindStencilRef(255, cmd);
@@ -580,14 +616,16 @@ namespace cyb::renderer {
     bool GetDebugLightsources() { return debug_lightsources; }
     void SetDebugLightsources(bool value) { debug_lightsources = value; }
 
-    void DrawDebugScene(const SceneView& view, CommandList cmd) {
+    void DrawDebugScene(const SceneView& view, CommandList cmd)
+    {
         static GPUBuffer wirecube_vb;
         static GPUBuffer wirecube_ib;
 
         GraphicsDevice* device = GetDevice();
         device->BeginEvent("DrawDebugScene", cmd);
 
-        if (!wirecube_vb.IsValid()) {
+        if (!wirecube_vb.IsValid())
+        {
             const XMFLOAT4 min = XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f);
             const XMFLOAT4 max = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -621,7 +659,8 @@ namespace cyb::renderer {
         }
 
         // Draw bounding boxes for all visible objects
-        if (debug_object_aabb) {
+        if (debug_object_aabb)
+        {
             device->BeginEvent("DebugObjectAABB", cmd);
             device->BindPipelineState(&pso_debug[DEBUGRENDERING_CUBE], cmd);
 
@@ -638,7 +677,8 @@ namespace cyb::renderer {
             material_cb.baseColor = XMFLOAT4(1.0f, 0.933f, 0.6f, 1.0f);
             device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
 
-            for (uint32_t instanceIndex : view.visibleObjects) {
+            for (uint32_t instanceIndex : view.visibleObjects)
+            {
                 const spatial::AxisAlignedBox& aabb = view.scene->aabb_objects[instanceIndex];
                 MiscCB misc_cb;
                 XMStoreFloat4x4(&misc_cb.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
@@ -649,13 +689,15 @@ namespace cyb::renderer {
             device->EndEvent(cmd);
         }
 
-        
-        if (debug_lightsources) {
+
+        if (debug_lightsources)
+        {
             device->BeginEvent("DebugLightsources", cmd);
             const scene::Scene& scene = *view.scene;
 
             // Draw icons over all the lightsources
-            for (uint32_t i = 0; i < scene.lights.Size(); ++i) {
+            for (uint32_t i = 0; i < scene.lights.Size(); ++i)
+            {
                 const ecs::Entity lightID = scene.lights.GetEntity(i);
                 const scene::LightComponent* light = scene.lights.GetComponent(lightID);
                 const scene::TransformComponent* transform = scene.transforms.GetComponent(lightID);
@@ -667,7 +709,8 @@ namespace cyb::renderer {
                 params.fullscreen = false;
 
                 device->BindSampler(&samplerStates[SSLOT_ANISO_CLAMP], 0, cmd);
-                switch (light->GetType()) {
+                switch (light->GetType())
+                {
                 case scene::LightType::Directional:
                     renderer::DrawImage(&builtin_textures[BUILTIN_TEXTURE_DIRLIGHT].GetTexture(), params, cmd);
                     break;
@@ -694,11 +737,13 @@ namespace cyb::renderer {
             cbMaterial.baseColor = XMFLOAT4(0.666f, 0.874f, 0.933f, 1.0f);
             device->BindDynamicConstantBuffer(cbMaterial, CBSLOT_MATERIAL, cmd);
 
-            for (uint32_t i = 0; i < scene.aabb_lights.Size(); ++i) {
+            for (uint32_t i = 0; i < scene.aabb_lights.Size(); ++i)
+            {
                 ecs::Entity entity = scene.aabb_lights.GetEntity(i);
                 const LightComponent* light = scene.lights.GetComponent(entity);
 
-                if (light->type == LightType::Point) {
+                if (light->type == LightType::Point)
+                {
                     const spatial::AxisAlignedBox& aabb = scene.aabb_lights[i];
                     MiscCB cbMisc;
                     XMStoreFloat4x4(&cbMisc.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
@@ -713,20 +758,23 @@ namespace cyb::renderer {
         device->EndEvent(cmd);
     }
 
-    void DrawImage(const Texture* texture, const ImageParams& params, CommandList cmd) {
+    void DrawImage(const Texture* texture, const ImageParams& params, CommandList cmd)
+    {
         GraphicsDevice* device = GetDevice();
         device->BeginEvent("Image", cmd);
 
         ImageCB image_cb = {};
 
-        if (!params.fullscreen) {
+        if (!params.fullscreen)
+        {
             const CameraComponent& camera = GetCamera();
             const XMMATRIX M = XMMatrixScaling(params.size.x, params.size.y, 1.0f) *
                 XMMatrixInverse(nullptr, XMLoadFloat3x3(&camera.rotation)) *
                 XMMatrixTranslationFromVector(XMLoadFloat3(&params.position)) *
                 camera.GetViewProjection();
 
-            for (int i = 0; i < 4; ++i) {
+            for (int i = 0; i < 4; ++i)
+            {
                 XMVECTOR V = XMVectorSet(params.corners[i].x - params.pivot.x, params.corners[i].y - params.pivot.y, 0.0f, 1.0f);
                 XMVECTOR VM = XMVector4Transform(V, M);
                 XMStoreFloat4(&image_cb.corners[i], VM);
@@ -738,13 +786,7 @@ namespace cyb::renderer {
         device->BindPipelineState(&pso_image, cmd);
         device->BindDynamicConstantBuffer(image_cb, CBSLOT_IMAGE, cmd);
         device->BindResource(texture, 0, cmd);
-
-        if (params.fullscreen) {
-            device->Draw(3, 0, cmd);
-        } else {
-            device->Draw(4, 0, cmd);
-        }
-
+        device->Draw(params.fullscreen ? 3 : 4, 0, cmd);
         device->EndEvent(cmd);
     }
 }

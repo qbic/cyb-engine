@@ -14,14 +14,14 @@ namespace cyb::graphics
 
     enum class ShaderValidationErrorCode
     {
-        kNoError,
-        kNotMultipleOf4,
-        kInvalidMagic
+        NoError,
+        NotMultipleOf4,
+        InvalidMagic
     };
 
     struct ShaderValidationResult
     {
-        ShaderValidationErrorCode code = ShaderValidationErrorCode::kNoError;
+        ShaderValidationErrorCode code = ShaderValidationErrorCode::NoError;
         std::string error_message;
     };
 

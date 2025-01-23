@@ -3,9 +3,10 @@
 #include "core/timer.h"
 #include "hli/renderpath.h"
 
-namespace cyb::hli {
-
-    class Application {
+namespace cyb::hli
+{
+    class Application
+    {
     public:
         virtual ~Application() = default;
 
@@ -35,7 +36,7 @@ namespace cyb::hli {
         eventsystem::Handle changeVSyncEvent;
         bool initialized = false;
         Timer timer;
-        double deltaTime = 0.0; 
+        double deltaTime = 0.0;
         Canvas canvas;
         RenderPath* activePath = nullptr;
         WindowHandle window;

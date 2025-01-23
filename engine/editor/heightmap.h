@@ -2,17 +2,19 @@
 #include <vector>
 #include "core/noise.h"
 
-namespace cyb::editor {
-
-    enum class StrataOp {
+namespace cyb::editor
+{
+    enum class StrataOp
+    {
         None,
         SharpSub,
         SharpAdd,
         Quantize,
         Smooth
     };
-     
-    enum class MixOp {
+
+    enum class MixOp
+    {
         Add,
         Sub,
         Mul,
@@ -22,8 +24,10 @@ namespace cyb::editor {
     float ApplyStrata(float value, StrataOp op, float strength);
     float ApplyMix(float valueA, float valueB, MixOp op, float strength);
 
-    struct HeightmapGenerator {
-        struct Input {
+    struct HeightmapGenerator
+    {
+        struct Input
+        {
             cyb::noise::Parameters noise;
             StrataOp strataOp = StrataOp::Smooth;
             float strata = 5.0f;
@@ -52,11 +56,14 @@ namespace cyb::editor {
 
     [[nodiscard]] std::vector<HeightmapGenerator::Input> GetDefaultInputs();
 
-    namespace detail {
-        class HeightmapImageSampler {
+    namespace detail
+    {
+        class HeightmapImageSampler
+        {
         public:
             HeightmapImageSampler(const HeightmapGenerator& generator) : m_generator(generator) {}
-            float Get(uint32_t x, uint32_t y) const {
+            float Get(uint32_t x, uint32_t y) const
+            {
                 return m_generator.GetHeightAt(XMINT2(x, y));
             }
 
@@ -64,13 +71,16 @@ namespace cyb::editor {
             const HeightmapGenerator& m_generator;
         };
 
-        class  HeightmapImageSamplerNormalized {
+        class  HeightmapImageSamplerNormalized
+        {
         public:
             HeightmapImageSamplerNormalized(const HeightmapGenerator& generator) :
                 m_generator(generator),
-                m_invHeight(1.0f / (generator.maxHeight - generator.minHeight)) {
+                m_invHeight(1.0f / (generator.maxHeight - generator.minHeight))
+            {
             }
-            float Get(uint32_t x, uint32_t y) const {
+            float Get(uint32_t x, uint32_t y) const
+            {
                 return m_generator.GetHeightAt(XMINT2(x, y)) * m_invHeight;
             }
 
@@ -80,15 +90,19 @@ namespace cyb::editor {
         };
 
         template <class T>
-        class CreateHeightmapImage {
+        class CreateHeightmapImage
+        {
         public:
             CreateHeightmapImage() = delete;
-            CreateHeightmapImage(std::vector<float>& heightmap, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale) {
+            CreateHeightmapImage(std::vector<float>& heightmap, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale)
+            {
                 const T sampler(generator);
                 heightmap.clear();
                 heightmap.resize(width * height);
-                for (int32_t y = 0; y < height; y++) {
-                    for (int32_t x = 0; x < width; x++) {
+                for (int32_t y = 0; y < height; y++)
+                {
+                    for (int32_t x = 0; x < width; x++)
+                    {
                         const float scale = (1.0f / (float)width) * freqScale;
                         const int sampleX = (int)std::round((float)(x + offsetX) * scale);
                         const int sampleY = (int)std::round((float)(y + offsetY) * scale);
@@ -102,7 +116,8 @@ namespace cyb::editor {
         };
     }
 
-    inline void CreateHeightmapImage(std::vector<float>& heightmap, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale = 1.0f) {
+    inline void CreateHeightmapImage(std::vector<float>& heightmap, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale = 1.0f)
+    {
         detail::CreateHeightmapImage<detail::HeightmapImageSampler>(heightmap, width, height, generator, offsetX, offsetY, freqScale);
     }
 
@@ -110,7 +125,8 @@ namespace cyb::editor {
     // creating a normalized heightmap, this can be done manually or by 
     // generating metadata with CreateHeightmapImage() between 
     // HeightmapGenerator::UnlockMinMax() and HeightmapGenerator::LockMinMax()
-    inline void CreateHeightmapImageNormalized(std::vector<float>& heightmap, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale = 1.0f) {
+    inline void CreateHeightmapImageNormalized(std::vector<float>& heightmap, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale = 1.0f)
+    {
         assert(generator.IsMinMaxValid());
         assert(generator.IsMinMaxLocked());
         detail::CreateHeightmapImage<detail::HeightmapImageSamplerNormalized>(heightmap, width, height, generator, offsetX, offsetY, freqScale);

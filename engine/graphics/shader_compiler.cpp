@@ -33,7 +33,7 @@ namespace cyb::graphics
 
         if ((size % 4) != 0)
         {
-            result.code = ShaderValidationErrorCode::kNotMultipleOf4;
+            result.code = ShaderValidationErrorCode::NotMultipleOf4;
             result.error_message = "SPIR - V shader size not multiple of 4!";
             return result;
         }
@@ -41,7 +41,7 @@ namespace cyb::graphics
         const uint32_t magic = data[0];
         if (magic != SpvMagicNumber)
         {
-            result.code = ShaderValidationErrorCode::kInvalidMagic;
+            result.code = ShaderValidationErrorCode::InvalidMagic;
             result.error_message = "Shader has invalid magic number!";
             return result;
         }

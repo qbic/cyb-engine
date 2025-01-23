@@ -1,10 +1,12 @@
 #include "core/profiler.h"
 #include "editor/heightmap.h"
 
-namespace cyb::editor {
-
-    float ApplyStrata(float value, StrataOp op, float strength) {
-        switch (op) {
+namespace cyb::editor
+{
+    float ApplyStrata(float value, StrataOp op, float strength)
+    {
+        switch (op)
+        {
         case StrataOp::SharpSub: {
             const float steps = -std::abs(std::sin(value * strength * math::PI) * (0.1f / strength * math::PI));
             value = (value + steps) * 0.5f;
@@ -71,8 +73,7 @@ namespace cyb::editor {
             return 0;
         }
 
-        auto calcValue = [x, y](const Input& input)
-        {
+        auto calcValue = [x, y] (const Input& input) {
             cyb::noise::Generator noise(input.noise);
             float value = noise.GetValue(x, y);
             value = ApplyStrata(value, input.strataOp, input.strata);
@@ -125,7 +126,7 @@ namespace cyb::editor {
         desc.exponent = 1.8f;
         desc.mixing = 0.4f;
         inputs.push_back(desc);
-        
+
         desc.noise.type = noise::Type::Cellular;
         desc.noise.frequency = 0.56f;
         desc.noise.octaves = 4;
@@ -133,7 +134,7 @@ namespace cyb::editor {
         desc.strata = 12.0f;
         desc.exponent = 1.8f;
         inputs.push_back(desc);
-        
+
         return inputs;
     }
 
@@ -144,13 +145,11 @@ namespace cyb::editor {
 
     std::pair<XMINT2, float> HeightmapGenerator::FindCandidate(uint32_t width, uint32_t height, const XMINT2& offset, const XMINT2& p0, const XMINT2& p1, const XMINT2& p2) const
     {
-        auto edge = [](const XMINT2& a, const XMINT2& b, const XMINT2& c) -> uint32_t
-        {
+        auto edge = [] (const XMINT2& a, const XMINT2& b, const XMINT2& c) -> uint32_t {
             return (b.x - c.x) * (a.y - c.y) - (b.y - c.y) * (a.x - c.x);
         };
 
-        auto computeStartingOffset = [](int32_t w, const int32_t edgeValue, const int32_t delta) -> int32_t
-        {
+        auto computeStartingOffset = [] (int32_t w, const int32_t edgeValue, const int32_t delta) -> int32_t {
             return (edgeValue < 0 && delta != 0) ? std::max(0, -edgeValue / delta) : 0;
         };
 
@@ -250,17 +249,14 @@ namespace cyb::editor {
         Flush();
 
         // lambda to check if triangulation is complete
-        const auto done = [this, maxError, maxTriangles, maxPoints]()
-        {
+        const auto done = [this, maxError, maxTriangles, maxPoints] () {
             return (Error() <= maxError) ||
                 (maxTriangles > 0 && NumTriangles() >= maxTriangles) ||
                 (maxPoints > 0 && NumPoints() >= maxPoints);
         };
 
         while (!done())
-        {
             Step();
-        }
     }
 
     std::vector<XMFLOAT3> HeightmapTriangulator::GetPoints() const
@@ -334,13 +330,11 @@ namespace cyb::editor {
 
         const int pn = AddPoint(p);
 
-        const auto collinear = [](const XMINT2& p0, const XMINT2& p1, const XMINT2& p2)
-        {
+        const auto collinear = [] (const XMINT2& p0, const XMINT2& p1, const XMINT2& p2) {
             return (p1.y - p0.y) * (p2.x - p1.x) == (p2.y - p1.y) * (p1.x - p0.x);
         };
 
-        const auto handleCollinear = [this](const int pn, const int a)
-        {
+        const auto handleCollinear = [this] (const int pn, const int a) {
             const int a0 = a - a % 3;
             const int al = a0 + (a + 1) % 3;
             const int ar = a0 + (a + 2) % 3;
@@ -381,16 +375,20 @@ namespace cyb::editor {
             Legalize(t3);
         };
 
-        if (collinear(a, b, p)) {
+        if (collinear(a, b, p))
+        {
             handleCollinear(pn, e0);
         }
-        else if (collinear(b, c, p)) {
+        else if (collinear(b, c, p))
+        {
             handleCollinear(pn, e1);
         }
-        else if (collinear(c, a, p)) {
+        else if (collinear(c, a, p))
+        {
             handleCollinear(pn, e2);
         }
-        else {
+        else
+        {
             const int h0 = m_Halfedges[e0];
             const int h1 = m_Halfedges[e1];
             const int h2 = m_Halfedges[e2];
@@ -480,8 +478,7 @@ namespace cyb::editor {
         //       ar\ || /br             b\    /br
         //          \||/                  \  /
         //           pr                    pr
-        const auto inCircle = [](const XMINT2& a, const XMINT2& b, const XMINT2& c, const XMINT2& p)
-        {
+        const auto inCircle = [] (const XMINT2& a, const XMINT2& b, const XMINT2& c, const XMINT2& p) {
             const int32_t dx = a.x - p.x;
             const int32_t dy = a.y - p.y;
             const int32_t ex = b.x - p.x;

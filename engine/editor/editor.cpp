@@ -30,12 +30,12 @@ using namespace std::string_literals;
 #define FILE_FILTER_GLTF            "GLTF Files (*.gltf; *.glb)\0*.gltf;*.glb\0"s
 #define FILE_FILTER_IMPORT_MODEL    FILE_FILTER_GLTF FILE_FILTER_SCENE FILE_FILTER_ALL
 
-namespace cyb::editor {
-
+namespace cyb::editor
+{
     bool initialized = false;
     bool vsync_enabled = true;      // FIXME: initial value has to be synced with SwapChainDesc::vsync
     bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
-        
+
     Resource import_icon;
     Resource delete_icon;
     Resource light_icon;
@@ -43,7 +43,7 @@ namespace cyb::editor {
     Resource translate_icon;
     Resource rotate_icon;
     Resource scale_icon;
-    
+
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::BOUNDS;
     bool guizmo_world_mode = true;
     SceneGraphView scenegraph_view;
@@ -78,11 +78,12 @@ namespace cyb::editor {
             ImGui::Text("Parent: (no name) entityID=%u", hierarchy->parentID);
             return;
         }
-            
+
         ImGui::Text("Parent: %s", name->name.c_str());
     }
 
-    void InspectMeshComponent(scene::MeshComponent* mesh) {
+    void InspectMeshComponent(scene::MeshComponent* mesh)
+    {
         if (!mesh)
             return;
 
@@ -103,7 +104,8 @@ namespace cyb::editor {
         ImGui::TableSetupColumn("Material");
         ImGui::TableHeadersRow();
         ImGui::TableNextColumn();
-        for (uint32_t i = 0; i < mesh->subsets.size(); ++i) {
+        for (uint32_t i = 0; i < mesh->subsets.size(); ++i)
+        {
             const auto& subset = mesh->subsets[i];
             const std::string& material_name = scene.names.GetComponent(subset.materialID)->name;
 
@@ -115,12 +117,14 @@ namespace cyb::editor {
 
         ImGui::EndTable();
 
-        if (ImGui::Button("Compute Smooth Normals")) {
+        if (ImGui::Button("Compute Smooth Normals"))
+        {
             mesh->ComputeSmoothNormals();
             mesh->CreateRenderData();
         }
 
-        if (ImGui::Button("Compute Hard Normals")) {
+        if (ImGui::Button("Compute Hard Normals"))
+        {
             mesh->ComputeHardNormals();
             mesh->CreateRenderData();
         }
@@ -192,7 +196,7 @@ namespace cyb::editor {
                 {
                     // Create a uniqe label for each entity
                     const std::string label = std::format("{}##{}", entity.name, entity.id);
-                    
+
                     if (ImGui::Selectable(label.c_str(), currentEntity == entity.id))
                     {
                         selectedEntity = entity.id;
@@ -509,9 +513,11 @@ namespace cyb::editor {
                 mesh = scene.meshes.GetComponent(meshID);
                 InspectMeshComponent(mesh);
                 ImGui::Unindent();
-            } else {
+            }
+            else
+            {
                 mesh = scene.meshes.GetComponent(object->meshID);
-            }                
+            }
 
             if (ImGui::CollapsingHeader(ICON_FA_PALETTE " Materials *"))
             {
@@ -585,7 +591,8 @@ namespace cyb::editor {
             ImGui::Text("GPU Frame: %.2fms", gpuFrame->second.time);
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8);
             ImGui::Indent();
-            for (auto& [entryID, entry] : profilerContext.entries) {
+            for (auto& [entryID, entry] : profilerContext.entries)
+            {
                 if (!entry.IsCPUEntry() && entryID != gpuFrame->first)
                     ImGui::Text("%s: %.2fms", entry.name.c_str(), entry.time);
             }
@@ -598,14 +605,17 @@ namespace cyb::editor {
 
     //------------------------------------------------------------------------------
 
-    class Tool_LogDisplay : public GuiTool {
+    class Tool_LogDisplay : public GuiTool
+    {
     public:
         Tool_LogDisplay(const std::string& name) :
-            GuiTool(name) {
+            GuiTool(name)
+        {
             logger::RegisterOutputModule<logger::OutputModule_StringBuffer>(&m_textBuffer);
         }
 
-        void Draw() override {
+        void Draw() override
+        {
             ImGui::PushTextWrapPos(0.0f);
             ImGui::TextUnformatted(m_textBuffer.c_str());
             ImGui::PopTextWrapPos();
@@ -661,7 +671,7 @@ namespace cyb::editor {
             GuiTool(windowTitle, ImGuiWindowFlags_MenuBar)
         {
         }
-        
+
         virtual void Draw() override
         {
             generator.DrawGui(scenegraph_view.SelectedEntity());
@@ -686,7 +696,7 @@ namespace cyb::editor {
 
             if (x->PreDraw())
                 x->Draw();
-            
+
             x->PostDraw();
         }
     }
@@ -697,10 +707,10 @@ namespace cyb::editor {
     {
         scene::Scene& scene = scene::GetScene();
         return scene.CreateLight(
-            "Light_Directional_NEW", 
+            "Light_Directional_NEW",
             XMFLOAT3(0.0f, 70.0f, 0.0f),
             XMFLOAT3(1.0f, 1.0f, 1.0f),
-            1.0f, 100.0f, 
+            1.0f, 100.0f,
             scene::LightType::Directional);
     }
 
@@ -708,10 +718,10 @@ namespace cyb::editor {
     {
         scene::Scene& scene = scene::GetScene();
         ecs::Entity entity = scene.CreateLight(
-            "Light_Point_NEW", 
-            XMFLOAT3(0.0f, 20.0f, 0.0f), 
+            "Light_Point_NEW",
+            XMFLOAT3(0.0f, 20.0f, 0.0f),
             XMFLOAT3(1.0f, 1.0f, 1.0f),
-            1.0f, 100.0f, 
+            1.0f, 100.0f,
             scene::LightType::Point);
         scenegraph_view.SelectEntity(entity);
         return entity;
@@ -719,14 +729,16 @@ namespace cyb::editor {
 
     // Clears the current scene and loads in a new from a selected file.
     // TODO: Add a dialog to prompt user about unsaved progress
-    void OpenDialog_Open() {
-        filesystem::OpenDialog(FILE_FILTER_SCENE, [](std::string filename) {
-            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
+    void OpenDialog_Open()
+    {
+        filesystem::OpenDialog(FILE_FILTER_SCENE, [] (std::string filename) {
+            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
                 Timer timer;
                 scene::Scene& scene = scene::GetScene();
                 scene.Clear();
 
-                if (!SerializeFromFile(filename, scene)) {
+                if (!SerializeFromFile(filename, scene))
+                {
                     CYB_ERROR("Failed to serialize file: {}", filename);
                     return;
                 }
@@ -738,14 +750,18 @@ namespace cyb::editor {
 
     // Import a new model to the scene, once the loading is complete
     // it will be automaticly selected in the scene graph view.
-    void OpenDialog_ImportModel(const std::string filter) {
-        filesystem::OpenDialog(filter, [](std::string filename) {
-            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
+    void OpenDialog_ImportModel(const std::string filter)
+    {
+        filesystem::OpenDialog(filter, [] (std::string filename) {
+            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
                 const std::string extension = filesystem::GetExtension(filename);
-                if (filesystem::HasExtension(filename, "csb")) {
+                if (filesystem::HasExtension(filename, "csb"))
+                {
                     //scene::LoadModel(filename);
-                    CYB_WARNING("OpenDialog_ImportModel: Loading .csb file from here is currently not working"); 
-                } else if (filesystem::HasExtension(filename, "glb") || filesystem::HasExtension(filename, "gltf")) {
+                    CYB_WARNING("OpenDialog_ImportModel: Loading .csb file from here is currently not working");
+                }
+                else if (filesystem::HasExtension(filename, "glb") || filesystem::HasExtension(filename, "gltf"))
+                {
                     ecs::Entity entity = renderer::ImportModel_GLTF(filename, scene::GetScene());
                     SetSceneGraphViewSelection(entity);
                 }
@@ -753,8 +769,9 @@ namespace cyb::editor {
         });
     }
 
-    void OpenDialog_SaveAs() {
-        filesystem::SaveDialog(FILE_FILTER_SCENE, [](std::string filename) {
+    void OpenDialog_SaveAs()
+    {
+        filesystem::SaveDialog(FILE_FILTER_SCENE, [] (std::string filename) {
             if (!filesystem::HasExtension(filename, "cbs"))
                 filename += ".cbs";
 
@@ -771,11 +788,10 @@ namespace cyb::editor {
 
     static void DeleteSelectedEntity()
     {
-        eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t)
-            {
-                scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity(), true);
-                scenegraph_view.SelectEntity(ecs::INVALID_ENTITY);
-            });
+        eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
+            scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity(), true);
+            scenegraph_view.SelectEntity(ecs::INVALID_ENTITY);
+        });
     }
 
     //------------------------------------------------------------------------------
@@ -789,10 +805,9 @@ namespace cyb::editor {
             if (ImGui::BeginMenu("File"))
             {
                 if (ImGui::MenuItem("New"))
-                    eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t)
-                        {
-                            scene::GetScene().Clear(); 
-                        });
+                    eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
+                    scene::GetScene().Clear();
+                });
                 if (ImGui::MenuItem("Open"))
                     OpenDialog_Open();
                 if (ImGui::MenuItem("Save As..."))
@@ -814,12 +829,15 @@ namespace cyb::editor {
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("Edit")) {
-                if (ImGui::MenuItem("Undo", "CTRL+Z", false, ui::GetUndoManager().CanUndo())) {
+            if (ImGui::BeginMenu("Edit"))
+            {
+                if (ImGui::MenuItem("Undo", "CTRL+Z", false, ui::GetUndoManager().CanUndo()))
+                {
                     ui::GetUndoManager().Undo();
                 }
 
-                if (ImGui::MenuItem("Redo", "CTRL+Y", false, ui::GetUndoManager().CanRedo())) {
+                if (ImGui::MenuItem("Redo", "CTRL+Y", false, ui::GetUndoManager().CanRedo()))
+                {
                     ui::GetUndoManager().Redo();
                 }
 
@@ -850,10 +868,13 @@ namespace cyb::editor {
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("View")) {
-                for (auto& x : tools) {
+            if (ImGui::BeginMenu("View"))
+            {
+                for (auto& x : tools)
+                {
                     bool show_window = x->IsShown();
-                    if (ImGui::MenuItem(x->GetWindowTitle(), NULL, &show_window)) {
+                    if (ImGui::MenuItem(x->GetWindowTitle(), NULL, &show_window))
+                    {
                         x->ShowWindow(show_window);
                     }
                 }
@@ -890,7 +911,7 @@ namespace cyb::editor {
                 }
                 if (ImGui::Checkbox("Fullscreen", &fullscreenEnabled))
                 {
-                    
+
                 }
                 if (ImGui::Checkbox("VSync", &vsync_enabled))
                     eventsystem::FireEvent(eventsystem::Event_SetVSync, vsync_enabled ? 1ull : 0ull);
@@ -904,8 +925,8 @@ namespace cyb::editor {
 
     static bool DrawIconButton(
         const std::string& strId,
-        const graphics::Texture& texture, 
-        const std::string& tooltip, 
+        const graphics::Texture& texture,
+        const std::string& tooltip,
         bool is_selected = false,
         ImVec2 size = ImVec2(24, 24))
     {
@@ -920,7 +941,7 @@ namespace cyb::editor {
             ImGui::PopStyleColor(1);
         }
 
-        if (ImGui::IsItemHovered()) 
+        if (ImGui::IsItemHovered())
         {
             ImGui::SetTooltip("%s", tooltip.c_str());
         }
@@ -972,7 +993,8 @@ namespace cyb::editor {
     }
 
     // windowID is only used for recording undo commands
-    static void DrawGizmo(const ImGuiID windowID) {
+    static void DrawGizmo(const ImGuiID windowID)
+    {
         static bool isUsingGizmo = false;
         const ImGuiIO& io = ImGui::GetIO();
         scene::Scene& scene = scene::GetScene();
@@ -982,7 +1004,8 @@ namespace cyb::editor {
         scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
 
         XMFLOAT4X4 world = {};
-        if (transform) {
+        if (transform)
+        {
             world = transform->world;
         }
 
@@ -997,8 +1020,10 @@ namespace cyb::editor {
             mode,
             &world._11);
 
-        if (ImGuizmo::IsUsing() && isEnabled) {
-            if (!isUsingGizmo) {
+        if (ImGuizmo::IsUsing() && isEnabled)
+        {
+            if (!isUsingGizmo)
+            {
                 ui::GetUndoManager().Emplace<ui::ModifyValue<scene::TransformComponent>>(windowID, transform);
             }
 
@@ -1007,16 +1032,21 @@ namespace cyb::editor {
 
             // Transform to local space if parented
             const scene::HierarchyComponent* hierarchy = scene.hierarchy.GetComponent(entity);
-            if (hierarchy) {
+            if (hierarchy)
+            {
                 const scene::TransformComponent* parent_transform = scene.transforms.GetComponent(hierarchy->parentID);
-                if (parent_transform != nullptr) {
+                if (parent_transform != nullptr)
+                {
                     transform->MatrixTransform(XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent_transform->world)));
                 }
             }
 
             isUsingGizmo = true;
-        } else {
-            if (isUsingGizmo) {
+        }
+        else
+        {
+            if (isUsingGizmo)
+            {
                 ui::GetUndoManager().CommitIncompleteCommand();
                 isUsingGizmo = false;
             }
@@ -1080,8 +1110,10 @@ namespace cyb::editor {
         initialized = true;
     }
 
-    void Update() {
-        if (!initialized) {
+    void Update()
+    {
+        if (!initialized)
+        {
             return;
         }
 
@@ -1099,7 +1131,7 @@ namespace cyb::editor {
         scenegraph_view.GenerateView();
         scenegraph_view.Draw();
         ImGui::EndChild();
-        
+
         ImGui::Text("Components:");
         const float componentChildHeight = math::Max(300.0f, ImGui::GetContentRegionAvail().y);
         ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), ImGuiChildFlags_Border);
@@ -1110,29 +1142,35 @@ namespace cyb::editor {
         ImGui::End();
 
         // Only draw gizmo with a valid entity containing transform component
-        if (scene::GetScene().transforms.GetComponent(selectedEntity)) {
+        if (scene::GetScene().transforms.GetComponent(selectedEntity))
+        {
             DrawGizmo(gizmoWindowID);
         }
 
         // Pick on left mouse click
-        if (guizmo_operation & ImGuizmo::BOUNDS) {
+        if (guizmo_operation & ImGuizmo::BOUNDS)
+        {
             ImGuiIO& io = ImGui::GetIO();
             bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver();
-            if (isMouseIn3DView && io.MouseClicked[0]) {
+            if (isMouseIn3DView && io.MouseClicked[0])
+            {
                 const scene::Scene& scene = scene::GetScene();
                 spatial::Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);
                 scene::PickResult pick_result = scene::Pick(scene, pick_ray);
 
                 // Enable mouse picking on lightsources only if they are being drawn
-                if (renderer::GetDebugLightsources()) {
-                    for (size_t i = 0; i < scene.lights.Size(); ++i) {
+                if (renderer::GetDebugLightsources())
+                {
+                    for (size_t i = 0; i < scene.lights.Size(); ++i)
+                    {
                         ecs::Entity entity = scene.lights.GetEntity(i);
                         const scene::TransformComponent& transform = *scene.transforms.GetComponent(entity);
 
                         XMVECTOR disV = XMVector3LinePointDistance(pick_ray.GetOrigin(), pick_ray.GetOrigin() + pick_ray.GetDirection(), transform.GetPositionV());
                         float dis = XMVectorGetX(disV);
                         const XMFLOAT3& pos = transform.GetPosition();
-                        if (dis > 0.01f && dis < math::Distance(XMLoadFloat3(&pos), pick_ray.GetOrigin()) * 0.05f && dis < pick_result.distance) {
+                        if (dis > 0.01f && dis < math::Distance(XMLoadFloat3(&pos), pick_ray.GetOrigin()) * 0.05f && dis < pick_result.distance)
+                        {
                             pick_result = scene::PickResult();
                             pick_result.entity = entity;
                             pick_result.distance = dis;
@@ -1140,7 +1178,8 @@ namespace cyb::editor {
                     }
                 }
 
-                if (pick_result.entity != ecs::INVALID_ENTITY) {
+                if (pick_result.entity != ecs::INVALID_ENTITY)
+                {
                     scenegraph_view.SelectEntity(pick_result.entity);
                 }
             }

@@ -3,7 +3,8 @@
 
 using namespace cyb;
 
-void Game::Load() {
+void Game::Load()
+{
     //logger::SetMessageSeverityThreshold(logger::Level::Info);
 
 #if 1 
@@ -41,7 +42,8 @@ void Game::Load() {
     RenderPath3D::Load();
 }
 
-void Game::Update(double dt) {
+void Game::Update(double dt)
+{
 #ifdef NO_EDITOR
     const bool editorWantsInput = false;
 #else
@@ -54,11 +56,13 @@ void Game::Update(double dt) {
     RenderPath3D::Update(dt);
 }
 
-void Game::CameraControl(double dt) {
+void Game::CameraControl(double dt)
+{
     float xDif = 0;
     float yDif = 0;
 
-    if (input::IsDown(input::MOUSE_BUTTON_RIGHT)) {
+    if (input::IsDown(input::MOUSE_BUTTON_RIGHT))
+    {
         const input::MouseState& mouse = input::GetMouseState();
         xDif = m_mouseSensitivity * mouse.deltaPosition.x * (1.0f / 60.0f);
         yDif = m_mouseSensitivity * mouse.deltaPosition.y * (1.0f / 60.0f);
@@ -91,7 +95,8 @@ void Game::CameraControl(double dt) {
     if (moveLength < 0.0001f)
         move = XMVectorSet(0, 0, 0, 0);
 
-    if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f) {
+    if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f)
+    {
         XMMATRIX cameraRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&cameraTransform.rotation_local));
         XMVECTOR rotatedMove = XMVector3TransformNormal(move, cameraRotation);
         XMFLOAT3 rotatedMoveStored;

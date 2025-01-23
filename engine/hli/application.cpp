@@ -10,23 +10,27 @@
 
 using namespace cyb::graphics;
 
-namespace cyb::hli {
-
-    void Application::ActivePath(RenderPath* component) {
+namespace cyb::hli
+{
+    void Application::ActivePath(RenderPath* component)
+    {
         if (component != nullptr)
             component->SetCanvas(canvas);
         activePath = component;
     }
 
-    void Application::Run() {
+    void Application::Run()
+    {
         // Do lazy-style initialization
-        if (!initialized) {
+        if (!initialized)
+        {
             Initialize();
             initialized = true;
         }
 
         // disable update loops if application is not active
-        if (!IsWindowActive()) {
+        if (!IsWindowActive())
+        {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             return;
         }
@@ -62,7 +66,8 @@ namespace cyb::hli {
         graphicsDevice->SubmitCommandList();
     }
 
-    void Application::Initialize() {
+    void Application::Initialize()
+    {
         Timer timer;
 #ifdef CYB_DEBUG_BUILD
         CYB_INFO("Running debug build, performance will be slow!");
@@ -73,10 +78,10 @@ namespace cyb::hli {
         jobsystem::Initialize();
 
         jobsystem::Context ctx;
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { input::Initialize(); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { renderer::Initialize(); });
-        jobsystem::Execute(ctx, [&](jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(window); });
-        jobsystem::Execute(ctx, [&](jobsystem::JobArgs) {
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { input::Initialize(); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { renderer::Initialize(); });
+        jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(window); });
+        jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) {
             RenderPath* renderPath = GetRenderPath();
             renderPath->Load();
 
@@ -89,29 +94,34 @@ namespace cyb::hli {
 
     }
 
-    void Application::Update(double dt) {
+    void Application::Update(double dt)
+    {
         CYB_PROFILE_CPU_SCOPE("Update");
         if (activePath != nullptr)
             activePath->Update(dt);
         input::Update(window);
     }
 
-    void Application::Render() {
+    void Application::Render()
+    {
         CYB_PROFILE_CPU_SCOPE("Render");
         if (activePath != nullptr)
             activePath->Render();
     }
 
-    void Application::Compose(graphics::CommandList cmd) {
+    void Application::Compose(graphics::CommandList cmd)
+    {
         CYB_PROFILE_CPU_SCOPE("Compose");
         if (activePath != nullptr)
             activePath->Compose(cmd);
     }
 
-    void Application::SetWindow(WindowHandle window) {
+    void Application::SetWindow(WindowHandle window)
+    {
         this->window = window;
 
-        if (graphicsDevice == nullptr) {
+        if (graphicsDevice == nullptr)
+        {
             graphicsDevice = std::make_unique<graphics::GraphicsDevice_Vulkan>();
             graphics::GetDevice() = graphicsDevice.get();
             graphics::GraphicsDevice* device = graphics::GetDevice();
@@ -125,7 +135,7 @@ namespace cyb::hli {
         desc.height = canvas.GetPhysicalHeight();;
         graphics::GetDevice()->CreateSwapChain(&desc, window, &swapchain);
 
-        changeVSyncEvent = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this](uint64_t userdata) {
+        changeVSyncEvent = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this] (uint64_t userdata) {
             SwapChainDesc desc = swapchain.desc;
             desc.vsync = (userdata != 0);
             bool success = graphicsDevice->CreateSwapChain(&desc, nullptr, &swapchain);

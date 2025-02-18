@@ -13,7 +13,7 @@ using namespace cyb::scene;
 
 namespace cyb::renderer
 {
-    CVar r_debugObjectAABB("r_debugObjectAABB", false, CVarFlag::RendererBit, "Render AABB of all entites in the scene");
+    CVar r_debugObjectAABB("r_debugObjectAABB", false, CVarFlag::RendererBit, "Render AABB of all objects in the scene");
     CVar r_debugLightSources("r_debugLightSources", false, CVarFlag::RendererBit, "Render icon and AABB of all light sources");
     
     Shader shaders[SHADERTYPE_COUNT];

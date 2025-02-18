@@ -1,4 +1,5 @@
 #include "core/profiler.h"
+#include "core/cvar.h"
 #include "graphics/device_vulkan.h"
 #include "graphics/renderer.h"
 #include "systems/event_system.h"
@@ -12,6 +13,8 @@ using namespace cyb::graphics;
 
 namespace cyb::hli
 {
+    CVar gr_vsync("gr_vsync", true, CVarFlag::RendererBit, "Enable/Disable vertices sync");
+
     void Application::ActivePath(RenderPath* component)
     {
         if (component != nullptr)
@@ -76,6 +79,7 @@ namespace cyb::hli
         CYB_INFO("Initializing cyb-engine (asynchronous), please wait...");
 
         jobsystem::Initialize();
+        cyb::CVar::RegisterStaticCVars();
 
         jobsystem::Context ctx;
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { input::Initialize(); });
@@ -140,6 +144,10 @@ namespace cyb::hli
             desc.vsync = (userdata != 0);
             bool success = graphicsDevice->CreateSwapChain(&desc, nullptr, &swapchain);
             assert(success);
+        });
+
+        gr_vsync.SetOnChangeCallback([] (const CVarValue& value) {
+            eventsystem::FireEvent(eventsystem::Event_SetVSync, std::get<bool>(value) ? 1ull : 0ull);
         });
     }
 }

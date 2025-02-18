@@ -591,12 +591,6 @@ namespace cyb::graphics
     //  Render Device Interface Class
     //=============================================================
 
-    struct FrameStats
-    {
-        uint32_t drawCalls = 0;
-        uint64_t triangleCount = 0;
-    };
-
     struct CommandList
     {
         void* internal_state = nullptr;

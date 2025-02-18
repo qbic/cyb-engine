@@ -1,16 +1,16 @@
 #include <deque>
 #include <mutex>
 #include "core/logger.h"
+#include "core/cvar.h"
 #include "core/spinlock.h"
-
-// history is only used to append logs to newly registrated output
-// modules and should't need to be very big
-#define MAX_HISTORY_SIZE     40
 
 namespace cyb::logger
 {
+    // logHistorySize only used to append logs to newly registrated output
+    // modules and should't need to be very big
+    CVar logHistorySize("logHistorySize", 40u, CVarFlag::SystemBit, "Maximum numbers of log lines to save");
+    CVar logSeverityThreshold("logSeverityThreshold", 0u, CVarFlag::SystemBit, "0=Trace, 1=Info, 2=Warning, 3=Error");
 
-    Level severityThreshold = Level::Trace;
     std::vector<std::unique_ptr<OutputModule>> outputModules;
     std::deque<Message> logHistory;
     SpinLock postLock;
@@ -50,11 +50,6 @@ namespace cyb::logger
         m_output << log.text;
     }
 
-    void SetMessageSeverityThreshold(Level severity)
-    {
-        severityThreshold = severity;
-    }
-
     namespace detail
     {
         void RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule)
@@ -81,7 +76,7 @@ namespace cyb::logger
 
         void Post(Level severity, const std::string& text)
         {
-            if ((int)severity < (int)severityThreshold)
+            if ((uint32_t)severity < logSeverityThreshold.GetValue<uint32_t>())
                 return;
 
             Message log;
@@ -92,7 +87,7 @@ namespace cyb::logger
             std::scoped_lock<SpinLock> lock(postLock);
 
             logHistory.push_back(log);
-            while (logHistory.size() > MAX_HISTORY_SIZE)
+            while (logHistory.size() > logHistorySize.GetValue<uint32_t>())
                 logHistory.pop_front();
 
             for (auto& output : outputModules)

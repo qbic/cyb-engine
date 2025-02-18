@@ -1,4 +1,5 @@
 #include "core/arena.h"
+#include "core/cvar.h"
 #include "core/logger.h"
 #include "input/input.h"
 #include "input/input-raw.h"
@@ -6,16 +7,18 @@
 #include <list>
 #pragma comment(lib, "Hid.lib")
 
-namespace cyb::input::rawinput {
+namespace cyb::input::rawinput
+{
+    CVar inputArenaSize("inputArenaSize", 16u * 1024u, CVarFlag::SystemBit, "Memory arena size (64bit aligned) for the raw input system (restart requierd)");
+    Arena inputArena;
+    std::vector<RAWINPUT*> inputMessages;
 
-	Arena inputArena;
-	std::vector<RAWINPUT*> inputMessages;
-
-	input::KeyboardState keyboard;
+    input::KeyboardState keyboard;
     input::MouseState mouse;
-	std::atomic<bool> initialized = false;
+    std::atomic<bool> initialized = false;
 
-    void Initialize() {
+    void Initialize()
+    {
         RAWINPUTDEVICE rid[2];
 
         // Register mouse:
@@ -30,110 +33,117 @@ namespace cyb::input::rawinput {
         rid[1].dwFlags = 0;
         rid[1].hwndTarget = 0;
 
-        if (RegisterRawInputDevices(rid, (UINT)CountOf(rid), sizeof(rid[0])) == FALSE) {
+        if (RegisterRawInputDevices(rid, (UINT)CountOf(rid), sizeof(rid[0])) == FALSE)
+        {
             // registration failed. Call GetLastError for the cause of the error
             assert(0);
         }
 
-		inputArena.SetBlockSizeAndAlignment(16 * 1024, 64); // 16k block size, 8byte alignment
-		inputMessages.reserve(64);
-		initialized.store(true);
+        inputArena.SetBlockSizeAndAlignment(inputArenaSize.GetValue<uint32_t>(), 64); // 16k block size, 8byte alignment
+        inputMessages.reserve(64);
+        initialized.store(true);
     }
 
-	void ParseRawInputBlock(const RAWINPUT& raw) {
-		if (raw.header.dwType == RIM_TYPEKEYBOARD) {
-			const RAWKEYBOARD& rawkeyboard = raw.data.keyboard;
-			assert(rawkeyboard.VKey < _countof(keyboard.buttons));
+    void ParseRawInputBlock(const RAWINPUT& raw)
+    {
+        if (raw.header.dwType == RIM_TYPEKEYBOARD)
+        {
+            const RAWKEYBOARD& rawkeyboard = raw.data.keyboard;
+            assert(rawkeyboard.VKey < _countof(keyboard.buttons));
 
-			if (rawkeyboard.Flags == RI_KEY_MAKE) {
-				keyboard.buttons[rawkeyboard.VKey].RegisterKeyDown();
-			} else if (rawkeyboard.Flags == RI_KEY_BREAK) {
-				keyboard.buttons[rawkeyboard.VKey].RegisterKeyUp();
-			}
-		} else if (raw.header.dwType == RIM_TYPEMOUSE) {
-			const RAWMOUSE& rawmouse = raw.data.mouse;
+            if (rawkeyboard.Flags == RI_KEY_MAKE)
+                keyboard.buttons[rawkeyboard.VKey].RegisterKeyDown();
+            else if (rawkeyboard.Flags == RI_KEY_BREAK)
+                keyboard.buttons[rawkeyboard.VKey].RegisterKeyUp();
+        }
+        else if (raw.header.dwType == RIM_TYPEMOUSE)
+        {
+            const RAWMOUSE& rawmouse = raw.data.mouse;
 
-			if (rawmouse.usFlags == MOUSE_MOVE_RELATIVE) {
-				if (std::abs(rawmouse.lLastX) < 30000) {
-					mouse.deltaPosition.x += (float)rawmouse.lLastX;
-				}
-				if (std::abs(rawmouse.lLastY) < 3000) {
-					mouse.deltaPosition.y += (float)rawmouse.lLastY;
-				}
-				if (rawmouse.usButtonFlags == RI_MOUSE_WHEEL) {
-					mouse.deltaWheel += float((SHORT)rawmouse.usButtonData) / float(WHEEL_DELTA);
-				}
-			} else if (rawmouse.usFlags == MOUSE_MOVE_ABSOLUTE) {
-				// for some reason we never get absolute coordinates with raw input...
-			}
+            if (rawmouse.usFlags == MOUSE_MOVE_RELATIVE)
+            {
+                if (std::abs(rawmouse.lLastX) < 30000)
+                    mouse.deltaPosition.x += (float)rawmouse.lLastX;
+                if (std::abs(rawmouse.lLastY) < 3000)
+                    mouse.deltaPosition.y += (float)rawmouse.lLastY;
+                if (rawmouse.usButtonFlags == RI_MOUSE_WHEEL)
+                    mouse.deltaWheel += float((SHORT)rawmouse.usButtonData) / float(WHEEL_DELTA);
+            }
+            else if (rawmouse.usFlags == MOUSE_MOVE_ABSOLUTE)
+            {
+                // for some reason we never get absolute coordinates with raw input...
+            }
 
-			if (rawmouse.usButtonFlags == RI_MOUSE_LEFT_BUTTON_DOWN) {
-				mouse.leftButton.RegisterKeyDown();
-			} else if (rawmouse.usButtonFlags == RI_MOUSE_LEFT_BUTTON_UP) {
-				mouse.leftButton.RegisterKeyUp();
-			} else if (rawmouse.usButtonFlags == RI_MOUSE_MIDDLE_BUTTON_DOWN) {
-				mouse.middleButton.RegisterKeyDown();
-			} else if (rawmouse.usButtonFlags == RI_MOUSE_MIDDLE_BUTTON_UP) {
-				mouse.middleButton.RegisterKeyUp();
-			} else if (rawmouse.usButtonFlags == RI_MOUSE_RIGHT_BUTTON_DOWN) {
-				mouse.rightButton.RegisterKeyDown();
-			} else if (rawmouse.usButtonFlags == RI_MOUSE_RIGHT_BUTTON_UP) {
-				mouse.rightButton.RegisterKeyUp();
-			}
-		}
-	}
-
-    void Update(bool hasWindowFocus) {
-		if (hasWindowFocus) {
-			for (uint32_t i = 0; i < CountOf(keyboard.buttons); ++i) {
-				keyboard.buttons[i].Reset();
-			}
-
-			mouse.position = XMFLOAT2(0, 0);
-			mouse.deltaPosition = XMFLOAT2(0, 0);
-			mouse.deltaWheel = 0;
-			mouse.leftButton.Reset();
-			mouse.middleButton.Reset();
-			mouse.rightButton.Reset();
-		} else {
-			keyboard = input::KeyboardState();
-			mouse = input::MouseState();
-		}
-
-		// Loop through inputs that we got from text loop
-		for (auto& input : inputMessages) {
-			ParseRawInputBlock(*input);
-		}
-
-		inputMessages.clear();
-		inputArena.Reset();
+            if (rawmouse.usButtonFlags == RI_MOUSE_LEFT_BUTTON_DOWN)
+                mouse.leftButton.RegisterKeyDown();
+            else if (rawmouse.usButtonFlags == RI_MOUSE_LEFT_BUTTON_UP)
+                mouse.leftButton.RegisterKeyUp();
+            else if (rawmouse.usButtonFlags == RI_MOUSE_MIDDLE_BUTTON_DOWN)
+                mouse.middleButton.RegisterKeyDown();
+            else if (rawmouse.usButtonFlags == RI_MOUSE_MIDDLE_BUTTON_UP)
+                mouse.middleButton.RegisterKeyUp();
+            else if (rawmouse.usButtonFlags == RI_MOUSE_RIGHT_BUTTON_DOWN)
+                mouse.rightButton.RegisterKeyDown();
+            else if (rawmouse.usButtonFlags == RI_MOUSE_RIGHT_BUTTON_UP)
+                mouse.rightButton.RegisterKeyUp();
+        }
     }
 
-	void ParseMessage(HRAWINPUT hRawInput) {
-		if (!initialized.load()) {
-			return;
-		}
+    void Update(bool hasWindowFocus)
+    {
+        if (hasWindowFocus)
+        {
+            for (uint32_t i = 0; i < CountOf(keyboard.buttons); ++i)
+                keyboard.buttons[i].Reset();
 
-		UINT dwSize = 0u;
+            mouse.position = XMFLOAT2(0, 0);
+            mouse.deltaPosition = XMFLOAT2(0, 0);
+            mouse.deltaWheel = 0;
+            mouse.leftButton.Reset();
+            mouse.middleButton.Reset();
+            mouse.rightButton.Reset();
+        }
+        else
+        {
+            keyboard = input::KeyboardState();
+            mouse = input::MouseState();
+        }
 
-		GetRawInputData(hRawInput, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
-		BYTE* lpb = inputArena.Allocate(dwSize);
-		if (lpb == nullptr) {
-			CYB_WARNING("Input message queue full, dropping input data");
-			return;
-		}
+        // Loop through inputs that we got from text loop
+        for (auto& input : inputMessages)
+            ParseRawInputBlock(*input);
 
-		UINT result = GetRawInputData(hRawInput, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
-		if (result == dwSize) {
-			inputMessages.push_back((RAWINPUT*)lpb);
-		}
-	}
+        inputMessages.clear();
+        inputArena.Reset();
+    }
 
-	void GetKeyboardState(input::KeyboardState* state) {
-		*state = keyboard;
-	}
+    void ParseMessage(HRAWINPUT hRawInput)
+    {
+        if (!initialized.load())
+            return;
 
-    void GetMouseState(input::MouseState* state) {
+        UINT dwSize = 0u;
+
+        GetRawInputData(hRawInput, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+        BYTE* lpb = inputArena.Allocate(dwSize);
+        if (lpb == nullptr)
+        {
+            CYB_WARNING("Input message queue full, dropping input data");
+            return;
+        }
+
+        UINT result = GetRawInputData(hRawInput, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
+        if (result == dwSize)
+            inputMessages.push_back((RAWINPUT*)lpb);
+    }
+
+    void GetKeyboardState(input::KeyboardState* state)
+    {
+        *state = keyboard;
+    }
+
+    void GetMouseState(input::MouseState* state)
+    {
         *state = mouse;
     }
 }

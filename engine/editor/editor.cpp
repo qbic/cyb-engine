@@ -2,6 +2,7 @@
 #include <stack>
 #include <numeric>
 #include <format>
+#include "core/cvar.h"
 #include "core/logger.h"
 #include "core/timer.h"
 #include "core/profiler.h"
@@ -33,8 +34,9 @@ using namespace std::string_literals;
 namespace cyb::editor
 {
     bool initialized = false;
-    bool vsync_enabled = true;      // FIXME: initial value has to be synced with SwapChainDesc::vsync
     bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
+
+    CVar *gr_vsync = nullptr;
 
     Resource import_icon;
     Resource delete_icon;
@@ -911,10 +913,11 @@ namespace cyb::editor
                 }
                 if (ImGui::Checkbox("Fullscreen", &fullscreenEnabled))
                 {
-
                 }
-                if (ImGui::Checkbox("VSync", &vsync_enabled))
-                    eventsystem::FireEvent(eventsystem::Event_SetVSync, vsync_enabled ? 1ull : 0ull);
+
+                bool vsyncEnabled = gr_vsync->GetValue<bool>();
+                if (ImGui::Checkbox("VSync", &vsyncEnabled))
+                    gr_vsync->SetValue(vsyncEnabled);
 
                 ImGui::EndMenu();
             }
@@ -1074,7 +1077,6 @@ namespace cyb::editor
     // PUBLIC API
     //------------------------------------------------------------------------------
 
-
     void Initialize()
     {
         // Attach built-in tools
@@ -1091,6 +1093,9 @@ namespace cyb::editor
         translate_icon = resourcemanager::LoadFile("textures/editor/move.png");
         rotate_icon = resourcemanager::LoadFile("textures/editor/rotate.png");
         scale_icon = resourcemanager::LoadFile("textures/editor/resize.png");
+
+        gr_vsync = cvar_system::Find("gr_vsync");
+        assert(gr_vsync);
 
 #if 1
         // ImGuizmo style
@@ -1113,9 +1118,7 @@ namespace cyb::editor
     void Update()
     {
         if (!initialized)
-        {
             return;
-        }
 
         ImGuizmo::BeginFrame();
         ImGui::Begin("CybEngine Editor", 0, ImGuiWindowFlags_MenuBar);

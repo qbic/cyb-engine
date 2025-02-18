@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include "core/types.h"
 #include "core/mathlib.h"
 #include "core/enum_flags.h"
 
@@ -18,8 +19,6 @@
 #ifndef CYB_DEBUG_BUILD
 #define CYB_DEBUGBREAK()
 #endif
-
-#define BIT(n)			(1 << (n))
 
 namespace cyb {
 

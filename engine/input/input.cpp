@@ -152,9 +152,7 @@ namespace cyb::input
     bool IsDown(uint32_t button)
     {
         if (!initialized.load())
-        {
             return false;
-        }
 
         const ButtonState& buttonState = GetButtonState(button);
         return buttonState.isDown;
@@ -163,9 +161,7 @@ namespace cyb::input
     bool WasPressed(uint32_t button)
     {
         if (!initialized.load())
-        {
             return false;
-        }
 
         const ButtonState& buttonState = GetButtonState(button);
         return ((buttonState.halfTransitionCount > 1) || (buttonState.halfTransitionCount == 1 && buttonState.isDown));

@@ -83,9 +83,6 @@ namespace cyb::logger
         void Post(Level severity, const std::string& text);
     }
 
-    // default threashold is Level::Trace
-    void SetMessageSeverityThreshold(Level severity);
-
     template <typename T, typename ...Args,
         typename std::enable_if <
         std::is_base_of<OutputModule, T>{}&&

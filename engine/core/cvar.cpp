@@ -80,6 +80,11 @@ namespace cyb
         return m_name;
     }
 
+    const std::string_view& CVar::GetDescription() const
+    {
+        return m_description;
+    }
+
     bool CVar::IsModified() const
     {
         return HasFlag(m_flags, CVarFlag::ModifiedBit);
@@ -131,5 +136,10 @@ namespace cyb::cvar_system
     {
         auto it = cvarRegistry.find(name);
         return (it != cvarRegistry.end()) ? it->second : nullptr;
+    }
+
+    const std::unordered_map<std::string_view, CVar*>& GetRegistry()
+    {
+        return cvarRegistry;
     }
 }

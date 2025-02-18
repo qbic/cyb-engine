@@ -666,6 +666,38 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
+    class Tool_CVarViewer : public GuiTool
+    {
+    public:
+        using GuiTool::GuiTool;
+        virtual void Draw() override
+        {
+            if (ImGui::BeginTable("CVars", 3, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
+            {
+                ImGui::TableSetupColumn("Name");
+                ImGui::TableSetupColumn("Value");
+                ImGui::TableSetupColumn("Description");
+                ImGui::TableHeadersRow();
+
+                const auto& registry = cvar_system::GetRegistry();
+
+                for (const auto& cvar : registry)
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::Text(cvar.second->GetName().data());
+                    ImGui::TableNextColumn();
+                    ImGui::Text(cvar.second->GetValueAsString().data());
+                    ImGui::TableNextColumn();
+                    ImGui::Text(cvar.second->GetDescription().data());
+                }
+
+                ImGui::EndTable();
+            }
+        }
+    };
+
+    //------------------------------------------------------------------------------
+
     class Tool_TerrainGeneration : public GuiTool
     {
     public:
@@ -1085,6 +1117,7 @@ namespace cyb::editor
         AttachToolToMenu(std::make_unique<Tool_TerrainGeneration>("Terrain Generator"));
         AttachToolToMenu(std::make_unique<Tool_ContentBrowser>("Scene Content Browser"));
         AttachToolToMenu(std::make_unique<Tool_Profiler>("Profiler"));
+        AttachToolToMenu(std::make_unique<Tool_CVarViewer>("CVar viewer"));
         AttachToolToMenu(std::make_unique<Tool_LogDisplay>("Backlog"));
 
         // Icons rendered by ImGui need's to be flipped manually at loadtime

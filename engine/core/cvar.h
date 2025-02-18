@@ -40,6 +40,7 @@ namespace cyb
 
         [[nodiscard]] const std::string_view GetValueAsString() const;
         [[nodiscard]] const std::string_view& GetName() const;
+        [[nodiscard]] const std::string_view& GetDescription() const;
         [[nodiscard]] bool IsModified() const;
         void SetModified();
         void ClearModified();
@@ -64,4 +65,5 @@ namespace cyb::cvar_system
 {
     void Register(CVar* cvar);
     [[nodiscard]] CVar* Find(const std::string_view& name);
+    [[nodiscard]] const std::unordered_map<std::string_view, CVar*>& GetRegistry();
 }

@@ -1,3 +1,4 @@
+#include "core/cvar.h"
 #include "core/filesystem.h"
 #include "core/profiler.h"
 #include "core/logger.h"
@@ -12,6 +13,9 @@ using namespace cyb::scene;
 
 namespace cyb::renderer
 {
+    CVar r_debugObjectAABB("r_debugObjectAABB", false, CVarFlag::RendererBit, "Render AABB of all entites in the scene");
+    CVar r_debugLightSources("r_debugLightSources", false, CVarFlag::RendererBit, "Render icon and AABB of all light sources");
+    
     Shader shaders[SHADERTYPE_COUNT];
     GPUBuffer constantbuffers[CBTYPE_COUNT];
     Sampler samplerStates[SSLOT_COUNT] = {};
@@ -608,14 +612,6 @@ namespace cyb::renderer
         device->EndEvent(cmd);
     }
 
-    bool debug_object_aabb = false;
-    bool debug_lightsources = false;
-
-    bool GetDebugObjectAABB() { return debug_object_aabb; }
-    void SetDebugObjectAABB(bool value) { debug_object_aabb = value; }
-    bool GetDebugLightsources() { return debug_lightsources; }
-    void SetDebugLightsources(bool value) { debug_lightsources = value; }
-
     void DrawDebugScene(const SceneView& view, CommandList cmd)
     {
         static GPUBuffer wirecube_vb;
@@ -659,7 +655,7 @@ namespace cyb::renderer
         }
 
         // Draw bounding boxes for all visible objects
-        if (debug_object_aabb)
+        if (r_debugObjectAABB.GetValue<bool>())
         {
             device->BeginEvent("DebugObjectAABB", cmd);
             device->BindPipelineState(&pso_debug[DEBUGRENDERING_CUBE], cmd);
@@ -690,7 +686,7 @@ namespace cyb::renderer
         }
 
 
-        if (debug_lightsources)
+        if (r_debugLightSources.GetValue<bool>())
         {
             device->BeginEvent("DebugLightsources", cmd);
             const scene::Scene& scene = *view.scene;

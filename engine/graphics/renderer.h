@@ -162,12 +162,6 @@ namespace cyb::renderer
     // Draw skydome centered at the camera
     void DrawSky(const scene::CameraComponent* scene, graphics::CommandList cmd);
 
-    // Set/Get state for DrawDebugScene()
-    bool GetDebugObjectAABB();
-    void SetDebugObjectAABB(bool value);
-    bool GetDebugLightsources();
-    void SetDebugLightsources(bool value);
-
     // Draw debug primitives according to the debug states
     void DrawDebugScene(const SceneView& view, graphics::CommandList cmd);
 

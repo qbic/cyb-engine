@@ -13,7 +13,7 @@ using namespace cyb::graphics;
 
 namespace cyb::hli
 {
-    CVar gr_vsync("gr_vsync", true, CVarFlag::RendererBit, "Enable/Disable vertices sync");
+    CVar r_vsync("r_vsync", true, CVarFlag::RendererBit, "Enable/Disable framebuffer swap on vertical refresh");
 
     void Application::ActivePath(RenderPath* component)
     {
@@ -146,7 +146,7 @@ namespace cyb::hli
             assert(success);
         });
 
-        gr_vsync.SetOnChangeCallback([] (const CVarValue& value) {
+        r_vsync.SetOnChangeCallback([] (const CVarValue& value) {
             eventsystem::FireEvent(eventsystem::Event_SetVSync, std::get<bool>(value) ? 1ull : 0ull);
         });
     }

@@ -36,7 +36,9 @@ namespace cyb::editor
     bool initialized = false;
     bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
 
-    CVar *gr_vsync = nullptr;
+    CVar* r_vsync = nullptr;
+    CVar* r_debugObjectAABB = nullptr;
+    CVar* r_debugLightSources = nullptr;
 
     Resource import_icon;
     Resource delete_icon;
@@ -888,12 +890,12 @@ namespace cyb::editor
             {
                 if (ImGui::BeginMenu("Debug"))
                 {
-                    bool debug_object_aabb = renderer::GetDebugObjectAABB();
-                    if (ImGui::Checkbox("Draw Object AABB", &debug_object_aabb))
-                        renderer::SetDebugObjectAABB(debug_object_aabb);
-                    bool debug_lightsources = renderer::GetDebugLightsources();
-                    if (ImGui::Checkbox("Draw Lightsources", &debug_lightsources))
-                        renderer::SetDebugLightsources(debug_lightsources);
+                    bool temp = r_debugObjectAABB->GetValue<bool>();
+                    if (ImGui::Checkbox("Draw Object AABB", &temp))
+                        r_debugObjectAABB->SetValue(temp);
+                    temp = r_debugLightSources->GetValue<bool>();
+                    if (ImGui::Checkbox("Draw Lightsources", &temp))
+                        r_debugLightSources->SetValue(temp);
                     ImGui::EndMenu();
                 }
 
@@ -915,9 +917,9 @@ namespace cyb::editor
                 {
                 }
 
-                bool vsyncEnabled = gr_vsync->GetValue<bool>();
+                bool vsyncEnabled = r_vsync->GetValue<bool>();
                 if (ImGui::Checkbox("VSync", &vsyncEnabled))
-                    gr_vsync->SetValue(vsyncEnabled);
+                    r_vsync->SetValue(vsyncEnabled);
 
                 ImGui::EndMenu();
             }
@@ -1094,8 +1096,9 @@ namespace cyb::editor
         rotate_icon = resourcemanager::LoadFile("textures/editor/rotate.png");
         scale_icon = resourcemanager::LoadFile("textures/editor/resize.png");
 
-        gr_vsync = cvar_system::Find("gr_vsync");
-        assert(gr_vsync);
+        r_vsync = cvar_system::Find("r_vsync");
+        r_debugObjectAABB = cvar_system::Find("r_debugObjectAABB");
+        r_debugLightSources = cvar_system::Find("r_debugLightSources");
 
 #if 1
         // ImGuizmo style
@@ -1162,7 +1165,7 @@ namespace cyb::editor
                 scene::PickResult pick_result = scene::Pick(scene, pick_ray);
 
                 // Enable mouse picking on lightsources only if they are being drawn
-                if (renderer::GetDebugLightsources())
+                if (r_debugLightSources->GetValue<bool>())
                 {
                     for (size_t i = 0; i < scene.lights.Size(); ++i)
                     {

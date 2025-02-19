@@ -2,10 +2,10 @@
 #include <fstream>
 #include "core/noise.h"
 #include "core/random.h"
-#include "core/profiler.h"
 #include "core/logger.h"
 #include "core/filesystem.h"
 #include "systems/event_system.h"
+#include "systems/profiler.h"
 #include "editor/editor.h"
 #include "editor/terrain_generator.h"
 #include "editor/undo_manager.h"

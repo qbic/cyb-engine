@@ -3,7 +3,6 @@
 #include "core/logger.h"
 #include "core/serializer.h"
 #include "core/mathlib.h"
-#include "core/profiler.h"
 #include "core/timer.h"
 #include "core/noise.h"
 
@@ -15,6 +14,7 @@
 
 #include "systems/job_system.h"
 #include "systems/event_system.h"
+#include "systems/profiler.h"
 #include "systems/resource_manager.h"
 #include "systems/scene.h"
 

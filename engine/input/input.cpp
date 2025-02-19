@@ -1,6 +1,6 @@
 #include "input/input.h"
 #include "input/input-raw.h"
-#include "core/profiler.h"
+#include "systems/profiler.h"
 
 namespace cyb::input
 {

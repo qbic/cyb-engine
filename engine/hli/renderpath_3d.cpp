@@ -1,9 +1,8 @@
 #include "core/platform.h"
-#include "core/profiler.h"
 #include "graphics/device.h"
+#include "systems/profiler.h"
 #include "systems/scene.h"
 #include "hli/renderpath_3d.h"
-#include "input/input.h"
 
 using namespace cyb::graphics;
 

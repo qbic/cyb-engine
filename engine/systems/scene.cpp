@@ -1,5 +1,5 @@
-#include "core/profiler.h"
 #include "core/logger.h"
+#include "systems/profiler.h"
 #include "systems/scene.h"
 
 using namespace cyb::graphics;

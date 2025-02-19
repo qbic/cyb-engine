@@ -23,8 +23,4 @@
 - Editor function to pan camera to selected entity
 - Warn user about unsaved progress before clearing the scene when creating new scene or loading a scene
 
-### Todo (code changes):
-- move profiler from core to systems(?) sence it uses graphics device or split CPU and GPU profiling and move the GPU part to graphics.
-This is currently breaking dependency graph!!!!!
-- editor.cpp: bool vsync_enabled = true;      	// FIXME: initial value has to be manually synced with SwapChainDesc::vsync
     

@@ -1,9 +1,9 @@
-#include "core/profiler.h"
 #include "core/cvar.h"
 #include "graphics/device_vulkan.h"
 #include "graphics/renderer.h"
 #include "systems/event_system.h"
 #include "systems/job_system.h"
+#include "systems/profiler.h"
 #include "input/input.h"
 #include "hli/application.h"
 

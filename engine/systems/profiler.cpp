@@ -1,12 +1,12 @@
 #include <mutex>
 #include <algorithm>
 #include <numeric>
-#include "core/profiler.h"
 #include "core/hash.h"
 #include "core/logger.h"
+#include "systems/profiler.h"
 
-namespace cyb::profiler {
-
+namespace cyb::profiler
+{
     Context context;
 
     bool initialized = false;
@@ -16,8 +16,23 @@ namespace cyb::profiler {
     std::atomic<uint32_t> queryCount = 0;
     uint32_t queryIndex = 0;
 
-    void BeginFrame() {
-        if (!initialized) {
+    EntryId Context::GetUniqueId(const std::string& name) const
+    {
+        EntryId id = hash::String(name);
+
+        // if one entry name is hit multiple times, differentiate between them!
+        size_t differentiator = 0;
+        std::scoped_lock lck(lock);
+        while (context.entries[id].inUse)
+            hash::Combine(id, differentiator++);
+
+        return id;
+    }
+
+    void BeginFrame()
+    {
+        if (!initialized)
+        {
             initialized = true;
             graphics::GraphicsDevice* device = graphics::GetDevice();
 
@@ -31,7 +46,8 @@ namespace cyb::profiler {
             bd.usage = graphics::MemoryAccess::Readback;
             bd.size = desc.queryCount * sizeof(uint64_t);
 
-            for (uint32_t i = 0; i < _countof(queryResultBuffer); ++i) {
+            for (uint32_t i = 0; i < _countof(queryResultBuffer); ++i)
+            {
                 success = device->CreateBuffer(&bd, nullptr, &queryResultBuffer[i]);
                 assert(success);
             }
@@ -46,11 +62,14 @@ namespace cyb::profiler {
         queryIndex = (queryIndex + 1) % _countof(queryResultBuffer);
         uint64_t* queryResults = (uint64_t*)queryResultBuffer[queryIndex].mappedData;
 
-        for (auto& [entryID, entry] : context.entries) {
-            if (!entry.IsCPUEntry()) {
+        for (auto& [entryID, entry] : context.entries)
+        {
+            if (entry.IsGPUEntry())
+            {
                 int beginQuery = entry.gpuBegin[queryIndex];
                 int endQuery = entry.gpuEnd[queryIndex];
-                if (queryResultBuffer[queryIndex].mappedData != nullptr && beginQuery >= 0 && endQuery >= 0) {
+                if (queryResultBuffer[queryIndex].mappedData != nullptr && beginQuery >= 0 && endQuery >= 0)
+                {
                     uint64_t beginResult = queryResults[beginQuery];
                     uint64_t endResult = queryResults[endQuery];
                     entry.time = (float)abs((double)(endResult - beginResult) / gpuFrequency);
@@ -61,7 +80,8 @@ namespace cyb::profiler {
 
             // update average frame time
             entry.times[entry.avgCounter++ % AVERAGE_COUNTER_SAMPLES] = entry.time;
-            if (entry.avgCounter > AVERAGE_COUNTER_SAMPLES) {
+            if (entry.avgCounter > AVERAGE_COUNTER_SAMPLES)
+            {
                 entry.time = std::accumulate(std::begin(entry.times), std::end(entry.times), 0.0f) / AVERAGE_COUNTER_SAMPLES;
             }
 
@@ -72,7 +92,8 @@ namespace cyb::profiler {
         context.gpuFrame = BeginGpuEntry("GPU Frame", cmd);
 
         // update the frametime graph arrays used by profiler gui
-        for (uint32_t i = 0; i < FRAME_GRAPH_ENTRIES - 1; ++i) {
+        for (uint32_t i = 0; i < FRAME_GRAPH_ENTRIES - 1; ++i)
+        {
             context.cpuFrameGraph[i] = context.cpuFrameGraph[i + 1];
             context.gpuFrameGraph[i] = context.gpuFrameGraph[i + 1];
         }
@@ -80,7 +101,8 @@ namespace cyb::profiler {
         context.gpuFrameGraph[FRAME_GRAPH_ENTRIES - 1] = context.entries[context.gpuFrame].time;
     }
 
-    void EndFrame(graphics::CommandList cmd) {
+    void EndFrame(graphics::CommandList cmd)
+    {
         assert(initialized);
 
         graphics::GraphicsDevice* device = graphics::GetDevice();
@@ -96,86 +118,84 @@ namespace cyb::profiler {
         queryCount.store(0);
     }
 
-    EntryId BeginCpuEntry(const std::string& name) {
-        EntryId id = hash::String(name);
+    EntryId BeginCpuEntry(const std::string& name)
+    {
+        const EntryId id = context.GetUniqueId(name);
+        Entry& entry = context.entries[id];
 
-        std::scoped_lock lck(lock);
-
-        // if one entry name is hit multiple times, differentiate between them!
-        size_t differentiator = 0;
-        while (context.entries[id].inUse) {
-            hash::Combine(id, differentiator++);
-        }
-
-        context.entries[id].inUse = true;
-        context.entries[id].name = name;
-        context.entries[id].cpuTimer.Record();
+        entry.inUse = true;
+        entry.name = name;
+        entry.cpuTimer.Record();
 
         return id;
     }
 
     EntryId BeginGpuEntry(const std::string& name, graphics::CommandList cmd)
     {
-        EntryId id = hash::String(name);
+        const EntryId id = context.GetUniqueId(name);
+        Entry& entry = context.entries[id];
 
-        std::scoped_lock lck(lock);
+        entry.inUse = true;
+        entry.name = name;
+        entry.cmd = cmd;
+        entry.gpuBegin[queryIndex] = queryCount.fetch_add(1);
 
-        // if one entry name is hit multiple times, differentiate between them!
-        size_t differentiator = 0;
-        while (context.entries[id].inUse) {
-            hash::Combine(id, differentiator++);
-        }
-
-        context.entries[id].inUse = true;
-        context.entries[id].name = name;
-        context.entries[id].cmd = cmd;
-        context.entries[id].gpuBegin[queryIndex] = queryCount.fetch_add(1);
-
-        graphics::GetDevice()->EndQuery(&query, context.entries[id].gpuBegin[queryIndex], cmd);
+        graphics::GetDevice()->EndQuery(&query, entry.gpuBegin[queryIndex], cmd);
         return id;
     }
 
-    void EndEntry(EntryId id) {
-        std::scoped_lock lck(lock);
-
+    void EndEntry(EntryId id)
+    {
+        lock.lock();
         auto it = context.entries.find(id);
         assert(it != context.entries.end());
+        lock.unlock();
 
         Entry& entry = it->second;
-        if (entry.IsCPUEntry()) {
+        if (entry.IsCPUEntry())
+        {
             entry.time = (float)entry.cpuTimer.ElapsedMilliseconds();
-        } else {
+        }
+        else
+        {
             entry.gpuEnd[queryIndex] = queryCount.fetch_add(1);
             graphics::GetDevice()->EndQuery(&query, entry.gpuEnd[queryIndex], entry.cmd);
         }
     }
 
-    ScopedCpuEntry::ScopedCpuEntry(const std::string& name) {
+    ScopedCpuEntry::ScopedCpuEntry(const std::string& name)
+    {
         m_id = BeginCpuEntry(name);
     }
 
-    ScopedCpuEntry::~ScopedCpuEntry() {
+    ScopedCpuEntry::~ScopedCpuEntry()
+    {
         EndEntry(m_id);
     }
 
-    ScopedGpuEntry::ScopedGpuEntry(const std::string& name, graphics::CommandList cmd) {
+    ScopedGpuEntry::ScopedGpuEntry(const std::string& name, graphics::CommandList cmd)
+    {
         m_id = BeginGpuEntry(name, cmd);
     }
 
-    ScopedGpuEntry::~ScopedGpuEntry() {
+    ScopedGpuEntry::~ScopedGpuEntry()
+    {
         EndEntry(m_id);
     }
 
-    ScopedTimedFunction::ScopedTimedFunction(const std::string& name) {
+    ScopedTimedFunction::ScopedTimedFunction(const std::string& name)
+    {
         m_name = name;
         m_timer.Record();
     }
 
-    ScopedTimedFunction::~ScopedTimedFunction() {
+    ScopedTimedFunction::~ScopedTimedFunction()
+    {
         CYB_TRACE("{0} finished in {1:.2f}ms", m_name, m_timer.ElapsedMilliseconds());
     }
 
-    const Context& GetContext() noexcept {
+    const Context& GetContext() noexcept
+    {
         return context;
     }
 }

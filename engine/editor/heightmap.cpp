@@ -1,4 +1,4 @@
-#include "core/profiler.h"
+#include "systems/profiler.h"
 #include "editor/heightmap.h"
 
 namespace cyb::editor

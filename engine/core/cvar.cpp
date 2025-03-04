@@ -65,6 +65,11 @@ namespace cyb
         }, m_value);
     }
 
+    const CVarValue& CVar::GetVariant() const
+    {
+        return m_value;
+    }
+
     const std::string_view CVar::GetValueAsString() const
     {
         return std::visit([&] (auto&& v) -> const std::string_view {

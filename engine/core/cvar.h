@@ -38,6 +38,8 @@ namespace cyb
             return (v != nullptr) ? *v : T();
         }
 
+        [[nodiscard]] const CVarValue& GetVariant() const;
+
         [[nodiscard]] const std::string_view GetValueAsString() const;
         [[nodiscard]] const std::string_view& GetName() const;
         [[nodiscard]] const std::string_view& GetDescription() const;

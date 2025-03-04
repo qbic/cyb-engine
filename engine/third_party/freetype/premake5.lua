@@ -15,7 +15,6 @@ project "freetype"
     {
         "src/base/ftsystem.c",
         "src/base/ftdebug.c",
-
         "src/autofit/autofit.c",
         "src/base/ftbase.c",
         "src/base/ftbbox.c",

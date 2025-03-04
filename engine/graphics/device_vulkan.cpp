@@ -5,18 +5,20 @@
 #include "core/hash.h"
 #include "graphics/device_vulkan.h"
 #include "volk.h"
+#include "spirv_reflect.h"
 
-#define VMA_IMPLEMENTATION
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnullability-completeness"
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif  // __clang__
+#define VMA_IMPLEMENTATION
+#define VMA_STATIC_VULKAN_FUNCTIONS 0
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
 #include "vk_mem_alloc.h"
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif // __clang__
-#include "spirv_reflect.h"
 
 #if !CYB_RELEASE
 #define VK_CHECK_RESULT(f) {                                        \

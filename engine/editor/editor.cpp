@@ -672,7 +672,7 @@ namespace cyb::editor
         using GuiTool::GuiTool;
         virtual void Draw() override
         {
-            if (ImGui::BeginTable("CVars", 3, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
+            if (ImGui::BeginTable("CVars", 3, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
             {
                 ImGui::TableSetupColumn("Name");
                 ImGui::TableSetupColumn("Value");
@@ -681,14 +681,41 @@ namespace cyb::editor
 
                 const auto& registry = cvar_system::GetRegistry();
 
-                for (const auto& cvar : registry)
+                for (const auto& [_, cvar] : registry)
                 {
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar.second->GetName().data());
+                    ImGui::Text(cvar->GetName().data());
+
+#if 0
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar.second->GetValueAsString().data());
+
+                    std::string id = std::format("##{}", cvar->GetName());
+                    std::string valueStr = cvar->GetValueAsString().data();
+                    ImGui::SetNextItemWidth(-1);
+                    if (ImGui::InputText(id.c_str(), &valueStr, ImGuiInputTextFlags_EnterReturnsTrue))
+                    {
+                        std::visit([&] (auto&& v) -> void {
+                            using T = std::decay_t<decltype(v)>;
+                            if constexpr (std::is_same_v<T, std::string>)
+                            {
+                            }
+                            else if constexpr (std::is_same_v<T, bool>)
+                            {
+                                if ((stricmp(valueStr.c_str(), "true") == 0) ||
+                                    (strcmp(valueStr.c_str(), "1") == 0))
+                                    cvar->SetValue(true);
+                                else if ((stricmp(valueStr.c_str(), "false") == 0) ||
+                                    (strcmp(valueStr.c_str(), "0") == 0))
+                                    cvar->SetValue(false);
+                            }
+                        }, cvar->GetVariant());
+                    }
+#else
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar.second->GetDescription().data());
+                    ImGui::Text(cvar->GetValueAsString().data());
+#endif
+                    ImGui::TableNextColumn();
+                    ImGui::Text(cvar->GetDescription().data());
                 }
 
                 ImGui::EndTable();

@@ -949,7 +949,7 @@ namespace cyb::editor
             {
                 if (ImGui::BeginMenu("Debug"))
                 {
-                    bool temp = r_debugObjectAABB->GetValue<bool>();
+                    bool temp = r_debugObjectAABB->GetValue2();
                     if (ImGui::Checkbox("Draw Object AABB", &temp))
                         r_debugObjectAABB->SetValue(temp);
                     temp = r_debugLightSources->GetValue<bool>();

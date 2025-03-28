@@ -25,9 +25,26 @@ namespace cyb
     class CVar
     {
     public:
-        CVar(const std::string_view& name, const CVarValue& value, CVarFlag flags, const std::string_view& descrition);
+        CVar(const std::string_view& name, const CVarValue& value, CVarFlag flags, const std::string_view& description);
 
-        void SetValue(const CVarValue& value);
+        // if variant type is constructable by T, value will be implicitly cast
+        template <typename T>
+        void SetValue(const T v)
+        {
+            std::visit([&] (auto&& val) -> void {
+                using U = std::decay_t<decltype(val)>;
+                if constexpr (!std::is_constructible_v<T, U>)
+                {
+                    // note that sence T is non-constuctable type of U
+                    // this call will bail out, generating a warning
+                    SetValueImpl(CVarValue(v));
+                    return;
+                }
+                    
+                SetValueImpl(CVarValue(static_cast<U>(v)));
+            }, m_value);
+        }
+
         void Update();
 
         // returns T() on type mismatch
@@ -39,10 +56,10 @@ namespace cyb
         }
 
         [[nodiscard]] const CVarValue& GetVariant() const;
-
-        [[nodiscard]] const std::string_view GetValueAsString() const;
-        [[nodiscard]] const std::string_view& GetName() const;
-        [[nodiscard]] const std::string_view& GetDescription() const;
+        [[nodiscard]] const std::string& GetValueAsString() const;
+        [[nodiscard]] const std::string GetTypeAsString() const;
+        [[nodiscard]] const std::string& GetName() const;
+        [[nodiscard]] const std::string& GetDescription() const;
         [[nodiscard]] bool IsModified() const;
         void SetModified();
         void ClearModified();
@@ -51,15 +68,15 @@ namespace cyb
         static void RegisterStaticCVars();
 
     private:
-        const std::string_view m_name;
-        const std::string_view m_description;
+        void SetValueImpl(const CVarValue& value);
+
+        const std::string m_name;
+        const std::string m_description;
         CVarValue m_value;
         std::string m_valueAsString;        // only used for non-string types
         size_t m_typeIndex;
         CVarFlag m_flags;
         CVarCallback m_onChangeCallback;
-        CVar* m_next;                       // for static cvar initialization
-        static CVar* staticCVars;
     };
 }
 

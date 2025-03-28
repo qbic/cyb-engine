@@ -1,46 +1,51 @@
 #include "core/cvar.h"
 #include "core/logger.h"
 
-#define STATIC_CVARS_REGISTERED  (CVar*)std::numeric_limits<ptrdiff_t>::max()
-
 namespace cyb
 {
-    CVar* CVar::staticCVars = nullptr;
+    static std::vector<CVar*>& StaticRegistry()
+    {
+        static std::vector<CVar*> registry;
+        return registry;
+    }
 
-    CVar::CVar(const std::string_view& name, const CVarValue& value, CVarFlag flags, const std::string_view& descrition) :
+    static bool& IsStaticCVarsRegistered()
+    {
+        static bool registered = false;
+        return registered;
+    }
+
+    CVar::CVar(const std::string_view& name, const CVarValue& value, CVarFlag flags, const std::string_view& description) :
         m_name(name),
         m_value(value),
         m_typeIndex(value.index()),
         m_flags(flags),
-        m_description(descrition),
-        m_next(nullptr)
+        m_description(description)
     {
         Update();
 
-        if (staticCVars != STATIC_CVARS_REGISTERED)
-        {
-            this->m_next = staticCVars;
-            staticCVars = this;
-        }
+        if (!IsStaticCVarsRegistered())
+            StaticRegistry().push_back(this);
         else
-        {
             cvar_system::Register(this);
-        }
     }
 
-    void CVar::SetValue(const CVarValue& value)
+    void CVar::SetValueImpl(const CVarValue& value)
     {
-        if (m_value.index() != CVarValue(value).index())
+        if (m_value.index() != value.index())
         {
-            CYB_WARNING("Trying to set CVar '{}' to invalid type", GetName());
+            CYB_WARNING("Type mismatch when setting CVar: {}", GetName());
             return;
         }
 
         if (HasFlag(m_flags, CVarFlag::RomBit))
         {
-            CYB_WARNING("Cannot change the value of read-only CVar '{}'", GetName());
+            CYB_WARNING("Cannot change value of read-only CVar: {}", GetName());
             return;
         }
+
+        if (m_value == value)
+            return;     // same value
 
         m_value = value;
         Update();
@@ -70,9 +75,9 @@ namespace cyb
         return m_value;
     }
 
-    const std::string_view CVar::GetValueAsString() const
+    const std::string& CVar::GetValueAsString() const
     {
-        return std::visit([&] (auto&& v) -> const std::string_view {
+        return std::visit([&] (auto&& v) -> const std::string& {
             if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::string>)
                 return v;
             else
@@ -80,12 +85,25 @@ namespace cyb
         }, m_value);
     }
 
-    const std::string_view& CVar::GetName() const 
+    const std::string CVar::GetTypeAsString() const
+    {
+        return std::visit([] (auto&& val) -> std::string {
+            using T = std::decay_t<decltype(val)>;
+            if constexpr (std::is_same_v<T, int32_t>) return "int";
+            if constexpr (std::is_same_v<T, uint32_t>) return "uint";
+            if constexpr (std::is_same_v<T, float>) return "float";
+            if constexpr (std::is_same_v<T, bool>) return "bool";
+            if constexpr (std::is_same_v<T, std::string>) return "string";
+            return "unknown";
+        }, m_value);
+    }
+
+    const std::string& CVar::GetName() const 
     {
         return m_name;
     }
 
-    const std::string_view& CVar::GetDescription() const
+    const std::string& CVar::GetDescription() const
     {
         return m_description;
     }
@@ -112,12 +130,14 @@ namespace cyb
 
     void CVar::RegisterStaticCVars()
     {
-        if (staticCVars != STATIC_CVARS_REGISTERED)
-        {
-            for (CVar* cvar = staticCVars; cvar; cvar = cvar->m_next)
-                cvar_system::Register(cvar);
-            staticCVars = STATIC_CVARS_REGISTERED;
-        }
+        if (IsStaticCVarsRegistered())
+            return;
+
+        for (CVar* cvar : StaticRegistry())
+            cvar_system::Register(cvar);
+
+        IsStaticCVarsRegistered() = true;
+        StaticRegistry().clear();
     }
 }
 
@@ -133,7 +153,7 @@ namespace cyb::cvar_system
             return;
         }
 
-        CYB_TRACE("Registered CVar '{}' with value '{}'", cvar->GetName(), cvar->GetValueAsString());
+        CYB_TRACE("Registered CVar '{}' [Type: {}] with value '{}'", cvar->GetName(), cvar->GetTypeAsString(), cvar->GetValueAsString());
         cvarRegistry[cvar->GetName()] = cvar;
     }
 

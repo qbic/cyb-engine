@@ -1,11 +1,18 @@
 configure_file(config.h.in ${CMAKE_BINARY_DIR}/config.h @ONLY)
 
-# Create a list of all files except for freetype sources
 file(GLOB_RECURSE SOURCE_FILES *.cpp *.c *.h)
-list(FILTER SOURCE_FILES EXCLUDE REGEX "/third_party/freetype/*")
+
+# Shader files will only be added to the source groups for easy access when
+# using an IDE and is not part of the library source files
+file(GLOB_RECURSE SHADER_FILES *.frag *.vert *.geom *.glsl)
+
+# Remove imgui's built-in backends sence we use our own one
 list(FILTER SOURCE_FILES EXCLUDE REGEX "/third_party/imgui/backends/*")
 
-# Create a seperate list of freetype sources so that we can set custom defines only for those
+# Remove all freetype sources from SOURCE_LIST and create a new list for all the
+# freetpye sources, this way we can set some custom compiler flags fot theese files only
+# then push them back to the SOURCE_FILES list
+list(FILTER SOURCE_FILES EXCLUDE REGEX "/third_party/freetype/*")
 set(FT_FILES 
   third_party/freetype/src/autofit/autofit.c
   third_party/freetype/src/base/ftbase.c
@@ -49,8 +56,10 @@ set(FT_FILES
   third_party/freetype/src/winfonts/winfnt.c
 )
 set_property(SOURCE ${FT_FILES} PROPERTY COMPILE_DEFINITIONS FT2_BUILD_LIBRARY VC_EXTRALEAN WIN32 WIN32_LEAN_AND_MEAN)
+list(APPEND SOURCE_FILES ${FT_FILES} ${SHADER_FILES})
 
-list(APPEND SOURCE_FILES ${FT_FILES})
+# Let cmake create source groups based on file paths, to make the project
+# easier to navigate though an IDE
 source_group(TREE ${CMAKE_SOURCE_DIR} FILES ${SOURCE_FILES})
 
 add_library(cyb-engine STATIC ${SOURCE_FILES})

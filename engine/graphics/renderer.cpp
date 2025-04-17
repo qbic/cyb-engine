@@ -608,7 +608,7 @@ namespace cyb::renderer
         device->BindConstantBuffer(&constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME, cmd);
         device->BindConstantBuffer(&constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA, cmd);
 
-        device->Draw(3, 0, cmd);
+        device->WindowContent(3, 0, cmd);
         device->EndEvent(cmd);
     }
 
@@ -782,7 +782,7 @@ namespace cyb::renderer
         device->BindPipelineState(&pso_image, cmd);
         device->BindDynamicConstantBuffer(image_cb, CBSLOT_IMAGE, cmd);
         device->BindResource(texture, 0, cmd);
-        device->Draw(params.fullscreen ? 3 : 4, 0, cmd);
+        device->WindowContent(params.fullscreen ? 3 : 4, 0, cmd);
         device->EndEvent(cmd);
     }
 }

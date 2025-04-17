@@ -50,7 +50,7 @@ namespace cyb::editor
 
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::TRANSLATE;
     bool guizmo_world_mode = true;
-    SceneGraphView scenegraph_view;
+    SceneGraphView scenegraphView;
     std::vector<VideoMode> videoModeList;
 
     // fps counter data
@@ -180,7 +180,7 @@ namespace cyb::editor
         ImGui::Text(ICON_FA_MAGNIFYING_GLASS "Search:");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(-1);
-        filter.Draw("##filter");
+        filter.WindowContent("##filter");
 
         if (ImGui::BeginListBox("##BeginListBox"))
         {
@@ -356,10 +356,11 @@ namespace cyb::editor
             AddNode(parent, parent_id, parent_name);
         }
 
-        if (added_entities.count(entity) != 0)
+        if (m_entities.count(entity) != 0)
             return;
+
         parent->children.emplace_back(parent, entity, name);
-        added_entities.insert(entity);
+        m_entities.insert(entity);
 
         // Generate a list of all child nodes
         for (size_t i = 0; i < scene.hierarchy.Size(); ++i)
@@ -375,67 +376,55 @@ namespace cyb::editor
 
     void SceneGraphView::GenerateView()
     {
-        root.children.clear();
-        added_entities.clear();
+        m_root.children.clear();
+        m_entities.clear();
 
         const scene::Scene& scene = scene::GetScene();
 
         // First weather...
+        if (scene.weathers.Size() > 0)
         {
-            if (scene.weathers.Size() > 0)
+            ecs::Entity entity = scene.weathers.GetEntity(0);
+            const char* name = "Weather";
+            AddNode(&m_root, entity, name);
+        }
+
+        auto addComponents = [&] (auto& components) {
+            for (size_t i = 0; i < components.Size(); ++i)
             {
-                ecs::Entity entity = scene.weathers.GetEntity(0);
-                const char* name = "Weather";
-                AddNode(&root, entity, name);
+                ecs::Entity entity = components.GetEntity(i);
+                const std::string& name = scene.names.GetComponent(entity)->name;
+                AddNode(&m_root, entity, name);
             }
-        }
+        };
 
-        // ... then groups...
-        for (size_t i = 0; i < scene.groups.Size(); ++i)
-        {
-            ecs::Entity entity = scene.groups.GetEntity(i);
-            const std::string& name = scene.names.GetComponent(entity)->name;
-            AddNode(&root, entity, name);
-        }
-
-        // ... then objects...
-        for (size_t i = 0; i < scene.objects.Size(); ++i)
-        {
-            ecs::Entity entity = scene.objects.GetEntity(i);
-            const std::string& name = scene.names.GetComponent(entity)->name;
-            AddNode(&root, entity, name);
-        }
-
-        // ... then all other entities containing transform components
-        for (size_t i = 0; i < scene.transforms.Size(); ++i)
-        {
-            ecs::Entity entity = scene.transforms.GetEntity(i);
-            const std::string& name = scene.names.GetComponent(entity)->name;
-            AddNode(&root, entity, name);
-        }
+        // ... then groups, objects and transforms
+        addComponents(scene.groups);
+        addComponents(scene.objects);
+        addComponents(scene.transforms);
     }
 
     void SceneGraphView::DrawNode(const Node* node)
     {
-        ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap;
-        node_flags |= (node->children.empty()) ? ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen : 0;
-        node_flags |= (node->entity == selected_entity) ? ImGuiTreeNodeFlags_Selected : 0;
+        ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap;
+        nodeFlags |= (node->children.empty()) ? ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen : 0;
+        nodeFlags |= (node->entity == GetSelectedEntity()) ? ImGuiTreeNodeFlags_Selected : 0;
 
         const void* nodeId = (void*)((size_t)node->entity);
-        bool is_open = ImGui::TreeNodeEx(nodeId, node_flags, "%s", node->name.data());
+        bool isNodeOpen = ImGui::TreeNodeEx(nodeId, nodeFlags, "%s", node->name.data());
         if (ImGui::IsItemClicked())
-            selected_entity = node->entity;
+            m_selectedEntity = node->entity;
 
-        const char* drag_and_drop_id = "SGV_TreeNode";
+        static const char* dragDropId = "SGV_TreeNode";
         if (ImGui::BeginDragDropSource())
         {
-            ImGui::SetDragDropPayload(drag_and_drop_id, &node->entity, sizeof(node->entity));
+            ImGui::SetDragDropPayload(dragDropId, &node->entity, sizeof(node->entity));
             ImGui::Text("Move to parent");
             ImGui::EndDragDropSource();
         }
         if (ImGui::BeginDragDropTarget())
         {
-            const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(drag_and_drop_id);
+            const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(dragDropId);
             if (payload)
             {
                 assert(payload->DataSize == sizeof(ecs::Entity));
@@ -444,10 +433,10 @@ namespace cyb::editor
             }
         }
 
-        if (is_open)
+        if (isNodeOpen)
         {
             if (ImGui::IsItemClicked())
-                selected_entity = node->entity;
+                m_selectedEntity = node->entity;
 
             if (!node->children.empty())
             {
@@ -459,11 +448,11 @@ namespace cyb::editor
         }
     }
 
-    void SceneGraphView::Draw()
+    void SceneGraphView::WindowContent()
     {
         ui::ScopedStyleColor colorGuard(ImGuiCol_Header, ImVec4(0.38f, 0.58f, 0.71f, 0.94f));
 
-        for (const auto& x : root.children)
+        for (const auto& x : m_root.children)
             DrawNode(&x);
     }
 
@@ -545,21 +534,26 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    bool GuiTool::PreDraw()
+    void ToolWindow::Draw()
     {
-        return ImGui::Begin(GetWindowTitle(), &m_showWindow, m_windowFlags);
-    }
+        if (IsHidden())
+            return;
 
-    void GuiTool::PostDraw()
-    {
+        if (ImGui::Begin(GetWindowTitle(), &m_isVisible, m_windowFlags))
+            WindowContent();
+            
         ImGui::End();
     }
 
-    class Tool_Profiler : public GuiTool
+    class Tool_Profiler : public ToolWindow
     {
     public:
-        using GuiTool::GuiTool;
-        virtual void Draw() override
+        Tool_Profiler(const std::string& title) :
+            ToolWindow(title)
+        {
+        }
+
+        virtual void WindowContent() override
         {
             const auto& profilerContext = profiler::GetContext();
             const auto& cpuFrame = profilerContext.entries.find(profilerContext.cpuFrame);
@@ -609,16 +603,16 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    class Tool_LogDisplay : public GuiTool
+    class Tool_LogDisplay : public ToolWindow
     {
     public:
-        Tool_LogDisplay(const std::string& name) :
-            GuiTool(name)
+        Tool_LogDisplay(const std::string& title) :
+            ToolWindow(title)
         {
             logger::RegisterOutputModule<logger::OutputModule_StringBuffer>(&m_textBuffer);
         }
 
-        void Draw() override
+        void WindowContent() override
         {
             ImGui::PushTextWrapPos(0.0f);
             ImGui::TextUnformatted(m_textBuffer.c_str());
@@ -634,11 +628,15 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    class Tool_ContentBrowser : public GuiTool
+    class Tool_ContentBrowser : public ToolWindow
     {
     public:
-        using GuiTool::GuiTool;
-        virtual void Draw() override
+        Tool_ContentBrowser(const std::string& title) :
+            ToolWindow(title)
+        {
+        }
+
+        virtual void WindowContent() override
         {
             const scene::Scene& scene = scene::GetScene();
 
@@ -666,13 +664,16 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    class Tool_CVarViewer : public GuiTool
+    class Tool_CVarViewer : public ToolWindow
     {
     public:
-        using GuiTool::GuiTool;
-        virtual void Draw() override
+        Tool_CVarViewer(const std::string& title) :
+            ToolWindow(title)
         {
-            ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4.0f, 4.0f));
+        }
+
+        virtual void WindowContent() override
+        {
             if (ImGui::BeginTable("CVars", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
             {
                 ImGui::TableSetupColumn("Name");
@@ -700,33 +701,32 @@ namespace cyb::editor
 
                 ImGui::EndTable();
             }
-            ImGui::PopStyleVar();
         }
     };
 
     //------------------------------------------------------------------------------
 
-    class Tool_TerrainGeneration : public GuiTool
+    class Tool_TerrainGeneration : public ToolWindow
     {
     public:
         TerrainGenerator generator;
 
         Tool_TerrainGeneration(const std::string& windowTitle) :
-            GuiTool(windowTitle, ImGuiWindowFlags_MenuBar)
+            ToolWindow(windowTitle, ImGuiWindowFlags_MenuBar)
         {
         }
 
-        virtual void Draw() override
+        virtual void WindowContent() override
         {
-            generator.DrawGui(scenegraph_view.SelectedEntity());
+            generator.DrawGui(scenegraphView.GetSelectedEntity());
         }
     };
 
     //------------------------------------------------------------------------------
 
-    std::vector<std::unique_ptr<GuiTool>> tools;
+    std::vector<std::unique_ptr<ToolWindow>> tools;
 
-    void AttachToolToMenu(std::unique_ptr<GuiTool> tool)
+    void AttachToolToMenu(std::unique_ptr<ToolWindow> tool)
     {
         tools.push_back(std::move(tool));
     }
@@ -734,15 +734,7 @@ namespace cyb::editor
     void DrawTools()
     {
         for (auto& x : tools)
-        {
-            if (!x->IsShown())
-                continue;
-
-            if (x->PreDraw())
-                x->Draw();
-
-            x->PostDraw();
-        }
+            x->Draw();
     }
 
     //------------------------------------------------------------------------------
@@ -767,7 +759,7 @@ namespace cyb::editor
             XMFLOAT3(1.0f, 1.0f, 1.0f),
             1.0f, 100.0f,
             scene::LightType::Point);
-        scenegraph_view.SelectEntity(entity);
+        scenegraphView.SetSelectedEntity(entity);
         return entity;
     }
 
@@ -807,7 +799,7 @@ namespace cyb::editor
                 else if (filesystem::HasExtension(filename, "glb") || filesystem::HasExtension(filename, "gltf"))
                 {
                     ecs::Entity entity = renderer::ImportModel_GLTF(filename, scene::GetScene());
-                    SetSceneGraphViewSelection(entity);
+                    scenegraphView.SetSelectedEntity(entity);
                 }
             });
         });
@@ -825,16 +817,11 @@ namespace cyb::editor
         });
     }
 
-    void SetSceneGraphViewSelection(ecs::Entity entity)
-    {
-        scenegraph_view.SelectEntity(entity);
-    }
-
     static void DeleteSelectedEntity()
     {
         eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
-            scene::GetScene().RemoveEntity(scenegraph_view.SelectedEntity(), true);
-            scenegraph_view.SelectEntity(ecs::INVALID_ENTITY);
+            scene::GetScene().RemoveEntity(scenegraphView.GetSelectedEntity(), true);
+            scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);
         });
     }
 
@@ -899,7 +886,7 @@ namespace cyb::editor
                 ImGui::Separator();
 
                 if (ImGui::MenuItem("Detach from parent"))
-                    scene::GetScene().ComponentDetach(scenegraph_view.SelectedEntity());
+                    scene::GetScene().ComponentDetach(scenegraphView.GetSelectedEntity());
                 if (ImGui::MenuItem("Delete", "Del"))
                     DeleteSelectedEntity();
                 ImGui::MenuItem("Duplicate (!!)", "CTRL+D");
@@ -954,9 +941,9 @@ namespace cyb::editor
             {
                 for (auto& x : tools)
                 {
-                    bool showWindow = x->IsShown();
+                    bool showWindow = x->IsVisible();
                     if (ImGui::MenuItem(x->GetWindowTitle(), NULL, &showWindow))
-                        x->ShowWindow(showWindow);
+                        x->SetVisible(showWindow);
                 }
 
                 ImGui::EndMenu();
@@ -1006,15 +993,15 @@ namespace cyb::editor
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
         ImGui::SameLine();
-        if (DrawIconButton("##Translate", translate_icon.GetTexture(), "Move the selected entity", guizmo_operation & ImGuizmo::TRANSLATE))
+        if (DrawIconButton("##Translate", translate_icon.GetTexture(), "Translate mode", guizmo_operation & ImGuizmo::TRANSLATE))
             guizmo_operation = ImGuizmo::TRANSLATE;
 
         ImGui::SameLine();
-        if (DrawIconButton("##Rotate", rotate_icon.GetTexture(), "Rotate the selected entity", guizmo_operation & ImGuizmo::ROTATE))
+        if (DrawIconButton("##Rotate", rotate_icon.GetTexture(), "Rotate mode", guizmo_operation & ImGuizmo::ROTATE))
             guizmo_operation = ImGuizmo::ROTATE;
 
         ImGui::SameLine();
-        if (DrawIconButton("##Scale", scale_icon.GetTexture(), "Scale the selected entity", guizmo_operation & ImGuizmo::SCALEU))
+        if (DrawIconButton("##Scale", scale_icon.GetTexture(), "Scale mode", guizmo_operation & ImGuizmo::SCALEU))
             guizmo_operation = ImGuizmo::SCALEU;
 
         ImGui::PopStyleVar();
@@ -1028,7 +1015,7 @@ namespace cyb::editor
         scene::Scene& scene = scene::GetScene();
         scene::CameraComponent& camera = scene::GetCamera();
 
-        const ecs::Entity entity = scenegraph_view.SelectedEntity();
+        const ecs::Entity entity = scenegraphView.GetSelectedEntity();
         scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
 
         XMFLOAT4X4 world = {};
@@ -1154,21 +1141,20 @@ namespace cyb::editor
 
         ImGui::Text("Scene Hierarchy:");
         ImGui::BeginChild("Scene hierarchy", ImVec2(0, 300), ImGuiChildFlags_Border);
-        scenegraph_view.GenerateView();
-        scenegraph_view.Draw();
+        scenegraphView.GenerateView();
+        scenegraphView.WindowContent();
         ImGui::EndChild();
 
         ImGui::Text("Components:");
         const float componentChildHeight = math::Max(300.0f, ImGui::GetContentRegionAvail().y);
         ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), ImGuiChildFlags_Border);
-        const ecs::Entity selectedEntity = scenegraph_view.SelectedEntity();
-        EditEntityComponents(selectedEntity);
+        EditEntityComponents(scenegraphView.GetSelectedEntity());
         ImGui::EndChild();
 
         ImGui::End();
 
         // Only draw gizmo with a valid entity containing transform component
-        if (scene::GetScene().transforms.GetComponent(selectedEntity))
+        if (scene::GetScene().transforms.GetComponent(scenegraphView.GetSelectedEntity()))
             DrawGizmo(gizmoWindowID);
 
         // Pick on left mouse click
@@ -1201,7 +1187,7 @@ namespace cyb::editor
             }
 
             if (pick_result.entity != ecs::INVALID_ENTITY)
-                scenegraph_view.SelectEntity(pick_result.entity);
+                scenegraphView.SetSelectedEntity(pick_result.entity);
         }
 
         DrawTools();

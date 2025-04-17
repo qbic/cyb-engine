@@ -681,7 +681,7 @@ namespace cyb::graphics
 
         virtual void CopyBuffer(const GPUBuffer* dst, uint64_t dst_offset, const GPUBuffer* src, uint64_t src_offset, uint64_t size, CommandList cmd) = 0;
 
-        virtual void Draw(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd) = 0;
+        virtual void WindowContent(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd) = 0;
         virtual void DrawIndexed(uint32_t index_count, uint32_t start_index_location, int32_t base_vertex_location, CommandList cmd) = 0;
 
         virtual void BeginQuery(const GPUQuery* query, uint32_t index, CommandList cmd) = 0;

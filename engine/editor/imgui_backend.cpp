@@ -124,10 +124,12 @@ static void SetupCustomStyle()
 	colors[ImGuiCol_TabHovered] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
 	colors[ImGuiCol_TabActive] = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
 
-	ImGui::GetStyle().WindowRounding = 4.0f;
-	ImGui::GetStyle().ChildRounding = 4.0f;
-	ImGui::GetStyle().FrameRounding = 4.0f;
-	ImGui::GetStyle().GrabRounding = 4.0f;
+	ImGuiStyle& style = ImGui::GetStyle();
+	style.CellPadding = ImVec2(4.0f, 4.0f);
+	style.WindowRounding = 4.0f;
+	style.ChildRounding = 4.0f;
+	style.FrameRounding = 4.0f;
+	style.GrabRounding = 4.0f;
 }
 
 static void LoadShaders()

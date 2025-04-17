@@ -2540,7 +2540,7 @@ ImGuiTextFilter::ImGuiTextFilter(const char* default_filter) //-V1077
     }
 }
 
-bool ImGuiTextFilter::Draw(const char* label, float width)
+bool ImGuiTextFilter::WindowContent(const char* label, float width)
 {
     if (width != 0.0f)
         ImGui::SetNextItemWidth(width);

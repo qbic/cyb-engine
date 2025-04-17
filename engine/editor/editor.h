@@ -4,36 +4,41 @@
 
 namespace cyb::editor 
 {
-    class GuiTool
+    class ToolWindow
     {
     public:
-        GuiTool(const std::string& name, int windowFlags = 0) :
+        ToolWindow(const std::string& name, int windowFlags = 0) :
             m_windowTitle(name),
-            m_showWindow(false),
+            m_isVisible(false),
             m_windowFlags(windowFlags)
         {
             Init();
         }
-        virtual ~GuiTool() = default;
+        virtual ~ToolWindow() = default;
 
         const char* GetWindowTitle() const { return m_windowTitle.c_str(); }
-        void ShowWindow(bool show = true) { m_showWindow = show; }
-        bool IsShown() const { return m_showWindow; }
-
-        virtual bool PreDraw();
-        virtual void PostDraw();
+        void SetVisible(bool visible) { m_isVisible = visible; }
+        bool IsVisible() const { return m_isVisible; }
+        bool IsHidden() const { return !m_isVisible; }
+        void Draw();
 
         virtual void Init() {}
-        virtual void Draw() = 0;
+        virtual void WindowContent() = 0;
 
     private:
         std::string m_windowTitle;
-        bool m_showWindow;
+        bool m_isVisible;
         int m_windowFlags;
     };
 
     class SceneGraphView
     {
+    public:
+        void GenerateView();
+        void WindowContent();
+        void SetSelectedEntity(ecs::Entity entity) { m_selectedEntity = entity; }
+        ecs::Entity GetSelectedEntity() const { return m_selectedEntity; }
+
     private:
         struct Node
         {
@@ -42,30 +47,22 @@ namespace cyb::editor
                 entity(_entity), name(_name), parent(_parent)
             {
             }
-             
+
             ecs::Entity entity = ecs::INVALID_ENTITY;
             const std::string_view name;
             Node* parent = nullptr;
             std::vector<Node> children;
         };
 
-        Node root;
-        std::atomic<ecs::Entity> selected_entity = ecs::INVALID_ENTITY;
-        std::unordered_set<ecs::Entity> added_entities;
+        Node m_root;
+        std::atomic<ecs::Entity> m_selectedEntity = ecs::INVALID_ENTITY;
+        std::unordered_set<ecs::Entity> m_entities;
 
         void AddNode(Node* parent, ecs::Entity entity, const std::string_view& name);
         void DrawNode(const Node* node);
-
-    public:
-        void GenerateView();
-        void Draw();
-        void SelectEntity(ecs::Entity entity) { selected_entity = entity; }
-        ecs::Entity SelectedEntity() const { return selected_entity; }
-        bool IsSelected(ecs::Entity entity) const { return entity == selected_entity; }
     };
 
     void Initialize();
-    void SetSceneGraphViewSelection(ecs::Entity entity);
     void Update();
 
     void UpdateFPSCounter(double dt);

@@ -303,7 +303,7 @@ namespace cyb::editor
             {
                 ImGui::PushItemWidth(300);
                 const ImVec2 available = ImGui::GetContentRegionAvail();
-                const float size = math::Min(available.x - 4, available.y - 4);
+                const float size = math::Max(200.0f, math::Min(available.x - 4, available.y - 4));
                 const ImVec2 p0 = ImGui::GetCursorScreenPos();
                 const ImVec2 p1 = ImVec2(p0.x + size, p0.y + size);
 

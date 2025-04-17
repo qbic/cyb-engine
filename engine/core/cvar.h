@@ -31,17 +31,17 @@ namespace cyb
         template <typename T>
         void SetValue(const T v)
         {
-            std::visit([&] (auto&& val) -> void {
-                using U = std::decay_t<decltype(val)>;
-                if constexpr (!std::is_constructible_v<T, U>)
+            std::visit([&]<typename U>(U& current)
+            {
+                if constexpr (std::is_constructible_v<std::decay_t<U>, T>)
                 {
-                    // note that sence T is non-constuctable type of U
-                    // this call will bail out, generating a warning
-                    SetValueImpl(CVarValue(v));
+                    SetValueImpl(CVarValue(static_cast<std::decay_t<U>>(v)));
                     return;
                 }
-                    
-                SetValueImpl(CVarValue(static_cast<U>(v)));
+
+                // T is non-constuctable type of U and
+                // this call will bail out, generating a warning
+                SetValueImpl(CVarValue(v));
             }, m_value);
         }
 

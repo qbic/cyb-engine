@@ -48,7 +48,7 @@ namespace cyb::editor
     Resource rotate_icon;
     Resource scale_icon;
 
-    ImGuizmo::OPERATION guizmo_operation = ImGuizmo::BOUNDS;
+    ImGuizmo::OPERATION guizmo_operation = ImGuizmo::TRANSLATE;
     bool guizmo_world_mode = true;
     SceneGraphView scenegraph_view;
     std::vector<VideoMode> videoModeList;
@@ -672,9 +672,11 @@ namespace cyb::editor
         using GuiTool::GuiTool;
         virtual void Draw() override
         {
-            if (ImGui::BeginTable("CVars", 3, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
+            ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4.0f, 4.0f));
+            if (ImGui::BeginTable("CVars", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
             {
                 ImGui::TableSetupColumn("Name");
+                ImGui::TableSetupColumn("Type");
                 ImGui::TableSetupColumn("Value");
                 ImGui::TableSetupColumn("Description");
                 ImGui::TableHeadersRow();
@@ -684,42 +686,21 @@ namespace cyb::editor
                 for (const auto& [_, cvar] : registry)
                 {
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetName().data());
+                    ImGui::Text(cvar->GetName().c_str());
 
-#if 0
                     ImGui::TableNextColumn();
+                    ImGui::Text(cvar->GetTypeAsString().c_str());
 
-                    std::string id = std::format("##{}", cvar->GetName());
-                    std::string valueStr = cvar->GetValueAsString().data();
-                    ImGui::SetNextItemWidth(-1);
-                    if (ImGui::InputText(id.c_str(), &valueStr, ImGuiInputTextFlags_EnterReturnsTrue))
-                    {
-                        std::visit([&] (auto&& v) -> void {
-                            using T = std::decay_t<decltype(v)>;
-                            if constexpr (std::is_same_v<T, std::string>)
-                            {
-                            }
-                            else if constexpr (std::is_same_v<T, bool>)
-                            {
-                                if ((stricmp(valueStr.c_str(), "true") == 0) ||
-                                    (strcmp(valueStr.c_str(), "1") == 0))
-                                    cvar->SetValue(true);
-                                else if ((stricmp(valueStr.c_str(), "false") == 0) ||
-                                    (strcmp(valueStr.c_str(), "0") == 0))
-                                    cvar->SetValue(false);
-                            }
-                        }, cvar->GetVariant());
-                    }
-#else
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetValueAsString().data());
-#endif
+                    ImGui::Text(cvar->GetValueAsString().c_str());
+
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetDescription().data());
+                    ImGui::Text(cvar->GetDescription().c_str());
                 }
 
                 ImGui::EndTable();
             }
+            ImGui::PopStyleVar();
         }
     };
 
@@ -931,25 +912,11 @@ namespace cyb::editor
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("View"))
-            {
-                for (auto& x : tools)
-                {
-                    bool show_window = x->IsShown();
-                    if (ImGui::MenuItem(x->GetWindowTitle(), NULL, &show_window))
-                    {
-                        x->ShowWindow(show_window);
-                    }
-                }
-
-                ImGui::EndMenu();
-            }
-
             if (ImGui::BeginMenu("Renderer"))
             {
                 if (ImGui::BeginMenu("Debug"))
                 {
-                    bool temp = r_debugObjectAABB->GetValue2();
+                    bool temp = r_debugObjectAABB->GetValue<bool>();
                     if (ImGui::Checkbox("Draw Object AABB", &temp))
                         r_debugObjectAABB->SetValue(temp);
                     temp = r_debugLightSources->GetValue<bool>();
@@ -983,6 +950,18 @@ namespace cyb::editor
                 ImGui::EndMenu();
             }
 
+            if (ImGui::BeginMenu("Window"))
+            {
+                for (auto& x : tools)
+                {
+                    bool showWindow = x->IsShown();
+                    if (ImGui::MenuItem(x->GetWindowTitle(), NULL, &showWindow))
+                        x->ShowWindow(showWindow);
+                }
+
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMenuBar();
         }
     }
@@ -1001,14 +980,10 @@ namespace cyb::editor
         }
         bool clicked = ImGui::ImageButton(strId.c_str(), (ImTextureID)&texture, size);
         if (is_selected)
-        {
             ImGui::PopStyleColor(1);
-        }
 
         if (ImGui::IsItemHovered())
-        {
             ImGui::SetTooltip("%s", tooltip.c_str());
-        }
 
         return clicked;
     }
@@ -1025,16 +1000,10 @@ namespace cyb::editor
 
         ImGui::SameLine();
         if (DrawIconButton("##Delete", delete_icon.GetTexture(), "Delete the selected entity"))
-        {
             DeleteSelectedEntity();
-        }
 
         ImGui::SameLine();
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-
-        ImGui::SameLine();
-        if (DrawIconButton("##SelectEntity", editor_icon_select.GetTexture(), "Select entity", guizmo_operation & ImGuizmo::BOUNDS))
-            guizmo_operation = ImGuizmo::BOUNDS;
 
         ImGui::SameLine();
         if (DrawIconButton("##Translate", translate_icon.GetTexture(), "Move the selected entity", guizmo_operation & ImGuizmo::TRANSLATE))
@@ -1048,11 +1017,6 @@ namespace cyb::editor
         if (DrawIconButton("##Scale", scale_icon.GetTexture(), "Scale the selected entity", guizmo_operation & ImGuizmo::SCALEU))
             guizmo_operation = ImGuizmo::SCALEU;
 
-        //ImGui::SameLine();
-        //ImGui::Checkbox("World mode transform", &guizmo_world_mode);
-
-        //ImGui::SameLine();
-        //ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
         ImGui::PopStyleVar();
     }
 
@@ -1069,9 +1033,7 @@ namespace cyb::editor
 
         XMFLOAT4X4 world = {};
         if (transform)
-        {
             world = transform->world;
-        }
 
         const bool isEnabled = transform != nullptr;
         ImGuizmo::Enable(isEnabled);
@@ -1100,9 +1062,7 @@ namespace cyb::editor
             {
                 const scene::TransformComponent* parent_transform = scene.transforms.GetComponent(hierarchy->parentID);
                 if (parent_transform != nullptr)
-                {
                     transform->MatrixTransform(XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent_transform->world)));
-                }
             }
 
             isUsingGizmo = true;
@@ -1209,46 +1169,39 @@ namespace cyb::editor
 
         // Only draw gizmo with a valid entity containing transform component
         if (scene::GetScene().transforms.GetComponent(selectedEntity))
-        {
             DrawGizmo(gizmoWindowID);
-        }
 
         // Pick on left mouse click
-        if (guizmo_operation & ImGuizmo::BOUNDS)
+        ImGuiIO& io = ImGui::GetIO();
+        bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver();
+        if (isMouseIn3DView && io.MouseClicked[0])
         {
-            ImGuiIO& io = ImGui::GetIO();
-            bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver();
-            if (isMouseIn3DView && io.MouseClicked[0])
+            const scene::Scene& scene = scene::GetScene();
+            spatial::Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);
+            scene::PickResult pick_result = scene::Pick(scene, pick_ray);
+
+            // Enable mouse picking on lightsources only if they are being drawn
+            if (r_debugLightSources->GetValue<bool>())
             {
-                const scene::Scene& scene = scene::GetScene();
-                spatial::Ray pick_ray = GetPickRay(io.MousePos.x, io.MousePos.y);
-                scene::PickResult pick_result = scene::Pick(scene, pick_ray);
-
-                // Enable mouse picking on lightsources only if they are being drawn
-                if (r_debugLightSources->GetValue<bool>())
+                for (size_t i = 0; i < scene.lights.Size(); ++i)
                 {
-                    for (size_t i = 0; i < scene.lights.Size(); ++i)
-                    {
-                        ecs::Entity entity = scene.lights.GetEntity(i);
-                        const scene::TransformComponent& transform = *scene.transforms.GetComponent(entity);
+                    ecs::Entity entity = scene.lights.GetEntity(i);
+                    const scene::TransformComponent& transform = *scene.transforms.GetComponent(entity);
 
-                        XMVECTOR disV = XMVector3LinePointDistance(pick_ray.GetOrigin(), pick_ray.GetOrigin() + pick_ray.GetDirection(), transform.GetPositionV());
-                        float dis = XMVectorGetX(disV);
-                        const XMFLOAT3& pos = transform.GetPosition();
-                        if (dis > 0.01f && dis < math::Distance(XMLoadFloat3(&pos), pick_ray.GetOrigin()) * 0.05f && dis < pick_result.distance)
-                        {
-                            pick_result = scene::PickResult();
-                            pick_result.entity = entity;
-                            pick_result.distance = dis;
-                        }
+                    XMVECTOR disV = XMVector3LinePointDistance(pick_ray.GetOrigin(), pick_ray.GetOrigin() + pick_ray.GetDirection(), transform.GetPositionV());
+                    float dis = XMVectorGetX(disV);
+                    const XMFLOAT3& pos = transform.GetPosition();
+                    if (dis > 0.01f && dis < math::Distance(XMLoadFloat3(&pos), pick_ray.GetOrigin()) * 0.05f && dis < pick_result.distance)
+                    {
+                        pick_result = scene::PickResult();
+                        pick_result.entity = entity;
+                        pick_result.distance = dis;
                     }
                 }
-
-                if (pick_result.entity != ecs::INVALID_ENTITY)
-                {
-                    scenegraph_view.SelectEntity(pick_result.entity);
-                }
             }
+
+            if (pick_result.entity != ecs::INVALID_ENTITY)
+                scenegraph_view.SelectEntity(pick_result.entity);
         }
 
         DrawTools();

@@ -110,5 +110,4 @@ namespace cyb {
 	bool FileSaveDialog(std::string& path, const std::string& filters) {
 		return FileDialog(path, false, filters);
 	}
-
 }

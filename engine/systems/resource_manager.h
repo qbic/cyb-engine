@@ -16,7 +16,7 @@ namespace cyb
     {
         None = 0,
         RetainFiledataBit = BIT(0),     // file data will be kept for later reuse.
-        ImageFipBit = BIT(1)            // flip image vertically on load
+        ImageFipBit = BIT(1),           // flip image vertically on load
     };
     CYB_ENABLE_BITMASK_OPERATORS(AssetFlags);
 
@@ -47,6 +47,7 @@ namespace cyb
 
 namespace cyb::resourcemanager
 {
+    void Initialize();
     void AddSearchPath(const std::string& path);
 
     // return true if asset type could be resolved
@@ -64,7 +65,7 @@ namespace cyb::resourcemanager
     // Load a resource file:
     //  name : Filename of a resource
     //  flags : Specify flags that modify behaviour (optional)
-    [[nodiscard]] Resource LoadFile(const std::string& name, AssetFlags flags = AssetFlags::None);
+    [[nodiscard]] Resource LoadFile(const std::string& name, AssetFlags flags = AssetFlags::None, bool force = false);
 
     // Note that even if resource manager is cleared, the resource might still
     // be loaded if anything hold a reference to it.

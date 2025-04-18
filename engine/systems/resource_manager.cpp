@@ -1,6 +1,9 @@
 #include <mutex>
+#include <filesystem>
+#include "core/cvar.h"
 #include "core/logger.h"
 #include "core/filesystem.h"
+#include "core/directory_watcher.h"
 #include "core/timer.h"
 #include "core/hash.h"
 #include "graphics/renderer.h"
@@ -17,7 +20,6 @@
 #define STBI_NO_PIC
 #define STBI_NO_PNM
 #define STBI_FAILURE_USERMSG
-#include <filesystem>
 #include "stb_image.h"
 #include "flat_hash_map.hpp"
 
@@ -43,6 +45,8 @@ namespace cyb::resourcemanager
     std::mutex locker;
     std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
+    DirectoryWatcher directoryWatcher;
+    CVar reloadAssetsOnChange("reloadAssetsOnChange", true, CVarFlag::SystemBit, "Auto reload loaded asset on filesystem change");
 
     static const ska::flat_hash_map<std::string_view, ResourceType> types = {
         std::make_pair("jpg",  ResourceType::Image),
@@ -57,11 +61,50 @@ namespace cyb::resourcemanager
         std::make_pair("comp",  ResourceType::Shader)
     };
 
+    void OnAssetFileChangeEvent(const FileChangeEvent& event)
+    {
+        if (event.action != cyb::FileChangeAction::Modified)
+            return;
+
+        const uint64_t hash = hash::String(event.filename);
+        locker.lock();
+        std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
+        locker.unlock();
+        if (internalState != nullptr)
+        {
+            CYB_TRACE("Detected change in loaded asset ({}), reloading...", event.filename);
+            auto _ = LoadFile(event.filename, internalState->flags, true);
+        }
+    }
+
+    void Initialize()
+    {
+        reloadAssetsOnChange.SetOnChangeCallback([&] (const CVarValue& value) {
+            if (std::get<bool>(value))
+            {
+                // re-add all search paths and start
+                for (const auto& path : searchPaths)
+                    directoryWatcher.AddDirectory(path, OnAssetFileChangeEvent, true);
+                directoryWatcher.Start();
+            }
+            else
+            {
+                directoryWatcher.Start();
+            }
+        });
+
+        if (reloadAssetsOnChange.GetValue<bool>())
+            directoryWatcher.Start();
+    }
+
     void AddSearchPath(const std::string& path)
     {
         std::scoped_lock l(locker);
         const std::string slash = (path[path.length() - 1] != '/') ? "/" : "";
         searchPaths.push_back(path + slash);
+
+        if (reloadAssetsOnChange.GetValue<bool>())
+            directoryWatcher.AddDirectory(path, OnAssetFileChangeEvent, true);
     }
 
     std::string FindFile(const std::string& filename)
@@ -155,7 +198,7 @@ namespace cyb::resourcemanager
         return Resource(internalState);
     }
 
-    Resource LoadFile(const std::string& name, AssetFlags flags)
+    Resource LoadFile(const std::string& name, AssetFlags flags, bool force)
     {
         Timer timer;
 
@@ -165,15 +208,20 @@ namespace cyb::resourcemanager
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
         if (internalState != nullptr)
         {
-            locker.unlock();
-            CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), name, hash);
-            return Resource(internalState);
+            if (!force)
+            {
+                locker.unlock();
+                CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), name, hash);
+                return Resource(internalState);
+            }
         }
-
-        internalState = std::make_shared<ResourceInternal>();
-        internalState->name = name;
-        internalState->hash = hash;
-        internalState->flags = flags;
+        else
+        {
+            internalState = std::make_shared<ResourceInternal>();
+            internalState->name = name;
+            internalState->hash = hash;
+            internalState->flags = flags;
+        }
 
         if (!GetAssetTypeFromFilename(&internalState->type, name))
         {

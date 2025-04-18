@@ -4,6 +4,7 @@
 #include "systems/event_system.h"
 #include "systems/job_system.h"
 #include "systems/profiler.h"
+#include "systems/resource_manager.h"
 #include "input/input.h"
 #include "hli/application.h"
 
@@ -82,6 +83,7 @@ namespace cyb::hli
         cyb::CVar::RegisterStaticCVars();
 
         jobsystem::Context ctx;
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { resourcemanager::Initialize(); });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { input::Initialize(); });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { renderer::Initialize(); });
         jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(window); });

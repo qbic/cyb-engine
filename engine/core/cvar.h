@@ -31,8 +31,7 @@ namespace cyb
         template <typename T>
         void SetValue(const T v)
         {
-            std::visit([&]<typename U>(U& current)
-            {
+            std::visit([&]<typename U>(U& current) {
                 if constexpr (std::is_constructible_v<std::decay_t<U>, T>)
                 {
                     SetValueImpl(CVarValue(static_cast<std::decay_t<U>>(v)));

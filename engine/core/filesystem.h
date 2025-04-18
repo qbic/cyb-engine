@@ -2,6 +2,10 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <unordered_map>
+#include <memory>
+#include <thread>
+#include "core/platform.h"
 
 namespace cyb::filesystem
 {

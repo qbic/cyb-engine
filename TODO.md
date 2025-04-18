@@ -9,11 +9,11 @@
 - Write/Read pso cache off disk
 - Fullscreen / Window mode toggle
 - Move shader loading/compiling to resource_manager
-- Add file watch to resource_manager to auto-reload changed files
 - Create a hardcoded fallback for all resources when loading fail
 - Compute shader support
 
 ### Todo (editor)
+- SceneGraphView generates a new list every single frame, wich makes it VERY inefficent
 - in terrain_generator.cpp:void ColorizeMountains(): generate new vertices when face  has both ground and rock vertices for cleaner seperation 
 - Draw outline around selected entity
 - LOD generation for terrain
@@ -21,5 +21,3 @@
 - Hide/Show button in entity select window
 - Editor function to pan camera to selected entity
 - Warn user about unsaved progress before clearing the scene when creating new scene or loading a scene
-
-    

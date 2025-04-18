@@ -36,7 +36,7 @@ namespace cyb
             using Clock = std::chrono::steady_clock;
 
             void Enqueue(const FileChangeEvent& event);
-            std::vector<FileChangeEvent> PollStableFiles(int delayMs = 200);
+            [[nodiscard]] std::vector<FileChangeEvent> PollStableFiles(int delayMs = 200);
 
         private:
             struct Entry
@@ -50,6 +50,8 @@ namespace cyb
         };
     }
 
+    [[nodiscard]] const char* FileChangeActionToStr(const FileChangeAction action);
+
     class DirectoryWatcher
     {
     public:
@@ -61,7 +63,7 @@ namespace cyb
         void Start();
         void Stop();
         bool AddDirectory(const std::string& directoryPath, Callback callback, bool recursive);
-        bool IsRunning() const { return m_isRunning.load(); }
+        [[nodiscard]] bool IsRunning() const { return m_isRunning.load(); }
 
     private:
 #ifdef _WIN32

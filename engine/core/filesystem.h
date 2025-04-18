@@ -30,4 +30,7 @@ namespace cyb::filesystem
     // Open a file browser dialog window for saving a file on a seperate thread.
     // If the user clicks on "Save", onSuccess is executed.
     void SaveDialog(const std::string& filters, std::function<void(std::string filename)> onSuccess);
+
+    // Replace backslashes (\) with forward backslashs (/)
+    std::string& FixFilePath(std::string& path);
 }

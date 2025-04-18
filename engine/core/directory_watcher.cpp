@@ -1,4 +1,5 @@
 #include "core/directory_watcher.h"
+#include "core/filesystem.h"
 #include "core/logger.h"
 
 namespace cyb
@@ -112,7 +113,7 @@ namespace cyb
         m_watchInfos.clear();
     }
 
-    FileChangeAction TranslateFileAction(DWORD action)
+    static FileChangeAction TranslateFileAction(DWORD action)
     {
         switch (action)
         {
@@ -161,10 +162,10 @@ namespace cyb
 
             std::wstring wideName(fni->FileName, fni->FileNameLength / sizeof(WCHAR));
             std::filesystem::path relativePath = std::filesystem::path(wideName);
-            relativePath.make_preferred();
+            std::string filePath = relativePath.string();
 
             FileChangeEvent event = {};
-            event.filename = relativePath.string();
+            event.filename = filesystem::FixFilePath(filePath);
             event.action = TranslateFileAction(fni->Action);
             event.fileSize = fni->FileSize.QuadPart;
             event.lastWriteTime = fni->LastModificationTime.QuadPart;
@@ -198,7 +199,7 @@ namespace cyb
 
         info.directory = directory;
         info.callback = std::move(callback);
-        info.buffer.resize(16 * 1024);
+        info.buffer.resize(4 * 1024);
         ZeroMemory(&info.overlapped, sizeof(OVERLAPPED));
         info.event = CreateEvent(nullptr, TRUE, FALSE, nullptr);
         info.recursive = recursive;

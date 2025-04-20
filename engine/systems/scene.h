@@ -156,6 +156,10 @@ namespace cyb::scene
 
         Flags flags = Flags::DefaultFlags;
         ecs::Entity meshID = ecs::INVALID_ENTITY;
+        uint8_t userStencilRef = 0;
+
+        // user stencil value can be in range [0, 15]
+        void SetUserStencilRef(uint8_t value);
 
         // non-serialized data
         int32_t transformIndex = -1;        // only valid for a single frame

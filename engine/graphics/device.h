@@ -674,14 +674,14 @@ namespace cyb::graphics
         virtual void BindPipelineState(const PipelineState* pso, CommandList cmd) = 0;
         virtual void BindVertexBuffers(const GPUBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets, CommandList cmd) = 0;
         virtual void BindIndexBuffer(const GPUBuffer* index_buffer, const IndexBufferFormat format, uint64_t offset, CommandList cmd) = 0;
-        virtual void BindStencilRef(uint32_t value, CommandList cmd) = 0;;
+        virtual void BindStencilRef(uint32_t value, CommandList cmd) = 0;
         virtual void BindResource(const GPUResource* resource, int slot, CommandList cmd) = 0;
         virtual void BindSampler(const Sampler* sampler, uint32_t slot, CommandList cmd) = 0;
         virtual void BindConstantBuffer(const GPUBuffer* buffer, uint32_t slot, CommandList cmd, uint64_t offset = 0ull) = 0;
 
         virtual void CopyBuffer(const GPUBuffer* dst, uint64_t dst_offset, const GPUBuffer* src, uint64_t src_offset, uint64_t size, CommandList cmd) = 0;
 
-        virtual void WindowContent(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd) = 0;
+        virtual void Draw(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd) = 0;
         virtual void DrawIndexed(uint32_t index_count, uint32_t start_index_location, int32_t base_vertex_location, CommandList cmd) = 0;
 
         virtual void BeginQuery(const GPUQuery* query, uint32_t index, CommandList cmd) = 0;

@@ -317,6 +317,12 @@ namespace cyb::scene
         return (normal >> 24) & 0x000000FF;
     }
 
+    void ObjectComponent::SetUserStencilRef(uint8_t value)
+    {
+        assert(value < 16);
+        userStencilRef = value & 0x0F;
+    }
+
     void LightComponent::SetffectingSceney(bool value)
     {
         if (value)

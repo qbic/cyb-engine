@@ -203,7 +203,8 @@ namespace cyb::resourcemanager
         Timer timer;
 
         // compute hash for the asset and try locate it in the cache
-        const uint64_t hash = hash::String(name);
+        std::string fixedName = filesystem::FixFilePath(name);
+        const uint64_t hash = hash::String(fixedName);
         locker.lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
         if (internalState != nullptr)
@@ -211,22 +212,22 @@ namespace cyb::resourcemanager
             if (!force)
             {
                 locker.unlock();
-                CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), name, hash);
+                CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), fixedName, hash);
                 return Resource(internalState);
             }
         }
         else
         {
             internalState = std::make_shared<ResourceInternal>();
-            internalState->name = name;
+            internalState->name = fixedName;
             internalState->hash = hash;
             internalState->flags = flags;
         }
 
-        if (!GetAssetTypeFromFilename(&internalState->type, name))
+        if (!GetAssetTypeFromFilename(&internalState->type, fixedName))
         {
             locker.unlock();
-            CYB_ERROR("Failed to determine resource type (filename={0})", name);
+            CYB_ERROR("Failed to determine resource type (filename={0})", fixedName);
             return Resource();
         }
 
@@ -239,7 +240,7 @@ namespace cyb::resourcemanager
             return Resource();
 
         Resource loadedAsset = Load(internalState);
-        CYB_INFO("Loaded {} asset name={} hash=0x{:x} in {:.2f}ms", GetTypeAsString(internalState->type), name, hash, timer.ElapsedMilliseconds());
+        CYB_INFO("Loaded {} asset name={} hash=0x{:x} in {:.2f}ms", GetTypeAsString(internalState->type), fixedName, hash, timer.ElapsedMilliseconds());
 
         return loadedAsset;
     }

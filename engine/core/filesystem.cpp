@@ -81,14 +81,15 @@ namespace cyb::filesystem
         }).detach();
     }
 
-    std::string& FixFilePath(std::string& path)
+    std::string FixFilePath(const std::string& path)
     {
-        for (auto & c : path)
+        std::string newStr = path;
+        for (auto & c : newStr)
         {
             if (c == '\\')
                 c = '/';
         }
 
-        return path;
+        return newStr;
     }
 }

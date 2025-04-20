@@ -48,6 +48,8 @@ namespace cyb::editor
     Resource rotate_icon;
     Resource scale_icon;
 
+    graphics::Texture rtSelectionOutline;
+
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::TRANSLATE;
     bool guizmo_world_mode = true;
     SceneGraphView scenegraphView;
@@ -674,7 +676,7 @@ namespace cyb::editor
 
         virtual void WindowContent() override
         {
-            if (ImGui::BeginTable("CVars", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
+            if (ImGui::BeginTable("CVars", 4, ImGuiTableFlags_Reorderable | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
             {
                 ImGui::TableSetupColumn("Name");
                 ImGui::TableSetupColumn("Type");
@@ -1085,6 +1087,19 @@ namespace cyb::editor
     // PUBLIC API
     //------------------------------------------------------------------------------
 
+    void ResizeBuffers(const XMUINT2& internalResolution)
+    {
+        graphics::GraphicsDevice* device = graphics::GetDevice();
+
+        graphics::TextureDesc desc{};
+        desc.width = internalResolution.x;
+        desc.height = internalResolution.y;
+        desc.format = graphics::Format::R8_Unorm;
+        desc.bindFlags = graphics::BindFlags::RenderTargetBit | graphics::BindFlags::ShaderResourceBit;
+        device->CreateTexture(&desc, nullptr, &rtSelectionOutline);
+        device->SetName(&rtSelectionOutline, "rtSelectionOutline");
+    }
+
     void Initialize()
     {
         // Attach built-in tools
@@ -1187,10 +1202,46 @@ namespace cyb::editor
             }
 
             if (pick_result.entity != ecs::INVALID_ENTITY)
+            {
+                scene::Scene& scene = scene::GetScene();
+
+                const ecs::Entity prevSelectedEntity = scenegraphView.GetSelectedEntity();
                 scenegraphView.SetSelectedEntity(pick_result.entity);
+
+                // remove stencil ref on previous selection
+                if (prevSelectedEntity != ecs::INVALID_ENTITY)
+                {
+                    scene::ObjectComponent* object = scene.objects.GetComponent(prevSelectedEntity);
+                    object->SetUserStencilRef(0);
+                }
+
+                // add stencil ref on new selection
+                scene::ObjectComponent* object = scene.objects.GetComponent(pick_result.entity);
+                object->SetUserStencilRef(8);
+            }
         }
 
         DrawTools();
+    }
+
+    void Render(const graphics::Texture* rtDepthStencil, graphics::CommandList cmd)
+    {
+        graphics::GraphicsDevice* device = graphics::GetDevice();
+        graphics::RenderPassImage rp[] = {
+            graphics::RenderPassImage::RenderTarget(
+                &rtSelectionOutline,
+                graphics::RenderPassImage::LoadOp::Clear),
+            graphics::RenderPassImage::DepthStencil(
+                rtDepthStencil,
+                graphics::RenderPassImage::LoadOp::Load,
+                graphics::RenderPassImage::StoreOp::Store)};
+        /*
+        device->BeginRenderPass(rp, _countof(rp), cmd);
+
+        renderer::ImageParams params = renderer::ImageParams::DefaultFullscreen();
+        renderer::DrawImage(nullptr, params, cmd);
+        device->EndRenderPass(cmd);
+        */
     }
 
     void UpdateFPSCounter(double dt)

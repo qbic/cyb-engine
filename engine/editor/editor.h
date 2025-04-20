@@ -62,8 +62,12 @@ namespace cyb::editor
         void DrawNode(const Node* node);
     };
 
+    void ResizeBuffers(const XMUINT2& internalResolution);
     void Initialize();
     void Update();
+
+    // NOTE: need to be called from RenderPath3D
+    void Render(const graphics::Texture* rtDepthStencil, graphics::CommandList cmd);
 
     void UpdateFPSCounter(double dt);
 

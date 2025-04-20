@@ -97,7 +97,6 @@ namespace cyb::hli
 
         CYB_INFO("cyb-engine initialized in {:.2f}ms ", timer.ElapsedMilliseconds());
         CYB_INFO_HR();
-
     }
 
     void Application::Update(double dt)

@@ -32,5 +32,5 @@ namespace cyb::filesystem
     void SaveDialog(const std::string& filters, std::function<void(std::string filename)> onSuccess);
 
     // Replace backslashes (\) with forward backslashs (/)
-    std::string& FixFilePath(std::string& path);
+    std::string FixFilePath(const std::string& path);
 }

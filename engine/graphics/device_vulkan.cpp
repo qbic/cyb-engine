@@ -3122,7 +3122,7 @@ namespace cyb::graphics
         commandlist.renderpassInfo = {};
     }
 
-    void GraphicsDevice_Vulkan::WindowContent(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd)
+    void GraphicsDevice_Vulkan::Draw(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd)
     {
         PreDraw(cmd);
         CommandList_Vulkan& commandlist = GetCommandList(cmd);

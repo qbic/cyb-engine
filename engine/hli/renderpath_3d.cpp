@@ -4,6 +4,8 @@
 #include "systems/scene.h"
 #include "hli/renderpath_3d.h"
 
+#include "editor//editor.h"
+
 using namespace cyb::graphics;
 
 namespace cyb::hli
@@ -97,6 +99,10 @@ namespace cyb::hli
 
         device->EndEvent(cmd);
         device->EndRenderPass(cmd);
+
+#ifndef NO_EDITOR
+        editor::Render(&depthBuffer_Main, cmd);
+#endif
         RenderPath2D::Render();
     }
 

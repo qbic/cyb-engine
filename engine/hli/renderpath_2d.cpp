@@ -9,6 +9,9 @@ namespace cyb::hli
     void RenderPath2D::ResizeBuffers()
     {
         currentBufferSize = GetInternalResolution();
+#ifndef NO_EDITOR
+        editor::ResizeBuffers(currentBufferSize);
+#endif
     }
 
     void RenderPath2D::Load()

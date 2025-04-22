@@ -138,7 +138,6 @@ namespace cyb::renderer
     void Postprocess_Outline(
         const graphics::Texture& input,
         graphics::CommandList cmd,
-        float threshold,
         float thickness,
         const XMFLOAT4& color);
 }

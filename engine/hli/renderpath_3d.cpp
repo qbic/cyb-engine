@@ -141,7 +141,7 @@ namespace cyb::hli
                              RenderPassImage::LoadOp::Load) };
             device->BeginRenderPass(rp, _countof(rp), cmd);
             XMFLOAT4 outlineColor = XMFLOAT4(1.0f, 0.62f, 0.17f, 1.0f);
-            renderer::Postprocess_Outline(rtSelectionOutline, cmd, 0.1f, r_selectionOutlineThickness.GetValue<float>(), outlineColor);
+            renderer::Postprocess_Outline(rtSelectionOutline, cmd, r_selectionOutlineThickness.GetValue<float>(), outlineColor);
             device->EndRenderPass(cmd);
         }
         device->EndEvent(cmd);

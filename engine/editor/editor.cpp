@@ -895,7 +895,7 @@ namespace cyb::editor
                 }
 
                 ImGui::Separator();
-                if (ImGui::MenuItem("Clear Selection", nullptr, false))
+                if (ImGui::MenuItem("Clear Selection", nullptr, false, scenegraphView.GetSelectedEntity() != ecs::INVALID_ENTITY))
                     scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);
 
                 ImGui::Separator();

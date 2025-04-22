@@ -11,9 +11,9 @@ layout(location=0) out vec4 final_color;
 
 void main()
 {
-    vec4 unprojected = cbCamera.inv_vp * vec4(fs_in.clipspace.x, fs_in.clipspace.y, 1.0, 1.0);
+    vec4 unprojected = camera.inv_vp * vec4(fs_in.clipspace.x, fs_in.clipspace.y, 1.0, 1.0);
 	unprojected.xyz /= unprojected.w;
 
-	vec3 V = normalize(unprojected.xyz - cbCamera.pos.xyz);
+	vec3 V = normalize(unprojected.xyz - camera.pos.xyz);
     final_color = vec4(GetDynamicSkyColor(V, cbFrame.drawSun > 0), 1.0);
 }

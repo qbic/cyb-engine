@@ -56,9 +56,9 @@ vec3 GetDynamicSkyColor(in vec3 V, bool drawSun) {
         color += 0.36 * vec3(1.0, 0.7, 0.4) * pow(sundot, 256.0);
     }
 
-    float t = (cbFrame.cloudHeight - cbCamera.pos.y - 0.15)/(V.y + 0.15);
+    float t = (cbFrame.cloudHeight - camera.pos.y - 0.15)/(V.y + 0.15);
     if (t > 0.0) {
-        vec3 uv = (cbCamera.pos.xyz + t*V) + vec3(vec2(cbFrame.windSpeed * cbFrame.time), 0);
+        vec3 uv = (camera.pos.xyz + t*V) + vec3(vec2(cbFrame.windSpeed * cbFrame.time), 0);
         uv = cbFrame.cloudTurbulence * uv / cbFrame.cloudHeight;
         const float fbm_noise = Noise_3D(uv * 1.0) * 0.73 + 
                                 Noise_3D(uv * 2.0) * 0.38 + 

@@ -7,59 +7,23 @@ layout(location = 0) out vec4 color;
 
 void main()
 {
-	const float middle = texture(sampler0, uv).r;
-    const float outlineThickness = postprocess.param0.y;
+    const float outlineThickness = postprocess.param0.x;
 	const vec4 outlineColor = postprocess.param1;
-	const float outlineThreshold = postprocess.param0.x * middle;
-	const vec2 dim = vec2(postprocess.param0.z, postprocess.param0.w);
 
-	vec2 ox = vec2(outlineThickness / dim.x, 0.0);
-	vec2 oy = vec2(0.0, outlineThickness / dim.y);
-	vec2 PP = uv - oy;
+    const vec2 texelSize = outlineThickness / vec2(textureSize(sampler0, 0));
+    const float tl = texture(sampler0, uv + texelSize * vec2(-1,  1)).r; // top-left
+    const float tc = texture(sampler0, uv + texelSize * vec2( 0,  1)).r; // top-center
+    const float tr = texture(sampler0, uv + texelSize * vec2( 1,  1)).r; // top-right
+    const float ml = texture(sampler0, uv + texelSize * vec2(-1,  0)).r; // mid-left
+    const float mr = texture(sampler0, uv + texelSize * vec2( 1,  0)).r; // mid-right
+    const float bl = texture(sampler0, uv + texelSize * vec2(-1, -1)).r; // bottom-left
+    const float bc = texture(sampler0, uv + texelSize * vec2( 0, -1)).r; // bottom-center
+    const float br = texture(sampler0, uv + texelSize * vec2( 1, -1)).r; // bottom-right
 
-	float CC = texture(sampler0, (PP - ox)).r;	float g00 = (CC);
-	CC = texture(sampler0, PP).r;				float g01 = (CC);
-	CC = texture(sampler0, PP + ox).r;			float g02 = (CC);
-	PP = uv;
-	CC = texture(sampler0, PP - ox).r;			float g10 = (CC);
-	CC = middle;								float g11 = (CC) * 0.01f;
-	CC = texture(sampler0, PP + ox).r;			float g12 = (CC);
-	PP = uv + oy;
-	CC = texture(sampler0, PP - ox).r;			float g20 = (CC);
-	CC = texture(sampler0, PP).r;				float g21 = (CC);
-	CC = texture(sampler0, PP + ox).r;			float g22 = (CC);
-	float K00 = -1;
-	float K01 = -2;
-	float K02 = -1;
-	float K10 = 0;
-	float K11 = 0;
-	float K12 = 0;
-	float K20 = 1;
-	float K21 = 2;
-	float K22 = 1;
-	float sx = 0;
-	float sy = 0;
-	sx += g00 * K00;
-	sx += g01 * K01;
-	sx += g02 * K02;
-	sx += g10 * K10;
-	sx += g11 * K11;
-	sx += g12 * K12;
-	sx += g20 * K20;
-	sx += g21 * K21;
-	sx += g22 * K22;
-	sy += g00 * K00;
-	sy += g01 * K10;
-	sy += g02 * K20;
-	sy += g10 * K01;
-	sy += g11 * K11;
-	sy += g12 * K21;
-	sy += g20 * K02;
-	sy += g21 * K12;
-	sy += g22 * K22;
-	float dist = sqrt(sx*sx + sy*sy);
+    // Sobel convolution
+    const float Gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;
+    const float Gy = -tl - 2.0 * tc - tr + bl + 2.0 * bc + br;
 
-	float edge = dist > outlineThreshold ? 1 : 0;
-
+	const float dist = length(vec2(Gx, Gy));
 	color = vec4(outlineColor.rgb, outlineColor.a * dist);
 }

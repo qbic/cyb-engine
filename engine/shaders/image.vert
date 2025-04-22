@@ -5,7 +5,7 @@ layout(location = 0) out vec2 frag_uv;
 
 void main()
 {
-    if ((cbImage.flags & IMAGE_FULLSCREEN_BIT) == IMAGE_FULLSCREEN_BIT)
+    if ((image.flags & IMAGE_FULLSCREEN_BIT) == IMAGE_FULLSCREEN_BIT)
 	{
 		gl_Position = CreateFullscreenTriangle(gl_VertexIndex);
 		frag_uv = CreateFullscreenTriangleUV(gl_VertexIndex);
@@ -17,7 +17,7 @@ void main()
 		//	  /
 		//	 /
 		//	3--4
-		gl_Position = cbImage.corners[gl_VertexIndex];
+		gl_Position = image.corners[gl_VertexIndex];
 		frag_uv.x = gl_VertexIndex % 2;
 		frag_uv.y = 1 - (gl_VertexIndex / 2);
     }

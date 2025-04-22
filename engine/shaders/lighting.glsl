@@ -15,7 +15,7 @@ Surface CreateSurface(in vec3 N, in vec3 P, in vec3 C) {
     Surface surface;
     surface.P = P;
     surface.N = N;
-    surface.V = normalize(cbCamera.pos.xyz - surface.P);
+    surface.V = normalize(camera.pos.xyz - surface.P);
     surface.baseColor = C * cbMaterial.baseColor.rgb;
     surface.roughness = cbMaterial.roughness;
     surface.metallic = cbMaterial.metalness;

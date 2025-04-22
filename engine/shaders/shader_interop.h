@@ -14,21 +14,21 @@ using namespace DirectX;
 #define vec4 XMFLOAT4
 #define mat4 XMFLOAT4X4
 
-#define CB_GETBINDSLOT(name) __CBUFFERBINDSLOT__##name##__
-#define CBUFFER(name, slot) static const int CB_GETBINDSLOT(name) = slot; struct alignas(16) name
-#define CBUFFER_NAME(name) 
-#define PUSH_BUFFER(name) struct alignas(16) name
-#define PUSH_BUFFER_NAME(name) 
-#define CBPADDING_LINE2(num, line) float pading_##line[num];
-#define CBPADDING_LINE(num, line) CBPADDING_LINE2(num, line)
-#define CBPADDING(num) CBPADDING_LINE(num, __LINE__)
+#define GETBINDSLOT(name) __CBUFFERBINDSLOT__##name##__
+#define CONSTANTBUFFER(name, slot) static const int GETBINDSLOT(name) = slot; struct alignas(16) name
+#define CONSTANTBUFFER_NAME(name) 
+#define PUSHBUFFER(name) struct alignas(16) name
+#define PUSHBUFFER_NAME(name) 
+#define PADDING_LINE2(num, line) float pading_##line[num];
+#define PADDING_LINE(num, line) PADDING_LINE2(num, line)
+#define PADDING(num) PADDING_LINE(num, __LINE__)
 #else
 // glsl shader-side types
-#define CBUFFER(blockname, slot) layout(std140, binding = slot) uniform blockname
-#define CBUFFER_NAME(name) name
-#define PUSH_BUFFER(blockname) layout(push_constant, std140) uniform blockname
-#define PUSH_BUFFER_NAME(name) name
-#define CBPADDING(num)
+#define CONSTANTBUFFER(blockname, slot) layout(std140, binding = slot) uniform blockname
+#define CONSTANTBUFFER_NAME(name) name
+#define PUSHBUFFER(blockname) layout(push_constant, std140) uniform blockname
+#define PUSHBUFFER_NAME(name) name
+#define PADDING(num)
 #endif
 
 #define CBSLOT_FRAME                        0
@@ -49,10 +49,10 @@ struct LightSource
     int type;
     float energy;
     float range;
-    CBPADDING(1)
+    PADDING(1)
 };
 
-CBUFFER(FrameCB, CBSLOT_FRAME)
+CONSTANTBUFFER(FrameCB, CBSLOT_FRAME)
 {
     vec3 horizon;
     float time;                 // game runtime in ms
@@ -70,12 +70,12 @@ CBUFFER(FrameCB, CBSLOT_FRAME)
     int numLights;
     int mostImportantLightIndex;
     int drawSun;
-    CBPADDING(1)
+    PADDING(1)
 
     LightSource lights[SHADER_MAX_LIGHTSOURCES];
-} CBUFFER_NAME(cbFrame);
+} CONSTANTBUFFER_NAME(cbFrame);
 
-CBUFFER(CameraCB, CBSLOT_CAMERA)
+CONSTANTBUFFER(CameraConstants, CBSLOT_CAMERA)
 {
     mat4 proj;
     mat4 view;
@@ -84,37 +84,36 @@ CBUFFER(CameraCB, CBSLOT_CAMERA)
     mat4 inv_view;
     mat4 inv_vp;
     vec4 pos;
-} CBUFFER_NAME(cbCamera);
+} CONSTANTBUFFER_NAME(camera);
 
-CBUFFER(MaterialCB, CBSLOT_MATERIAL)
+CONSTANTBUFFER(MaterialCB, CBSLOT_MATERIAL)
 {
     vec4 baseColor;
     float roughness;
     float metalness;
-    CBPADDING(2)
-} CBUFFER_NAME(cbMaterial);
+    PADDING(2)
+} CONSTANTBUFFER_NAME(cbMaterial);
 
 #define IMAGE_FULLSCREEN_BIT (1 << 3)
 
-CBUFFER(ImageConstants, CBSLOT_IMAGE)
+CONSTANTBUFFER(ImageConstants, CBSLOT_IMAGE)
 {
     int flags;
-    CBPADDING(3)
+    PADDING(3)
     vec4 corners[4];
-} CBUFFER_NAME(cbImage);
+} CONSTANTBUFFER_NAME(image);
 
-CBUFFER(MiscCB, CBSLOT_MISC)
+CONSTANTBUFFER(MiscCB, CBSLOT_MISC)
 {
     mat4 g_xModelMatrix;
     mat4 g_xTransform;                   // model * view * proj
 };
 
-PUSH_BUFFER(PostProcess)
+PUSHBUFFER(PostProcess)
 {
-
     vec4 param0;
     vec4 param1;
-} PUSH_BUFFER_NAME(postprocess);
+} PUSHBUFFER_NAME(postprocess);
 
 #ifdef __cplusplus
 // clean up c++ namespace
@@ -122,10 +121,15 @@ PUSH_BUFFER(PostProcess)
 #undef vec3 
 #undef vec4 
 #undef mat4 
-#undef CBUFFER
-#undef CBUFFER_NAME
-#undef PUSH_BUFFER
-#undef PUSH_BUFFER_NAME
+
+#undef GETBINDSLOT
+#undef CONSTANTBUFFER
+#undef CONSTANTBUFFER_NAME
+#undef PUSHBUFFER
+#undef PUSHBUFFER_NAME
+#undef PADDING_LINE2
+#undef PADDING_LINE
+#undef PADDING
 #endif // __cplusplus
 
 #endif // SHADER_INTEROP_H

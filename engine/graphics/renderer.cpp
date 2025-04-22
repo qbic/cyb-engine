@@ -88,7 +88,7 @@ namespace cyb::renderer
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_FRAME]);
             device->SetName(&constantbuffers[CBTYPE_FRAME], "constantbuffers[CBTYPE_FRAME]");
 
-            desc.size = sizeof(CameraCB);
+            desc.size = sizeof(CameraConstants);
             desc.stride = 0;
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_CAMERA]);
             device->SetName(&constantbuffers[CBTYPE_CAMERA], "constantbuffers[CBTYPE_CAMERA]");
@@ -512,16 +512,16 @@ namespace cyb::renderer
     {
         assert(camera);
 
-        CameraCB cameraCB = {};
-        cameraCB.proj = camera->projection;
-        cameraCB.view = camera->view;
-        cameraCB.vp = camera->VP;
-        cameraCB.inv_proj = camera->inv_projection;
-        cameraCB.inv_view = camera->inv_view;
-        cameraCB.inv_vp = camera->inv_VP;
-        cameraCB.pos = XMFLOAT4(camera->pos.x, camera->pos.y, camera->pos.z, 1.0f);
+        CameraConstants cc = {};
+        cc.proj = camera->projection;
+        cc.view = camera->view;
+        cc.vp = camera->VP;
+        cc.inv_proj = camera->inv_projection;
+        cc.inv_view = camera->inv_view;
+        cc.inv_vp = camera->inv_VP;
+        cc.pos = XMFLOAT4(camera->pos.x, camera->pos.y, camera->pos.z, 1.0f);
 
-        device->UpdateBuffer(&constantbuffers[CBTYPE_CAMERA], &cameraCB, cmd);
+        device->UpdateBuffer(&constantbuffers[CBTYPE_CAMERA], &cc, cmd);
     }
 
     void DrawScene(const SceneView& view, CommandList cmd)
@@ -759,7 +759,6 @@ namespace cyb::renderer
     void Postprocess_Outline(
         const Texture& input,
         CommandList cmd,
-        float threshold,
         float thickness,
         const XMFLOAT4& color)
     {
@@ -770,10 +769,7 @@ namespace cyb::renderer
         device->BindResource(&input, 0, cmd);
 
         PostProcess postprocess = {};
-        postprocess.param0.x = threshold;
-        postprocess.param0.y = thickness;
-        postprocess.param0.z = input.GetDesc().width;
-        postprocess.param0.w = input.GetDesc().height;
+        postprocess.param0.x = thickness;
         postprocess.param1.x = color.x;
         postprocess.param1.y = color.y;
         postprocess.param1.z = color.z;

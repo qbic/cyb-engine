@@ -705,6 +705,8 @@ namespace cyb::renderer
                 params.customRotation = &invR;
                 params.customProjection = &P;
 
+                device->BindSampler(GetSamplerState(renderer::SSLOT_BILINEAR_CLAMP), 0, cmd);
+
                 switch (light->GetType())
                 {
                 case scene::LightType::Directional:

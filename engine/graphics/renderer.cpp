@@ -161,10 +161,10 @@ namespace cyb::renderer
     static void LoadSamplerStates()
     {
         SamplerDesc desc;
-        desc.lodBias = 0.1f;
         desc.maxAnisotropy = 1;
         desc.borderColor = XMFLOAT4(0, 0, 0, 0);
-        desc.minLOD = 0;
+        desc.lodBias = 0.0f;
+        desc.minLOD = 0.0f;
         desc.maxLOD = FLT_MAX;
 
         // Point filtering states

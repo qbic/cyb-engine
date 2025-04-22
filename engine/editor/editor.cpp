@@ -1227,6 +1227,8 @@ namespace cyb::editor
 
             if (pick_result.entity != ecs::INVALID_ENTITY)
                 scenegraphView.SetSelectedEntity(pick_result.entity);
+            else
+                scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);
         }
 
         DrawTools();

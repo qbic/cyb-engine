@@ -61,5 +61,5 @@ void main()
 
 	float edge = dist > outlineThreshold ? 1 : 0;
 
-	color = vec4(outlineColor.rgb, outlineColor.a * edge);
+	color = vec4(outlineColor.rgb, outlineColor.a * dist);
 }

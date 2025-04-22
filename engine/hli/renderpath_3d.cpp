@@ -128,6 +128,7 @@ namespace cyb::hli
             image.EnableFullscreen();
             image.stencilRef = 8;
             image.stencilComp = renderer::STENCILMODE_EQUAL;
+            device->BindSampler(GetSamplerState(renderer::SSLOT_POINT_CLAMP), 0, cmd);
             renderer::DrawImage(nullptr, image, cmd);
 
             device->EndRenderPass(cmd);
@@ -155,7 +156,7 @@ namespace cyb::hli
         params.EnableFullscreen();
 
         device->BeginEvent("Composition", cmd);
-        const graphics::Sampler* pointSampler = renderer::GetSamplerState(renderer::SSLOT_POINT_WRAP);
+        const graphics::Sampler* pointSampler = GetSamplerState(renderer::SSLOT_POINT_CLAMP);
         device->BindSampler(pointSampler, 0, cmd);
         renderer::DrawImage(&renderTarget_Main, params, cmd);
         device->EndEvent(cmd);

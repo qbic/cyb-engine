@@ -12,7 +12,6 @@ namespace cyb::renderer
         DEPTH_TEST_MODE_COUNT
     };
 
-    static Sampler sampler;
     static Shader vertShader;
     static Shader fragShader;
     static RasterizerState rasterizerState;
@@ -52,7 +51,6 @@ namespace cyb::renderer
         if (texture == nullptr)
             texture = &whiteTexture;
 
-        device->BindSampler(&sampler, 0, cmd);
         device->BindResource(texture, 0, cmd);
         device->BindStencilRef(params.stencilRef, cmd);
         device->BindPipelineState(&psoImage[params.stencilComp][params.IsDepthTestEnabled()], cmd);
@@ -169,13 +167,6 @@ namespace cyb::renderer
             dsd.backFace.stencilFunc = ComparisonFunc::Allways;
             depthStencilState[STENCILMODE_ALLWAYS][d] = dsd;
         }
-
-        SamplerDesc samplerDesc;
-        samplerDesc.filter = TextureFilter::Anisotropic;
-        samplerDesc.addressU = TextureAddressMode::Clamp;
-        samplerDesc.addressV = TextureAddressMode::Clamp;
-        samplerDesc.addressW = TextureAddressMode::Clamp;
-        device->CreateSampler(&samplerDesc, &sampler);
 
         Image_LoadShaders();
         static eventsystem::Handle handle = eventsystem::Subscribe(eventsystem::Event_ReloadShaders, [] (uint64_t userdata) { Image_LoadShaders(); });

@@ -2351,9 +2351,21 @@ namespace cyb::graphics
             break;
         }
 
-        sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        auto addressMode = [] (TextureAddressMode mode) -> VkSamplerAddressMode {
+            switch (mode)
+            {
+            case TextureAddressMode::Wrap: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            case TextureAddressMode::Mirror: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case TextureAddressMode::Clamp: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            }
+
+            assert(0);
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        };
+
+        sampler_info.addressModeU = addressMode(desc->addressU);
+        sampler_info.addressModeV = addressMode(desc->addressV);
+        sampler_info.addressModeW = addressMode(desc->addressW);
         sampler_info.maxAnisotropy = desc->maxAnisotropy;
         sampler_info.mipLodBias = desc->lodBias;
         sampler_info.minLod = desc->minLOD;

@@ -36,7 +36,7 @@ namespace cyb::editor
     public:
         void GenerateView();
         void WindowContent();
-        void SetSelectedEntity(ecs::Entity entity) { m_selectedEntity = entity; }
+        void SetSelectedEntity(ecs::Entity entity);
         ecs::Entity GetSelectedEntity() const { return m_selectedEntity; }
 
     private:

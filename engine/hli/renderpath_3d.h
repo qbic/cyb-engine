@@ -24,6 +24,7 @@ namespace cyb::hli
 
         graphics::Texture renderTarget_Main;
         graphics::Texture depthBuffer_Main;
+        graphics::Texture rtSelectionOutline;
 
         double runtime = 0.0;                       // Accumilated delta times
     };

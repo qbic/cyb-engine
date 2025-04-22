@@ -1,5 +1,7 @@
 #include "core/platform.h"
+#include "core/cvar.h"
 #include "graphics/device.h"
+#include "graphics/image.h"
 #include "systems/profiler.h"
 #include "systems/scene.h"
 #include "hli/renderpath_3d.h"
@@ -10,6 +12,7 @@ using namespace cyb::graphics;
 
 namespace cyb::hli
 {
+    CVar r_selectionOutlineThickness("r_selectionOutlineThickness", 1.6f, CVarFlag::RendererBit, "Thickness of selection outline");
     void RenderPath3D::ResizeBuffers()
     {
         GraphicsDevice* device = cyb::graphics::GetDevice();
@@ -38,6 +41,17 @@ namespace cyb::hli
             device->SetName(&depthBuffer_Main, "depthBuffer_Main");
         }
 
+        // Selection outline
+        {
+            TextureDesc desc;
+            desc.format = Format::R8_Unorm;
+            desc.bindFlags = BindFlags::RenderTargetBit | BindFlags::ShaderResourceBit;
+            desc.width = internalResolution.x;
+            desc.height = internalResolution.y;
+            device->CreateTexture(&desc, nullptr, &rtSelectionOutline);
+            device->SetName(&rtSelectionOutline, "rtSelectionOutline");
+        }
+
         RenderPath2D::ResizeBuffers();
     }
 
@@ -57,7 +71,6 @@ namespace cyb::hli
 
         // Update per frame constant buffer
         renderer::UpdatePerFrameData(sceneViewMain, static_cast<float>(runtime), frameCB);
-
     }
 
     void RenderPath3D::Render() const
@@ -82,8 +95,7 @@ namespace cyb::hli
                     RenderPassImage::DepthStencil(
                         &depthBuffer_Main,
                         RenderPassImage::LoadOp::Clear,
-                        RenderPassImage::StoreOp::Store)
-        };
+                        RenderPassImage::StoreOp::Store) };
         device->BeginRenderPass(renderPassImages, _countof(renderPassImages), cmd);
 
         {
@@ -100,8 +112,38 @@ namespace cyb::hli
         device->EndEvent(cmd);
         device->EndRenderPass(cmd);
 
-#ifndef NO_EDITOR
-        editor::Render(&depthBuffer_Main, cmd);
+#if 1
+        device->BeginEvent("Selection Outline", cmd);
+        {
+            const RenderPassImage rp[] = {
+                         RenderPassImage::RenderTarget(
+                             &rtSelectionOutline,
+                             RenderPassImage::LoadOp::Clear),
+                         RenderPassImage::DepthStencil(
+                             &depthBuffer_Main,
+                             RenderPassImage::LoadOp::Load) };
+            device->BeginRenderPass(rp, _countof(rp), cmd);
+
+            renderer::ImageParams image = {};
+            image.EnableFullscreen();
+            image.stencilRef = 8;
+            image.stencilComp = renderer::STENCILMODE_EQUAL;
+            renderer::DrawImage(nullptr, image, cmd);
+
+            device->EndRenderPass(cmd);
+        }
+
+        {
+            const RenderPassImage rp[] = {
+                         RenderPassImage::RenderTarget(
+                             &renderTarget_Main,
+                             RenderPassImage::LoadOp::Load) };
+            device->BeginRenderPass(rp, _countof(rp), cmd);
+            XMFLOAT4 outlineColor = XMFLOAT4(1.0f, 0.62f, 0.17f, 1.0f);
+            renderer::Postprocess_Outline(rtSelectionOutline, cmd, 0.1f, r_selectionOutlineThickness.GetValue<float>(), outlineColor);
+            device->EndRenderPass(cmd);
+        }
+        device->EndEvent(cmd);
 #endif
         RenderPath2D::Render();
     }
@@ -109,7 +151,8 @@ namespace cyb::hli
     void RenderPath3D::Compose(CommandList cmd) const
     {
         GraphicsDevice* device = graphics::GetDevice();
-        const renderer::ImageParams params = renderer::ImageParams::DefaultFullscreen();
+        renderer::ImageParams params = {};
+        params.EnableFullscreen();
 
         device->BeginEvent("Composition", cmd);
         const graphics::Sampler* pointSampler = renderer::GetSamplerState(renderer::SSLOT_POINT_WRAP);

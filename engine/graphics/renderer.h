@@ -26,13 +26,13 @@ namespace cyb::renderer
     {
         // Vertex shaders
         VSTYPE_FLAT_SHADING,
-        VSTYPE_IMAGE,
+        VSTYPE_POSTPROCESS,
         VSTYPE_SKY,
         VSTYPE_DEBUG_LINE,
 
         // Fragment shaders
         FSTYPE_FLAT_SHADING,
-        FSTYPE_IMAGE,
+        FSTYPE_POSTPROCESS_OUTLINE,
         FSTYPE_SKY,
         FSTYPE_DEBUG_LINE,
 
@@ -61,7 +61,7 @@ namespace cyb::renderer
         RSTYPE_DOUBLESIDED,
         RSTYPE_WIRE,
         RSTYPE_WIRE_DOUBLESIDED,
-        RSTYPE_IMAGE,
+        RSTYPE_SKY,
         RSTYPE_COUNT
     };
 
@@ -70,19 +70,8 @@ namespace cyb::renderer
     {
         DSSTYPE_DEFAULT,
         DSSTYPE_SKY,
+        DSSTYPE_DEPTH_DISABLED,
         DSSTYPE_COUNT
-    };
-
-    // Pipeline states
-    enum PSO_TYPE
-    {
-        PSO_NULL,
-        PSO_FLAT_SHADING,
-        PSO_FLAT_DISNEY_SHADING,
-        PSO_IMAGE,
-        PSO_SKY,
-        PSO_DEBUG_CUBE,
-        PSO_COUNT
     };
 
     enum SSLOT
@@ -103,25 +92,6 @@ namespace cyb::renderer
         SSLOT_ANISO_MIRROR,
         SSLOT_ANISO_CLAMP,
         SSLOT_COUNT
-    };
-
-    struct ImageParams {
-        bool fullscreen = false;
-        XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-        XMFLOAT2 size = XMFLOAT2(1.0f, 1.0f);
-        XMFLOAT2 pivot = XMFLOAT2(0.5f, 0.5f);          // (0,0) : upperleft, (0.5,0.5) : center, (1,1) : bottomright
-        XMFLOAT2 corners[4] = {
-            XMFLOAT2(0.0f, 0.0f),
-            XMFLOAT2(1.0f, 0.0f),
-            XMFLOAT2(0.0f, 1.0f),
-            XMFLOAT2(1.0f, 1.0f)
-        };
-
-        static ImageParams DefaultFullscreen() {
-            ImageParams params;
-            params.fullscreen = true;
-            return params;
-        }
     };
 
     // Contains a fully clipped view of the scene from the camera perspective
@@ -165,5 +135,10 @@ namespace cyb::renderer
     // Draw debug primitives according to the debug states
     void DrawDebugScene(const SceneView& view, graphics::CommandList cmd);
 
-    void DrawImage(const graphics::Texture* texture, const ImageParams& params, graphics::CommandList cmd);
+    void Postprocess_Outline(
+        const graphics::Texture& input,
+        graphics::CommandList cmd,
+        float threshold,
+        float thickness,
+        const XMFLOAT4& color);
 }

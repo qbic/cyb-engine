@@ -264,12 +264,14 @@ namespace cyb::graphics::vulkan_internal
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
         VkShaderModule shadermodule = VK_NULL_HANDLE;
-        VkPipelineShaderStageCreateInfo stage_info = {};
+        VkPipelineShaderStageCreateInfo stageInfo = {};
 
         std::vector<VkDescriptorSetLayoutBinding> layout_bindings;
         VkDeviceSize uniform_buffer_sizes[DESCRIPTORBINDER_CBV_COUNT] = {};
         std::vector<uint32_t> uniform_buffer_dynamic_slots;
-        std::vector<VkImageViewType> imageview_types;
+        std::vector<VkImageViewType> imageViewTypes;
+
+        VkPushConstantRange pushconstants = {};
 
         ~Shader_Vulkan()
         {
@@ -302,9 +304,13 @@ namespace cyb::graphics::vulkan_internal
         VkDescriptorSetLayout descriptorset_layout = VK_NULL_HANDLE;    // no lifetime management here
 
         std::vector<VkDescriptorSetLayoutBinding> layout_bindings;
-        std::vector<VkImageViewType> imageview_types;
+        std::vector<VkImageViewType> imageViewTypes;
+
+        VkPushConstantRange pushconstants = {};
+
         VkDeviceSize uniform_buffer_sizes[DESCRIPTORBINDER_CBV_COUNT] = {};
         std::vector<uint32_t> uniform_buffer_dynamic_slots;
+
         size_t binding_hash = 0;
 
         VkGraphicsPipelineCreateInfo pipelineInfo = {};
@@ -800,12 +806,17 @@ namespace cyb::graphics
             image_infos.clear();
 
             const auto& layout_bindings = pso_internal->layout_bindings;
-            //const auto& imageview_types = pso_internal->imageview_types;
+            const auto& imageViewTypes = pso_internal->imageViewTypes;
 
-            //int i = 0;
+            int i = 0;
             for (const auto& x : layout_bindings)
             {
-                //VkImageViewType viewtype = imageview_types[i++];
+                if (x.pImmutableSamplers != nullptr)
+                {
+                    i++;
+                    continue;
+                }
+                VkImageViewType viewType = imageViewTypes[i++];
 
                 for (uint32_t descriptor_index = 0; descriptor_index < x.descriptorCount; ++descriptor_index)
                 {
@@ -824,10 +835,22 @@ namespace cyb::graphics
                     case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
                         write.pImageInfo = &image_infos.emplace_back(VkDescriptorImageInfo{});
                         const GPUResource& resource = table.SRV[unrolled_binding];
-                        auto texture_internal = ToInternal((const Texture*)&resource);
                         const Sampler& sampler = table.SAM[unrolled_binding];
-                        auto sampler_internal = ToInternal((const Sampler*)&sampler);
-                        image_infos.back().sampler = sampler_internal->resource;
+
+                        image_infos.back().sampler = ToInternal((const Sampler*)&sampler)->resource;
+                        auto texture_internal = ToInternal((const Texture*)&resource);
+                        image_infos.back().imageView = texture_internal->srv.imageView;
+                        image_infos.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    } break;
+
+                    case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: {
+                        image_infos.emplace_back();
+                        write.pImageInfo = &image_infos.back();
+                        image_infos.back() = {};
+                        image_infos.back().imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+                        const GPUResource& resource = table.SRV[unrolled_binding];
+                        auto texture_internal = ToInternal((const Texture*)&resource);
                         image_infos.back().imageView = texture_internal->srv.imageView;
                         image_infos.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     } break;
@@ -844,9 +867,7 @@ namespace cyb::graphics
                         buffer_infos.back().offset = offset;
                         buffer_infos.back().range = pso_internal->uniform_buffer_sizes[binding_location];
                         if (buffer_infos.back().range == 0ull)
-                        {
                             buffer_infos.back().range = VK_WHOLE_SIZE;
-                        }
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: {
@@ -2154,23 +2175,23 @@ namespace cyb::graphics
         create_info.pCode = (const uint32_t*)shaderBytecode;
         VK_CHECK_RESULT(vkCreateShaderModule(device, &create_info, nullptr, &internal_state->shadermodule));
 
-        internal_state->stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        internal_state->stage_info.module = internal_state->shadermodule;
-        internal_state->stage_info.pName = "main";
+        internal_state->stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        internal_state->stageInfo.module = internal_state->shadermodule;
+        internal_state->stageInfo.pName = "main";
         switch (stage)
         {
         case ShaderStage::VS:
-            internal_state->stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+            internal_state->stageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
             break;
         case ShaderStage::GS:
-            internal_state->stage_info.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
+            internal_state->stageInfo.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
             break;
         case ShaderStage::FS:
-            internal_state->stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+            internal_state->stageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
             break;
         default:
             // also means library shader (ray tracing)
-            internal_state->stage_info.stage = VK_SHADER_STAGE_ALL;
+            internal_state->stageInfo.stage = VK_SHADER_STAGE_ALL;
             break;
         }
 
@@ -2189,19 +2210,35 @@ namespace cyb::graphics
             result = spvReflectEnumerateDescriptorBindings(&module, &binding_count, bindings.data());
             assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
+            uint32_t pushCount = 0;
+            result = spvReflectEnumeratePushConstantBlocks(&module, &pushCount, nullptr);
+            assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+            std::vector<SpvReflectBlockVariable*> pushconstants(pushCount);
+            result = spvReflectEnumeratePushConstantBlocks(&module, &pushCount, pushconstants.data());
+            assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+            for (auto& x : pushconstants)
+            {
+                auto& push = internal_state->pushconstants;
+                push.stageFlags = internal_state->stageInfo.stage;
+                push.offset = x->offset;
+                push.size = x->size;
+            }
+
             for (auto& x : bindings)
             {
                 // NO SUPPORT FOR BINDLESS ATM
                 assert((x->set > 0) == false);
 
                 auto& descriptor = internal_state->layout_bindings.emplace_back();
-                descriptor.stageFlags = internal_state->stage_info.stage;
+                descriptor.stageFlags = internal_state->stageInfo.stage;
                 descriptor.binding = x->binding;
                 descriptor.descriptorCount = x->count;
                 descriptor.descriptorType = (VkDescriptorType)x->descriptor_type;
 
-                auto& imageview_type = internal_state->imageview_types.emplace_back();
-                imageview_type = VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+                auto& imageViewType = internal_state->imageViewTypes.emplace_back();
+                imageViewType = VK_IMAGE_VIEW_TYPE_MAX_ENUM;
 
                 if (descriptor.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
                 {
@@ -2214,6 +2251,53 @@ namespace cyb::graphics
                         internal_state->uniform_buffer_sizes[descriptor.binding + i] = x->block.size;
                         internal_state->uniform_buffer_dynamic_slots.push_back(descriptor.binding + i);
                     }
+                }
+
+                switch (x->descriptor_type)
+                {
+                default:
+                    break;
+                case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+                case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+                    switch (x->image.dim)
+                    {
+                    default:
+                    case SpvDim1D:
+                        if (x->image.arrayed == 0)
+                        {
+                            imageViewType = VK_IMAGE_VIEW_TYPE_1D;
+                        }
+                        else
+                        {
+                            imageViewType = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+                        }
+                        break;
+                    case SpvDim2D:
+                        if (x->image.arrayed == 0)
+                        {
+                            imageViewType = VK_IMAGE_VIEW_TYPE_2D;
+                        }
+                        else
+                        {
+                            imageViewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+                        }
+                        break;
+                    case SpvDim3D:
+                        imageViewType = VK_IMAGE_VIEW_TYPE_3D;
+                        break;
+                    case SpvDimCube:
+                        if (x->image.arrayed == 0)
+                        {
+                            imageViewType = VK_IMAGE_VIEW_TYPE_CUBE;
+                        }
+                        else
+                        {
+                            imageViewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+                        }
+                        break;
+                    }
+                    break;
                 }
             }
 
@@ -2321,7 +2405,7 @@ namespace cyb::graphics
                     if (!found)
                     {
                         internal_state->layout_bindings.push_back(shader_binding);
-                        internal_state->imageview_types.push_back(shader_internal->imageview_types[i]);
+                        internal_state->imageViewTypes.push_back(shader_internal->imageViewTypes[i]);
 
                         if (shader_binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
                             shader_binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
@@ -2343,6 +2427,13 @@ namespace cyb::graphics
 
                     i++;
                 }
+
+                if (shader_internal->pushconstants.size > 0)
+                {
+                    internal_state->pushconstants.offset = std::min(internal_state->pushconstants.offset, shader_internal->pushconstants.offset);
+                    internal_state->pushconstants.size = std::max(internal_state->pushconstants.size, shader_internal->pushconstants.size);
+                    internal_state->pushconstants.stageFlags |= shader_internal->pushconstants.stageFlags;
+                }
             };
 
             insert_shader(desc->vs);
@@ -2361,8 +2452,11 @@ namespace cyb::graphics
             hash::Combine(internal_state->binding_hash, x.descriptorCount);
             hash::Combine(internal_state->binding_hash, x.descriptorType);
             hash::Combine(internal_state->binding_hash, x.stageFlags);
-            hash::Combine(internal_state->binding_hash, internal_state->imageview_types[i++]);
+            hash::Combine(internal_state->binding_hash, internal_state->imageViewTypes[i++]);
         }
+        hash::Combine(internal_state->binding_hash, internal_state->pushconstants.offset);
+        hash::Combine(internal_state->binding_hash, internal_state->pushconstants.size);
+        hash::Combine(internal_state->binding_hash, internal_state->pushconstants.stageFlags);
 
         m_psoLayoutCacheMutex.lock();
         if (m_psoLayoutCache[internal_state->binding_hash].pipeline_layout == VK_NULL_HANDLE)
@@ -2377,6 +2471,16 @@ namespace cyb::graphics
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
             pipelineLayoutInfo.setLayoutCount = 1;
             pipelineLayoutInfo.pSetLayouts = &internal_state->descriptorset_layout;
+            if (internal_state->pushconstants.size > 0)
+            {
+                pipelineLayoutInfo.pushConstantRangeCount = 1;
+                pipelineLayoutInfo.pPushConstantRanges = &internal_state->pushconstants;
+            }
+            else
+            {
+                pipelineLayoutInfo.pushConstantRangeCount = 0;
+                pipelineLayoutInfo.pPushConstantRanges = nullptr;
+            }
             VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &internal_state->pipelineLayout));
 
             m_psoLayoutCache[internal_state->binding_hash].descriptorset_layout = internal_state->descriptorset_layout;
@@ -2524,7 +2628,7 @@ namespace cyb::graphics
         auto validate_and_add_shadder = [&] (const Shader* shader) {
             if (shader != nullptr && shader->IsValid())
             {
-                internal_state->shaderStages[shaderStageCount++] = ToInternal(shader)->stage_info;
+                internal_state->shaderStages[shaderStageCount++] = ToInternal(shader)->stageInfo;
             }
         };
 
@@ -3203,6 +3307,31 @@ namespace cyb::graphics
             internal_state->pool,
             index,
             count);
+    }
+
+    void GraphicsDevice_Vulkan::PushConstants(const void* data, uint32_t size, CommandList cmd, uint32_t offset)
+    {
+        CommandList_Vulkan& commandlist = GetCommandList(cmd);
+
+        if (commandlist.active_pso != nullptr)
+        {
+            auto pso_internal = ToInternal(commandlist.active_pso);
+            if (pso_internal->pushconstants.size > 0)
+            {
+                vkCmdPushConstants(
+                    commandlist.GetCommandBuffer(),
+                    pso_internal->pipelineLayout,
+                    pso_internal->pushconstants.stageFlags,
+                    offset,
+                    size,
+                    data
+                );
+                return;
+            }
+            assert(0);  // no push constant block!
+        }
+
+        assert(0);      // no active pipeline!
     }
 
     void GraphicsDevice_Vulkan::SetName(GPUResource* resource, const char* name)

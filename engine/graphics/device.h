@@ -689,6 +689,8 @@ namespace cyb::graphics
         virtual void ResolveQuery(const GPUQuery* query, uint32_t index, uint32_t count, const GPUBuffer* dest, uint64_t destOffset, CommandList cmd) = 0;
         virtual void ResetQuery(const GPUQuery* query, uint32_t index, uint32_t count, CommandList cmd) = 0;
 
+        virtual void PushConstants(const void* data, uint32_t size, CommandList cmd, uint32_t offset = 0) = 0;
+
         virtual void BeginEvent(const char* name, CommandList cmd) = 0;
         virtual void EndEvent(CommandList cmd) = 0;
 

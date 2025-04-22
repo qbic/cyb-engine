@@ -458,6 +458,26 @@ namespace cyb::editor
             DrawNode(&x);
     }
 
+    void SceneGraphView::SetSelectedEntity(ecs::Entity entity)
+    {
+        scene::Scene& scene = scene::GetScene();
+
+        // remove stencil ref on previous selection
+        if (m_selectedEntity != ecs::INVALID_ENTITY)
+        {
+            scene::ObjectComponent* object = scene.objects.GetComponent(m_selectedEntity);
+            if (object)
+                object->SetUserStencilRef(0);
+        }
+
+        m_selectedEntity = entity;
+
+        // add stencil ref on new selection
+        scene::ObjectComponent* object = scene.objects.GetComponent(m_selectedEntity);
+        if (object)
+            object->SetUserStencilRef(8);
+    }
+
     // Draw a collapsing header for entity components
     template <typename T>
     inline void InspectComponent(
@@ -875,6 +895,10 @@ namespace cyb::editor
                 }
 
                 ImGui::Separator();
+                if (ImGui::MenuItem("Clear Selection", nullptr, false))
+                    scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);
+
+                ImGui::Separator();
 
                 if (ImGui::BeginMenu("Add"))
                 {
@@ -1202,23 +1226,7 @@ namespace cyb::editor
             }
 
             if (pick_result.entity != ecs::INVALID_ENTITY)
-            {
-                scene::Scene& scene = scene::GetScene();
-
-                const ecs::Entity prevSelectedEntity = scenegraphView.GetSelectedEntity();
                 scenegraphView.SetSelectedEntity(pick_result.entity);
-
-                // remove stencil ref on previous selection
-                if (prevSelectedEntity != ecs::INVALID_ENTITY)
-                {
-                    scene::ObjectComponent* object = scene.objects.GetComponent(prevSelectedEntity);
-                    object->SetUserStencilRef(0);
-                }
-
-                // add stencil ref on new selection
-                scene::ObjectComponent* object = scene.objects.GetComponent(pick_result.entity);
-                object->SetUserStencilRef(8);
-            }
         }
 
         DrawTools();

@@ -5,6 +5,7 @@
 #include "systems/event_system.h"
 #include "systems/profiler.h"
 #include "graphics/renderer.h"
+#include "graphics/image.h"
 #include "graphics/shader_compiler.h"
 #include "../../shaders/shader_interop.h"
 
@@ -13,6 +14,8 @@ using namespace cyb::scene;
 
 namespace cyb::renderer
 {
+    GraphicsDevice*& device = GetDevice();
+
     CVar r_debugObjectAABB("r_debugObjectAABB", false, CVarFlag::RendererBit, "Render AABB of all objects in the scene");
     CVar r_debugLightSources("r_debugLightSources", false, CVarFlag::RendererBit, "Render icon and AABB of all light sources");
     
@@ -23,9 +26,9 @@ namespace cyb::renderer
     RasterizerState rasterizers[RSTYPE_COUNT];
     DepthStencilState depth_stencils[DSSTYPE_COUNT];
 
-    PipelineState pso_object[MaterialComponent::Shadertype_Count];
-    PipelineState pso_image;
-    PipelineState pso_sky;
+    PipelineState psoMaterial[MaterialComponent::Shadertype_Count];
+    PipelineState psoOutline;
+    PipelineState psoSky;
 
     enum DEBUGRENDERING
     {
@@ -73,7 +76,6 @@ namespace cyb::renderer
     void LoadBuffers(jobsystem::Context& ctx)
     {
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
-            auto device = GetDevice();
             GPUBufferDesc desc;
             desc.bindFlags = BindFlags::ConstantBufferBit;
 
@@ -100,7 +102,7 @@ namespace cyb::renderer
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_MATERIAL]);
             device->SetName(&constantbuffers[CBTYPE_MATERIAL], "constantbuffers[CBTYPE_MATERIAL]");
 
-            desc.size = sizeof(ImageCB);
+            desc.size = sizeof(ImageConstants);
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_IMAGE]);
             device->SetName(&constantbuffers[CBTYPE_IMAGE], "constantbuffers[CBTYPE_IMAGE]");
 
@@ -146,14 +148,14 @@ namespace cyb::renderer
                 return false;
             }
 
-            bool success = GetDevice()->CreateShader(stage, output.shaderdata, output.shadersize, &shader);
+            bool success = device->CreateShader(stage, output.shaderdata, output.shadersize, &shader);
             if (success)
-                GetDevice()->SetName(&shader, filename.c_str());
+                device->SetName(&shader, filename.c_str());
 
             return success;
         }
 
-        return GetDevice()->CreateShader(stage, fileData.data(), fileData.size(), &shader);
+        return device->CreateShader(stage, fileData.data(), fileData.size(), &shader);
     }
 
     static void LoadSamplerStates()
@@ -164,8 +166,6 @@ namespace cyb::renderer
         desc.borderColor = XMFLOAT4(0, 0, 0, 0);
         desc.minLOD = 0;
         desc.maxLOD = FLT_MAX;
-
-        GraphicsDevice* device = GetDevice();
 
         // Point filtering states
         desc.filter = TextureFilter::Point;
@@ -222,7 +222,6 @@ namespace cyb::renderer
     static void LoadShaders()
     {
         jobsystem::Context ctx = {};
-        GraphicsDevice* device = GetDevice();
 
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_FLAT_SHADING] =
@@ -232,7 +231,6 @@ namespace cyb::renderer
             };
             LoadShader(ShaderStage::VS, shaders[VSTYPE_FLAT_SHADING], "flat_shader.vert");
         });
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::VS, shaders[VSTYPE_IMAGE], "image.vert"); });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_SKY] =
             {
@@ -249,14 +247,16 @@ namespace cyb::renderer
             LoadShader(ShaderStage::VS, shaders[VSTYPE_DEBUG_LINE], "debug_line.vert");
         });
 
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_DISNEY_SHADING], "flat_shader_disney.geom"); });
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::VS, shaders[VSTYPE_POSTPROCESS], "postprocess.vert"); });
 
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_IMAGE], "image.frag"); });
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_SKY], "sky.frag"); });
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_DISNEY_SHADING], "flat_shader_disney.geom"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
+
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_SKY], "sky.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_POSTPROCESS_OUTLINE], "outline.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
 
         jobsystem::Wait(ctx);
 
@@ -279,6 +279,12 @@ namespace cyb::renderer
             dsd.backFace.stencilDepthFailOp = StencilOp::Keep;
             depth_stencils[DSSTYPE_DEFAULT] = dsd;
 
+            dsd.depthEnable = false;
+            dsd.stencilEnable = false;
+            depth_stencils[DSSTYPE_DEPTH_DISABLED] = dsd;
+
+            dsd.depthEnable = true;
+            dsd.stencilEnable = true;
             dsd.depthFunc = ComparisonFunc::GreaterEqual;
             depth_stencils[DSSTYPE_SKY] = dsd;
         }
@@ -312,11 +318,11 @@ namespace cyb::renderer
             rs.polygonMode = PolygonMode::Fill;
             rs.cullMode = CullMode::None;
             rs.frontFace = FrontFace::CW;
-            rasterizers[RSTYPE_IMAGE] = rs;
+            rasterizers[RSTYPE_SKY] = rs;
         }
 
         {
-            // PSO_FLAT_SHADING
+            // MaterialComponent::Shadertype_BDRF
             PipelineStateDesc desc;
             desc.vs = GetShader(VSTYPE_FLAT_SHADING);
             desc.gs = GetShader(GSTYPE_FLAT_SHADING);
@@ -325,10 +331,10 @@ namespace cyb::renderer
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
             desc.pt = PrimitiveTopology::TriangleList;
-            device->CreatePipelineState(&desc, &pso_object[MaterialComponent::Shadertype_BDRF]);
+            device->CreatePipelineState(&desc, &psoMaterial[MaterialComponent::Shadertype_BDRF]);
         }
         {
-            // PSO_FLAT_DISNEY_SHADING
+            // MaterialComponent::Shadertype_Disney_BDRF
             PipelineStateDesc desc;
             desc.vs = GetShader(VSTYPE_FLAT_SHADING);
             desc.gs = GetShader(GSTYPE_FLAT_DISNEY_SHADING);
@@ -337,10 +343,10 @@ namespace cyb::renderer
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
             desc.pt = PrimitiveTopology::TriangleList;
-            device->CreatePipelineState(&desc, &pso_object[MaterialComponent::Shadertype_Disney_BDRF]);
+            device->CreatePipelineState(&desc, &psoMaterial[MaterialComponent::Shadertype_Disney_BDRF]);
         }
         {
-            // PSO_FLAT_UNLIT
+            // MaterialComponent::Shadertype_Unlit
             PipelineStateDesc desc;
             desc.vs = GetShader(VSTYPE_FLAT_SHADING);
             desc.gs = GetShader(GSTYPE_FLAT_UNLIT);
@@ -349,27 +355,27 @@ namespace cyb::renderer
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
             desc.pt = PrimitiveTopology::TriangleList;
-            device->CreatePipelineState(&desc, &pso_object[MaterialComponent::Shadertype_Unlit]);
+            device->CreatePipelineState(&desc, &psoMaterial[MaterialComponent::Shadertype_Unlit]);
         }
         {
-            // PSO_IMAGE
+            // PSO_OUTLINE
             PipelineStateDesc desc;
-            desc.vs = GetShader(VSTYPE_IMAGE);
-            desc.fs = GetShader(FSTYPE_IMAGE);
-            desc.rs = &rasterizers[RSTYPE_IMAGE];
-            desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
+            desc.vs = GetShader(VSTYPE_POSTPROCESS);
+            desc.fs = GetShader(FSTYPE_POSTPROCESS_OUTLINE);
+            desc.rs = &rasterizers[RSTYPE_DOUBLESIDED];
+            desc.dss = &depth_stencils[DSSTYPE_DEPTH_DISABLED];
             desc.pt = PrimitiveTopology::TriangleStrip;
-            device->CreatePipelineState(&desc, &pso_image);
+            device->CreatePipelineState(&desc, &psoOutline);
         }
         {
             // PSO_SKY
             PipelineStateDesc desc;
             desc.vs = GetShader(VSTYPE_SKY);
             desc.fs = GetShader(FSTYPE_SKY);
-            desc.rs = &rasterizers[RSTYPE_IMAGE];
+            desc.rs = &rasterizers[RSTYPE_SKY];
             desc.dss = &depth_stencils[DSSTYPE_SKY];
             desc.pt = PrimitiveTopology::TriangleStrip;
-            device->CreatePipelineState(&desc, &pso_sky);
+            device->CreatePipelineState(&desc, &psoSky);
         }
         {
             // DEBUGRENDERING_CUBE
@@ -388,7 +394,7 @@ namespace cyb::renderer
 
     void ReloadShaders()
     {
-        graphics::GetDevice()->ClearPipelineStateCache();
+        device->ClearPipelineStateCache();
         eventsystem::FireEvent(eventsystem::Event_ReloadShaders, 0);
     }
 
@@ -401,6 +407,7 @@ namespace cyb::renderer
         LoadBuffers(ctx);
         LoadShaders();
         LoadSamplerStates();
+        Image_Initialize();
 
         jobsystem::Wait(ctx);
 
@@ -484,6 +491,7 @@ namespace cyb::renderer
                 cbLight.range = light->range;
                 ++frameCB.numLights;
 
+                // most importand light will be used for placing the sun
                 if (light->GetType() == scene::LightType::Directional && light->energy > brightestLight)
                 {
                     frameCB.mostImportantLightIndex = (int)i;
@@ -491,26 +499,12 @@ namespace cyb::renderer
                 }
             }
         }
-
-        // TODO: Find the most important light
-        frameCB.mostImportantLightIndex = 0;
-#if 0
-        for (size_t i = 0; i < view.scene->lights.Size(); ++i)
-        {
-            const ecs::Entity lightID = view.scene->lights.GetEntity(i);
-            const scene::LightComponent* light = view.scene->lights.GetComponent(lightID);
-            if (light->type != scene::LightType::Directional)
-                continue;
-        }
-#endif
-
     }
 
     void UpdateRenderData(const SceneView& view, const FrameCB& frameCB, graphics::CommandList cmd)
     {
-        GraphicsDevice* device = GetDevice();
         device->BeginEvent("UpdateRenderData", cmd);
-        GetDevice()->UpdateBuffer(&constantbuffers[CBTYPE_FRAME], &frameCB, cmd);
+        device->UpdateBuffer(&constantbuffers[CBTYPE_FRAME], &frameCB, cmd);
         device->EndEvent(cmd);
     }
 
@@ -527,13 +521,11 @@ namespace cyb::renderer
         cameraCB.inv_vp = camera->inv_VP;
         cameraCB.pos = XMFLOAT4(camera->pos.x, camera->pos.y, camera->pos.z, 1.0f);
 
-        GetDevice()->UpdateBuffer(&constantbuffers[CBTYPE_CAMERA], &cameraCB, cmd);
+        device->UpdateBuffer(&constantbuffers[CBTYPE_CAMERA], &cameraCB, cmd);
     }
 
     void DrawScene(const SceneView& view, CommandList cmd)
     {
-        GraphicsDevice* device = GetDevice();
-
         device->BeginEvent("DrawScene", cmd);
 
         device->BindConstantBuffer(&constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME, cmd);
@@ -594,7 +586,7 @@ namespace cyb::renderer
                         material_cb.metalness = material->metalness;
                         device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
 
-                        const PipelineState* pso = &pso_object[material->shaderType];
+                        const PipelineState* pso = &psoMaterial[material->shaderType];
                         device->BindPipelineState(pso, cmd);
                         device->DrawIndexed(subset.indexCount, subset.indexOffset, 0, cmd);
                     }
@@ -607,10 +599,9 @@ namespace cyb::renderer
 
     void DrawSky(const scene::CameraComponent* camera, CommandList cmd)
     {
-        GraphicsDevice* device = GetDevice();
         device->BeginEvent("DrawSky", cmd);
         device->BindStencilRef(255, cmd);
-        device->BindPipelineState(&pso_sky, cmd);
+        device->BindPipelineState(&psoSky, cmd);
 
         device->BindConstantBuffer(&constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME, cmd);
         device->BindConstantBuffer(&constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA, cmd);
@@ -624,7 +615,6 @@ namespace cyb::renderer
         static GPUBuffer wirecube_vb;
         static GPUBuffer wirecube_ib;
 
-        GraphicsDevice* device = GetDevice();
         device->BeginEvent("DrawDebugScene", cmd);
 
         if (!wirecube_vb.IsValid())
@@ -692,7 +682,6 @@ namespace cyb::renderer
             device->EndEvent(cmd);
         }
 
-
         if (r_debugLightSources.GetValue<bool>())
         {
             device->BeginEvent("DebugLightsources", cmd);
@@ -705,13 +694,17 @@ namespace cyb::renderer
                 const scene::LightComponent* light = scene.lights.GetComponent(lightID);
                 const scene::TransformComponent* transform = scene.transforms.GetComponent(lightID);
 
-                float dist = math::Distance(transform->translation_local, scene::GetCamera().pos) * 0.05f;
+                float dist = math::Distance(transform->translation_local, view.camera->pos) * 0.05f;
                 renderer::ImageParams params;
+                params.EnableDepthTest();
                 params.position = transform->translation_local;
                 params.size = XMFLOAT2(dist, dist);
-                params.fullscreen = false;
 
-                device->BindSampler(&samplerStates[SSLOT_ANISO_CLAMP], 0, cmd);
+                XMMATRIX invR = XMMatrixInverse(nullptr, XMLoadFloat3x3(&view.camera->rotation));
+                XMMATRIX P = view.camera->GetViewProjection();
+                params.customRotation = &invR;
+                params.customProjection = &P;
+
                 switch (light->GetType())
                 {
                 case scene::LightType::Directional:
@@ -761,36 +754,31 @@ namespace cyb::renderer
         device->EndEvent(cmd);
     }
 
-    void DrawImage(const Texture* texture, const ImageParams& params, CommandList cmd)
+    void Postprocess_Outline(
+        const Texture& input,
+        CommandList cmd,
+        float threshold,
+        float thickness,
+        const XMFLOAT4& color)
     {
-        GraphicsDevice* device = GetDevice();
-        device->BeginEvent("Image", cmd);
+        device->BeginEvent("Postprocess_Outline", cmd);
 
-        ImageCB image_cb = {};
+        device->BindPipelineState(&psoOutline, cmd);
+        device->BindSampler(&samplerStates[SSLOT_POINT_CLAMP], 0, cmd);
+        device->BindResource(&input, 0, cmd);
 
-        if (!params.fullscreen)
-        {
-            const CameraComponent& camera = GetCamera();
-            const XMMATRIX M = XMMatrixScaling(params.size.x, params.size.y, 1.0f) *
-                XMMatrixInverse(nullptr, XMLoadFloat3x3(&camera.rotation)) *
-                XMMatrixTranslationFromVector(XMLoadFloat3(&params.position)) *
-                camera.GetViewProjection();
+        PostProcess postprocess = {};
+        postprocess.param0.x = threshold;
+        postprocess.param0.y = thickness;
+        postprocess.param0.z = input.GetDesc().width;
+        postprocess.param0.w = input.GetDesc().height;
+        postprocess.param1.x = color.x;
+        postprocess.param1.y = color.y;
+        postprocess.param1.z = color.z;
+        postprocess.param1.w = color.w;
+        device->PushConstants(&postprocess, sizeof(postprocess), cmd);
+        device->Draw(3, 0, cmd);
 
-            for (int i = 0; i < 4; ++i)
-            {
-                XMVECTOR V = XMVectorSet(params.corners[i].x - params.pivot.x, params.corners[i].y - params.pivot.y, 0.0f, 1.0f);
-                XMVECTOR VM = XMVector4Transform(V, M);
-                XMStoreFloat4(&image_cb.corners[i], VM);
-            }
-
-            image_cb.flags |= IMAGE_FULLSCREEN_BIT;
-        }
-
-        device->BindPipelineState(&pso_image, cmd);
-        device->BindDynamicConstantBuffer(image_cb, CBSLOT_IMAGE, cmd);
-        if (texture != nullptr)
-            device->BindResource(texture, 0, cmd);
-        device->Draw(params.fullscreen ? 3 : 4, 0, cmd);
         device->EndEvent(cmd);
     }
 }

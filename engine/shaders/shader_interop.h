@@ -17,6 +17,8 @@ using namespace DirectX;
 #define CB_GETBINDSLOT(name) __CBUFFERBINDSLOT__##name##__
 #define CBUFFER(name, slot) static const int CB_GETBINDSLOT(name) = slot; struct alignas(16) name
 #define CBUFFER_NAME(name) 
+#define PUSH_BUFFER(name) struct alignas(16) name
+#define PUSH_BUFFER_NAME(name) 
 #define CBPADDING_LINE2(num, line) float pading_##line[num];
 #define CBPADDING_LINE(num, line) CBPADDING_LINE2(num, line)
 #define CBPADDING(num) CBPADDING_LINE(num, __LINE__)
@@ -24,6 +26,8 @@ using namespace DirectX;
 // glsl shader-side types
 #define CBUFFER(blockname, slot) layout(std140, binding = slot) uniform blockname
 #define CBUFFER_NAME(name) name
+#define PUSH_BUFFER(blockname) layout(push_constant, std140) uniform blockname
+#define PUSH_BUFFER_NAME(name) name
 #define CBPADDING(num)
 #endif
 
@@ -92,7 +96,7 @@ CBUFFER(MaterialCB, CBSLOT_MATERIAL)
 
 #define IMAGE_FULLSCREEN_BIT (1 << 3)
 
-CBUFFER(ImageCB, CBSLOT_IMAGE)
+CBUFFER(ImageConstants, CBSLOT_IMAGE)
 {
     int flags;
     CBPADDING(3)
@@ -105,11 +109,23 @@ CBUFFER(MiscCB, CBSLOT_MISC)
     mat4 g_xTransform;                   // model * view * proj
 };
 
+PUSH_BUFFER(PostProcess)
+{
+
+    vec4 param0;
+    vec4 param1;
+} PUSH_BUFFER_NAME(postprocess);
+
 #ifdef __cplusplus
+// clean up c++ namespace
 #undef vec2
 #undef vec3 
 #undef vec4 
 #undef mat4 
+#undef CBUFFER
+#undef CBUFFER_NAME
+#undef PUSH_BUFFER
+#undef PUSH_BUFFER_NAME
 #endif // __cplusplus
 
 #endif // SHADER_INTEROP_H

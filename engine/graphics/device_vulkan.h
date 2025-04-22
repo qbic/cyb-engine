@@ -258,6 +258,8 @@ namespace cyb::graphics
         void EndQuery(const GPUQuery* query, uint32_t index, CommandList cmd) override;
         void ResolveQuery(const GPUQuery* query, uint32_t index, uint32_t count, const GPUBuffer* dest, uint64_t destOffset, CommandList cmd) override;
         void ResetQuery(const GPUQuery* query, uint32_t index, uint32_t count, CommandList cmd) override;
+        
+        void PushConstants(const void* data, uint32_t size, CommandList cmd, uint32_t offset) override;
 
         void BeginEvent(const char* name, CommandList cmd) override;
         void EndEvent(CommandList cmd) override;

@@ -8,6 +8,7 @@ layout(location = 0) out vec4 color;
 void main()
 {
     const float outlineThickness = postprocess.param0.x;
+    const float outlineThreshold = postprocess.param0.y;
 	const vec4 outlineColor = postprocess.param1;
 
     const vec2 texelSize = outlineThickness / vec2(textureSize(sampler0, 0));
@@ -20,10 +21,12 @@ void main()
     const float bc = texture(sampler0, uv + texelSize * vec2( 0, -1)).r; // bottom-center
     const float br = texture(sampler0, uv + texelSize * vec2( 1, -1)).r; // bottom-right
 
-    // Sobel convolution
+    // sobel convolution
     const float Gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;
     const float Gy = -tl - 2.0 * tc - tr + bl + 2.0 * bc + br;
+    float edge = length(vec2(Gx, Gy));
 
-	const float dist = length(vec2(Gx, Gy));
-	color = vec4(outlineColor.rgb, outlineColor.a * dist);
+    edge = edge > outlineThreshold ? 1 : 0;
+
+	color = vec4(outlineColor.rgb, outlineColor.a * edge);
 }

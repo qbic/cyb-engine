@@ -83,7 +83,7 @@ namespace cyb::renderer
             // DEFAULT usage buffers (long lifetime, slow update, fast read)
             //
             desc.usage = MemoryAccess::Default;
-            desc.size = sizeof(FrameCB);
+            desc.size = sizeof(FrameConstants);
             desc.stride = 0;
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_FRAME]);
             device->SetName(&constantbuffers[CBTYPE_FRAME], "constantbuffers[CBTYPE_FRAME]");
@@ -454,7 +454,7 @@ namespace cyb::renderer
         }
     }
 
-    void UpdatePerFrameData(const SceneView& view, float time, FrameCB& frameCB)
+    void UpdatePerFrameData(const SceneView& view, float time, FrameConstants& frameCB)
     {
         frameCB.time = time;
         frameCB.gamma = GAMMA;
@@ -501,7 +501,7 @@ namespace cyb::renderer
         }
     }
 
-    void UpdateRenderData(const SceneView& view, const FrameCB& frameCB, graphics::CommandList cmd)
+    void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, graphics::CommandList cmd)
     {
         device->BeginEvent("UpdateRenderData", cmd);
         device->UpdateBuffer(&constantbuffers[CBTYPE_FRAME], &frameCB, cmd);
@@ -760,6 +760,7 @@ namespace cyb::renderer
         const Texture& input,
         CommandList cmd,
         float thickness,
+        float threshold,
         const XMFLOAT4& color)
     {
         device->BeginEvent("Postprocess_Outline", cmd);
@@ -770,6 +771,8 @@ namespace cyb::renderer
 
         PostProcess postprocess = {};
         postprocess.param0.x = thickness;
+        postprocess.param0.y = threshold;
+        postprocess.param0.z = std::chrono::duration<float>(std::chrono::steady_clock::now().time_since_epoch()).count();
         postprocess.param1.x = color.x;
         postprocess.param1.y = color.y;
         postprocess.param1.z = color.z;

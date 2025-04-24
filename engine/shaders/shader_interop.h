@@ -22,6 +22,8 @@ using namespace DirectX;
 #define PADDING_LINE2(num, line) float pading_##line[num];
 #define PADDING_LINE(num, line) PADDING_LINE2(num, line)
 #define PADDING(num) PADDING_LINE(num, __LINE__)
+namespace cyb::renderer
+{
 #else
 // glsl shader-side types
 #define CONSTANTBUFFER(blockname, slot) layout(std140, binding = slot) uniform blockname
@@ -52,7 +54,7 @@ struct LightSource
     PADDING(1)
 };
 
-CONSTANTBUFFER(FrameCB, CBSLOT_FRAME)
+CONSTANTBUFFER(FrameConstants, CBSLOT_FRAME)
 {
     vec3 horizon;
     float time;                 // game runtime in ms
@@ -100,7 +102,7 @@ CONSTANTBUFFER(ImageConstants, CBSLOT_IMAGE)
 {
     int flags;
     PADDING(3)
-    vec4 corners[4];
+        vec4 corners[4];
 } CONSTANTBUFFER_NAME(image);
 
 CONSTANTBUFFER(MiscCB, CBSLOT_MISC)
@@ -116,6 +118,7 @@ PUSHBUFFER(PostProcess)
 } PUSHBUFFER_NAME(postprocess);
 
 #ifdef __cplusplus
+} // namespace cyb::graphics
 // clean up c++ namespace
 #undef vec2
 #undef vec3 

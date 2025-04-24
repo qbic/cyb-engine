@@ -12,7 +12,7 @@ using namespace cyb::graphics;
 
 namespace cyb::hli
 {
-    CVar r_selectionOutlineThickness("r_selectionOutlineThickness", 1.6f, CVarFlag::RendererBit, "Thickness of selection outline");
+    CVar r_selectionOutlineThickness("r_selectionOutlineThickness", 1.5f, CVarFlag::RendererBit, "Thickness of selection outline");
     void RenderPath3D::ResizeBuffers()
     {
         GraphicsDevice* device = cyb::graphics::GetDevice();
@@ -141,7 +141,7 @@ namespace cyb::hli
                              RenderPassImage::LoadOp::Load) };
             device->BeginRenderPass(rp, _countof(rp), cmd);
             XMFLOAT4 outlineColor = XMFLOAT4(1.0f, 0.62f, 0.17f, 1.0f);
-            renderer::Postprocess_Outline(rtSelectionOutline, cmd, r_selectionOutlineThickness.GetValue<float>(), outlineColor);
+            renderer::Postprocess_Outline(rtSelectionOutline, cmd, r_selectionOutlineThickness.GetValue<float>(), 0.05f, outlineColor);
             device->EndRenderPass(cmd);
         }
         device->EndEvent(cmd);

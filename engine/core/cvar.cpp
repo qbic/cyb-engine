@@ -65,6 +65,8 @@ namespace cyb
                 return "";
             else if constexpr (std::is_same_v<T, bool>)
                 return v ? "true" : "false";
+            else if constexpr (std::is_same_v<T, float>)
+                return std::format("{:.2f}", v);
             else
                 return std::to_string(v);
         }, m_value);

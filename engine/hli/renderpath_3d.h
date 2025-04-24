@@ -20,7 +20,7 @@ namespace cyb::hli
         renderer::SceneView sceneViewMain;
         //renderer::SceneView sceneViewDebug;
 
-        FrameCB frameCB = {};
+        renderer::FrameConstants frameCB = {};
 
         graphics::Texture renderTarget_Main;
         graphics::Texture depthBuffer_Main;

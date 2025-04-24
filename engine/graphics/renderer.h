@@ -118,10 +118,10 @@ namespace cyb::renderer
     bool LoadShader(graphics::ShaderStage stage, graphics::Shader& shader, const std::string& filename);
 
     // Prepare view for rendering
-    void UpdatePerFrameData(const SceneView& view, float time, FrameCB& frameCB);
+    void UpdatePerFrameData(const SceneView& view, float time, FrameConstants& frameCB);
 
     // Updates the GPU state according to the previously called UpdatePerFrameData()
-    void UpdateRenderData(const SceneView& view, const FrameCB& frameCB, graphics::CommandList cmd);
+    void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, graphics::CommandList cmd);
 
     // Updated the per camera constant buffer
     void BindCameraCB(const scene::CameraComponent* camera, graphics::CommandList cmd);
@@ -139,5 +139,6 @@ namespace cyb::renderer
         const graphics::Texture& input,
         graphics::CommandList cmd,
         float thickness,
+        float threshold,
         const XMFLOAT4& color);
 }

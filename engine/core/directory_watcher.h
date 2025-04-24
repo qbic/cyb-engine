@@ -36,7 +36,7 @@ namespace cyb
             using Clock = std::chrono::steady_clock;
 
             void Enqueue(const FileChangeEvent& event);
-            [[nodiscard]] std::vector<FileChangeEvent> PollStableFiles(int delayMs = 200);
+            [[nodiscard]] std::vector<FileChangeEvent> PollStableFiles(int delayMs);
 
         private:
             struct Entry
@@ -59,6 +59,8 @@ namespace cyb
 
         DirectoryWatcher() = default;
         ~DirectoryWatcher();
+        
+        void SetEnqueueToStableDelay(uint32_t delay);
 
         void Start();
         void Stop();
@@ -85,6 +87,7 @@ namespace cyb
         std::thread m_watchThread;
         std::atomic_bool m_isRunning = false;
         detail::StableFileEventQueue m_stableQueue;
+        uint32_t m_enqueueToStableDelay = 200;        // in ms
 #endif
     };
 }

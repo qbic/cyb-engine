@@ -7,8 +7,9 @@
 
 namespace cyb
 {
+    class CVar;
     using CVarValue = std::variant<int32_t, uint32_t, float, bool, std::string>;
-    using CVarCallback = std::function<void(const CVarValue&)>;
+    using CVarCallback = std::function<void(const CVar*)>;
 
     enum class CVarFlag : uint32_t
     {

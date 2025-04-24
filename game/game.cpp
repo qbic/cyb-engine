@@ -5,13 +5,9 @@ using namespace cyb;
 
 void Game::Load()
 {
-    //logger::SetMessageSeverityThreshold(logger::Level::Info);
-
 #if 1 
-    Timer timer;
     std::string filename = resourcemanager::FindFile("scenes/terrain_04.cbs");
     SerializeFromFile(filename, scene::GetScene());
-    CYB_INFO("Serialized scene from file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
 #else
     editor::TerrainMeshDesc terrainDesc;
     terrainDesc.size = 1000;

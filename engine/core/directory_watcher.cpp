@@ -42,6 +42,11 @@ namespace cyb
         Stop();
     }
 
+    void DirectoryWatcher::SetEnqueueToStableDelay(uint32_t delay)
+    {
+        m_enqueueToStableDelay = delay;
+    }
+
     void DirectoryWatcher::Start()
     {
         if (m_isRunning)
@@ -89,7 +94,7 @@ namespace cyb
                         info.pending = false;
                     }
 
-                    for (const auto& event : m_stableQueue.PollStableFiles())
+                    for (const auto& event : m_stableQueue.PollStableFiles(m_enqueueToStableDelay))
                         info.callback(event);
                 }
             }

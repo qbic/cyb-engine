@@ -52,7 +52,7 @@ namespace cyb
         SetFlag(m_flags, CVarFlag::ModifiedBit, true);
 
         if (m_onChangeCallback)
-            m_onChangeCallback(m_value);
+            m_onChangeCallback(this);
     }
 
     void CVar::Update()

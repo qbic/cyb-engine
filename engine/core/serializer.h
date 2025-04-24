@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 #include <DirectXMath.h>
+#include "core/logger.h"
+#include "core/timer.h"
 #include "core/filesystem.h"
 
 using DirectX::XMFLOAT3;
@@ -108,6 +110,7 @@ namespace cyb
     template <typename T>
     bool SerializeFromFile(const std::string filename, T& serializeable)
     {
+        Timer timer;
         std::vector<uint8_t> buffer;
         if (!filesystem::ReadFile(filename, buffer))
             return false;
@@ -115,6 +118,8 @@ namespace cyb
         Archive archive(buffer.data(), buffer.size());
         Serializer ser(archive);
         serializeable.Serialize(ser);
+
+        CYB_INFO("Imported scene from file {} in {:.2f}ms", filename, timer.ElapsedMilliseconds());
         return true;
     }
 

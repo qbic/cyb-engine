@@ -147,8 +147,8 @@ namespace cyb::hli
             assert(success);
         });
 
-        r_vsync.SetOnChangeCallback([] (const CVarValue& value) {
-            eventsystem::FireEvent(eventsystem::Event_SetVSync, std::get<bool>(value) ? 1ull : 0ull);
+        r_vsync.SetOnChangeCallback([] (const CVar* cvar) {
+            eventsystem::FireEvent(eventsystem::Event_SetVSync, cvar->GetValue<bool>() ? 1ull : 0ull);
         });
     }
 }

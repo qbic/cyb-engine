@@ -46,7 +46,8 @@ namespace cyb::resourcemanager
     std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
     DirectoryWatcher directoryWatcher;
-    CVar reloadAssetsOnChange("reloadAssetsOnChange", true, CVarFlag::SystemBit, "Auto reload loaded asset on filesystem change");
+    CVar assetReloadOnChange("assetReloadOnChange", true, CVarFlag::SystemBit, "Auto reload loaded asset on filesystem change");
+    CVar assetFileWatcherStableDelay("assetFileWatcherStableDelay", 200, CVarFlag::SystemBit, "Delay in milliseconds from filesystem change to stable file");
 
     static const ska::flat_hash_map<std::string_view, ResourceType> types = {
         std::make_pair("jpg",  ResourceType::Image),
@@ -79,8 +80,8 @@ namespace cyb::resourcemanager
 
     void Initialize()
     {
-        reloadAssetsOnChange.SetOnChangeCallback([&] (const CVarValue& value) {
-            if (std::get<bool>(value))
+        assetReloadOnChange.SetOnChangeCallback([&] (const CVar* cvar) {
+            if (cvar->GetValue<bool>())
             {
                 // re-add all search paths and start
                 for (const auto& path : searchPaths)
@@ -93,7 +94,11 @@ namespace cyb::resourcemanager
             }
         });
 
-        if (reloadAssetsOnChange.GetValue<bool>())
+        assetFileWatcherStableDelay.SetOnChangeCallback([&] (const CVar* cvar) {
+            directoryWatcher.SetEnqueueToStableDelay(cvar->GetValue<uint32_t>());
+        });
+
+        if (assetReloadOnChange.GetValue<bool>())
             directoryWatcher.Start();
     }
 
@@ -103,7 +108,7 @@ namespace cyb::resourcemanager
         const std::string slash = (path[path.length() - 1] != '/') ? "/" : "";
         searchPaths.push_back(path + slash);
 
-        if (reloadAssetsOnChange.GetValue<bool>())
+        if (assetReloadOnChange.GetValue<bool>())
             directoryWatcher.AddDirectory(path, OnAssetFileChangeEvent, true);
     }
 
@@ -240,7 +245,7 @@ namespace cyb::resourcemanager
             return Resource();
 
         Resource loadedAsset = Load(internalState);
-        CYB_INFO("Loaded {} asset name={} hash=0x{:x} in {:.2f}ms", GetTypeAsString(internalState->type), fixedName, hash, timer.ElapsedMilliseconds());
+        CYB_TRACE("Loaded {} asset name={} hash=0x{:x} in {:.2f}ms", GetTypeAsString(internalState->type), fixedName, hash, timer.ElapsedMilliseconds());
 
         return loadedAsset;
     }

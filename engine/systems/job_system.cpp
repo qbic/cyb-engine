@@ -51,8 +51,6 @@ namespace cyb::jobsystem
         std::deque<Job> queue;
         std::mutex locker;
 
-        [[nodiscard]] inline bool IsEmpty() const { return queue.empty(); }
-
         inline void PushBack(Job&& item)
         {
             std::scoped_lock lock(locker);
@@ -134,7 +132,7 @@ namespace cyb::jobsystem
         for (uint32_t threadID = 0; threadID < internal_state.numThreads; ++threadID)
         {
             std::thread& worker = internal_state.threads.emplace_back([threadID] {
-                thread_local uint32_t localThreadID = threadID;
+                localQueueIndex = threadID;
                 while (internal_state.alive.load())
                 {
                     Work();

@@ -1,4 +1,5 @@
 #include <thread>
+#include <semaphore>
 #include <deque>
 #include <condition_variable>
 #if defined(_WIN32)
@@ -41,7 +42,7 @@ namespace cyb::jobsystem
             if (args.sharedMemory != nullptr)
                 _freea(args.sharedMemory);
 
-            ctx->counter.fetch_sub(1);
+            ctx->counter.fetch_sub(1, std::memory_order_acq_rel);
         }
     };
 
@@ -50,10 +51,12 @@ namespace cyb::jobsystem
         std::deque<Job> queue;
         std::mutex locker;
 
-        inline void PushBack(const Job& item)
+        [[nodiscard]] inline bool IsEmpty() const { return queue.empty(); }
+
+        inline void PushBack(Job&& item)
         {
             std::scoped_lock lock(locker);
-            queue.push_back(item);
+            queue.push_back(std::move(item));
         }
 
         inline bool PopFront(Job& item)
@@ -66,6 +69,7 @@ namespace cyb::jobsystem
             queue.pop_front();
             return true;
         }
+
     };
 
     // This structure is responsible to stop worker thread loops.
@@ -76,8 +80,7 @@ namespace cyb::jobsystem
         uint32_t numThreads = 0;
         std::unique_ptr<JobQueue[]> jobQueuePerThread;
         std::atomic_bool alive{ true };
-        std::condition_variable wakeCondition;
-        std::mutex wakeMutex;
+        std::counting_semaphore<> wakeSemaphore{ 0 };
         std::atomic<uint32_t> nextQueue{ 0 };
         std::vector<std::thread> threads;
 
@@ -88,7 +91,7 @@ namespace cyb::jobsystem
             std::thread waker([&] {
                 // wake up sleeping worker threads
                 while (wake_loop)
-                    wakeCondition.notify_all();
+                    wakeSemaphore.release(numThreads);
             });
 
             for (auto& thread : threads)
@@ -103,17 +106,16 @@ namespace cyb::jobsystem
 
     // Start working on a job queue
     // After the job queue is finished, it can switch to an other queue and steal jobs from there
-    inline void work(uint32_t startingQueue)
+    thread_local uint32_t localQueueIndex = 0;
+    inline void Work()
     {
         Job job;
-        for (uint32_t i = 0; i < internal_state.numThreads; ++i)
-        {
-            JobQueue& job_queue = internal_state.jobQueuePerThread[startingQueue % internal_state.numThreads];
-            while (job_queue.PopFront(job))
-                job.Execute();
 
-            startingQueue++;
-        }
+        JobQueue& jobQueue = internal_state.jobQueuePerThread[localQueueIndex];
+        while (jobQueue.PopFront(job))
+            job.Execute();
+
+        localQueueIndex = (localQueueIndex + 1) % internal_state.numThreads;
     }
 
     void Initialize()
@@ -132,13 +134,11 @@ namespace cyb::jobsystem
         for (uint32_t threadID = 0; threadID < internal_state.numThreads; ++threadID)
         {
             std::thread& worker = internal_state.threads.emplace_back([threadID] {
+                thread_local uint32_t localThreadID = threadID;
                 while (internal_state.alive.load())
                 {
-                    work(threadID);
-
-                    // finished with jobs, put to sleep
-                    std::unique_lock<std::mutex> lock(internal_state.wakeMutex);
-                    internal_state.wakeCondition.wait(lock);
+                    Work();
+                    internal_state.wakeSemaphore.acquire();
                 }
             });
 
@@ -171,8 +171,8 @@ namespace cyb::jobsystem
         job.groupJobEnd = 1;
         job.sharedMemorySize = 0;
 
-        internal_state.jobQueuePerThread[internal_state.nextQueue.fetch_add(1) % internal_state.numThreads].PushBack(job);
-        internal_state.wakeCondition.notify_one();
+        internal_state.jobQueuePerThread[internal_state.nextQueue.fetch_add(1) % internal_state.numThreads].PushBack(std::move(job));
+        internal_state.wakeSemaphore.release(1);
     }
 
     uint32_t DispatchGroupCount(uint32_t jobCount, uint32_t groupSize)
@@ -202,37 +202,38 @@ namespace cyb::jobsystem
             job.groupJobOffset = groupID * groupSize;
             job.groupJobEnd = std::min(job.groupJobOffset + groupSize, jobCount);
 
-            internal_state.jobQueuePerThread[internal_state.nextQueue.fetch_add(1) % internal_state.numThreads].PushBack(job);
+            internal_state.jobQueuePerThread[internal_state.nextQueue.fetch_add(1) % internal_state.numThreads].PushBack(std::move(job));
         }
 
-        internal_state.wakeCondition.notify_all();
+        internal_state.wakeSemaphore.release(groupCount);
     }
 
     bool IsBusy(const Context& ctx)
     {
         // whenever the context label is greater than zero, it means that there is
         // still work that needs to be done
-        return ctx.counter.load() > 0;
+        return ctx.counter.load(std::memory_order_acquire) > 0;
     }
 
     void Wait(const Context& ctx)
     {
-        if (IsBusy(ctx))
+        if (!IsBusy(ctx))
+            return;
+
+        int spin = 0;
+        while (IsBusy(ctx))
         {
-            // Wake any threads that might be sleeping
-            internal_state.wakeCondition.notify_all();
-
             // work() will pick up any jobs that are on stand by and execute them on this thread
-            work(internal_state.nextQueue.fetch_add(1) % internal_state.numThreads);
+            Work();
+            if (!IsBusy(ctx))
+                break;
 
-            while (IsBusy(ctx))
-            {
-                // If we are here, then there are still remaining jobs that work() couldn't pick up.
-                //	In this case those jobs are not standing by on a queue but currently executing
-                //	on other threads, so they cannot be picked up by this thread.
-                //	Allow to swap out this thread by OS to not spin endlessly for nothing
+            // If we are here, then there are still remaining jobs that work() couldn't pick up.
+            //	In this case those jobs are not standing by on a queue but currently executing
+            //	on other threads, so they cannot be picked up by this thread.
+            //	Allow to swap out this thread by OS to not spin endlessly for nothing
+            if (++spin > 20)
                 std::this_thread::yield();
-            }
         }
     }
 }

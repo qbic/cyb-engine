@@ -1,8 +1,11 @@
 #include <thread>
 #include <semaphore>
+#include <deque>
+#include <condition_variable>
 #if defined(_WIN32)
 #include <Windows.h>
 #endif // _WIN32
+#include "core/atomic_queue.h"
 #include "core/platform.h"
 #include "core/logger.h"
 #include "systems/job_system.h"
@@ -44,89 +47,7 @@ namespace cyb::jobsystem
         }
     };
 
-    class JobQueue
-    {
-    public:
-        static const uint32_t capacity = 1024;
-        static_assert((capacity& (capacity - 1)) == 0, "Capacity must be power of 2!");
-
-        struct Slot
-        {
-            std::atomic<size_t> sequence;
-            Job item;
-        };
-
-        JobQueue()
-        {
-            for (size_t i = 0; i < capacity; ++i)
-                m_buffer[i].sequence.store(i, std::memory_order_relaxed);
-        }
-
-        bool Push(const Job& value)
-        {
-            size_t pos = m_enqueuePos.load(std::memory_order_relaxed);
-            for (;;)
-            {
-                Slot& slot = m_buffer[pos & (capacity - 1)];
-                size_t seq = slot.sequence.load(std::memory_order_acquire);
-                intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos);
-
-                if (diff == 0)
-                {
-                    if (m_enqueuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
-                    {
-                        slot.item = value;
-                        slot.sequence.store(pos + 1, std::memory_order_release);
-                        return true;
-                    }
-                }
-                else if (diff < 0)
-                {
-                    // Queue full
-                    return false;
-                }
-                else
-                {
-                    pos = m_enqueuePos.load(std::memory_order_relaxed);
-                }
-            }
-        }
-
-        bool Pop(Job& result)
-        {
-            size_t pos = m_dequeuePos.load(std::memory_order_relaxed);
-            for (;;)
-            {
-                Slot& slot = m_buffer[pos & (capacity - 1)];
-                size_t seq = slot.sequence.load(std::memory_order_acquire);
-                intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos + 1);
-
-                if (diff == 0)
-                {
-                    if (m_dequeuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
-                    {
-                        result = slot.item;
-                        slot.sequence.store(pos + capacity, std::memory_order_release);
-                        return true;
-                    }
-                }
-                else if (diff < 0)
-                {
-                    // queue empty
-                    return false;
-                }
-                else
-                {
-                    pos = m_dequeuePos.load(std::memory_order_relaxed);
-                }
-            }
-        }
-
-    private:
-        Slot m_buffer[capacity];
-        std::atomic<size_t> m_enqueuePos{ 0 };
-        std::atomic<size_t> m_dequeuePos{ 0 };
-    };
+    using AtomicJobQueue = AtomicQueue<Job, 1024>;
 
     // This structure is responsible to stop worker thread loops.
     // Once this is destroyed, worker threads will be woken up and end their loops.
@@ -134,7 +55,7 @@ namespace cyb::jobsystem
     {
         uint32_t numCores = 0;
         uint32_t numThreads = 0;
-        std::unique_ptr<JobQueue[]> jobQueuePerThread;
+        std::unique_ptr<AtomicJobQueue[]> jobQueuePerThread;
         std::atomic_bool alive{ true };
         std::counting_semaphore<> wakeSemaphore{ 0 };
         std::atomic<uint32_t> nextQueue{ 0 };
@@ -168,8 +89,7 @@ namespace cyb::jobsystem
     inline void Work()
     {
         Job job;
-
-        JobQueue& jobQueue = internal_state.jobQueuePerThread[localQueueIndex];
+        AtomicJobQueue& jobQueue = internal_state.jobQueuePerThread[localQueueIndex];
         while (jobQueue.Pop(job))
             job.Execute();
 
@@ -185,7 +105,7 @@ namespace cyb::jobsystem
 
         // calculate the actual number of worker threads we want
         internal_state.numThreads = std::max(1u, internal_state.numCores - 1); // -1 for main thread
-        internal_state.jobQueuePerThread = std::make_unique<JobQueue[]>(internal_state.numThreads);
+        internal_state.jobQueuePerThread = std::make_unique<AtomicJobQueue[]>(internal_state.numThreads);
         internal_state.threads.reserve(internal_state.numThreads);
 
         // start from 1, leaving the main thread free
@@ -233,7 +153,7 @@ namespace cyb::jobsystem
         internal_state.wakeSemaphore.release(1);
     }
 
-    uint32_t DispatchGroupCount(uint32_t jobCount, uint32_t groupSize)
+    [[nodiscard]] uint32_t DispatchGroupCount(uint32_t jobCount, uint32_t groupSize)
     {
         // Calculate the amount of job groups to dispatch (overestimate, or "ceil")
         return (jobCount + groupSize - 1) / groupSize;
@@ -249,13 +169,12 @@ namespace cyb::jobsystem
         // Context state is updated
         ctx.counter.fetch_add(groupCount);
 
-        Job job;
-        job.ctx = &ctx;
-        job.task = task;
-
         for (uint32_t groupID = 0; groupID < groupCount; ++groupID)
         {
             // For each group, generate one real job
+            Job job;
+            job.ctx = &ctx;
+            job.task = task;
             job.groupID = groupID;
             job.groupJobOffset = groupID * groupSize;
             job.groupJobEnd = std::min(job.groupJobOffset + groupSize, jobCount);
@@ -281,16 +200,16 @@ namespace cyb::jobsystem
         int spin = 0;
         while (IsBusy(ctx))
         {
-            // work() will pick up any jobs that are on stand by and execute them on this thread
-            Work();
-            if (!IsBusy(ctx))
-                break;
+            // wake up worker threads in case they are sleeping
+            internal_state.wakeSemaphore.release(internal_state.numThreads);
 
             // If we are here, then there are still remaining jobs that work() couldn't pick up.
             //	In this case those jobs are not standing by on a queue but currently executing
             //	on other threads, so they cannot be picked up by this thread.
             //	Allow to swap out this thread by OS to not spin endlessly for nothing
-            if (++spin > 20)
+            if (++spin > 2000)
+                _mm_pause();
+            else
                 std::this_thread::yield();
         }
     }

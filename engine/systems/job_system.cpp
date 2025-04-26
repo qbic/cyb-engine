@@ -1,7 +1,5 @@
 #include <thread>
 #include <semaphore>
-#include <deque>
-#include <condition_variable>
 #if defined(_WIN32)
 #include <Windows.h>
 #endif // _WIN32
@@ -46,28 +44,88 @@ namespace cyb::jobsystem
         }
     };
 
-    struct JobQueue
+    class JobQueue
     {
-        std::deque<Job> queue;
-        std::mutex locker;
+    public:
+        static const uint32_t capacity = 1024;
+        static_assert((capacity& (capacity - 1)) == 0, "Capacity must be power of 2!");
 
-        inline void PushBack(Job&& item)
+        struct Slot
         {
-            std::scoped_lock lock(locker);
-            queue.push_back(std::move(item));
+            std::atomic<size_t> sequence;
+            Job item;
+        };
+
+        JobQueue()
+        {
+            for (size_t i = 0; i < capacity; ++i)
+                m_buffer[i].sequence.store(i, std::memory_order_relaxed);
         }
 
-        inline bool PopFront(Job& item)
+        bool Push(const Job& value)
         {
-            std::scoped_lock lock(locker);
-            if (queue.empty())
-                return false;
-            
-            item = std::move(queue.front());
-            queue.pop_front();
-            return true;
+            size_t pos = m_enqueuePos.load(std::memory_order_relaxed);
+            for (;;)
+            {
+                Slot& slot = m_buffer[pos & (capacity - 1)];
+                size_t seq = slot.sequence.load(std::memory_order_acquire);
+                intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos);
+
+                if (diff == 0)
+                {
+                    if (m_enqueuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
+                    {
+                        slot.item = value;
+                        slot.sequence.store(pos + 1, std::memory_order_release);
+                        return true;
+                    }
+                }
+                else if (diff < 0)
+                {
+                    // Queue full
+                    return false;
+                }
+                else
+                {
+                    pos = m_enqueuePos.load(std::memory_order_relaxed);
+                }
+            }
         }
 
+        bool Pop(Job& result)
+        {
+            size_t pos = m_dequeuePos.load(std::memory_order_relaxed);
+            for (;;)
+            {
+                Slot& slot = m_buffer[pos & (capacity - 1)];
+                size_t seq = slot.sequence.load(std::memory_order_acquire);
+                intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos + 1);
+
+                if (diff == 0)
+                {
+                    if (m_dequeuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
+                    {
+                        result = slot.item;
+                        slot.sequence.store(pos + capacity, std::memory_order_release);
+                        return true;
+                    }
+                }
+                else if (diff < 0)
+                {
+                    // queue empty
+                    return false;
+                }
+                else
+                {
+                    pos = m_dequeuePos.load(std::memory_order_relaxed);
+                }
+            }
+        }
+
+    private:
+        Slot m_buffer[capacity];
+        std::atomic<size_t> m_enqueuePos{ 0 };
+        std::atomic<size_t> m_dequeuePos{ 0 };
     };
 
     // This structure is responsible to stop worker thread loops.
@@ -84,7 +142,9 @@ namespace cyb::jobsystem
 
         ~InternalState()
         {
-            alive.store(false); // indicate that new jobs cannot be started from this point
+            // indicate that new jobs cannot be started from this point
+            alive.store(false);
+
             bool wake_loop = true;
             std::thread waker([&] {
                 // wake up sleeping worker threads
@@ -110,7 +170,7 @@ namespace cyb::jobsystem
         Job job;
 
         JobQueue& jobQueue = internal_state.jobQueuePerThread[localQueueIndex];
-        while (jobQueue.PopFront(job))
+        while (jobQueue.Pop(job))
             job.Execute();
 
         localQueueIndex = (localQueueIndex + 1) % internal_state.numThreads;
@@ -169,7 +229,7 @@ namespace cyb::jobsystem
         job.groupJobEnd = 1;
         job.sharedMemorySize = 0;
 
-        internal_state.jobQueuePerThread[internal_state.nextQueue.fetch_add(1) % internal_state.numThreads].PushBack(std::move(job));
+        internal_state.jobQueuePerThread[internal_state.nextQueue.fetch_add(1) % internal_state.numThreads].Push(std::move(job));
         internal_state.wakeSemaphore.release(1);
     }
 
@@ -200,7 +260,7 @@ namespace cyb::jobsystem
             job.groupJobOffset = groupID * groupSize;
             job.groupJobEnd = std::min(job.groupJobOffset + groupSize, jobCount);
 
-            internal_state.jobQueuePerThread[internal_state.nextQueue.fetch_add(1) % internal_state.numThreads].PushBack(std::move(job));
+            internal_state.jobQueuePerThread[internal_state.nextQueue.fetch_add(1) % internal_state.numThreads].Push(std::move(job));
         }
 
         internal_state.wakeSemaphore.release(groupCount);

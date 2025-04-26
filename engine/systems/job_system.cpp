@@ -123,7 +123,7 @@ namespace cyb::jobsystem
         internal_state.mainThreadId = std::this_thread::get_id();
 
         // start from 1, leaving the main thread free
-        for (uint32_t threadID = 0; threadID < internal_state.numThreads; ++threadID)
+        for (uint32_t threadID = 1; threadID < internal_state.numThreads; ++threadID)
         {
             std::thread& worker = internal_state.threads.emplace_back([threadID] {
                 localQueueIndex = threadID;
@@ -222,7 +222,7 @@ namespace cyb::jobsystem
             //	In this case those jobs are not standing by on a queue but currently executing
             //	on other threads, so they cannot be picked up by this thread.
             //	Allow to swap out this thread by OS to not spin endlessly for nothing
-            if (++spin < 2000)
+            if (++spin < 200)
                 _mm_pause();
             else
                 std::this_thread::yield();

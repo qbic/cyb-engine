@@ -415,7 +415,7 @@ namespace cyb::editor
         const void* nodeId = (void*)((size_t)node->entity);
         bool isNodeOpen = ImGui::TreeNodeEx(nodeId, nodeFlags, "%s", node->name.data());
         if (ImGui::IsItemClicked())
-            m_selectedEntity = node->entity;
+            SetSelectedEntity(node->entity);
 
         static const char* dragDropId = "SGV_TreeNode";
         if (ImGui::BeginDragDropSource())

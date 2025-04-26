@@ -55,6 +55,7 @@ namespace cyb::jobsystem
     {
         uint32_t numCores = 0;
         uint32_t numThreads = 0;
+        std::thread::id mainThreadId;
         std::unique_ptr<AtomicJobQueue[]> jobQueuePerThread;
         std::atomic_bool alive{ true };
         std::counting_semaphore<> wakeSemaphore{ 0 };
@@ -91,7 +92,19 @@ namespace cyb::jobsystem
         Job job;
         AtomicJobQueue& jobQueue = internal_state.jobQueuePerThread[localQueueIndex];
         while (jobQueue.Pop(job))
-            job.Execute();
+        {
+            bool isWorkerThread = (std::this_thread::get_id() != internal_state.mainThreadId);
+            if (job.ctx == nullptr || job.ctx->allowWorkOnMainThread || isWorkerThread)
+            {
+                job.Execute();
+            }
+            else
+            {
+                // skip executing this job and push it back to the queue
+                jobQueue.Push(std::move(job));
+                break;
+            }
+        }
 
         localQueueIndex = (localQueueIndex + 1) % internal_state.numThreads;
     }
@@ -107,6 +120,7 @@ namespace cyb::jobsystem
         internal_state.numThreads = std::max(1u, internal_state.numCores - 1); // -1 for main thread
         internal_state.jobQueuePerThread = std::make_unique<AtomicJobQueue[]>(internal_state.numThreads);
         internal_state.threads.reserve(internal_state.numThreads);
+        internal_state.mainThreadId = std::this_thread::get_id();
 
         // start from 1, leaving the main thread free
         for (uint32_t threadID = 0; threadID < internal_state.numThreads; ++threadID)
@@ -200,14 +214,15 @@ namespace cyb::jobsystem
         int spin = 0;
         while (IsBusy(ctx))
         {
-            // wake up worker threads in case they are sleeping
-            internal_state.wakeSemaphore.release(internal_state.numThreads);
+            Work();
+            if (!IsBusy(ctx))
+                break;
 
             // If we are here, then there are still remaining jobs that work() couldn't pick up.
             //	In this case those jobs are not standing by on a queue but currently executing
             //	on other threads, so they cannot be picked up by this thread.
             //	Allow to swap out this thread by OS to not spin endlessly for nothing
-            if (++spin > 2000)
+            if (++spin < 2000)
                 _mm_pause();
             else
                 std::this_thread::yield();

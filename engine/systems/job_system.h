@@ -21,6 +21,7 @@ namespace cyb::jobsystem
     struct Context
     {
         std::atomic<uint32_t> counter = 0;
+        bool allowWorkOnMainThread = true;
     };
 
     void Execute(Context& ctx, const std::function<void(JobArgs)>& task);

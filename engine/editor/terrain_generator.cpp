@@ -476,6 +476,7 @@ namespace cyb::editor
             triangulator.Run(m_meshDesc.maxError, m_meshDesc.maxVertices, m_meshDesc.maxTriangles);
 
             jobsystem::Context ctx;
+            ctx.allowWorkOnMainThread = false;
             std::vector<XMFLOAT3> points;
             jobsystem::Execute(ctx, [&](jobsystem::JobArgs args)
             {
@@ -568,6 +569,7 @@ namespace cyb::editor
 
         cancelTerrainGen.store(false);
 
+        jobContext.allowWorkOnMainThread = false;
         jobsystem::Execute(jobContext, [=](jobsystem::JobArgs)
         {
             requestChunk(0, 0);

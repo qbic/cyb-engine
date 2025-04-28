@@ -134,16 +134,16 @@ namespace cyb::hli
 
         canvas.SetCanvas(window);
 
-        graphics::SwapChainDesc desc = {};
+        graphics::SwapchainDesc desc = {};
         WindowInfo info = GetWindowInfo(window);
         desc.width = canvas.GetPhysicalWidth();
         desc.height = canvas.GetPhysicalHeight();;
-        graphics::GetDevice()->CreateSwapChain(&desc, window, &swapchain);
+        graphics::GetDevice()->CreateSwapchain(&desc, window, &swapchain);
 
         changeVSyncEvent = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this] (uint64_t userdata) {
-            SwapChainDesc desc = swapchain.desc;
+            SwapchainDesc desc = swapchain.desc;
             desc.vsync = (userdata != 0);
-            bool success = graphicsDevice->CreateSwapChain(&desc, nullptr, &swapchain);
+            bool success = graphicsDevice->CreateSwapchain(&desc, nullptr, &swapchain);
             assert(success);
         });
 

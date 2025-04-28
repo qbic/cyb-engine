@@ -338,7 +338,7 @@ namespace cyb::graphics
         bool depthBoundsTestEnable = false;
     };
 
-    struct SwapChainDesc
+    struct SwapchainDesc
     {
         uint32_t width = 0;
         uint32_t height = 0;
@@ -396,7 +396,7 @@ namespace cyb::graphics
 
         Type type = Type::Unknown;
         void* mappedData = nullptr;
-        uint32_t mappedRowPitch = 0;
+        uint32_t mappedSize = 0;
 
         constexpr bool IsTexture() const { return type == Type::Texture; }
         constexpr bool IsBuffer() const { return type == Type::Buffer; }
@@ -552,7 +552,7 @@ namespace cyb::graphics
             return info;
         }
 
-        static RenderPassInfo GetFrom(const SwapChainDesc& swapchainDesc)
+        static RenderPassInfo GetFrom(const SwapchainDesc& swapchainDesc)
         {
             RenderPassInfo info;
             info.rtCount = 1;
@@ -580,11 +580,11 @@ namespace cyb::graphics
         const PipelineStateDesc& GetDesc() const { return desc; }
     };
 
-    struct SwapChain final : public RenderDeviceChild
+    struct Swapchain final : public RenderDeviceChild
     {
-        SwapChainDesc desc;
+        SwapchainDesc desc;
 
-        constexpr const SwapChainDesc& GetDesc() const { return desc; }
+        constexpr const SwapchainDesc& GetDesc() const { return desc; }
     };
 
     //=============================================================
@@ -627,7 +627,7 @@ namespace cyb::graphics
     public:
         virtual ~GraphicsDevice() = default;
 
-        virtual bool CreateSwapChain(const SwapChainDesc* desc, WindowHandle window, SwapChain* swapchain) const = 0;
+        virtual bool CreateSwapchain(const SwapchainDesc* desc, WindowHandle window, Swapchain* swapchain) const = 0;
         virtual bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const = 0;
         virtual bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const = 0;
         virtual bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const = 0;
@@ -665,7 +665,7 @@ namespace cyb::graphics
         //	- To get a CommandList that can be recorded into, call BeginCommandList()
         //	- These are not thread safe, only a single thread should use a single CommandList at one time
 
-        virtual void BeginRenderPass(const SwapChain* swapchain, CommandList cmd) = 0;
+        virtual void BeginRenderPass(const Swapchain* swapchain, CommandList cmd) = 0;
         virtual void BeginRenderPass(const RenderPassImage* images, uint32_t imageCount, CommandList cmd) = 0;
         virtual void EndRenderPass(CommandList cmd) = 0;
 

@@ -40,6 +40,6 @@ namespace cyb::hli
         Canvas canvas;
         RenderPath* activePath = nullptr;
         WindowHandle window;
-        graphics::SwapChain swapchain;
+        graphics::Swapchain swapchain;
     };
 }

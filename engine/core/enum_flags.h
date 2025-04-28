@@ -63,3 +63,9 @@ constexpr void SetFlag(E& lhs, E rhs, bool value) noexcept
     lhs &= ~rhs;
     lhs |= (E)(static_cast<underlying>(value) * static_cast<underlying>(rhs));
 }
+
+template<typename E>
+constexpr std::underlying_type<E>::type NumericalValue(E e) noexcept
+{
+    return (static_cast<std::underlying_type<E>::type>(e));
+}

@@ -1170,26 +1170,28 @@ namespace cyb::editor
             return;
 
         ImGuizmo::BeginFrame();
-        ImGui::Begin("CybEngine Editor", 0, ImGuiWindowFlags_MenuBar);
+        ImGuiID gizmoWindowID = 0;
+        if (ImGui::Begin("CybEngine Editor", 0, ImGuiWindowFlags_MenuBar))
+        {
 
-        // use windowID for gizmo undo commands
-        const ImGuiID gizmoWindowID = ImGui::GetCurrentWindow()->ID;
+            // use windowID for gizmo undo commands
+            gizmoWindowID = ImGui::GetCurrentWindow()->ID;
 
-        DrawMenuBar();
-        DrawIconBar();
+            DrawMenuBar();
+            DrawIconBar();
 
-        ImGui::Text("Scene Hierarchy:");
-        ImGui::BeginChild("Scene hierarchy", ImVec2(0, 300), ImGuiChildFlags_Border);
-        scenegraphView.GenerateView();
-        scenegraphView.WindowContent();
-        ImGui::EndChild();
+            ImGui::Text("Scene Hierarchy:");
+            ImGui::BeginChild("Scene hierarchy", ImVec2(0, 300), ImGuiChildFlags_Border);
+            scenegraphView.GenerateView();
+            scenegraphView.WindowContent();
+            ImGui::EndChild();
 
-        ImGui::Text("Components:");
-        const float componentChildHeight = math::Max(300.0f, ImGui::GetContentRegionAvail().y);
-        ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), ImGuiChildFlags_Border);
-        EditEntityComponents(scenegraphView.GetSelectedEntity());
-        ImGui::EndChild();
-
+            ImGui::Text("Components:");
+            const float componentChildHeight = math::Max(300.0f, ImGui::GetContentRegionAvail().y);
+            ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), ImGuiChildFlags_Border);
+            EditEntityComponents(scenegraphView.GetSelectedEntity());
+            ImGui::EndChild();
+        }
         ImGui::End();
 
         // Only draw gizmo with a valid entity containing transform component
@@ -1230,6 +1232,7 @@ namespace cyb::editor
             else
                 scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);
         }
+
 
         DrawTools();
     }

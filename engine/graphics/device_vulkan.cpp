@@ -324,39 +324,41 @@ namespace cyb::graphics::vulkan_internal
         VkPipelineDepthStencilStateCreateInfo depthstencil = {};
     };
 
-    struct SwapChain_Vulkan
+    struct Swapchain_Vulkan
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
         VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-        VkFormat image_format;
-        VkExtent2D extent = {};
-        std::vector<VkImage> images;
-        std::vector<VkImageView> imageViews;
+        VkFormat swapchainImageFormat;
+        VkExtent2D swapchainExtent = {};
+        std::vector<VkImage> swapchainImages;
+        std::vector<VkImageView> swapchainImageViews;
 
         VkSurfaceKHR surface = VK_NULL_HANDLE;
 
-        uint32_t imageIndex = 0;
-        VkSemaphore semaphore_aquire = VK_NULL_HANDLE;
-        VkSemaphore semaphore_release = VK_NULL_HANDLE;
+        uint32_t swapchainImageIndex = 0;
+        uint32_t swapchainAcquireSemaphoreIndex = 0;
+        std::vector<VkSemaphore> swapchainAcquireSemaphores;
+        VkSemaphore swapchainReleaseSemaphore = VK_NULL_HANDLE;
 
-        SwapChainDesc desc;
+        SwapchainDesc desc;
+        std::mutex locker;
 
-        ~SwapChain_Vulkan()
+        ~Swapchain_Vulkan()
         {
             if (allocationhandler == nullptr)
                 return;
             allocationhandler->destroylocker.lock();
             uint64_t framecount = allocationhandler->framecount;
 
-            for (auto imageView : imageViews)
+            for (size_t i = 0; i < swapchainImages.size(); ++i)
             {
-                allocationhandler->destroyer_imageviews.push_back(std::make_pair(imageView, framecount));
+                allocationhandler->destroyer_imageviews.push_back(std::make_pair(swapchainImageViews[i], framecount));
+                allocationhandler->destroyer_semaphores.push_back(std::make_pair(swapchainAcquireSemaphores[i], framecount));
             }
 
             allocationhandler->destroyer_swapchains.push_back(std::make_pair(swapchain, framecount));
             allocationhandler->destroyer_surfaces.push_back(std::make_pair(surface, framecount));
-            allocationhandler->destroyer_semaphores.push_back(std::make_pair(semaphore_aquire, framecount));
-            allocationhandler->destroyer_semaphores.push_back(std::make_pair(semaphore_release, framecount));
+            allocationhandler->destroyer_semaphores.push_back(std::make_pair(swapchainReleaseSemaphore, framecount));
             allocationhandler->destroylocker.unlock();
         }
     };
@@ -386,9 +388,9 @@ namespace cyb::graphics::vulkan_internal
         return static_cast<PipelineState_Vulkan*>(param->internal_state.get());
     }
 
-    SwapChain_Vulkan* ToInternal(const SwapChain* param)
+    Swapchain_Vulkan* ToInternal(const Swapchain* param)
     {
-        return static_cast<SwapChain_Vulkan*>(param->internal_state.get());
+        return static_cast<Swapchain_Vulkan*>(param->internal_state.get());
     }
 
     bool CheckExtensionSupport(
@@ -440,8 +442,8 @@ namespace cyb::graphics::vulkan_internal
         return VK_FALSE;
     }
 
-    bool CreateSwapChain_Internal(
-        SwapChain_Vulkan* internal_state,
+    bool CreateSwapchainInternal(
+        Swapchain_Vulkan* internal_state,
         VkPhysicalDevice physicalDevice,
         VkDevice device,
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationHandler)
@@ -486,13 +488,13 @@ namespace cyb::graphics::vulkan_internal
         if (capabilities.currentExtent.width != 0xFFFFFFFF &&
             capabilities.currentExtent.height != 0xFFFFFFFF)
         {
-            internal_state->extent = capabilities.currentExtent;
+            internal_state->swapchainExtent = capabilities.currentExtent;
         }
         else
         {
-            internal_state->extent = { internal_state->desc.width, internal_state->desc.height };
-            internal_state->extent.width = std::clamp(internal_state->extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-            internal_state->extent.height = std::clamp(internal_state->extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+            internal_state->swapchainExtent = { internal_state->desc.width, internal_state->desc.height };
+            internal_state->swapchainExtent.width = std::clamp(internal_state->swapchainExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+            internal_state->swapchainExtent.height = std::clamp(internal_state->swapchainExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         }
 
         uint32_t imageCount = std::max(internal_state->desc.bufferCount, capabilities.minImageCount);
@@ -505,7 +507,7 @@ namespace cyb::graphics::vulkan_internal
         createInfo.minImageCount = imageCount;
         createInfo.imageFormat = surfaceFormat.format;
         createInfo.imageColorSpace = surfaceFormat.colorSpace;
-        createInfo.imageExtent = internal_state->extent;
+        createInfo.imageExtent = internal_state->swapchainExtent;
         createInfo.imageArrayLayers = 1;
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -536,19 +538,19 @@ namespace cyb::graphics::vulkan_internal
             vkDestroySwapchainKHR(device, createInfo.oldSwapchain, nullptr);
 
         vkGetSwapchainImagesKHR(device, internal_state->swapchain, &imageCount, nullptr);
-        internal_state->images.resize(imageCount);
-        vkGetSwapchainImagesKHR(device, internal_state->swapchain, &imageCount, internal_state->images.data());
-        internal_state->image_format = surfaceFormat.format;
+        internal_state->swapchainImages.resize(imageCount);
+        vkGetSwapchainImagesKHR(device, internal_state->swapchain, &imageCount, internal_state->swapchainImages.data());
+        internal_state->swapchainImageFormat = surfaceFormat.format;
 
         // Create swap chain render targets:
-        internal_state->imageViews.resize(internal_state->images.size());
-        for (size_t i = 0; i < internal_state->images.size(); ++i)
+        internal_state->swapchainImageViews.resize(internal_state->swapchainImages.size());
+        for (size_t i = 0; i < internal_state->swapchainImages.size(); ++i)
         {
             VkImageViewCreateInfo createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            createInfo.image = internal_state->images[i];
+            createInfo.image = internal_state->swapchainImages[i];
             createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            createInfo.format = internal_state->image_format;
+            createInfo.format = internal_state->swapchainImageFormat;
             createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
             createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
             createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -559,27 +561,30 @@ namespace cyb::graphics::vulkan_internal
             createInfo.subresourceRange.baseArrayLayer = 0;
             createInfo.subresourceRange.layerCount = 1;
 
-            if (internal_state->imageViews[i] != VK_NULL_HANDLE)
+            if (internal_state->swapchainImageViews[i] != VK_NULL_HANDLE)
             {
                 allocationHandler->destroylocker.lock();
-                allocationHandler->destroyer_imageviews.push_back(std::make_pair(internal_state->imageViews[i], allocationHandler->framecount));
+                allocationHandler->destroyer_imageviews.push_back(std::make_pair(internal_state->swapchainImageViews[i], allocationHandler->framecount));
                 allocationHandler->destroylocker.unlock();
             }
 
-            VK_CHECK_RESULT(vkCreateImageView(device, &createInfo, nullptr, &internal_state->imageViews[i]));
+            VK_CHECK_RESULT(vkCreateImageView(device, &createInfo, nullptr, &internal_state->swapchainImageViews[i]));
         }
 
         VkSemaphoreCreateInfo semaphoreInfo = {};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-        if (internal_state->semaphore_aquire == VK_NULL_HANDLE)
+        if (internal_state->swapchainAcquireSemaphores.empty())
         {
-            VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->semaphore_aquire));
+            for (size_t i = 0; i < internal_state->swapchainImages.size(); ++i)
+            {
+                VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->swapchainAcquireSemaphores.emplace_back()));
+            }
         }
 
-        if (internal_state->semaphore_release == VK_NULL_HANDLE)
+        if (internal_state->swapchainReleaseSemaphore == VK_NULL_HANDLE)
         {
-            VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->semaphore_release));
+            VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->swapchainReleaseSemaphore));
         }
 
         return true;
@@ -590,160 +595,169 @@ using namespace cyb::graphics::vulkan_internal;
 
 namespace cyb::graphics
 {
-
     void GraphicsDevice_Vulkan::CopyAllocator::Init(GraphicsDevice_Vulkan* device)
     {
         this->device = device;
-
-        VkSemaphoreTypeCreateInfo timeline_info = {};
-        timeline_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
-        timeline_info.pNext = nullptr;
-        timeline_info.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
-        timeline_info.initialValue = 0;
-
-        VkSemaphoreCreateInfo semaphore_info = {};
-        semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        semaphore_info.pNext = &timeline_info;
-        semaphore_info.flags = 0;
-
-        VK_CHECK_RESULT(vkCreateSemaphore(device->device, &semaphore_info, nullptr, &semaphore));
     }
 
     void GraphicsDevice_Vulkan::CopyAllocator::Destroy()
     {
-        vkQueueWaitIdle(device->copyQueue);
+        vkQueueWaitIdle(device->queues[NumericalValue(QueueType::Copy)].queue);
         for (auto& x : freelist)
         {
-            vkDestroyCommandPool(device->device, x.commandpool, nullptr);
+            vkDestroyCommandPool(device->device, x.transferCommandPool, nullptr);
+            vkDestroyCommandPool(device->device, x.transitionCommandPool, nullptr);
+            for (auto& sema : x.semaphores)
+            {
+                vkDestroySemaphore(device->device, sema, nullptr);
+            }
+            vkDestroyFence(device->device, x.fence, nullptr);
         }
-        vkDestroySemaphore(device->device, semaphore, nullptr);
     }
 
     GraphicsDevice_Vulkan::CopyAllocator::CopyCMD GraphicsDevice_Vulkan::CopyAllocator::Allocate(uint64_t staging_size)
     {
+        CopyCMD cmd;
+
         locker.lock();
-
-        // create a new command list if there are no free ones:
-        if (freelist.empty())
+        // Try to search for a staging buffer that can fit the request:
+        for (size_t i = 0; i < freelist.size(); ++i)
         {
-            CopyCMD cmd;
-
-            VkCommandPoolCreateInfo pool_info = {};
-            pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-            pool_info.queueFamilyIndex = device->copyFamily;
-            pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-            VK_CHECK_RESULT(vkCreateCommandPool(device->device, &pool_info, nullptr, &cmd.commandpool));
-
-            VkCommandBufferAllocateInfo commandbuffer_info = {};
-            commandbuffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            commandbuffer_info.commandBufferCount = 1;
-            commandbuffer_info.commandPool = cmd.commandpool;
-            commandbuffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            VK_CHECK_RESULT(vkAllocateCommandBuffers(device->device, &commandbuffer_info, &cmd.commandbuffer));
-
-            freelist.push_back(cmd);
-        }
-
-        CopyCMD cmd = freelist.back();
-        if (cmd.uploadBuffer.desc.size < staging_size)
-        {
-            // Try to search for a staging buffer that can fit the request:
-            for (size_t i = 0; i < freelist.size(); ++i)
+            if (freelist[i].uploadBuffer.desc.size >= staging_size)
             {
-                if (freelist[i].uploadBuffer.desc.size >= staging_size)
+                if (vkGetFenceStatus(device->device, freelist[i].fence) == VK_SUCCESS)
                 {
-                    cmd = freelist[i];
+                    cmd = std::move(freelist[i]);
                     std::swap(freelist[i], freelist.back());
+                    freelist.pop_back();
                     break;
                 }
             }
         }
-        freelist.pop_back();
         locker.unlock();
 
         // If no buffer was found that fits the data, create one:
-        if (cmd.uploadBuffer.desc.size < staging_size)
+        if (!cmd.IsValid())
         {
+            VkCommandPoolCreateInfo poolInfo = {};
+            poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+            poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+            poolInfo.queueFamilyIndex = device->copyFamily;
+            VK_CHECK_RESULT(vkCreateCommandPool(device->device, &poolInfo, nullptr, &cmd.transferCommandPool));
+            poolInfo.queueFamilyIndex = device->graphicsFamily;
+            VK_CHECK_RESULT(vkCreateCommandPool(device->device, &poolInfo, nullptr, &cmd.transitionCommandPool));
+
+            VkCommandBufferAllocateInfo commandBufferInfo = {};
+            commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            commandBufferInfo.commandBufferCount = 1;
+            commandBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            commandBufferInfo.commandPool = cmd.transferCommandPool;
+            VK_CHECK_RESULT(vkAllocateCommandBuffers(device->device, &commandBufferInfo, &cmd.transferCommandBuffer));
+            commandBufferInfo.commandPool = cmd.transitionCommandPool;
+            VK_CHECK_RESULT(vkAllocateCommandBuffers(device->device, &commandBufferInfo, &cmd.transitionCommandBuffer));
+
+            VkFenceCreateInfo fenceInfo = {};
+            fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            VK_CHECK_RESULT(vkCreateFence(device->device, &fenceInfo, nullptr, &cmd.fence));
+
+            VkSemaphoreCreateInfo semaphoreInfo = {};
+            semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            VK_CHECK_RESULT(vkCreateSemaphore(device->device, &semaphoreInfo, nullptr, &cmd.semaphores[0]));
+            VK_CHECK_RESULT(vkCreateSemaphore(device->device, &semaphoreInfo, nullptr, &cmd.semaphores[1]));
+
             GPUBufferDesc uploaddesc;
             uploaddesc.size = math::GetNextPowerOfTwo(staging_size);
+            uploaddesc.size = std::max(uploaddesc.size, uint64_t(65536));
             uploaddesc.usage = MemoryAccess::Upload;
-            [[maybe_unused]] bool res = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadBuffer);
-            assert(res);
+            bool uploadSuccess = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadBuffer);
+            assert(uploadSuccess);
             device->SetName(&cmd.uploadBuffer, "CopyAllocator::uploadBuffer");
         }
 
         // begin command list in valid state:
-        VK_CHECK_RESULT(vkResetCommandPool(device->device, cmd.commandpool, 0));
+        VK_CHECK_RESULT(vkResetCommandPool(device->device, cmd.transferCommandPool, 0));
+        VK_CHECK_RESULT(vkResetCommandPool(device->device, cmd.transitionCommandPool, 0));
 
         VkCommandBufferBeginInfo beginInfo = {};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         beginInfo.pInheritanceInfo = nullptr;
-        VK_CHECK_RESULT(vkBeginCommandBuffer(cmd.commandbuffer, &beginInfo));
+        VK_CHECK_RESULT(vkBeginCommandBuffer(cmd.transferCommandBuffer, &beginInfo));
+        VK_CHECK_RESULT(vkBeginCommandBuffer(cmd.transitionCommandBuffer, &beginInfo));
+
+        VK_CHECK_RESULT(vkResetFences(device->device, 1, &cmd.fence));
 
         return cmd;
     }
 
     void GraphicsDevice_Vulkan::CopyAllocator::Submit(CopyCMD cmd)
     {
-        VK_CHECK_RESULT(vkEndCommandBuffer(cmd.commandbuffer));
+        VK_CHECK_RESULT(vkEndCommandBuffer(cmd.transferCommandBuffer));
+        VK_CHECK_RESULT(vkEndCommandBuffer(cmd.transitionCommandBuffer));
 
-        // It was very slow in Vulkan to submit the copies immediately.
-        // In Vulkan, the submit is not thread safe, so it had to be locked.
-        // Instead, the submits are batched and performed in Flush() function
-        locker.lock();
-        cmd.target = ++fence_value;
-        worklist.push_back(cmd);
-        submit_cmds.push_back(cmd.commandbuffer);
-        submit_wait = std::max(submit_wait, cmd.target);
-        locker.unlock();
-    }
+        VkSubmitInfo2 submitInfo = {};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
 
-    uint64_t GraphicsDevice_Vulkan::CopyAllocator::Flush()
-    {
-        locker.lock();
-        if (!submit_cmds.empty())
+        VkCommandBufferSubmitInfo cbSubmitInfo = {};
+        cbSubmitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+
+        VkSemaphoreSubmitInfo signalSemaphoreInfos[2] = {};
+        signalSemaphoreInfos[0].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        signalSemaphoreInfos[1].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+
+        VkSemaphoreSubmitInfo waitSemaphoreInfo = {};
+        waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+
         {
-            VkSubmitInfo submit_info = {};
-            submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submit_info.commandBufferCount = (uint32_t)submit_cmds.size();
-            submit_info.pCommandBuffers = submit_cmds.data();
-            submit_info.pSignalSemaphores = &semaphore;
-            submit_info.signalSemaphoreCount = 1;
+            cbSubmitInfo.commandBuffer = cmd.transferCommandBuffer;
+            signalSemaphoreInfos[0].semaphore = cmd.semaphores[0]; // signal for graphics queue
+            signalSemaphoreInfos[0].stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
-            VkTimelineSemaphoreSubmitInfo timeline_info = {};
-            timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-            timeline_info.pNext = nullptr;
-            timeline_info.waitSemaphoreValueCount = 0;
-            timeline_info.pWaitSemaphoreValues = nullptr;
-            timeline_info.signalSemaphoreValueCount = 1;
-            timeline_info.pSignalSemaphoreValues = &submit_wait;
+            submitInfo.commandBufferInfoCount = 1;
+            submitInfo.pCommandBufferInfos = &cbSubmitInfo;
+            submitInfo.signalSemaphoreInfoCount = 1;
+            submitInfo.pSignalSemaphoreInfos = signalSemaphoreInfos;
 
-            submit_info.pNext = &timeline_info;
-            VK_CHECK_RESULT(vkQueueSubmit(device->copyQueue, 1, &submit_info, VK_NULL_HANDLE));
-
-            submit_cmds.clear();
+            std::scoped_lock lock(*device->queues[NumericalValue(QueueType::Copy)].locker);
+            VK_CHECK_RESULT(vkQueueSubmit2(device->queues[NumericalValue(QueueType::Copy)].queue, 1, &submitInfo, VK_NULL_HANDLE));
         }
 
-        // free up the finished command lists:
-        uint64_t completed_fence_value;
-        VK_CHECK_RESULT(vkGetSemaphoreCounterValue(device->device, semaphore, &completed_fence_value));
-        for (size_t i = 0; i < worklist.size(); ++i)
         {
-            if (worklist[i].target <= completed_fence_value)
-            {
-                freelist.push_back(worklist[i]);
-                worklist[i] = worklist.back();
-                worklist.pop_back();
-                i--;
-            }
+            waitSemaphoreInfo.semaphore = cmd.semaphores[0]; // wait for copy queue
+            waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+            cbSubmitInfo.commandBuffer = cmd.transitionCommandBuffer;
+            signalSemaphoreInfos[0].semaphore = cmd.semaphores[1]; // signal for compute queue
+            signalSemaphoreInfos[0].stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT; // signal for compute queue
+
+            submitInfo.waitSemaphoreInfoCount = 1;
+            submitInfo.pWaitSemaphoreInfos = &waitSemaphoreInfo;
+            submitInfo.commandBufferInfoCount = 1;
+            submitInfo.pCommandBufferInfos = &cbSubmitInfo;
+            submitInfo.signalSemaphoreInfoCount = 1;
+            submitInfo.pSignalSemaphoreInfos = signalSemaphoreInfos;
+
+            std::scoped_lock lock(*device->queues[NumericalValue(QueueType::Graphics)].locker);
+            VK_CHECK_RESULT(vkQueueSubmit2(device->queues[NumericalValue(QueueType::Graphics)].queue, 1, &submitInfo, VK_NULL_HANDLE));        }
+
+        // This must be final submit in this function because it will also signal a fence for state tracking by CPU!
+        {
+            waitSemaphoreInfo.semaphore = cmd.semaphores[1]; // wait for graphics queue
+            waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+            submitInfo.waitSemaphoreInfoCount = 1;
+            submitInfo.pWaitSemaphoreInfos = &waitSemaphoreInfo;
+            submitInfo.commandBufferInfoCount = 0;
+            submitInfo.pCommandBufferInfos = nullptr;
+            submitInfo.signalSemaphoreInfoCount = 0;
+            submitInfo.pSignalSemaphoreInfos = nullptr;
+
+            std::scoped_lock lock(*device->queues[NumericalValue(QueueType::Compute)].locker);
+            VK_CHECK_RESULT(vkQueueSubmit2(device->queues[NumericalValue(QueueType::Compute)].queue, 1, &submitInfo, cmd.fence)); // final submit also signals fence!
         }
 
-        uint64_t value = submit_wait;
-        submit_wait = 0;
-        locker.unlock();
-
-        return value;
+        std::scoped_lock lock(locker);
+        freelist.push_back(cmd);
     }
 
     void GraphicsDevice_Vulkan::DescriptorBinder::Init(GraphicsDevice_Vulkan* device)
@@ -880,9 +894,7 @@ namespace cyb::graphics
                         buffer_infos.back().buffer = internal_state->resource;
                         buffer_infos.back().range = pso_internal->uniform_buffer_sizes[binding_location];
                         if (buffer_infos.back().range == 0ull)
-                        {
                             buffer_infos.back().range = VK_WHOLE_SIZE;
-                        }
                     } break;
 
                     default: assert(0);
@@ -1239,8 +1251,7 @@ namespace cyb::graphics
             vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
             const std::vector<const char*> requiredDeviceExtensions = {
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME
-            };
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME            };
             std::vector<const char*> enabledDeviceExtensions;
 
             for (const auto& dev : devices)
@@ -1376,9 +1387,12 @@ namespace cyb::graphics
             vkGetDeviceQueue(device, computeFamily, 0, &computeQueue);
             vkGetDeviceQueue(device, copyFamily, 0, &copyQueue);
 
-            queues[static_cast<uint32_t>(QueueType::Graphics)].queue = graphicsQueue;
-            queues[static_cast<uint32_t>(QueueType::Compute)].queue = computeQueue;
-            queues[static_cast<uint32_t>(QueueType::Copy)].queue = copyQueue;
+            queues[NumericalValue(QueueType::Graphics)].queue = graphicsQueue;
+            queues[NumericalValue(QueueType::Graphics)].locker = std::make_shared<std::mutex>();
+            queues[NumericalValue(QueueType::Compute)].queue = computeQueue;
+            queues[NumericalValue(QueueType::Compute)].locker = std::make_shared<std::mutex>();;
+            queues[NumericalValue(QueueType::Copy)].queue = copyQueue;
+            queues[NumericalValue(QueueType::Copy)].locker = std::make_shared<std::mutex>();;
         }
 
         memory_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
@@ -1388,34 +1402,28 @@ namespace cyb::graphics
         m_allocationHandler->device = device;
         m_allocationHandler->instance = instance;
 
-        // Initialize Vulkan Memory Allocator helper:
-        VmaVulkanFunctions vma_vulkan_func{};
-        vma_vulkan_func.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
-        vma_vulkan_func.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
-        vma_vulkan_func.vkGetPhysicalDeviceProperties = vkGetPhysicalDeviceProperties;
-        vma_vulkan_func.vkGetPhysicalDeviceMemoryProperties = vkGetPhysicalDeviceMemoryProperties;
-        vma_vulkan_func.vkAllocateMemory = vkAllocateMemory;
-        vma_vulkan_func.vkFreeMemory = vkFreeMemory;
-        vma_vulkan_func.vkMapMemory = vkMapMemory;
-        vma_vulkan_func.vkUnmapMemory = vkUnmapMemory;
-        vma_vulkan_func.vkFlushMappedMemoryRanges = vkFlushMappedMemoryRanges;
-        vma_vulkan_func.vkInvalidateMappedMemoryRanges = vkInvalidateMappedMemoryRanges;
-        vma_vulkan_func.vkBindBufferMemory = vkBindBufferMemory;
-        vma_vulkan_func.vkBindImageMemory = vkBindImageMemory;
-        vma_vulkan_func.vkGetBufferMemoryRequirements = vkGetBufferMemoryRequirements;
-        vma_vulkan_func.vkGetImageMemoryRequirements = vkGetImageMemoryRequirements;
-        vma_vulkan_func.vkCreateBuffer = vkCreateBuffer;
-        vma_vulkan_func.vkDestroyBuffer = vkDestroyBuffer;
-        vma_vulkan_func.vkCreateImage = vkCreateImage;
-        vma_vulkan_func.vkDestroyImage = vkDestroyImage;
-        vma_vulkan_func.vkCmdCopyBuffer = vkCmdCopyBuffer;
-
+        // initialize vulkan memory allocator helper:
         VmaAllocatorCreateInfo allocatorInfo = {};
         allocatorInfo.physicalDevice = physicalDevice;
         allocatorInfo.device = device;
         allocatorInfo.instance = instance;
-        allocatorInfo.pVulkanFunctions = &vma_vulkan_func;
 
+        // core in 1.1
+        allocatorInfo.flags =
+            VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT |
+            VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
+
+        if (features_1_2.bufferDeviceAddress)
+        {
+            allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+        }
+
+#if VMA_DYNAMIC_VULKAN_FUNCTIONS
+        VmaVulkanFunctions vulkanFunctions{};
+        vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+        vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+        allocatorInfo.pVulkanFunctions = &vulkanFunctions;
+#endif
         VK_CHECK_RESULT(vmaCreateAllocator(&allocatorInfo, &m_allocationHandler->allocator));
 
         m_copyAllocator.Init(this);
@@ -1424,34 +1432,16 @@ namespace cyb::graphics
         {
             for (uint32_t i = 0; i < BUFFERCOUNT; ++i)
             {
-                for (uint32_t q = 0; q < static_cast<uint32_t>(QueueType::_Count); ++q)
+                for (uint32_t queue = 0; queue < NumericalValue(QueueType::_Count); ++queue)
                 {
+                    if (queues[queue].queue == VK_NULL_HANDLE)
+                        continue;
+
                     VkFenceCreateInfo fenceInfo = {};
                     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
                     //fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-                    VK_CHECK_RESULT(vkCreateFence(device, &fenceInfo, nullptr, &m_frameResources[i].fence[q]));
+                    VK_CHECK_RESULT(vkCreateFence(device, &fenceInfo, nullptr, &m_frameFence[i][queue]));
                 }
-
-                // Create resources for transition command buffer:
-                VkCommandPoolCreateInfo pool_info = {};
-                pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-                pool_info.queueFamilyIndex = graphicsFamily;
-                pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-                VK_CHECK_RESULT(vkCreateCommandPool(device, &pool_info, nullptr, &m_frameResources[i].init_commandpool));
-
-                VkCommandBufferAllocateInfo commandbuffer_info = {};
-                commandbuffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-                commandbuffer_info.commandBufferCount = 1;
-                commandbuffer_info.commandPool = m_frameResources[i].init_commandpool;
-                commandbuffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-                VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &commandbuffer_info, &m_frameResources[i].init_commandbuffer));
-
-                VkCommandBufferBeginInfo begin_info = {};
-                begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-                begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-                begin_info.pInheritanceInfo = nullptr; // Optional
-
-                VK_CHECK_RESULT(vkBeginCommandBuffer(m_frameResources[i].init_commandbuffer, &begin_info));
             }
         }
 
@@ -1459,7 +1449,7 @@ namespace cyb::graphics
 
         // Dynamic PSO states:
         pso_dynamic_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
-        pso_dynamic_states.push_back(VK_DYNAMIC_STATE_SCISSOR);
+        pso_dynamic_states.push_back(VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT);
         pso_dynamic_states.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
         pso_dynamic_states.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
         dynamic_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -1488,23 +1478,15 @@ namespace cyb::graphics
         VK_CHECK_RESULT(vkDeviceWaitIdle(device));
 
         for (auto& x : m_pipelinesGlobal)
-        {
             vkDestroyPipeline(device, x.second, nullptr);
-        }
 
         if (debugUtilsMessenger != VK_NULL_HANDLE)
-        {
             vkDestroyDebugUtilsMessengerEXT(instance, debugUtilsMessenger, nullptr);
-        }
 
-        for (auto& frame : m_frameResources)
+        for (uint32_t i = 0; i < BUFFERCOUNT; ++i)
         {
-            for (uint32_t i = 0; i < static_cast<uint32_t>(QueueType::_Count); ++i)
-            {
-                vkDestroyFence(device, frame.fence[i], nullptr);
-            }
-
-            vkDestroyCommandPool(device, frame.init_commandpool, nullptr);
+            for (int queue = 0; queue < NumericalValue(QueueType::_Count); ++queue)
+                vkDestroyFence(device, m_frameFence[i][queue], nullptr);
         }
 
         m_copyAllocator.Destroy();
@@ -1533,17 +1515,15 @@ namespace cyb::graphics
             }
 
             for (auto& x : commandlist->binder_pools)
-            {
                 x.Destroy();
-            }
         }
     }
 
-    bool GraphicsDevice_Vulkan::CreateSwapChain(const SwapChainDesc* desc, WindowHandle window, SwapChain* swapchain) const
+    bool GraphicsDevice_Vulkan::CreateSwapchain(const SwapchainDesc* desc, WindowHandle window, Swapchain* swapchain) const
     {
-        auto internal_state = std::static_pointer_cast<SwapChain_Vulkan>(swapchain->internal_state);
+        auto internal_state = std::static_pointer_cast<Swapchain_Vulkan>(swapchain->internal_state);
         if (swapchain->internal_state == nullptr)
-            internal_state = std::make_shared<SwapChain_Vulkan>();
+            internal_state = std::make_shared<Swapchain_Vulkan>();
 
         internal_state->allocationhandler = m_allocationHandler;
         internal_state->desc = *desc;
@@ -1577,11 +1557,11 @@ namespace cyb::graphics
             }
         }
 
-        // Present family not found, we cannot create SwapChain
+        // present family not found, we cannot create Swapchain
         if (present_family == VK_QUEUE_FAMILY_IGNORED)
             return false;
 
-        return CreateSwapChain_Internal(internal_state.get(), physicalDevice, device, m_allocationHandler);
+        return CreateSwapchainInternal(internal_state.get(), physicalDevice, device, m_allocationHandler);
     }
 
     bool GraphicsDevice_Vulkan::CreateBuffer(const GPUBufferDesc* desc, const void* init_data, GPUBuffer* buffer) const
@@ -1591,47 +1571,50 @@ namespace cyb::graphics
         buffer->internal_state = internal_state;
         buffer->type = GPUResource::Type::Buffer;
         buffer->mappedData = nullptr;
-        buffer->mappedRowPitch = 0;
+        buffer->mappedSize = 0;
         buffer->desc = *desc;
 
-        VkBufferCreateInfo buffer_info = {};
-        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        buffer_info.size = buffer->desc.size;
-        buffer_info.usage = 0;
+        VkBufferCreateInfo bufferInfo = {};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = buffer->desc.size;
+        bufferInfo.usage = 0;
 
         if (HasFlag(buffer->desc.bindFlags, BindFlags::VertexBufferBit))
-            buffer_info.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            bufferInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
         if (HasFlag(buffer->desc.bindFlags, BindFlags::IndexBufferBit))
-            buffer_info.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+            bufferInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         if (HasFlag(buffer->desc.bindFlags, BindFlags::ConstantBufferBit))
-            buffer_info.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            bufferInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
         if (HasFlag(buffer->desc.miscFlags, ResourceMiscFlag::BufferRawBit))
-            buffer_info.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
         if (HasFlag(buffer->desc.miscFlags, ResourceMiscFlag::BufferStructuredBit))
-            buffer_info.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
-        buffer_info.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        buffer_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        buffer_info.flags = 0;
-        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        bufferInfo.flags = 0;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        VmaAllocationCreateInfo alloc_info = {};
-        alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+        VmaAllocationCreateInfo allocInfo = {};
+        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
         if (desc->usage == MemoryAccess::Readback)
-        {
-            alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-        }
+            allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
         else if (desc->usage == MemoryAccess::Upload)
-        {
-            alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-        }
+            allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
-        VK_CHECK_RESULT(vmaCreateBuffer(m_allocationHandler->allocator, &buffer_info, &alloc_info, &internal_state->resource, &internal_state->allocation, nullptr));
+        VK_CHECK_RESULT(vmaCreateBuffer(
+            m_allocationHandler->allocator,
+            &bufferInfo,
+            &allocInfo,
+            &internal_state->resource,
+            &internal_state->allocation,
+            nullptr
+        ));
 
         if (desc->usage == MemoryAccess::Readback || desc->usage == MemoryAccess::Upload)
         {
             buffer->mappedData = internal_state->allocation->GetMappedData();
-            buffer->mappedRowPitch = static_cast<uint32_t>(desc->size);
+            buffer->mappedSize = internal_state->allocation->GetSize();
         }
 
         // Issue data copy on request:
@@ -1652,7 +1635,7 @@ namespace cyb::graphics
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
             vkCmdPipelineBarrier(
-                cmd.commandbuffer,
+                cmd.transferCommandBuffer,
                 VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                 VK_PIPELINE_STAGE_TRANSFER_BIT,
                 0,
@@ -1667,7 +1650,7 @@ namespace cyb::graphics
             copyRegion.dstOffset = 0;
 
             vkCmdCopyBuffer(
-                cmd.commandbuffer,
+                cmd.transferCommandBuffer,
                 ToInternal(&cmd.uploadBuffer)->resource,
                 internal_state->resource,
                 1,
@@ -1684,7 +1667,7 @@ namespace cyb::graphics
                 barrier.dstAccessMask |= VK_ACCESS_INDEX_READ_BIT;
 
             vkCmdPipelineBarrier(
-                cmd.commandbuffer,
+                cmd.transferCommandBuffer,
                 VK_PIPELINE_STAGE_TRANSFER_BIT,
                 VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                 0,
@@ -1965,7 +1948,7 @@ namespace cyb::graphics
 
         if (initData != nullptr)
         {
-            auto cmd = m_copyAllocator.Allocate(textureInternal->allocation->GetSize());
+            CopyAllocator::CopyCMD cmd = m_copyAllocator.Allocate(textureInternal->allocation->GetSize());
 
             std::vector<VkBufferImageCopy> copyRegions;
 
@@ -2001,32 +1984,37 @@ namespace cyb::graphics
                         }
                     }
 
-                    VkBufferImageCopy copyRegion = {};
-                    copyRegion.bufferOffset = copyOffset;
-                    copyRegion.bufferRowLength = 0;
-                    copyRegion.bufferImageHeight = 0;
+                    if (cmd.IsValid())
+                    {
+                        VkBufferImageCopy copyRegion = {};
+                        copyRegion.bufferOffset = copyOffset;
+                        copyRegion.bufferRowLength = 0;
+                        copyRegion.bufferImageHeight = 0;
 
-                    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                    copyRegion.imageSubresource.mipLevel = mip;
-                    copyRegion.imageSubresource.baseArrayLayer = layer;
-                    copyRegion.imageSubresource.layerCount = 1;
+                        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                        copyRegion.imageSubresource.mipLevel = mip;
+                        copyRegion.imageSubresource.baseArrayLayer = layer;
+                        copyRegion.imageSubresource.layerCount = 1;
 
-                    copyRegion.imageOffset = { 0, 0, 0 };
-                    copyRegion.imageExtent = {
-                        width,
-                        height,
-                        depth
-                    };
+                        copyRegion.imageOffset = { 0, 0, 0 };
+                        copyRegion.imageExtent = {
+                            width,
+                            height,
+                            depth
+                        };
 
-                    copyRegions.push_back(copyRegion);
+                        copyRegions.push_back(copyRegion);
+                    }
+
                     copyOffset += dstSlicePitch * depth;
-
+                    copyOffset = AlignTo(copyOffset, VkDeviceSize(4));
                     width = std::max(1u, width / 2);
                     height = std::max(1u, height / 2);
                     depth = std::max(1u, depth / 2);
                 }
             }
 
+            if (cmd.IsValid())
             {
                 VkImageMemoryBarrier barrier = {};
                 barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -2044,7 +2032,7 @@ namespace cyb::graphics
                 barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
                 vkCmdPipelineBarrier(
-                    cmd.commandbuffer,
+                    cmd.transferCommandBuffer,
                     VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                     VK_PIPELINE_STAGE_TRANSFER_BIT,
                     0,
@@ -2054,23 +2042,20 @@ namespace cyb::graphics
                 );
 
                 vkCmdCopyBufferToImage(
-                    cmd.commandbuffer,
+                    cmd.transferCommandBuffer,
                     ToInternal(&cmd.uploadBuffer)->resource,
                     textureInternal->resource,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     (uint32_t)copyRegions.size(),
                     copyRegions.data());
 
-                m_copyAllocator.Submit(cmd);
-
                 barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
                 barrier.newLayout = _ConvertImageLayout(texture->desc.layout);
                 barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
                 barrier.dstAccessMask = _ParseResourceState(texture->desc.layout);
 
-                m_initLocker.lock();
                 vkCmdPipelineBarrier(
-                    GetFrameResources().init_commandbuffer,
+                    cmd.transitionCommandBuffer,
                     VK_PIPELINE_STAGE_TRANSFER_BIT,
                     VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                     0,
@@ -2078,8 +2063,8 @@ namespace cyb::graphics
                     0, nullptr,
                     1, &barrier
                 );
-                m_initSubmits = true;
-                m_initLocker.unlock();
+                
+                m_copyAllocator.Submit(cmd);
             }
         }
         else
@@ -2108,9 +2093,10 @@ namespace cyb::graphics
             barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
-            m_initLocker.lock();
+            CopyAllocator::CopyCMD cmd = m_copyAllocator.Allocate(0);
+           
             vkCmdPipelineBarrier(
-                GetFrameResources().init_commandbuffer,
+                cmd.transitionCommandBuffer,
                 VK_PIPELINE_STAGE_TRANSFER_BIT,
                 VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                 0,
@@ -2118,8 +2104,8 @@ namespace cyb::graphics
                 0, nullptr,
                 1, &barrier
             );
-            m_initSubmits = true;
-            m_initLocker.unlock();
+
+            m_copyAllocator.Submit(cmd);
         }
 
         if (HasFlag(texture->desc.bindFlags, BindFlags::ShaderResourceBit))
@@ -2514,16 +2500,12 @@ namespace cyb::graphics
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 0.1f;
 
-        VkRect2D& scissor = internal_state->scissor;
-        scissor.extent.width = 65535;
-        scissor.extent.height = 65535;
-
         VkPipelineViewportStateCreateInfo& viewportState = internal_state->viewportState;
         viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
         viewportState.viewportCount = 1;
         viewportState.pViewports = &viewport;
-        viewportState.scissorCount = 1;
-        viewportState.pScissors = &scissor;
+        viewportState.scissorCount = 0;
+        viewportState.pScissors = nullptr;
 
         // Depth-Stencil:
         VkPipelineDepthStencilStateCreateInfo& depthstencil = internal_state->depthstencil;
@@ -2683,7 +2665,7 @@ namespace cyb::graphics
             scissors[i].offset.y = std::max(0, rects[i].top);
         }
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        vkCmdSetScissor(commandlist.GetCommandBuffer(), 0, rectCount, scissors);
+        vkCmdSetScissorWithCount(commandlist.GetCommandBuffer(), rectCount, scissors);
     }
 
     void GraphicsDevice_Vulkan::BindViewports(const Viewport* viewports, uint32_t viewportCount, CommandList cmd)
@@ -2782,16 +2764,25 @@ namespace cyb::graphics
         beginInfo.pInheritanceInfo = nullptr;
         VK_CHECK_RESULT(vkBeginCommandBuffer(commandlist.GetCommandBuffer(), &beginInfo));
 
-        VkRect2D scissors[16];
-        for (int i = 0; i < _countof(scissors); ++i)
+        if (queue == QueueType::Graphics)
         {
-            scissors[i].offset.x = 0;
-            scissors[i].offset.y = 0;
-            scissors[i].extent.width = 65535;
-            scissors[i].extent.height = 65535;
-        }
-        vkCmdSetScissor(commandlist.GetCommandBuffer(), 0, _countof(scissors), scissors);
+            VkViewport vp = {};
+            vp.width = 1;
+            vp.height = 1;
+            vp.maxDepth = 1;
+            vkCmdSetViewportWithCount(commandlist.GetCommandBuffer(), 1, &vp);
 
+            VkRect2D scissor;
+            scissor.offset.x = 0;
+            scissor.offset.y = 0;
+            scissor.extent.width = 65535;
+            scissor.extent.height = 65535;
+            vkCmdSetScissorWithCount(commandlist.GetCommandBuffer(), 1, &scissor);
+            
+            if (features2.features.depthBounds == VK_TRUE)
+                vkCmdSetDepthBounds(commandlist.GetCommandBuffer(), 0.0f, 1.0f);
+
+        }
         return cmd;
     }
 
@@ -2845,34 +2836,8 @@ namespace cyb::graphics
 
     void GraphicsDevice_Vulkan::SubmitCommandList()
     {
-        m_initLocker.lock();
-
         // Submit current frame:
         {
-            auto& frame = GetFrameResources();
-
-            // Transitions:
-            if (m_initSubmits)
-            {
-                m_initSubmits = false;
-                VK_CHECK_RESULT(vkEndCommandBuffer(frame.init_commandbuffer));
-                queues[static_cast<uint32_t>(QueueType::Graphics)].submit_cmds.push_back(frame.init_commandbuffer);
-            }
-
-            // Sync up with copyallocator before first submit
-            uint64_t copySync = m_copyAllocator.Flush();
-            if (copySync > 0)
-            {
-                for (uint32_t i = 0; i < static_cast<uint32_t>(QueueType::_Count); ++i)
-                {
-                    CommandQueue& queue = queues[i];
-                    queue.submit_waitStages.push_back(VK_PIPELINE_STAGE_TRANSFER_BIT);
-                    queue.submit_waitSemaphores.push_back(m_copyAllocator.semaphore);
-                    queue.submit_waitValues.push_back(copySync);
-                }
-                copySync = 0;
-            }
-
             const uint32_t cmd_last = m_cmdCount;
             m_cmdCount = 0;
 
@@ -2884,15 +2849,15 @@ namespace cyb::graphics
                 CommandQueue& queue = queues[static_cast<uint32_t>(commandlist.queue)];
                 queue.submit_cmds.push_back(commandlist.GetCommandBuffer());
 
-                for (auto& swapchain : commandlist.prev_swapchains)
+                for (auto& swapchain : commandlist.prevSwapchains)
                 {
-                    auto swapchain_internal = ToInternal(&swapchain);
-                    queue.submit_swapchains.push_back(swapchain_internal->swapchain);
-                    queue.submit_swapChainImageIndices.push_back(swapchain_internal->imageIndex);
+                    auto internal_state = ToInternal(&swapchain);
+                    queue.submit_swapchains.push_back(internal_state->swapchain);
+                    queue.submit_swapChainImageIndices.push_back(internal_state->swapchainImageIndex);
                     queue.submit_waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-                    queue.submit_waitSemaphores.push_back(swapchain_internal->semaphore_aquire);
+                    queue.submit_waitSemaphores.push_back(internal_state->swapchainAcquireSemaphores[internal_state->swapchainAcquireSemaphoreIndex]);
                     queue.submit_waitValues.push_back(0);   // Not a timeline semaphore
-                    queue.submit_signalSemaphores.push_back(swapchain_internal->semaphore_release);
+                    queue.submit_signalSemaphores.push_back(internal_state->swapchainReleaseSemaphore);
                     queue.submit_signalValues.push_back(0); // Not a timeline semaphore
                 }
 
@@ -2912,41 +2877,29 @@ namespace cyb::graphics
                 commandlist.pipelinesWorker.clear();
             }
 
-            for (uint32_t i = 0; i < static_cast<uint32_t>(QueueType::_Count); ++i)
-                queues[i].Submit(this, frame.fence[i]);
+            for (uint32_t i = 0; i < NumericalValue(QueueType::_Count); ++i)
+                queues[i].Submit(this, m_frameFence[GetBufferIndex()][i]);
         }
 
         frameCount++;
 
         // Begin next frame:
         {
-            auto& frame = GetFrameResources();
-
             if (frameCount >= BUFFERCOUNT)
             {
-                for (uint32_t i = 0; i < static_cast<uint32_t>(QueueType::_Count); ++i)
+                const uint32_t bufferindex = GetBufferIndex();
+                for (uint32_t queue = 0; queue < NumericalValue(QueueType::_Count); ++queue)
                 {
-                    VkFence& fence = frame.fence[i];
-                    VK_CHECK_RESULT(vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX));
-                    VK_CHECK_RESULT(vkResetFences(device, 1, &fence));
+                    if (m_frameFence[bufferindex][queue] == VK_NULL_HANDLE)
+                        continue;
+
+                    VK_CHECK_RESULT(vkWaitForFences(device, 1, &m_frameFence[bufferindex][queue], VK_TRUE, UINT64_MAX));
+                    VK_CHECK_RESULT(vkResetFences(device, 1, &m_frameFence[bufferindex][queue]));
                 }
-            }
-
-            m_allocationHandler->Update(frameCount, BUFFERCOUNT);
-
-            // Restart transition command buffers:
-            {
-                VK_CHECK_RESULT(vkResetCommandPool(device, frame.init_commandpool, 0));
-
-                VkCommandBufferBeginInfo beginInfo = {};
-                beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-                beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-                VK_CHECK_RESULT(vkBeginCommandBuffer(frame.init_commandbuffer, &beginInfo));
             }
         }
 
-        m_initSubmits = false;
-        m_initLocker.unlock();
+        m_allocationHandler->Update(frameCount, BUFFERCOUNT);
     }
 
     void GraphicsDevice_Vulkan::ClearPipelineStateCache()
@@ -2993,19 +2946,52 @@ namespace cyb::graphics
         VK_CHECK_RESULT(vkCreatePipelineCache(device, &createInfo, nullptr, &m_pipelineCache));
     }
 
-    void GraphicsDevice_Vulkan::BeginRenderPass(const SwapChain* swapchain, CommandList cmd)
+    void GraphicsDevice_Vulkan::BeginRenderPass(const Swapchain* swapchain, CommandList cmd)
     {
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
+        commandlist.renderpassBarriersBegin.clear();
+        commandlist.renderpassBarriersEnd.clear();
         auto internal_state = ToInternal(swapchain);
-        commandlist.prev_swapchains.push_back(*swapchain);
 
-        VK_CHECK_RESULT(vkAcquireNextImageKHR(
+        internal_state->swapchainAcquireSemaphoreIndex = (internal_state->swapchainAcquireSemaphoreIndex + 1) % internal_state->swapchainAcquireSemaphores.size();
+
+        internal_state->locker.lock();
+        VkResult res = vkAcquireNextImageKHR(
             device,
             internal_state->swapchain,
             UINT64_MAX,
-            internal_state->semaphore_aquire,
+            internal_state->swapchainAcquireSemaphores[internal_state->swapchainAcquireSemaphoreIndex],
             VK_NULL_HANDLE,
-            &internal_state->imageIndex));
+            &internal_state->swapchainImageIndex);
+        internal_state->locker.unlock();
+
+        if (res != VK_SUCCESS)
+        {
+            // Handle outdated error in acquire:
+            if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+                // we need to create a new semaphore or jump through a few hoops to
+                // wait for the current one to be unsignalled before we can use it again
+                // creating a new one is easiest. See also:
+                // https://github.com/KhronosGroup/Vulkan-Docs/issues/152
+                // https://www.khronos.org/blog/resolving-longstanding-issues-with-wsi
+                {
+                    std::scoped_lock lock(m_allocationHandler->destroylocker);
+                    for (auto& x : internal_state->swapchainAcquireSemaphores)
+                    {
+                        m_allocationHandler->destroyer_semaphores.emplace_back(x, m_allocationHandler->framecount);
+                    }
+                }
+                internal_state->swapchainAcquireSemaphores.clear();
+                if (CreateSwapchainInternal(internal_state, physicalDevice, device, m_allocationHandler))
+                {
+                    BeginRenderPass(swapchain, cmd);
+                    return;
+                }
+            }
+            assert(0);
+        }
+        commandlist.prevSwapchains.push_back(*swapchain);
 
         VkRenderingInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -3017,7 +3003,7 @@ namespace cyb::graphics
 
         VkRenderingAttachmentInfo color_attachment = {};
         color_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        color_attachment.imageView = internal_state->imageViews[internal_state->imageIndex];
+        color_attachment.imageView = internal_state->swapchainImageViews[internal_state->swapchainImageIndex];
         color_attachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -3031,7 +3017,7 @@ namespace cyb::graphics
 
         VkImageMemoryBarrier barrier = {};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.image = internal_state->images[internal_state->imageIndex];
+        barrier.image = internal_state->swapchainImages[internal_state->swapchainImageIndex];
         barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         barrier.srcAccessMask = VK_ACCESS_NONE;
@@ -3283,7 +3269,7 @@ namespace cyb::graphics
             vkCmdEndQuery(commandlist.GetCommandBuffer(), internal_state->pool, index);
             break;
         case GPUQueryType::Timestamp:
-            vkCmdWriteTimestamp(commandlist.GetCommandBuffer(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, internal_state->pool, index);
+            vkCmdWriteTimestamp2(commandlist.GetCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, internal_state->pool, index);
             break;
         }
     }

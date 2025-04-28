@@ -112,8 +112,6 @@ namespace cyb::renderer
     const graphics::DepthStencilState* GetDepthStencilState(DSSTYPES id);
 
     void Initialize();
-    void SetShaderPath(const std::string& path);
-    const std::string& GetShaderPath();
     void ReloadShaders();
     bool LoadShader(graphics::ShaderStage stage, graphics::Shader& shader, const std::string& filename);
 

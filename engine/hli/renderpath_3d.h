@@ -13,6 +13,16 @@ namespace cyb::hli
         void Render() const override;
         void Compose(graphics::CommandList cmd) const override;
 
+        graphics::Rect GetScissorInternalResolution() const
+        {
+            graphics::Rect scissor;
+            scissor.left = int(0);
+            scissor.top = int(0);
+            scissor.right = int(GetInternalResolution().x);
+            scissor.bottom = int(GetInternalResolution().y);
+            return scissor;
+        }
+
     public:
         scene::CameraComponent* camera = &cyb::scene::GetCamera();
         scene::TransformComponent cameraTransform;

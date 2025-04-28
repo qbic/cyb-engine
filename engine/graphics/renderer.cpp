@@ -45,7 +45,10 @@ namespace cyb::renderer
     };
     Resource builtin_textures[BUILTIN_TEXTURE_COUNT];
 
-    std::string SHADERPATH = "../engine/shaders/";
+    std::string SHADERPATHS[] = {
+        "../engine/shaders/",   // on dev
+        "engine/shaders/"       // on release
+    };
 
     float GAMMA = 2.2f;
 
@@ -112,19 +115,19 @@ namespace cyb::renderer
         });
     }
 
-    void SetShaderPath(const std::string& path)
-    {
-        SHADERPATH = path;
-    }
-
-    const std::string& GetShaderPath()
-    {
-        return SHADERPATH;
-    }
-
     bool LoadShader(ShaderStage stage, Shader& shader, const std::string& filename)
     {
-        const std::string fullPath = SHADERPATH + filename;
+        std::string shaderpath = "INVALID/";
+        for (const auto& path : SHADERPATHS)
+        {
+            if (std::filesystem::exists(path))
+            {
+                shaderpath = path;
+                break;
+            }
+        }
+
+        std::string fullPath = shaderpath + filename;
         std::vector<uint8_t> fileData;
         if (!filesystem::ReadFile(fullPath, fileData))
             return false;
@@ -137,9 +140,9 @@ namespace cyb::renderer
             input.shadersource = (uint8_t*)fileData.data();
             input.shadersize = fileData.size();
             input.stage = stage;
-            //#ifdef CYB_DEBUG_BUILD
+            #ifdef CYB_DEBUG_BUILD
             input.flags |= ShaderCompilerFlags::GenerateDebugInfoBit;
-            //#endif
+            #endif
 
             ShaderCompilerOutput output;
             if (!CompileShader(&input, &output))
@@ -532,6 +535,7 @@ namespace cyb::renderer
         device->BindConstantBuffer(&constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA, cmd);
 
         uint8_t prevUserStencilRef = 0;
+        device->BindStencilRef(0, cmd);
 
         // Draw all visiable objects
         for (uint32_t instanceIndex : view.visibleObjects)

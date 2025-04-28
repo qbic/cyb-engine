@@ -11,14 +11,8 @@
 #endif
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#ifdef CYB_DEBUG_BUILD
 #define CYB_DEBUGBREAK() __debugbreak()
-#endif
 #endif // _WIN32
-
-#ifndef CYB_DEBUG_BUILD
-#define CYB_DEBUGBREAK()
-#endif
 
 namespace cyb {
 

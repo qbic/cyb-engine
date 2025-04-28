@@ -117,7 +117,7 @@ namespace cyb::jobsystem
         internal_state.numCores = std::thread::hardware_concurrency();
 
         // calculate the actual number of worker threads we want
-        internal_state.numThreads = std::max(1u, internal_state.numCores - 1); // -1 for main thread
+        internal_state.numThreads = std::max(1u, internal_state.numCores);
         internal_state.jobQueuePerThread = std::make_unique<AtomicJobQueue[]>(internal_state.numThreads);
         internal_state.threads.reserve(internal_state.numThreads);
         internal_state.mainThreadId = std::this_thread::get_id();

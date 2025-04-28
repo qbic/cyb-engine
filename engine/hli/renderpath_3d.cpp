@@ -98,6 +98,9 @@ namespace cyb::hli
                         RenderPassImage::StoreOp::Store) };
         device->BeginRenderPass(renderPassImages, _countof(renderPassImages), cmd);
 
+        Rect scissor = GetScissorInternalResolution();
+        device->BindScissorRects(&scissor, 1, cmd);
+
         {
             CYB_PROFILE_GPU_SCOPE("Opaque Scene", cmd);
             renderer::DrawScene(sceneViewMain, cmd);

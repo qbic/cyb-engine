@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 project(cyb-engine)
 
-set(CYB_VERSION "2025.01.0")
+set(CYB_VERSION "2025.04.26")
 
 string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _match "${CYB_VERSION}")
 set(CYB_VERSION_MAJOR "${CMAKE_MATCH_1}")
@@ -33,3 +33,22 @@ message(STATUS "Architecture: ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "Vulkan: v${Vulkan_VERSION}")
 message(STATUS "")
+
+
+# install rules
+set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
+if(POLICY CMP0177)
+    cmake_policy(SET CMP0177 OLD)
+endif()
+install(TARGETS game RUNTIME DESTINATION .)
+install(DIRECTORY assets/ DESTINATION assets)
+install(DIRECTORY engine/shaders/ DESTINATION engine/shaders)
+
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION .)
+include(InstallRequiredSystemLibraries)
+
+set(CPACK_GENERATOR "ZIP")
+set(CPACK_PACKAGE_NAME "cyb-engine")
+set(CPACK_PACKAGE_VERSION ${CYB_VERSION})
+
+include(CPack)

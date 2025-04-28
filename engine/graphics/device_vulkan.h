@@ -53,6 +53,8 @@ namespace cyb::graphics
             std::vector<uint64_t> submit_signalValues;
             std::vector<VkCommandBuffer> submit_cmds;
 
+            std::shared_ptr<std::mutex> locker;
+
             void Submit(GraphicsDevice_Vulkan* device, VkFence fence);
         };
         CommandQueue queues[static_cast<uint32_t>(QueueType::_Count)];
@@ -60,42 +62,29 @@ namespace cyb::graphics
         struct CopyAllocator
         {
             GraphicsDevice_Vulkan* device = nullptr;
-            VkSemaphore semaphore = VK_NULL_HANDLE;
-            uint64_t fence_value = 0;
             std::mutex locker;
 
             struct CopyCMD
             {
-                VkCommandPool commandpool = VK_NULL_HANDLE;
-                VkCommandBuffer commandbuffer = VK_NULL_HANDLE;
-                uint64_t target = 0;
+                VkCommandPool transferCommandPool = VK_NULL_HANDLE;
+                VkCommandBuffer transferCommandBuffer = VK_NULL_HANDLE;
+                VkCommandPool transitionCommandPool = VK_NULL_HANDLE;
+                VkCommandBuffer transitionCommandBuffer = VK_NULL_HANDLE;
+                VkFence fence = VK_NULL_HANDLE;
+                VkSemaphore semaphores[2] = { VK_NULL_HANDLE, VK_NULL_HANDLE }; // graphics, compute
                 GPUBuffer uploadBuffer;
+                inline bool IsValid() const { return transferCommandBuffer != VK_NULL_HANDLE; }
             };
 
-            std::vector<CopyCMD> freelist;              // Available
-            std::vector<CopyCMD> worklist;              // In progress
-            std::vector<VkCommandBuffer> submit_cmds;   // For next submit
-            uint64_t submit_wait = 0;                   // Last submit wait value
+            std::vector<CopyCMD> freelist;
 
             void Init(GraphicsDevice_Vulkan* device);
             void Destroy();
             CopyCMD Allocate(uint64_t staging_size);
             void Submit(CopyCMD cmd);
-            uint64_t Flush();
         };
         mutable CopyAllocator m_copyAllocator;
-
-        struct FrameResources
-        {
-            VkFence fence[static_cast<uint32_t>(QueueType::_Count)];
-            VkCommandPool init_commandpool;
-            VkCommandBuffer init_commandbuffer;
-        };
-        mutable std::mutex m_initLocker;
-        mutable bool m_initSubmits = false;
-        struct FrameResources m_frameResources[BUFFERCOUNT];
-        const FrameResources& GetFrameResources() const { return m_frameResources[GetBufferIndex()]; }
-        FrameResources& GetFrameResources() { return m_frameResources[GetBufferIndex()]; }
+        VkFence m_frameFence[BUFFERCOUNT][NumericalValue(QueueType::_Count)] = {};
 
         struct DescriptorBinder
         {
@@ -150,7 +139,7 @@ namespace cyb::graphics
 
             std::vector<std::pair<size_t, VkPipeline>> pipelinesWorker;
             size_t prevPipelineHash = 0;
-            std::vector<SwapChain> prev_swapchains;
+            std::vector<Swapchain> prevSwapchains;
 
             const PipelineState* active_pso = nullptr;
             uint32_t vertexbuffer_strides[8] = {};
@@ -181,7 +170,7 @@ namespace cyb::graphics
                     vertexbuffer_strides[i] = 0;
                 }
                 dirty_pso = false;
-                prev_swapchains.clear();
+                prevSwapchains.clear();
 #ifdef CYB_DEBUG_BUILD
                 eventCount = 0;
 #endif
@@ -216,7 +205,7 @@ namespace cyb::graphics
         GraphicsDevice_Vulkan();
         virtual ~GraphicsDevice_Vulkan();
 
-        bool CreateSwapChain(const SwapChainDesc* desc, WindowHandle window, SwapChain* swapchain) const override;
+        bool CreateSwapchain(const SwapchainDesc* desc, WindowHandle window, Swapchain* swapchain) const override;
         bool CreateBuffer(const GPUBufferDesc* desc, const void* init_data, GPUBuffer* buffer) const override;
         bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const override;
         bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const override;
@@ -235,7 +224,7 @@ namespace cyb::graphics
 
         /////////////// Thread-sensitive ////////////////////////
 
-        void BeginRenderPass(const SwapChain* swapchain, CommandList cmd) override;
+        void BeginRenderPass(const Swapchain* swapchain, CommandList cmd) override;
         void BeginRenderPass(const RenderPassImage* images, uint32_t imageCount, CommandList cmd) override;
         void EndRenderPass(CommandList cmd) override;
 

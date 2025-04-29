@@ -620,7 +620,7 @@ namespace cyb::graphics
     {
     protected:
         static const uint32_t BUFFERCOUNT = 2;
-        const bool VALIDATION_MODE_ENABLED = false;
+        const bool VALIDATION_MODE_ENABLED = true;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 

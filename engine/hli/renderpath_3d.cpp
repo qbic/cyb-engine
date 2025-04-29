@@ -34,7 +34,7 @@ namespace cyb::hli
             TextureDesc desc;
             desc.layout = ResourceState::DepthStencil_ReadOnlyBit;
             desc.format = Format::D24_Float_S8_Uint;
-            desc.bindFlags = BindFlags::DepthStencilBit;
+            desc.bindFlags = BindFlags::DepthStencilBit | BindFlags::ShaderResourceBit;
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;
             device->CreateTexture(&desc, nullptr, &depthBuffer_Main);
@@ -89,13 +89,14 @@ namespace cyb::hli
         device->BindViewports(&viewport, 1, cmd);
 
         const RenderPassImage renderPassImages[] = {
-                    RenderPassImage::RenderTarget(
-                        &renderTarget_Main,
-                        RenderPassImage::LoadOp::DontCare),
-                    RenderPassImage::DepthStencil(
-                        &depthBuffer_Main,
-                        RenderPassImage::LoadOp::Clear,
-                        RenderPassImage::StoreOp::Store) };
+            RenderPassImage::RenderTarget(
+                &renderTarget_Main,
+                RenderPassImage::LoadOp::DontCare),
+            RenderPassImage::DepthStencil(
+                &depthBuffer_Main,
+                RenderPassImage::LoadOp::Clear,
+                RenderPassImage::StoreOp::Store)
+        };
         device->BeginRenderPass(renderPassImages, _countof(renderPassImages), cmd);
 
         Rect scissor = GetScissorInternalResolution();
@@ -119,12 +120,13 @@ namespace cyb::hli
         device->BeginEvent("Selection Outline", cmd);
         {
             const RenderPassImage rp[] = {
-                         RenderPassImage::RenderTarget(
-                             &rtSelectionOutline,
-                             RenderPassImage::LoadOp::Clear),
-                         RenderPassImage::DepthStencil(
-                             &depthBuffer_Main,
-                             RenderPassImage::LoadOp::Load) };
+                RenderPassImage::RenderTarget(
+                    &rtSelectionOutline,
+                    RenderPassImage::LoadOp::Clear),
+                RenderPassImage::DepthStencil(
+                    &depthBuffer_Main,
+                    RenderPassImage::LoadOp::Load)
+            };
             device->BeginRenderPass(rp, _countof(rp), cmd);
 
             renderer::ImageParams image = {};
@@ -139,9 +141,10 @@ namespace cyb::hli
 
         {
             const RenderPassImage rp[] = {
-                         RenderPassImage::RenderTarget(
-                             &renderTarget_Main,
-                             RenderPassImage::LoadOp::Load) };
+                RenderPassImage::RenderTarget(
+                    &renderTarget_Main,
+                    RenderPassImage::LoadOp::Load)
+            };
             device->BeginRenderPass(rp, _countof(rp), cmd);
             XMFLOAT4 outlineColor = XMFLOAT4(1.0f, 0.62f, 0.17f, 1.0f);
             renderer::Postprocess_Outline(rtSelectionOutline, cmd, r_selectionOutlineThickness.GetValue<float>(), 0.05f, outlineColor);

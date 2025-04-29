@@ -146,7 +146,7 @@ namespace cyb::graphics::vulkan_internal
         case ResourceState::DepthStencilBit:        return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         case ResourceState::DepthStencil_ReadOnlyBit: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
         case ResourceState::ShaderResourceBit:
-        case ResourceState::ShaderResourceComputeBit: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        case ResourceState::ShaderResourceComputeBit: return VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL_KHR;
         case ResourceState::UnorderedAccessBit:     return VK_IMAGE_LAYOUT_GENERAL;
         case ResourceState::CopySrcBit:             return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         case ResourceState::CopyDstBit:             return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -155,6 +155,36 @@ namespace cyb::graphics::vulkan_internal
 
         assert(0);
         return VK_IMAGE_LAYOUT_UNDEFINED;
+    }
+
+    constexpr VkPipelineStageFlags2 _ConvertPipelineStage(ResourceState value)
+    {
+        VkPipelineStageFlags2 flags = VK_PIPELINE_STAGE_2_NONE;
+
+        if (HasFlag(value, ResourceState::ShaderResourceBit) ||
+            HasFlag(value, ResourceState::ShaderResourceComputeBit) ||
+            HasFlag(value, ResourceState::UnorderedAccessBit) ||
+            HasFlag(value, ResourceState::ConstantBufferBit))
+            flags |= VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        if (HasFlag(value, ResourceState::CopySrcBit) ||
+            HasFlag(value, ResourceState::CopyDstBit))
+            flags |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        if (HasFlag(value, ResourceState::RenderTargetBit))
+            flags |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+        if (HasFlag(value, ResourceState::DepthStencilBit) ||
+            HasFlag(value, ResourceState::DepthStencil_ReadOnlyBit))
+            flags |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+        if (HasFlag(value, ResourceState::VertexBufferBit))
+            flags |= VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+        if (HasFlag(value, ResourceState::IndexBufferBit))
+            flags |= VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT;
+        if (HasFlag(value, ResourceState::IndirectArgumentBit))
+            flags |= VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT; 
+        if (HasFlag(value, ResourceState::RaytracingAccelerationStructureBit))
+            flags |= VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+        if (HasFlag(value, ResourceState::PredictionBit))
+            flags |= VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT;
+        return flags;
     }
 
     constexpr VkAccessFlags _ParseResourceState(ResourceState value)
@@ -855,7 +885,7 @@ namespace cyb::graphics
                         imageInfos.back().sampler = ToInternal((const Sampler*)&sampler)->resource;
                         auto texture_internal = ToInternal((const Texture*)&resource);
                         imageInfos.back().imageView = texture_internal->srv.imageView;
-                        imageInfos.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfos.back().imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: {
@@ -867,7 +897,7 @@ namespace cyb::graphics
                         const GPUResource& resource = table.SRV[unrolled_binding];
                         auto texture_internal = ToInternal((const Texture*)&resource);
                         imageInfos.back().imageView = texture_internal->srv.imageView;
-                        imageInfos.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfos.back().imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
@@ -1565,7 +1595,7 @@ namespace cyb::graphics
         return CreateSwapchainInternal(internal_state.get(), physicalDevice, device, m_allocationHandler);
     }
 
-    bool GraphicsDevice_Vulkan::CreateBuffer(const GPUBufferDesc* desc, const void* init_data, GPUBuffer* buffer) const
+    bool GraphicsDevice_Vulkan::CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const
     {
         auto internal_state = std::make_shared<Buffer_Vulkan>();
         internal_state->allocationhandler = m_allocationHandler;
@@ -1619,31 +1649,10 @@ namespace cyb::graphics
         }
 
         // Issue data copy on request:
-        if (init_data != nullptr)
+        if (initData != nullptr)
         {
             auto cmd = m_copyAllocator.Allocate(desc->size);
-
-            std::memcpy(cmd.uploadBuffer.mappedData, init_data, buffer->desc.size);
-
-            VkBufferMemoryBarrier barrier = {};
-            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-            barrier.buffer = internal_state->resource;
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.size = VK_WHOLE_SIZE;
-
-            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-            vkCmdPipelineBarrier(
-                cmd.transferCommandBuffer,
-                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                0,
-                0, nullptr,
-                1, &barrier,
-                0, nullptr
-            );
+            std::memcpy(cmd.uploadBuffer.mappedData, initData, buffer->desc.size);
 
             VkBufferCopy copyRegion = {};
             copyRegion.size = buffer->desc.size;
@@ -1658,25 +1667,35 @@ namespace cyb::graphics
                 &copyRegion
             );
 
-            std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
-
+            VkBufferMemoryBarrier2 barrier = {};
+            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+            barrier.buffer = internal_state->resource;
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+            barrier.srcAccessMask = 0;
+            barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.size = VK_WHOLE_SIZE;
+            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             if (HasFlag(buffer->desc.bindFlags, BindFlags::ConstantBufferBit))
                 barrier.dstAccessMask |= VK_ACCESS_UNIFORM_READ_BIT;
             if (HasFlag(buffer->desc.bindFlags, BindFlags::VertexBufferBit))
+            {
+                barrier.dstStageMask |= VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT;
                 barrier.dstAccessMask |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+            }
             if (HasFlag(buffer->desc.bindFlags, BindFlags::IndexBufferBit))
+            {
+                barrier.dstStageMask |= VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT;
                 barrier.dstAccessMask |= VK_ACCESS_INDEX_READ_BIT;
+            }
 
-            vkCmdPipelineBarrier(
-                cmd.transferCommandBuffer,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                0,
-                0, nullptr,
-                1, &barrier,
-                0, nullptr
-            );
+            VkDependencyInfo dependencyInfo = {};
+            dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+            dependencyInfo.bufferMemoryBarrierCount = 1;
+            dependencyInfo.pBufferMemoryBarriers = &barrier;
 
+            vkCmdPipelineBarrier2(cmd.transitionCommandBuffer, &dependencyInfo);
             m_copyAllocator.Submit(cmd);
         }
 
@@ -1853,14 +1872,8 @@ namespace cyb::graphics
             viewInfo.components.b = _ConvertComponentSwizzle(swizzle.b);
             viewInfo.components.a = _ConvertComponentSwizzle(swizzle.a);
 
-            switch (format)
-            {
-            case Format::D32_Float_S8_Uint:
-                viewInfo.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+            if (IsFormatDepthSupport(format))
                 viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-                break;
-            default: break;
-            }
 
             VK_CHECK_RESULT(vkCreateImageView(device, &viewInfo, nullptr, &subresource.imageView));
             assert(!textureInternal->srv.IsValid());
@@ -2017,12 +2030,14 @@ namespace cyb::graphics
 
             if (cmd.IsValid())
             {
-                VkImageMemoryBarrier barrier = {};
-                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                VkImageMemoryBarrier2 barrier = {};
+                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
                 barrier.image = textureInternal->resource;
                 barrier.oldLayout = imageInfo.initialLayout;
                 barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+                barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
                 barrier.srcAccessMask = 0;
+                barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
                 barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
                 barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
                 barrier.subresourceRange.baseArrayLayer = 0;
@@ -2032,15 +2047,12 @@ namespace cyb::graphics
                 barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
-                vkCmdPipelineBarrier(
-                    cmd.transferCommandBuffer,
-                    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    0,
-                    0, nullptr,
-                    0, nullptr,
-                    1, &barrier
-                );
+                VkDependencyInfo dependencyInfo = {};
+                dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+                dependencyInfo.imageMemoryBarrierCount = 1;
+                dependencyInfo.pImageMemoryBarriers = &barrier;
+
+                vkCmdPipelineBarrier2(cmd.transferCommandBuffer, &dependencyInfo);
 
                 vkCmdCopyBufferToImage(
                     cmd.transferCommandBuffer,
@@ -2055,38 +2067,37 @@ namespace cyb::graphics
                 barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
                 barrier.dstAccessMask = _ParseResourceState(texture->desc.layout);
 
-                vkCmdPipelineBarrier(
-                    cmd.transitionCommandBuffer,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                    0,
-                    0, nullptr,
-                    0, nullptr,
-                    1, &barrier
-                );
+                std::swap(barrier.srcStageMask, barrier.dstStageMask);
+                barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+                barrier.newLayout = _ConvertImageLayout(texture->desc.layout);
+                barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                barrier.dstAccessMask = _ParseResourceState(texture->desc.layout);
+                vkCmdPipelineBarrier2(cmd.transitionCommandBuffer, &dependencyInfo);
                 
                 m_copyAllocator.Submit(cmd);
             }
         }
         else
         {
-            VkImageMemoryBarrier barrier = {};
-            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            VkImageMemoryBarrier2 barrier = {};
+            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
             barrier.image = textureInternal->resource;
             barrier.oldLayout = imageInfo.initialLayout;
             barrier.newLayout = _ConvertImageLayout(texture->desc.layout);
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             barrier.srcAccessMask = 0;
+            barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
             barrier.dstAccessMask = _ParseResourceState(texture->desc.layout);
-            if (HasFlag(texture->desc.bindFlags, BindFlags::DepthStencilBit))
+            if (IsFormatDepthSupport(texture->desc.format))
             {
                 barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-                barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+                if (IsFormatStencilSupport(texture->desc.format))
+                    barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
             }
             else
             {
                 barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             }
-
             barrier.subresourceRange.baseArrayLayer = 0;
             barrier.subresourceRange.layerCount = imageInfo.arrayLayers;
             barrier.subresourceRange.baseMipLevel = 0;
@@ -2096,16 +2107,12 @@ namespace cyb::graphics
 
             CopyAllocator::CopyCMD cmd = m_copyAllocator.Allocate(0);
            
-            vkCmdPipelineBarrier(
-                cmd.transitionCommandBuffer,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                0,
-                0, nullptr,
-                0, nullptr,
-                1, &barrier
-            );
+            VkDependencyInfo dependencyInfo = {};
+            dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+            dependencyInfo.imageMemoryBarrierCount = 1;
+            dependencyInfo.pImageMemoryBarriers = &barrier;
 
+            vkCmdPipelineBarrier2(cmd.transitionCommandBuffer, &dependencyInfo);
             m_copyAllocator.Submit(cmd);
         }
 
@@ -3015,12 +3022,14 @@ namespace cyb::graphics
         info.colorAttachmentCount = 1;
         info.pColorAttachments = &color_attachment;
 
-        VkImageMemoryBarrier barrier = {};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        VkImageMemoryBarrier2 barrier = {};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
         barrier.image = internal_state->swapchainImages[internal_state->swapchainImageIndex];
         barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
         barrier.srcAccessMask = VK_ACCESS_NONE;
+        barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
         barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         barrier.subresourceRange.baseMipLevel = 0;
@@ -3029,18 +3038,17 @@ namespace cyb::graphics
         barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        vkCmdPipelineBarrier(
-            commandlist.GetCommandBuffer(),
-            VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-            VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-            0,
-            0, nullptr,
-            0, nullptr,
-            1, &barrier);
+
+        VkDependencyInfo dependencyInfo = {};
+        dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        dependencyInfo.imageMemoryBarrierCount = 1;
+        dependencyInfo.pImageMemoryBarriers = &barrier;
+        vkCmdPipelineBarrier2(commandlist.GetCommandBuffer(), &dependencyInfo);
+
         barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_NONE;
+        barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_2_NONE;
         commandlist.renderpassBarriersEnd.push_back(barrier);
 
         vkCmdBeginRendering(commandlist.GetCommandBuffer(), &info);
@@ -3127,13 +3135,16 @@ namespace cyb::graphics
 
             if (image.prePassLayout != image.layout)
             {
-                VkImageMemoryBarrier& barrier = commandlist.renderpassBarriersBegin.emplace_back();
-                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                VkImageMemoryBarrier2& barrier = commandlist.renderpassBarriersBegin.emplace_back();
+                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
                 barrier.image = textureInternal->resource;
                 barrier.oldLayout = _ConvertImageLayout(image.prePassLayout);
                 barrier.newLayout = _ConvertImageLayout(image.layout);
+                barrier.srcStageMask = _ConvertPipelineStage(image.prePassLayout);
+                barrier.dstStageMask = _ConvertPipelineStage(image.layout);
                 barrier.srcAccessMask = _ParseResourceState(image.prePassLayout);
                 barrier.dstAccessMask = _ParseResourceState(image.layout);
+
                 if (IsFormatDepthSupport(texture->desc.format))
                 {
                     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -3154,13 +3165,16 @@ namespace cyb::graphics
 
             if (image.layout != image.postPassLayout)
             {
-                VkImageMemoryBarrier& barrier = commandlist.renderpassBarriersEnd.emplace_back();
-                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                VkImageMemoryBarrier2& barrier = commandlist.renderpassBarriersEnd.emplace_back();
+                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
                 barrier.image = textureInternal->resource;
                 barrier.oldLayout = _ConvertImageLayout(image.layout);
                 barrier.newLayout = _ConvertImageLayout(image.postPassLayout);
+                barrier.srcStageMask = _ConvertPipelineStage(image.layout);
+                barrier.dstStageMask = _ConvertPipelineStage(image.postPassLayout);
                 barrier.srcAccessMask = _ParseResourceState(image.layout);
                 barrier.dstAccessMask = _ParseResourceState(image.postPassLayout);
+
                 if (IsFormatDepthSupport(texture->desc.format))
                 {
                     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -3188,15 +3202,12 @@ namespace cyb::graphics
 
         if (!commandlist.renderpassBarriersBegin.empty())
         {
-            vkCmdPipelineBarrier(
-                commandlist.GetCommandBuffer(),
-                VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                0,
-                0, nullptr,
-                0, nullptr,
-                (uint32_t)commandlist.renderpassBarriersBegin.size(), commandlist.renderpassBarriersBegin.data()
-            );
+            VkDependencyInfo dependencyInfo = {};
+            dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+            dependencyInfo.imageMemoryBarrierCount = static_cast<uint32_t>(commandlist.renderpassBarriersBegin.size());
+            dependencyInfo.pImageMemoryBarriers = commandlist.renderpassBarriersBegin.data();
+
+            vkCmdPipelineBarrier2(commandlist.GetCommandBuffer(), &dependencyInfo);
         }
 
         vkCmdBeginRendering(commandlist.GetCommandBuffer(), &renderingInfo);
@@ -3210,14 +3221,12 @@ namespace cyb::graphics
 
         if (!commandlist.renderpassBarriersEnd.empty())
         {
-            vkCmdPipelineBarrier(
-                commandlist.GetCommandBuffer(),
-                VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                0,
-                0, nullptr,
-                0, nullptr,
-                (uint32_t)commandlist.renderpassBarriersEnd.size(), commandlist.renderpassBarriersEnd.data());
+            VkDependencyInfo dependencyInfo = {};
+            dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+            dependencyInfo.imageMemoryBarrierCount = static_cast<uint32_t>(commandlist.renderpassBarriersEnd.size());
+            dependencyInfo.pImageMemoryBarriers = commandlist.renderpassBarriersEnd.data();
+
+            vkCmdPipelineBarrier2(commandlist.GetCommandBuffer(), &dependencyInfo);
             commandlist.renderpassBarriersEnd.clear();
         }
 

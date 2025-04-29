@@ -144,8 +144,8 @@ namespace cyb::graphics
             size_t vertexbuffer_hash = 0;
             bool dirty_pso = false;
             RenderPassInfo renderpassInfo = {};
-            std::vector<VkImageMemoryBarrier> renderpassBarriersBegin;
-            std::vector<VkImageMemoryBarrier> renderpassBarriersEnd;
+            std::vector<VkImageMemoryBarrier2> renderpassBarriersBegin;
+            std::vector<VkImageMemoryBarrier2> renderpassBarriersEnd;
 #ifdef CYB_DEBUG_BUILD
             int32_t eventCount = 0;
 #endif
@@ -204,7 +204,7 @@ namespace cyb::graphics
         virtual ~GraphicsDevice_Vulkan();
 
         bool CreateSwapchain(const SwapchainDesc* desc, WindowHandle window, Swapchain* swapchain) const override;
-        bool CreateBuffer(const GPUBufferDesc* desc, const void* init_data, GPUBuffer* buffer) const override;
+        bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const override;
         bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const override;
         bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const override;
         bool CreateShader(ShaderStage stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const override;

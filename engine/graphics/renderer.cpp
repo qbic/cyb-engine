@@ -140,9 +140,9 @@ namespace cyb::renderer
             input.shadersource = (uint8_t*)fileData.data();
             input.shadersize = fileData.size();
             input.stage = stage;
-            #ifdef CYB_DEBUG_BUILD
+            //#ifdef CYB_DEBUG_BUILD
             input.flags |= ShaderCompilerFlags::GenerateDebugInfoBit;
-            #endif
+            //#endif
 
             ShaderCompilerOutput output;
             if (!CompileShader(&input, &output))

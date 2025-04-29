@@ -764,9 +764,9 @@ namespace cyb::graphics
     {
         this->device = device;
 
-        descriptor_writes.reserve(128);
-        buffer_infos.reserve(128);
-        image_infos.reserve(128);
+        descriptorWrites.reserve(128);
+        bufferInfos.reserve(128);
+        imageInfos.reserve(128);
     }
 
     void GraphicsDevice_Vulkan::DescriptorBinder::Reset()
@@ -789,10 +789,10 @@ namespace cyb::graphics
 
         VkPipelineLayout pipeline_layout = pso_internal->pipelineLayout;
         VkDescriptorSetLayout descriptorset_layout = pso_internal->descriptorset_layout;
-        VkDescriptorSet descriptorset = descriptorset_graphics;
+        VkDescriptorSet descriptorset = descriptorsetGraphics;
         uint32_t uniform_buffer_dynamic_count = (uint32_t)pso_internal->uniform_buffer_dynamic_slots.size();
         for (size_t i = 0; i < pso_internal->uniform_buffer_dynamic_slots.size(); ++i)
-            uniform_buffer_dynamic_offsets[i] = (uint32_t)table.CBV_offset[pso_internal->uniform_buffer_dynamic_slots[i]];
+            uniformBufferDynamicOffsets[i] = (uint32_t)table.CBV_offset[pso_internal->uniform_buffer_dynamic_slots[i]];
 
         if (dirtyFlags & DIRTY_DESCRIPTOR)
         {
@@ -800,24 +800,24 @@ namespace cyb::graphics
 
             VkDescriptorSetAllocateInfo alloc_info = {};
             alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            alloc_info.descriptorPool = binder_pool.descriptor_pool;
+            alloc_info.descriptorPool = binder_pool.descriptorPool;
             alloc_info.descriptorSetCount = 1;
             alloc_info.pSetLayouts = &descriptorset_layout;
 
             VkResult res = vkAllocateDescriptorSets(device->device, &alloc_info, &descriptorset);
             while (res == VK_ERROR_OUT_OF_POOL_MEMORY)
             {
-                binder_pool.pool_max_size *= 2;
+                binder_pool.poolMaxSize *= 2;
                 binder_pool.Destroy();
                 binder_pool.Init(device);
-                alloc_info.descriptorPool = binder_pool.descriptor_pool;
+                alloc_info.descriptorPool = binder_pool.descriptorPool;
                 res = vkAllocateDescriptorSets(device->device, &alloc_info, &descriptorset);
             }
             assert(res == VK_SUCCESS);
 
-            descriptor_writes.clear();
-            buffer_infos.clear();
-            image_infos.clear();
+            descriptorWrites.clear();
+            bufferInfos.clear();
+            imageInfos.clear();
 
             const auto& layout_bindings = pso_internal->layout_bindings;
             const auto& imageViewTypes = pso_internal->imageViewTypes;
@@ -832,11 +832,12 @@ namespace cyb::graphics
                 }
                 VkImageViewType viewType = imageViewTypes[i++];
 
+
                 for (uint32_t descriptor_index = 0; descriptor_index < x.descriptorCount; ++descriptor_index)
                 {
                     uint32_t unrolled_binding = x.binding + descriptor_index;
 
-                    auto& write = descriptor_writes.emplace_back(VkWriteDescriptorSet{});
+                    auto& write = descriptorWrites.emplace_back(VkWriteDescriptorSet{});
                     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                     write.dstSet = descriptorset;
                     write.dstArrayElement = descriptor_index;
@@ -847,54 +848,54 @@ namespace cyb::graphics
                     switch (write.descriptorType)
                     {
                     case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
-                        write.pImageInfo = &image_infos.emplace_back(VkDescriptorImageInfo{});
+                        write.pImageInfo = &imageInfos.emplace_back(VkDescriptorImageInfo{});
                         const GPUResource& resource = table.SRV[unrolled_binding];
                         const Sampler& sampler = table.SAM[unrolled_binding];
 
-                        image_infos.back().sampler = ToInternal((const Sampler*)&sampler)->resource;
+                        imageInfos.back().sampler = ToInternal((const Sampler*)&sampler)->resource;
                         auto texture_internal = ToInternal((const Texture*)&resource);
-                        image_infos.back().imageView = texture_internal->srv.imageView;
-                        image_infos.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfos.back().imageView = texture_internal->srv.imageView;
+                        imageInfos.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: {
-                        image_infos.emplace_back();
-                        write.pImageInfo = &image_infos.back();
-                        image_infos.back() = {};
-                        image_infos.back().imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        imageInfos.emplace_back();
+                        write.pImageInfo = &imageInfos.back();
+                        imageInfos.back() = {};
+                        imageInfos.back().imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
                         const GPUResource& resource = table.SRV[unrolled_binding];
                         auto texture_internal = ToInternal((const Texture*)&resource);
-                        image_infos.back().imageView = texture_internal->srv.imageView;
-                        image_infos.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfos.back().imageView = texture_internal->srv.imageView;
+                        imageInfos.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-                        write.pBufferInfo = &buffer_infos.emplace_back(VkDescriptorBufferInfo{});
+                        write.pBufferInfo = &bufferInfos.emplace_back(VkDescriptorBufferInfo{});
                         const uint32_t binding_location = unrolled_binding;
                         const GPUBuffer& buffer = table.CBV[binding_location];
                         assert(buffer.IsBuffer() && "No buffer bound to slot");
                         uint64_t offset = table.CBV_offset[binding_location];
 
                         auto internal_state = ToInternal(&buffer);
-                        buffer_infos.back().buffer = internal_state->resource;
-                        buffer_infos.back().offset = offset;
-                        buffer_infos.back().range = pso_internal->uniform_buffer_sizes[binding_location];
-                        if (buffer_infos.back().range == 0ull)
-                            buffer_infos.back().range = VK_WHOLE_SIZE;
+                        bufferInfos.back().buffer = internal_state->resource;
+                        bufferInfos.back().offset = offset;
+                        bufferInfos.back().range = pso_internal->uniform_buffer_sizes[binding_location];
+                        if (bufferInfos.back().range == 0ull)
+                            bufferInfos.back().range = VK_WHOLE_SIZE;
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: {
-                        write.pBufferInfo = &buffer_infos.emplace_back(VkDescriptorBufferInfo{});
+                        write.pBufferInfo = &bufferInfos.emplace_back(VkDescriptorBufferInfo{});
                         const uint32_t binding_location = unrolled_binding;
                         const GPUBuffer& buffer = table.CBV[binding_location];
                         assert(buffer.IsBuffer());
 
                         auto internal_state = ToInternal(&buffer);
-                        buffer_infos.back().buffer = internal_state->resource;
-                        buffer_infos.back().range = pso_internal->uniform_buffer_sizes[binding_location];
-                        if (buffer_infos.back().range == 0ull)
-                            buffer_infos.back().range = VK_WHOLE_SIZE;
+                        bufferInfos.back().buffer = internal_state->resource;
+                        bufferInfos.back().range = pso_internal->uniform_buffer_sizes[binding_location];
+                        if (bufferInfos.back().range == 0ull)
+                            bufferInfos.back().range = VK_WHOLE_SIZE;
                     } break;
 
                     default: assert(0);
@@ -904,8 +905,8 @@ namespace cyb::graphics
 
             vkUpdateDescriptorSets(
                 device->device,
-                (uint32_t)descriptor_writes.size(),
-                descriptor_writes.data(),
+                (uint32_t)descriptorWrites.size(),
+                descriptorWrites.data(),
                 0,
                 nullptr);
         }
@@ -918,9 +919,9 @@ namespace cyb::graphics
             1,
             &descriptorset,
             uniform_buffer_dynamic_count,
-            uniform_buffer_dynamic_offsets);
+            uniformBufferDynamicOffsets);
 
-        descriptorset_graphics = descriptorset;
+        descriptorsetGraphics = descriptorset;
         dirtyFlags = DIRTY_NONE;
     }
 
@@ -929,45 +930,45 @@ namespace cyb::graphics
         this->device = device;
 
         // Create descriptor pool:
-        std::vector<VkDescriptorPoolSize> pool_sizes = {};
-        VkDescriptorPoolSize pool_size = {};
+        std::vector<VkDescriptorPoolSize> poolSizes = {};
+        VkDescriptorPoolSize poolSize = {};
 
-        pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        pool_size.descriptorCount = DESCRIPTORBINDER_CBV_COUNT * pool_max_size;
-        pool_sizes.push_back(pool_size);
+        poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSize.descriptorCount = DESCRIPTORBINDER_CBV_COUNT * poolMaxSize;
+        poolSizes.push_back(poolSize);
 
-        pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-        pool_size.descriptorCount = DESCRIPTORBINDER_CBV_COUNT * pool_max_size;
-        pool_sizes.push_back(pool_size);
+        poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+        poolSize.descriptorCount = DESCRIPTORBINDER_CBV_COUNT * poolMaxSize;
+        poolSizes.push_back(poolSize);
 
-        pool_size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        pool_size.descriptorCount = DESCRIPTORBINDER_SRV_COUNT * pool_max_size;
-        pool_sizes.push_back(pool_size);
-
-        VkDescriptorPoolCreateInfo create_info = {};
-        create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        create_info.poolSizeCount = (uint32_t)pool_sizes.size();
-        create_info.pPoolSizes = pool_sizes.data();
-        create_info.maxSets = pool_max_size;
-        VK_CHECK_RESULT(vkCreateDescriptorPool(device->device, &create_info, nullptr, &descriptor_pool));
+        poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        poolSize.descriptorCount = DESCRIPTORBINDER_SRV_COUNT * poolMaxSize;
+        poolSizes.push_back(poolSize);
+        
+        VkDescriptorPoolCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        createInfo.poolSizeCount = (uint32_t)poolSizes.size();
+        createInfo.pPoolSizes = poolSizes.data();
+        createInfo.maxSets = poolMaxSize;
+        VK_CHECK_RESULT(vkCreateDescriptorPool(device->device, &createInfo, nullptr, &descriptorPool));
     }
 
     void GraphicsDevice_Vulkan::DescriptorBinderPool::Destroy()
     {
-        if (descriptor_pool != VK_NULL_HANDLE)
+        if (descriptorPool != VK_NULL_HANDLE)
         {
             device->m_allocationHandler->destroylocker.lock();
-            device->m_allocationHandler->destroyer_descriptorPools.push_back(std::make_pair(descriptor_pool, device->frameCount));
-            descriptor_pool = VK_NULL_HANDLE;
+            device->m_allocationHandler->destroyer_descriptorPools.push_back(std::make_pair(descriptorPool, device->frameCount));
+            descriptorPool = VK_NULL_HANDLE;
             device->m_allocationHandler->destroylocker.unlock();
         }
     }
 
     void GraphicsDevice_Vulkan::DescriptorBinderPool::Reset()
     {
-        if (descriptor_pool != VK_NULL_HANDLE)
+        if (descriptorPool != VK_NULL_HANDLE)
         {
-            VK_CHECK_RESULT(vkResetDescriptorPool(device->device, descriptor_pool, 0));
+            VK_CHECK_RESULT(vkResetDescriptorPool(device->device, descriptorPool, 0));
         }
     }
 
@@ -2781,56 +2782,46 @@ namespace cyb::graphics
             
             if (features2.features.depthBounds == VK_TRUE)
                 vkCmdSetDepthBounds(commandlist.GetCommandBuffer(), 0.0f, 1.0f);
-
         }
         return cmd;
     }
 
     void GraphicsDevice_Vulkan::CommandQueue::Submit(GraphicsDevice_Vulkan* device, VkFence fence)
     {
-        VkSubmitInfo submitInfo = {};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = (uint32_t)submit_cmds.size();
-        submitInfo.pCommandBuffers = submit_cmds.data();
+        if (queue == VK_NULL_HANDLE)
+            return;
+        std::scoped_lock lock(*locker);
 
-        submitInfo.waitSemaphoreCount = static_cast<uint32_t>(submit_waitSemaphores.size());
-        submitInfo.pWaitSemaphores = submit_waitSemaphores.data();
-        submitInfo.pWaitDstStageMask = submit_waitStages.data();
+        VkSubmitInfo2 submitInfo = {};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+        submitInfo.commandBufferInfoCount = (uint32_t)submit_cmds.size();
+        submitInfo.pCommandBufferInfos = submit_cmds.data();
 
-        submitInfo.signalSemaphoreCount = static_cast<uint32_t>(submit_signalSemaphores.size());
-        submitInfo.pSignalSemaphores = submit_signalSemaphores.data();
+        submitInfo.waitSemaphoreInfoCount = static_cast<uint32_t>(submit_waitSemaphoreInfos.size());
+        submitInfo.pWaitSemaphoreInfos = submit_waitSemaphoreInfos.data();
 
-        VkTimelineSemaphoreSubmitInfo timelineInfo = {};
-        timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-        timelineInfo.pNext = nullptr;
-        timelineInfo.waitSemaphoreValueCount = (uint32_t)submit_waitValues.size();
-        timelineInfo.pWaitSemaphoreValues = submit_waitValues.data();
-        timelineInfo.signalSemaphoreValueCount = (uint32_t)submit_signalValues.size();
-        timelineInfo.pSignalSemaphoreValues = submit_signalValues.data();
+        submitInfo.signalSemaphoreInfoCount = static_cast<uint32_t>(submit_signalSemaphoreInfos.size());
+        submitInfo.pSignalSemaphoreInfos = submit_signalSemaphoreInfos.data();
 
-        submitInfo.pNext = &timelineInfo;
-        VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, fence));
+        VK_CHECK_RESULT(vkQueueSubmit2(queue, 1, &submitInfo, fence));
 
         if (!submit_swapchains.empty())
         {
-            VkPresentInfoKHR present_info = {};
-            present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-            present_info.waitSemaphoreCount = static_cast<uint32_t>(submit_signalSemaphores.size());
-            present_info.pWaitSemaphores = submit_signalSemaphores.data();
-
-            present_info.swapchainCount = static_cast<uint32_t>(submit_swapchains.size());
-            present_info.pSwapchains = submit_swapchains.data();
-            present_info.pImageIndices = submit_swapChainImageIndices.data();
-            VK_CHECK_RESULT(vkQueuePresentKHR(queue, &present_info));
+            VkPresentInfoKHR presentInfo = {};
+            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+            presentInfo.waitSemaphoreCount = static_cast<uint32_t>(submit_signalSemaphores.size());
+            presentInfo.pWaitSemaphores = submit_signalSemaphores.data();
+            presentInfo.swapchainCount = static_cast<uint32_t>(submit_swapchains.size());
+            presentInfo.pSwapchains = submit_swapchains.data();
+            presentInfo.pImageIndices = submit_swapchainImageIndices.data();
+            VK_CHECK_RESULT(vkQueuePresentKHR(queue, &presentInfo));
         }
 
         submit_swapchains.clear();
-        submit_swapChainImageIndices.clear();
-        submit_waitStages.clear();
-        submit_waitSemaphores.clear();
-        submit_waitValues.clear();
+        submit_swapchainImageIndices.clear();
+        submit_waitSemaphoreInfos.clear();
         submit_signalSemaphores.clear();
-        submit_signalValues.clear();
+        submit_signalSemaphoreInfos.clear();
         submit_cmds.clear();
     }
 
@@ -2847,18 +2838,27 @@ namespace cyb::graphics
                 VK_CHECK_RESULT(vkEndCommandBuffer(commandlist.GetCommandBuffer()));
 
                 CommandQueue& queue = queues[static_cast<uint32_t>(commandlist.queue)];
-                queue.submit_cmds.push_back(commandlist.GetCommandBuffer());
+                VkCommandBufferSubmitInfo& submitInfo = queue.submit_cmds.emplace_back();
+                submitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+                submitInfo.commandBuffer = commandlist.GetCommandBuffer();
 
                 for (auto& swapchain : commandlist.prevSwapchains)
                 {
                     auto internal_state = ToInternal(&swapchain);
                     queue.submit_swapchains.push_back(internal_state->swapchain);
-                    queue.submit_swapChainImageIndices.push_back(internal_state->swapchainImageIndex);
-                    queue.submit_waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-                    queue.submit_waitSemaphores.push_back(internal_state->swapchainAcquireSemaphores[internal_state->swapchainAcquireSemaphoreIndex]);
-                    queue.submit_waitValues.push_back(0);   // Not a timeline semaphore
+                    queue.submit_swapchainImageIndices.push_back(internal_state->swapchainImageIndex);
+
+                    VkSemaphoreSubmitInfo& waitSemaphore = queue.submit_waitSemaphoreInfos.emplace_back();
+                    waitSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+                    waitSemaphore.semaphore = internal_state->swapchainAcquireSemaphores[internal_state->swapchainAcquireSemaphoreIndex];
+                    waitSemaphore.value = 0; // not a timeline semaphore
+                    waitSemaphore.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+
                     queue.submit_signalSemaphores.push_back(internal_state->swapchainReleaseSemaphore);
-                    queue.submit_signalValues.push_back(0); // Not a timeline semaphore
+                    VkSemaphoreSubmitInfo& signalSemaphore = queue.submit_signalSemaphoreInfos.emplace_back();
+                    signalSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+                    signalSemaphore.semaphore = internal_state->swapchainReleaseSemaphore;
+                    signalSemaphore.value = 0; // not a timeline semaphore
                 }
 
                 for (auto& x : commandlist.pipelinesWorker)

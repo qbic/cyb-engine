@@ -45,13 +45,11 @@ namespace cyb::graphics
         {
             VkQueue queue = VK_NULL_HANDLE;
             std::vector<VkSwapchainKHR> submit_swapchains;
-            std::vector<uint32_t> submit_swapChainImageIndices;
-            std::vector<VkPipelineStageFlags> submit_waitStages;
-            std::vector<VkSemaphore> submit_waitSemaphores;
-            std::vector<uint64_t> submit_waitValues;
+            std::vector<uint32_t> submit_swapchainImageIndices;
             std::vector<VkSemaphore> submit_signalSemaphores;
-            std::vector<uint64_t> submit_signalValues;
-            std::vector<VkCommandBuffer> submit_cmds;
+            std::vector<VkSemaphoreSubmitInfo> submit_signalSemaphoreInfos;
+            std::vector<VkSemaphoreSubmitInfo> submit_waitSemaphoreInfos;
+            std::vector<VkCommandBufferSubmitInfo> submit_cmds;
 
             std::shared_ptr<std::mutex> locker;
 
@@ -91,14 +89,14 @@ namespace cyb::graphics
             DescriptorBindingTable table;
             GraphicsDevice_Vulkan* device = nullptr;
 
-            std::vector<VkWriteDescriptorSet> descriptor_writes;
-            std::vector<VkDescriptorBufferInfo> buffer_infos;
-            std::vector<VkDescriptorImageInfo> image_infos;
+            std::vector<VkWriteDescriptorSet> descriptorWrites;
+            std::vector<VkDescriptorBufferInfo> bufferInfos;
+            std::vector<VkDescriptorImageInfo> imageInfos;
 
-            uint32_t uniform_buffer_dynamic_offsets[DESCRIPTORBINDER_CBV_COUNT] = {};
+            uint32_t uniformBufferDynamicOffsets[DESCRIPTORBINDER_CBV_COUNT] = {};
 
-            VkDescriptorSet descriptorset_graphics = VK_NULL_HANDLE;
-            VkDescriptorSet descriptorset_compute = VK_NULL_HANDLE;
+            VkDescriptorSet descriptorsetGraphics = VK_NULL_HANDLE;
+            VkDescriptorSet descriptorsetCompute = VK_NULL_HANDLE;
 
             enum DIRTY_FLAGS
             {
@@ -117,8 +115,8 @@ namespace cyb::graphics
         struct DescriptorBinderPool
         {
             GraphicsDevice_Vulkan* device = nullptr;
-            VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
-            uint32_t pool_max_size = 256;
+            VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+            uint32_t poolMaxSize = 256;
 
             void Init(GraphicsDevice_Vulkan* device);
             void Destroy();

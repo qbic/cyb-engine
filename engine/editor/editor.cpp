@@ -740,6 +740,10 @@ namespace cyb::editor
 
         virtual void WindowContent() override
         {
+            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z))
+                ui::GetUndoManager().Undo();
+            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y))
+                ui::GetUndoManager().Redo();
             generator.DrawGui(scenegraphView.GetSelectedEntity());
         }
     };
@@ -1170,9 +1174,16 @@ namespace cyb::editor
             return;
 
         ImGuizmo::BeginFrame();
+
         ImGuiID gizmoWindowID = 0;
         if (ImGui::Begin("CybEngine Editor", 0, ImGuiWindowFlags_MenuBar))
         {
+            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z, 0, ImGuiInputFlags_RouteGlobalLow))
+                ui::GetUndoManager().Undo();
+            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y, 0, ImGuiInputFlags_RouteGlobalLow))
+                ui::GetUndoManager().Redo();
+            if (ImGui::Shortcut(ImGuiKey_Delete, 0, ImGuiInputFlags_RouteGlobalLow))
+                DeleteSelectedEntity();
 
             // use windowID for gizmo undo commands
             gizmoWindowID = ImGui::GetCurrentWindow()->ID;

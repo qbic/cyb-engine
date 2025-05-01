@@ -116,7 +116,7 @@ namespace cyb::graphics
         {
             GraphicsDevice_Vulkan* device = nullptr;
             VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-            uint32_t poolMaxSize = 256;
+            uint32_t poolSize = 256;
 
             void Init(GraphicsDevice_Vulkan* device);
             void Destroy();
@@ -146,9 +146,7 @@ namespace cyb::graphics
             RenderPassInfo renderpassInfo = {};
             std::vector<VkImageMemoryBarrier2> renderpassBarriersBegin;
             std::vector<VkImageMemoryBarrier2> renderpassBarriersEnd;
-#ifdef CYB_DEBUG_BUILD
-            int32_t eventCount = 0;
-#endif
+
             inline VkCommandPool GetCommandPool() const {
                 return commandpools[buffer_index][static_cast<uint32_t>(queue)];
             }
@@ -169,9 +167,6 @@ namespace cyb::graphics
                 }
                 dirty_pso = false;
                 prevSwapchains.clear();
-#ifdef CYB_DEBUG_BUILD
-                eventCount = 0;
-#endif
             }
         };
 

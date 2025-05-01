@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 project(cyb-engine)
 
-set(CYB_VERSION "2025.04.26")
+set(CYB_VERSION "2025.04.29")
 
 string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _match "${CYB_VERSION}")
 set(CYB_VERSION_MAJOR "${CMAKE_MATCH_1}")
@@ -41,6 +41,7 @@ if(POLICY CMP0177)
     cmake_policy(SET CMP0177 OLD)
 endif()
 install(TARGETS game RUNTIME DESTINATION .)
+install(FILES build/imgui.ini DESTINATION .)
 install(DIRECTORY assets/ DESTINATION assets)
 install(DIRECTORY engine/shaders/ DESTINATION engine/shaders)
 

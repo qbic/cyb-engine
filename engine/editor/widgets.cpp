@@ -88,15 +88,15 @@ namespace cyb::ui {
     template <class T, typename... Args>
     void SaveChangeToUndoManager(typename T::value_type* value, [[maybe_unused]] Args&&... args) {
         if (ImGui::IsItemActivated()) {
-            ui::GetUndoManager().Emplace<T>(value, std::forward<Args>(args)...);
+            ui::GetUndoManager().EmplaceAction<T>(value, std::forward<Args>(args)...);
         }
 
         if (ImGui::IsItemDeactivated() && !ImGui::IsItemDeactivatedAfterEdit()) {
-            ui::GetUndoManager().ClearIncompleteCommand();
+            ui::GetUndoManager().ClearIncompleteAction();
         }
 
         if (ImGui::IsItemDeactivatedAfterEdit()) {
-            ui::GetUndoManager().CommitIncompleteCommand();
+            ui::GetUndoManager().CommitIncompleteAction();
         }
     }
 
@@ -229,7 +229,7 @@ namespace cyb::ui {
                 if (ImGui::Selectable(name.c_str(), isSelected))
                 {
                     const uint32_t tempValue[1] = { key };
-                    ui::GetUndoManager().Emplace<ui::ModifyValue<uint32_t, 1>>(&value, tempValue, onChange);
+                    ui::GetUndoManager().EmplaceAction<ui::ModifyValue<uint32_t, 1>>(&value, tempValue, onChange);
 
                     value = key;
                     valueChange = true;

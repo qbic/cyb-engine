@@ -1067,7 +1067,7 @@ namespace cyb::editor
         {
             if (!isUsingGizmo)
             {
-                ui::GetUndoManager().Emplace<ui::ModifyValue<scene::TransformComponent>>(windowID, transform);
+                ui::GetUndoManager().EmplaceAction<ui::ModifyValue<scene::TransformComponent>>(windowID, transform);
             }
 
             transform->world = world;
@@ -1088,7 +1088,7 @@ namespace cyb::editor
         {
             if (isUsingGizmo)
             {
-                ui::GetUndoManager().CommitIncompleteCommand();
+                ui::GetUndoManager().CommitIncompleteAction();
                 isUsingGizmo = false;
             }
         }

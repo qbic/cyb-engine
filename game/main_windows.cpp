@@ -2,6 +2,7 @@
 #include "cyb-engine.h"
 #include "game.h"
 #include "resource.h"
+#include "../build/config.h"
 
 using namespace cyb;
 
@@ -128,9 +129,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     RECT rc = { 0, 0, width, height };
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
+    std::wstring title = std::format(L"{} v{}.{}.{}", szTitle, CYB_VERSION_MAJOR, CYB_VERSION_MINOR, CYB_VERSION_PATCH);
+
     HWND hWnd = CreateWindowW(
         szWindowClass,
-        szTitle,
+        title.c_str(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,

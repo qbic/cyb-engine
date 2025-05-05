@@ -119,7 +119,8 @@ namespace cyb::hli
 #if 1
         device->BeginEvent("Selection Outline", cmd);
         {
-            const RenderPassImage rp[] = {
+            CYB_PROFILE_GPU_SCOPE("Selection Outline", cmd);
+            const RenderPassImage rpStencilFill[] = {
                 RenderPassImage::RenderTarget(
                     &rtSelectionOutline,
                     RenderPassImage::LoadOp::Clear),
@@ -127,7 +128,7 @@ namespace cyb::hli
                     &depthBuffer_Main,
                     RenderPassImage::LoadOp::Load)
             };
-            device->BeginRenderPass(rp, _countof(rp), cmd);
+            device->BeginRenderPass(rpStencilFill, _countof(rpStencilFill), cmd);
 
             renderer::ImageParams image = {};
             image.EnableFullscreen();
@@ -137,15 +138,13 @@ namespace cyb::hli
             renderer::DrawImage(nullptr, image, cmd);
 
             device->EndRenderPass(cmd);
-        }
 
-        {
-            const RenderPassImage rp[] = {
+            const RenderPassImage rpOutline[] = {
                 RenderPassImage::RenderTarget(
                     &renderTarget_Main,
                     RenderPassImage::LoadOp::Load)
             };
-            device->BeginRenderPass(rp, _countof(rp), cmd);
+            device->BeginRenderPass(rpOutline, _countof(rpOutline), cmd);
             XMFLOAT4 outlineColor = XMFLOAT4(1.0f, 0.62f, 0.17f, 1.0f);
             renderer::Postprocess_Outline(rtSelectionOutline, cmd, r_selectionOutlineThickness.GetValue<float>(), 0.05f, outlineColor);
             device->EndRenderPass(cmd);

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 project(cyb-engine)
 
-set(CYB_VERSION "2025.04.29")
+set(CYB_VERSION "2025.05.01")
 
 string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _match "${CYB_VERSION}")
 set(CYB_VERSION_MAJOR "${CMAKE_MATCH_1}")

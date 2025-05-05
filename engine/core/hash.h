@@ -14,8 +14,8 @@ namespace cyb::hash
     // https://github.com/manuelgustavo/cx_hash
     [[nodiscard]] constexpr size_t String(const std::string_view input) noexcept
     {
-        size_t hash = sizeof(size_t) == 8 ? 0xcbf29ce484222325 : 0x811c9dc5;
-        const size_t prime = sizeof(size_t) == 8 ? 0x00000100000001b3 : 0x01000193;
+        size_t hash = 0xcbf29ce484222325;
+        const size_t prime = 0x00000100000001b3;
 
         for (const auto& c : input)
         {

@@ -18,23 +18,23 @@
 namespace cyb::editor
 {
     static const std::unordered_map<StrataOp, std::string> g_strataFuncCombo = {
-        { StrataOp::None,                       "None"     },
-        { StrataOp::SharpSub,                   "SharpSub" },
-        { StrataOp::SharpAdd,                   "SharpAdd" },
-        { StrataOp::Quantize,                   "Quantize" },
-        { StrataOp::Smooth,                     "Smooth"   }
+        { StrataOp::None,                       "None"          },
+        { StrataOp::SharpSub,                   "SharpSub"      },
+        { StrataOp::SharpAdd,                   "SharpAdd"      },
+        { StrataOp::Quantize,                   "Quantize"      },
+        { StrataOp::Smooth,                     "Smooth"        }
     };
 
     static const std::unordered_map<noise::Type, std::string> g_noiseTypeCombo = {
-        { noise::Type::Perlin,                  "Perlin"    },
-        { noise::Type::Cellular,                "Cellular"  }
+        { noise::Type::Perlin,                  "Perlin"        },
+        { noise::Type::Cellular,                "Cellular"      }
     };
 
     static const std::unordered_map<MixOp, std::string> g_mixOpCombo = {
-        { MixOp::Add,                           "Add"       },
-        { MixOp::Sub,                           "Sub"       },
-        { MixOp::Mul,                           "Mul"       },
-        { MixOp::Lerp,                          "Lerp"      }
+        { MixOp::Add,                           "Add"           },
+        { MixOp::Sub,                           "Sub"           },
+        { MixOp::Mul,                           "Mul"           },
+        { MixOp::Lerp,                          "Lerp"          }
     };
 
     static const std::unordered_map<noise::CellularReturn, std::string> g_cellularReturnTypeCombo = {
@@ -450,8 +450,7 @@ namespace cyb::editor
     {
         RemoveTerrainData();
 
-        auto requestChunk = [&](int32_t xOffset, int32_t zOffset)
-        {
+        auto requestChunk = [&](int32_t xOffset, int32_t zOffset) {
             Chunk chunk = { centerChunk.x + xOffset, centerChunk.z + zOffset };
             auto it = chunks.find(chunk);
             if (it != chunks.end() && it->second.entity != ecs::INVALID_ENTITY)
@@ -478,14 +477,12 @@ namespace cyb::editor
             jobsystem::Context ctx;
             ctx.allowWorkOnMainThread = false;
             std::vector<XMFLOAT3> points;
-            jobsystem::Execute(ctx, [&](jobsystem::JobArgs args)
-            {
+            jobsystem::Execute(ctx, [&](jobsystem::JobArgs args) {
                 points = triangulator.GetPoints();
             });
 
             std::vector<XMINT3> triangles;
-            jobsystem::Execute(ctx, [&](jobsystem::JobArgs args)
-            {
+            jobsystem::Execute(ctx, [&](jobsystem::JobArgs args) {
                 triangles = triangulator.GetTriangles();
             });
 
@@ -495,8 +492,7 @@ namespace cyb::editor
             const XMFLOAT3 offsetToCenter = XMFLOAT3(-(m_meshDesc.size * 0.5f), 0.0f, -(m_meshDesc.size * 0.5f));
             mesh->vertex_positions.resize(points.size());
             mesh->vertex_colors.resize(points.size());
-            jobsystem::Dispatch(ctx, (uint32_t)points.size(), 512, [&](jobsystem::JobArgs args)
-            {
+            jobsystem::Dispatch(ctx, (uint32_t)points.size(), 512, [&](jobsystem::JobArgs args) {
                 const uint32_t index = args.jobIndex;
                 mesh->vertex_positions[index] = XMFLOAT3(
                     offsetToCenter.x + points[index].x * m_meshDesc.size,
@@ -507,8 +503,7 @@ namespace cyb::editor
 
             // load mesh indexes
             mesh->indices.resize(triangles.size() * 3);
-            jobsystem::Dispatch(ctx, (uint32_t)triangles.size(), 512, [&](jobsystem::JobArgs args)
-            {
+            jobsystem::Dispatch(ctx, (uint32_t)triangles.size(), 512, [&](jobsystem::JobArgs args) {
                 const uint32_t index = args.jobIndex;
                 mesh->indices[(index * 3) + 0] = triangles[index].x;
                 mesh->indices[(index * 3) + 1] = triangles[index].z;
@@ -555,8 +550,7 @@ namespace cyb::editor
 
         auto mergeChunks = [&](int x, int z)
         {
-            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t)
-            {
+            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
                 Chunk chunk = { centerChunk.x + x, centerChunk.z + z };
                 auto it = chunks.find(chunk);
                 ChunkData& chunkData = it->second;
@@ -570,12 +564,12 @@ namespace cyb::editor
         cancelTerrainGen.store(false);
 
         jobContext.allowWorkOnMainThread = false;
-        jobsystem::Execute(jobContext, [=](jobsystem::JobArgs)
-        {
+        jobsystem::Execute(jobContext, [=](jobsystem::JobArgs) {
             requestChunk(0, 0);
             mergeChunks(0, 0);
             if (cancelTerrainGen.load()) 
                 return;
+
             for (int32_t growth = 0; growth < m_meshDesc.chunkExpand; growth++)
             {
                 const int side = 2 * (growth + 1);

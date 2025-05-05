@@ -1,3 +1,4 @@
+#include "core/cvar.h"
 #include "core/logger.h"
 #include "systems/profiler.h"
 #include "systems/scene.h"
@@ -6,6 +7,8 @@ using namespace cyb::graphics;
 
 namespace cyb::scene
 {
+    CVar r_sceneSubtaskGroupsize("r_sceneSubtaskGroupsize", 64u, CVarFlag::RendererBit, "Groupsize for multithreaded scene update tasks");
+
     void TransformComponent::SetDirty(bool value)
     {
         SetFlag(flags, Flags::DirtyBit, value);
@@ -634,11 +637,9 @@ namespace cyb::scene
         weathers.Serialize(ser, context);
     }
 
-    const uint32_t SMALL_SUBTASK_GROUPSIZE = 64u;
-
     void Scene::RunTransformUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)transforms.Size(), SMALL_SUBTASK_GROUPSIZE, [&] (jobsystem::JobArgs args) {
+        jobsystem::Dispatch(ctx, (uint32_t)transforms.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
             TransformComponent& transform = transforms[args.jobIndex];
             transform.UpdateTransform();
         });
@@ -646,7 +647,7 @@ namespace cyb::scene
 
     void Scene::RunHierarchyUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)hierarchy.Size(), SMALL_SUBTASK_GROUPSIZE, [&] (jobsystem::JobArgs args) {
+        jobsystem::Dispatch(ctx, (uint32_t)hierarchy.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
             const HierarchyComponent& hier = hierarchy[args.jobIndex];
             ecs::Entity entity = hierarchy.GetEntity(args.jobIndex);
             TransformComponent* transform = transforms.GetComponent(entity);
@@ -677,7 +678,7 @@ namespace cyb::scene
 
     void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), SMALL_SUBTASK_GROUPSIZE, [&] (jobsystem::JobArgs args) {
+        jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
             ecs::Entity entity = objects.GetEntity(args.jobIndex);
             ObjectComponent& object = objects[args.jobIndex];
 
@@ -698,7 +699,7 @@ namespace cyb::scene
 
     void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), SMALL_SUBTASK_GROUPSIZE, [&] (jobsystem::JobArgs args) {
+        jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
             const ecs::Entity entity = lights.GetEntity(args.jobIndex);
             const TransformComponent* transform = transforms.GetComponent(entity);
 
@@ -712,7 +713,7 @@ namespace cyb::scene
 
     void Scene::RunCameraUpdateSystem(jobsystem::Context& ctx)
     {
-        jobsystem::Dispatch(ctx, (uint32_t)cameras.Size(), SMALL_SUBTASK_GROUPSIZE, [&] (jobsystem::JobArgs args) {
+        jobsystem::Dispatch(ctx, (uint32_t)cameras.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
             CameraComponent& camera = cameras[args.jobIndex];
             camera.UpdateCamera();
         });

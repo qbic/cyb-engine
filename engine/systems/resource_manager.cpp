@@ -47,7 +47,7 @@ namespace cyb::resourcemanager
     std::vector<std::string> searchPaths;
     DirectoryWatcher directoryWatcher;
     CVar assetReloadOnChange("assetReloadOnChange", true, CVarFlag::SystemBit, "Auto reload loaded asset on filesystem change");
-    CVar assetFileWatcherStableDelay("assetFileWatcherStableDelay", 200, CVarFlag::SystemBit, "Delay in milliseconds from filesystem change to stable file");
+    CVar assetFileWatcherStableDelay("assetFileWatcherStableDelay", 200u, CVarFlag::SystemBit, "Delay in milliseconds from filesystem change to stable file");
 
     static const ska::flat_hash_map<std::string_view, ResourceType> types = {
         std::make_pair("jpg",  ResourceType::Image),

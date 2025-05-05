@@ -13,6 +13,7 @@
 - Compute shader support
 
 ### Todo (editor)
+- Undo for delete action
 - SceneGraphView generates a new list every single frame, wich makes it VERY inefficent
 - in terrain_generator.cpp:void ColorizeMountains(): generate new vertices when face  has both ground and rock vertices for cleaner seperation 
 - LOD generation for terrain

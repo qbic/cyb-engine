@@ -3,24 +3,25 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 
-namespace cyb::ui {
-    void UndoStack::Push(Command& cmd) {
+namespace cyb::ui
+{
+    void UndoStack::Push(Action cmd)
+    {
         m_undoStack.push(cmd);
-        while (!m_redoStack.empty()) {
+        while (!m_redoStack.empty())
             m_redoStack.pop();
-        }
     }
 
-    void UndoStack::Pop() {
-        if (!m_undoStack.empty()) {
+    void UndoStack::Pop()
+    {
+        if (!m_undoStack.empty())
             m_undoStack.pop();
-        }
     }
 
-    void UndoStack::Undo() {
-        if (m_undoStack.empty()) {
+    void UndoStack::Undo()
+    {
+        if (m_undoStack.empty())
             return;
-        }
 
         auto cmd = m_undoStack.top();
         cmd->Undo();
@@ -28,10 +29,10 @@ namespace cyb::ui {
         m_redoStack.push(cmd);
     }
 
-    void UndoStack::Redo() {
-        if (m_redoStack.empty()) {
+    void UndoStack::Redo()
+    {
+        if (m_redoStack.empty())
             return;
-        }
 
         auto cmd = m_redoStack.top();
         cmd->Undo();
@@ -39,104 +40,113 @@ namespace cyb::ui {
         m_undoStack.push(cmd);
     }
 
-    void UndoStack::Clear() {
-        while (!m_undoStack.empty()) {
+    void UndoStack::Clear()
+    {
+        while (!m_undoStack.empty())
             m_undoStack.pop();
-        }
 
-        while (!m_redoStack.empty()) {
+        while (!m_redoStack.empty())
             m_redoStack.pop();
-        }
     }
 
-    void UndoManager::Push(UndoStack::Command& cmd) {
+    void UndoManager::PushAction(UndoStack::Action cmd)
+    {
         const ImGuiID windowID = GetCurrentWindowID();
-        Push(windowID, cmd);
+        PushAction(windowID, cmd);
     }
 
-    void UndoManager::Push(ImGuiID windowID, UndoStack::Command& cmd) {
-        UndoStack& history = windowCommands[windowID];
+    void UndoManager::PushAction(ImGuiID windowID, UndoStack::Action cmd)
+    {
+        UndoStack& history = m_windowActions[windowID];
 
-        if (incompleteCommand != nullptr) {
+        if (m_incompleteAction != nullptr)
+        {
             CYB_WARNING("Overwriting a previous incomplete action");
-            ClearIncompleteCommand();
+            ClearIncompleteAction();
         }
 
-        history.Push(cmd);
-
-        if (!cmd->IsComplete()) {
-            incompleteCommand = cmd;
-            incompleteCommandWindowID = windowID;
+        if (!cmd->IsComplete())
+        {
+            m_incompleteAction = cmd;
+            m_incompleteActionWindowID = windowID;
+        }
+        else
+        {
+            history.Push(cmd);
         }
     }
 
-    void UndoManager::CommitIncompleteCommand() {
-        if (!incompleteCommand) {
+    void UndoManager::CommitIncompleteAction()
+    {
+        if (!m_incompleteAction)
             return;
-        }
 
-        assert(incompleteCommand == windowCommands[incompleteCommandWindowID].Top());
-        incompleteCommand->Complete();
-        incompleteCommand.reset();
-        incompleteCommandWindowID = 0;
+        m_incompleteAction->MarkAsComplete();
+        PushAction(m_incompleteActionWindowID, m_incompleteAction);
+
+        ClearIncompleteAction();
     }
 
-    void UndoManager::ClearIncompleteCommand() {
-        if (!incompleteCommand) {
+    void UndoManager::ClearIncompleteAction()
+    {
+        if (!m_incompleteAction)
             return;
-        }
 
-        UndoStack& history = windowCommands[incompleteCommandWindowID];
-        history.Pop();
-        incompleteCommand.reset();
-        incompleteCommandWindowID = 0;
+        m_incompleteAction.reset();
+        m_incompleteActionWindowID = 0;
     }
 
-    void UndoManager::ClearHistory() {
-        ClearIncompleteCommand();
-        windowCommands.clear();
+    void UndoManager::ClearHistory()
+    {
+        ClearIncompleteAction();
+        m_windowActions.clear();
     }
 
-    bool UndoManager::CanUndo() const {
+    bool UndoManager::CanUndo() const
+    {
         const UndoStack& history = GetHistoryForActiveWindow();
         return history.CanUndo();
     }
 
-    bool UndoManager::CanRedo() const {
+    bool UndoManager::CanRedo() const
+    {
         const UndoStack& history = GetHistoryForActiveWindow();
         return history.CanRedo();
     }
 
-    void UndoManager::Undo() {
+    void UndoManager::Undo()
+    {
         UndoStack& history = GetHistoryForActiveWindow();
         history.Undo();
     }
 
-    void UndoManager::Redo() {
+    void UndoManager::Redo()
+    {
         UndoStack& history = GetHistoryForActiveWindow();
         history.Redo();
     }
 
-    ImGuiID UndoManager::GetCurrentWindowID() const {
+    ImGuiID UndoManager::GetCurrentWindowID() const
+    {
         ImGuiWindow* window = ImGui::GetCurrentWindow();
-        if (!window) {
+        if (!window)
             return 0;
-        }
 
         // get the toplevel window
-        while (window->ParentWindow != nullptr) {
+        while (window->ParentWindow != nullptr)
             window = window->ParentWindow;
-        }
 
         return window->ID;
     }
 
-    UndoStack& UndoManager::GetHistoryForActiveWindow() {
+    UndoStack& UndoManager::GetHistoryForActiveWindow()
+    {
         const ImGuiID windowID = GetCurrentWindowID();
-        return windowCommands[windowID];
+        return m_windowActions[windowID];
     }
 
-    const UndoStack& UndoManager::GetHistoryForActiveWindow() const {
+    const UndoStack& UndoManager::GetHistoryForActiveWindow() const
+    {
         return const_cast<UndoManager*>(this)->GetHistoryForActiveWindow();
     }
 }

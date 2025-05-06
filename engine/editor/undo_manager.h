@@ -13,8 +13,9 @@ namespace cyb::ui
     class UndoAction
     {
     public:
-        // implementation should be cycling value (Undo()->Redo()->Undo()...)
-        virtual void Undo() = 0;
+        // implementation should be cycling the value, eg:
+        // std::swap(previousValue[i], value[i]);
+        virtual void Undo() {}
 
         [[nodiscard]] virtual bool IsComplete() const { return true; }
         virtual void MarkAsComplete() {}
@@ -28,71 +29,59 @@ namespace cyb::ui
         using value_type = T;
 
         // construct a non-complete command
-        ModifyValue(T* valuePtr, const UndoCallback& onChange = nullptr) :
-            value(valuePtr),
-            onChange(onChange),
-            isComplete(false)
+        ModifyValue(T* value, const UndoCallback& onChange = nullptr) :
+            m_value(value),
+            m_onChange(onChange),
+            m_isComplete(false)
         {
-            assert(value);
+            assert(m_value);
 
             for (int i = 0; i < N; ++i)
-            {
-                previousValue[i] = value[i];
-            }
+                m_previousValue[i] = m_value[i];
         }
 
         // construct a complete command
-        ModifyValue(T* valuePtr, const T newValue[N], const UndoCallback& onChange = nullptr) :
-            value(valuePtr),
-            onChange(onChange),
-            isComplete(true)
+        ModifyValue(T* value, const T newValue[N], const UndoCallback& onChange = nullptr) :
+            m_value(value),
+            m_onChange(onChange),
+            m_isComplete(true)
         {
-            assert(value);
+            assert(m_value);
 
             for (int i = 0; i < N; ++i)
             {
-                previousValue[i] = value[i];
-                value[i] = newValue[i];
+                m_previousValue[i] = m_value[i];
+                m_value[i] = newValue[i];
             }
         }
 
         virtual void Undo() override
         {
             for (int i = 0; i < N; ++i)
-            {
-                const T temp = value[i];
-                value[i] = previousValue[i];
-                previousValue[i] = temp;
-            }
+                std::swap(m_previousValue[i], m_value[i]);
 
-            if (onChange != nullptr)
-            {
-                onChange();
-            }
+            if (m_onChange != nullptr)
+                m_onChange();
         }
 
-        [[nodiscard]] bool IsComplete() const override { return isComplete; }
+        [[nodiscard]] bool IsComplete() const override { return m_isComplete; }
 
         // calls onChange() if modify was not previously complete
         void MarkAsComplete() override
         {
-            if (isComplete)
-            {
+            if (m_isComplete)
                 return;
-            }
 
-            isComplete = true;
-            if (onChange != nullptr)
-            {
-                onChange();
-            }
+            m_isComplete = true;
+            if (m_onChange != nullptr)
+                m_onChange();
         }
 
     private:
-        UndoCallback onChange;
-        T* value;
-        T previousValue[N];
-        bool isComplete;
+        UndoCallback m_onChange;
+        T* m_value;
+        T m_previousValue[N];
+        bool m_isComplete;
     };
 
     class ModifyTransform : public ModifyValue<scene::TransformComponent>
@@ -119,7 +108,7 @@ namespace cyb::ui
     public:
         using Action = std::shared_ptr<UndoAction>;
 
-        void Push(Action cmd);
+        void Push(Action action);
         void Pop();
         [[nodiscard]] const Action Top() const { return m_undoStack.top(); }
         void Clear();
@@ -143,19 +132,19 @@ namespace cyb::ui
         template <typename T, typename... Args>
         void EmplaceAction(typename T::value_type* value, [[maybe_unused]] Args&&... args)
         {
-            UndoStack::Action cmd = std::make_shared<T>(value, std::forward<Args>(args)...);
-            PushAction(cmd);
+            UndoStack::Action action = std::make_shared<T>(value, std::forward<Args>(args)...);
+            PushAction(action);
         }
 
         template <typename T, typename... Args>
         void EmplaceAction(ImGuiID windowID, typename T::value_type* value, [[maybe_unused]] Args&&... args)
         {
-            UndoStack::Action cmd = std::make_shared<T>(value, std::forward<Args>(args)...);
-            PushAction(windowID, cmd);
+            UndoStack::Action action = std::make_shared<T>(value, std::forward<Args>(args)...);
+            PushAction(windowID, action);
         }
 
-        void PushAction(UndoStack::Action cmd);
-        void PushAction(ImGuiID windowID, UndoStack::Action cmd);
+        void PushAction(UndoStack::Action action);
+        void PushAction(ImGuiID windowID, UndoStack::Action action);
         void CommitIncompleteAction();
         void ClearIncompleteAction();
         void ClearHistory();

@@ -5,9 +5,9 @@
 
 namespace cyb::ui
 {
-    void UndoStack::Push(Action cmd)
+    void UndoStack::Push(Action action)
     {
-        m_undoStack.push(cmd);
+        m_undoStack.push(action);
         while (!m_redoStack.empty())
             m_redoStack.pop();
     }
@@ -23,10 +23,10 @@ namespace cyb::ui
         if (m_undoStack.empty())
             return;
 
-        auto cmd = m_undoStack.top();
-        cmd->Undo();
+        auto action = m_undoStack.top();
+        action->Undo();
         m_undoStack.pop();
-        m_redoStack.push(cmd);
+        m_redoStack.push(action);
     }
 
     void UndoStack::Redo()
@@ -34,10 +34,10 @@ namespace cyb::ui
         if (m_redoStack.empty())
             return;
 
-        auto cmd = m_redoStack.top();
-        cmd->Undo();
+        auto action = m_redoStack.top();
+        action->Undo();
         m_redoStack.pop();
-        m_undoStack.push(cmd);
+        m_undoStack.push(action);
     }
 
     void UndoStack::Clear()
@@ -49,13 +49,13 @@ namespace cyb::ui
             m_redoStack.pop();
     }
 
-    void UndoManager::PushAction(UndoStack::Action cmd)
+    void UndoManager::PushAction(UndoStack::Action action)
     {
         const ImGuiID windowID = GetCurrentWindowID();
-        PushAction(windowID, cmd);
+        PushAction(windowID, action);
     }
 
-    void UndoManager::PushAction(ImGuiID windowID, UndoStack::Action cmd)
+    void UndoManager::PushAction(ImGuiID windowID, UndoStack::Action action)
     {
         UndoStack& history = m_windowActions[windowID];
 
@@ -65,14 +65,14 @@ namespace cyb::ui
             ClearIncompleteAction();
         }
 
-        if (!cmd->IsComplete())
+        if (!action->IsComplete())
         {
-            m_incompleteAction = cmd;
+            m_incompleteAction = action;
             m_incompleteActionWindowID = windowID;
         }
         else
         {
-            history.Push(cmd);
+            history.Push(action);
         }
     }
 

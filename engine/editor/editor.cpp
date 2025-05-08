@@ -27,7 +27,7 @@ using namespace std::string_literals;
 // filters are passed to FileDialog function as std::string, thus we 
 // need to use string literals to avoid them of being stripped
 #define FILE_FILTER_ALL             "All Files (*.*)\0*.*\0"s
-#define FILE_FILTER_SCENE           "CybEngine Binary Scene Files (*.cbs)\0*.cbs\0"s
+#define FILE_FILTER_SCENE           "Cyb Scene Data Files (*.csd)\0*.csd\0"s
 #define FILE_FILTER_GLTF            "GLTF Files (*.gltf; *.glb)\0*.gltf;*.glb\0"s
 #define FILE_FILTER_IMPORT_MODEL    FILE_FILTER_GLTF FILE_FILTER_SCENE FILE_FILTER_ALL
 
@@ -834,8 +834,8 @@ namespace cyb::editor
     void OpenDialog_SaveAs()
     {
         filesystem::SaveDialog(FILE_FILTER_SCENE, [] (std::string filename) {
-            if (!filesystem::HasExtension(filename, "cbs"))
-                filename += ".cbs";
+            if (!filesystem::HasExtension(filename, "csd"))
+                filename += ".csd";
 
             Timer timer;
             if (SerializeToFile(filename, scene::GetScene()))
@@ -874,7 +874,7 @@ namespace cyb::editor
 
                 if (ImGui::BeginMenu("Import"))
                 {
-                    if (ImGui::MenuItem("Model (.gltf/.glb/.cbs)"))
+                    if (ImGui::MenuItem("Model (.gltf/.glb/.csd)"))
                         OpenDialog_ImportModel(FILE_FILTER_IMPORT_MODEL);
 
                     ImGui::EndMenu();

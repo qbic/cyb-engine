@@ -2,30 +2,20 @@
 
 namespace cyb
 {
-    Archive::Archive(size_t initWriteBufferSize)
-    {
-        InitWrite(initWriteBufferSize);
-    }
-
     Archive::Archive(const uint8_t* data, size_t length)
     {
-        InitRead(data, length);
-    }
-
-    void Archive::InitRead(const uint8_t* data, size_t length)
-    {
-        m_writeData = nullptr;
-        m_readData = data;
-        m_readDataLength = length;
-        m_readCount = 0;
-    }
-
-    void Archive::InitWrite(size_t initWriteBufferSize)
-    {
-        m_readData = nullptr;
-        m_writeBuffer.resize(initWriteBufferSize);
-        m_writeData = m_writeBuffer.data();
-        m_curSize = 0;
+        if (data != nullptr)
+        {
+            // read mode
+            m_readData = data;
+            m_readDataLength = length;
+        }
+        else
+        {
+            // write mode
+            m_writeBuffer.resize(1024 * 8);
+            m_writeData = m_writeBuffer.data();
+        }
     }
 
     bool Archive::IsReading() const
@@ -45,7 +35,7 @@ namespace cyb
     
     size_t Archive::Size() const
     {
-        return m_curSize;
+        return IsReading() ? m_readDataLength : m_position;
     }
 
     size_t Archive::Read(void* data, size_t length) const
@@ -54,11 +44,11 @@ namespace cyb
         assert(m_readData != nullptr);
 
         // check for overflow
-        if (m_readCount + length > m_readDataLength)
-            length = m_readDataLength - m_readCount;
+        if (m_position + length > m_readDataLength)
+            length = m_readDataLength - m_position;
 
-        memcpy(data, m_readData + m_readCount, length);
-        m_readCount += length;
+        memcpy(data, m_readData + m_position, length);
+        m_position += length;
         return length;
     }
 
@@ -69,44 +59,53 @@ namespace cyb
     return value;                               \
 }
 
-    char Archive::ReadChar() const
+#define READ_CHECK(value, length) {                         \
+    size_t bytesRead = Read(&value, length); \
+    assert(bytesRead = length);              \
+}
+
+    void Archive::Read(char& value) const
     {
-        READ_TYPE_IMPL(char, 1);
+        READ_CHECK(value, sizeof(value));
     }
 
-    uint8_t Archive::ReadByte() const
+    void Archive::Read(uint8_t& value) const
     {
-        READ_TYPE_IMPL(uint8_t, 1);
+        READ_CHECK(value, sizeof(value));
     }
 
-    uint32_t Archive::ReadInt() const
+    void Archive::Read(uint32_t& value) const
     {
-        READ_TYPE_IMPL(uint32_t, 4);
+        READ_CHECK(value, sizeof(value));
     }
 
-    uint64_t Archive::ReadLong() const
+    void Archive::Read(uint64_t& value) const
     {
-        READ_TYPE_IMPL(uint64_t, 8);
+        READ_CHECK(value, sizeof(value));
     }
 
-    float Archive::ReadFloat() const
+    void Archive::Read(float& value) const
     {
-        READ_TYPE_IMPL(float, 4);
+        READ_CHECK(value, sizeof(value));
     }
 
-    std::string Archive::ReadString() const
+    void Archive::Read(std::string& value) const
     {
         size_t length = 0;
-        for (size_t i = m_readCount; i < m_readDataLength; i++)
+        for (;;)
         {
-            if (m_readData[i] == 0)
+            if (m_position + length >= m_readDataLength)
+            {
+                assert(0);
+                break;
+            }
+            if (m_readData[m_position + length] == 0)
                 break;
             length++;
         }
 
-        std::string str((const char*)m_readData + m_readCount, length + 1);
-        m_readCount += length + 1;
-        return str;
+        value = std::string((const char*)m_readData + m_position, length + 1);
+        m_position += length + 1;
     }
 
     void Archive::Write(void* data, size_t length)
@@ -115,42 +114,42 @@ namespace cyb
         assert(m_writeData != nullptr);
 
         // dynamically stretch write buffer to fit new writes
-        while (m_curSize + length > m_writeBuffer.size())
+        while (m_position + length > m_writeBuffer.size())
         {
-            m_writeBuffer.resize((m_curSize + length) * 2);
+            m_writeBuffer.resize((m_position + length) * 2);
             m_writeData = m_writeBuffer.data();
         }
 
-        memcpy(m_writeData + m_curSize, data, length);
-        m_curSize += length;
+        memcpy(m_writeData + m_position, data, length);
+        m_position += length;
     }
 
-    void Archive::WriteChar(char value)
+    void Archive::Write(char value)
     {
         Write(&value, 1);
     }
 
-    void Archive::WriteByte(uint8_t value)
+    void Archive::Write(uint8_t value)
     {
         Write(&value, 1);
     }
 
-    void Archive::WriteInt(uint32_t value)
+    void Archive::Write(uint32_t value)
     {
         Write(&value, 4);
     }
 
-    void Archive::WriteLong(uint64_t value)
+    void Archive::Write(uint64_t value)
     {
         Write(&value, 8);
     }
 
-    void Archive::WriteFloat(float value)
+    void Archive::Write(float value)
     {
         Write(&value, 4);
     }
 
-    void Archive::WriteString(const std::string& str)
+    void Archive::Write(const std::string& str)
     {
         Write((void*)str.data(), str.length());
     }
@@ -158,78 +157,82 @@ namespace cyb
     Serializer::Serializer(Archive& ar) :
         m_archive(&ar)
     {
-        m_writing = m_archive->IsWriting();
+        if (IsWriting())
+        {
+            m_header.version = ARCHIVE_VERSION;
+            m_header.info.bits.compressed = 0;
+        }
 
-        m_version = ARCHIVE_VERSION;
-        Serialize(m_version);
+        Serialize(m_header.version);
+        Serialize(m_header.info.raw);
     }
 
     bool Serializer::IsReading() const
     {
-        return !m_writing;
+        return !m_archive->IsWriting();
     }
     
     bool Serializer::IsWriting() const
     {
-        return m_writing;
+        return m_archive->IsWriting();
     }
     
-    uint64_t Serializer::GetVersion() const
+    uint32_t Serializer::GetVersion() const
     {
-        return m_version;
+        return m_header.version;
     }
 
     void Serializer::Serialize(char& value)
     {
-        if (m_writing)
-            m_archive->WriteChar(value);
+        if (IsWriting())
+            m_archive->Write(value);
         else
-            value = m_archive->ReadChar();
+            m_archive->Read(value);
     }
 
     void Serializer::Serialize(uint8_t& value)
     {
-        if (m_writing)
-            m_archive->WriteByte(value);
+        if (IsWriting())
+            m_archive->Write(value);
         else
-            value = m_archive->ReadByte();
+            m_archive->Read(value);
     }
 
     void Serializer::Serialize(uint32_t& value)
     {
-        if (m_writing)
-            m_archive->WriteInt(value);
+        if (IsWriting())
+            m_archive->Write(value);
         else
-            value = m_archive->ReadInt();
+            m_archive->Read(value);
     }
 
     void Serializer::Serialize(uint64_t& value)
     {
-        if (m_writing)
-            m_archive->WriteLong(value);
+        if (IsWriting())
+            m_archive->Write(value);
         else
-            value = m_archive->ReadLong();
+            m_archive->Read(value);
     }
 
     void Serializer::Serialize(float& value)
     {
-        if (m_writing)
-            m_archive->WriteFloat(value);
+        if (IsWriting())
+            m_archive->Write(value);
         else
-            value = m_archive->ReadFloat();
+            m_archive->Read(value);
     }
 
     void Serializer::Serialize(std::string& value)
     {
-        if (m_writing)
-            m_archive->WriteString(value);
+        if (IsWriting())
+            m_archive->Write(value);
         else
-            value = m_archive->ReadString();
+            m_archive->Read(value);
     }
 
     void Serializer::Serialize(XMFLOAT3& value)
     {
-        if (m_writing)
+        if (IsWriting())
         {
             m_archive->Write(&value, sizeof(XMFLOAT3));
         }
@@ -242,7 +245,7 @@ namespace cyb
 
     void Serializer::Serialize(XMFLOAT4& value)
     {
-        if (m_writing)
+        if (IsWriting())
         {
             m_archive->Write(&value, sizeof(XMFLOAT4));
         }
@@ -255,7 +258,7 @@ namespace cyb
 
     void Serializer::Serialize(XMFLOAT4X4& value)
     {
-        if (m_writing)
+        if (IsWriting())
         {
             m_archive->Write(&value, sizeof(XMFLOAT4X4));
         }

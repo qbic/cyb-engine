@@ -12,7 +12,7 @@ using DirectX::XMFLOAT4X4;
 
 namespace cyb
 {
-    constexpr uint64_t ARCHIVE_VERSION = 4;
+    constexpr uint64_t ARCHIVE_VERSION = 5;
 
     class Archive
     {
@@ -21,14 +21,8 @@ namespace cyb
         Archive(Archive&&) = delete;
         Archive& operator=(const Archive&) = delete;
 
-        // initializes the archive for writing
-        Archive(size_t initWriteBufferSize);
-
-        // initializes the archive for reading
+        // passing a nullptr to data will initialize the archive for writing
         Archive(const uint8_t* data, size_t length);
-
-        void InitRead(const uint8_t* data, size_t length);
-        void InitWrite(size_t initWriteBufferSize);
 
         [[nodiscard]] bool IsReading() const;
         [[nodiscard]] bool IsWriting() const;
@@ -36,30 +30,43 @@ namespace cyb
         [[nodiscard]] const uint8_t* GetWriteData() const;
         [[nodiscard]] size_t Size() const;
 
-        [[nodiscard]] size_t Read(void* data, size_t length) const;
-        [[nodiscard]] char ReadChar() const;
-        [[nodiscard]] uint8_t ReadByte() const;
-        [[nodiscard]] uint32_t ReadInt() const;
-        [[nodiscard]] uint64_t ReadLong() const;
-        [[nodiscard]] float ReadFloat() const;
-        [[nodiscard]] std::string ReadString() const;
+        size_t Read(void* data, size_t length) const;
+        void Read(char& value) const;
+        void Read(uint8_t& value) const;
+        void Read(uint32_t& value) const;
+        void Read(uint64_t& value) const;
+        void Read(float& value) const;
+        void Read(std::string& value) const;
 
         void Write(void* data, size_t length);
-        void WriteChar(char value);
-        void WriteByte(uint8_t value);
-        void WriteInt(uint32_t value);
-        void WriteLong(uint64_t value);
-        void WriteFloat(float value);
-        void WriteString(const std::string& str);
+        void Write(char value);
+        void Write(uint8_t value);
+        void Write(uint32_t value);
+        void Write(uint64_t value);
+        void Write(float value);
+        void Write(const std::string& str);
 
     private:
         std::vector<uint8_t> m_writeBuffer;
         uint8_t* m_writeData = nullptr;
-        size_t m_curSize = 0;
-
         const uint8_t* m_readData = nullptr;
         size_t m_readDataLength = 0;
-        mutable size_t m_readCount = 0;
+        mutable size_t m_position = 0;
+    };
+
+    // header data for cyb scene data (.csd) file
+    struct CSD_Header
+    {
+        uint32_t version;
+        union Info
+        {
+            struct
+            {
+                uint32_t compressed : 1;
+                uint32_t reserved : 31;
+            } bits;
+            uint32_t raw;
+        } info;
     };
 
     class Serializer
@@ -70,7 +77,7 @@ namespace cyb
 
         [[nodiscard]] bool IsReading() const;
         [[nodiscard]] bool IsWriting() const;
-        [[nodiscard]] uint64_t GetVersion() const;
+        [[nodiscard]] uint32_t GetVersion() const;
 
         void Serialize(char& value);
         void Serialize(uint8_t& value);
@@ -89,7 +96,7 @@ namespace cyb
             Serialize(numElements);
 
             const size_t numBytes = numElements * sizeof(T);
-            if (m_writing)
+            if (IsWriting())
             {
                 m_archive->Write(vec.data(), numBytes);
             }
@@ -103,8 +110,7 @@ namespace cyb
 
     private:
         Archive* m_archive;
-        bool m_writing;
-        uint64_t m_version;
+        CSD_Header m_header;
     };
 
     template <typename T>
@@ -126,7 +132,7 @@ namespace cyb
     template <typename T>
     bool SerializeToFile(const std::string& filename, T& serializeable)
     {
-        Archive ar(4 * 1024);  // pre-allocate 4k write buffer
+        Archive ar(nullptr, 0);
         Serializer ser(ar);
         serializeable.Serialize(ser);
 

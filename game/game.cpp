@@ -6,7 +6,7 @@ using namespace cyb;
 void Game::Load()
 {
 #if 1 
-    std::string filename = resourcemanager::FindFile("scenes/terrain_04.cbs");
+    std::string filename = resourcemanager::FindFile("scenes/terrain_01.csd");
     SerializeFromFile(filename, scene::GetScene());
 #else
     editor::TerrainMeshDesc terrainDesc;

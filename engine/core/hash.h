@@ -7,7 +7,7 @@ namespace cyb::hash
     constexpr void Combine(std::size_t& seed, const T& v) noexcept
     {
         std::hash<T> hasher;
-        seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= hasher(v) + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2);
     }
 
     // Compile-time supported string hasher based on cx_hash.

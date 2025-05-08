@@ -1,4 +1,5 @@
 #include "core/serializer.h"
+#include "lz4/lz4hc.h"
 
 namespace cyb
 {
@@ -26,6 +27,11 @@ namespace cyb
     bool Archive::IsWriting() const
     {
         return m_writeData != nullptr;
+    }
+
+    const uint8_t* Archive::GetReadData() const
+    {
+        return m_readData;
     }
 
     const uint8_t* Archive::GetWriteData() const
@@ -155,6 +161,7 @@ namespace cyb
 
         Serialize(m_header.version);
         Serialize(m_header.info.raw);
+
     }
 
     bool Serializer::IsReading() const
@@ -170,6 +177,11 @@ namespace cyb
     uint32_t Serializer::GetVersion() const
     {
         return m_header.version;
+    }
+
+    const CSD_Header& Serializer::GetHeader() const
+    {
+        return m_header;
     }
 
 #define SERIALIZE_VALUE(value) { IsWriting() ? m_archive->Write(value) : m_archive->Read(value); }
@@ -241,5 +253,31 @@ namespace cyb
             size_t bytesRead = m_archive->Read(&value, sizeof(XMFLOAT4X4));
             assert(bytesRead == sizeof(XMFLOAT4X4));
         }
+    }
+
+    void Serializer::Compress(std::vector<uint8_t>& compressedData)
+    {
+        compressedData.resize(LZ4_MAX_INPUT_SIZE);
+        int compressedSize = LZ4_compress_HC(
+            (const char*)m_archive->GetWriteData() + sizeof(CSD_Header),
+            (char*)&compressedData[0],
+            m_archive->Size() - sizeof(CSD_Header),
+            compressedData.capacity(),
+            9
+        );
+
+        compressedData.resize(compressedSize);
+    }
+
+    void Serializer::Decompress(std::vector<uint8_t>& decompressedData)
+    {
+        decompressedData.resize(LZ4_MAX_INPUT_SIZE);
+        int decompressedSize = LZ4_decompress_safe(
+            (const char*)m_archive->GetReadData() + sizeof(CSD_Header),
+            (char*)&decompressedData[0],
+            m_archive->Size() - sizeof(CSD_Header),
+            decompressedData.capacity()
+        );
+        decompressedData.resize(decompressedSize);
     }
 }

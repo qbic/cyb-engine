@@ -17,9 +17,9 @@ namespace cyb
     class Archive
     {
     public:
-        Archive(const Archive&) = delete;
-        Archive(Archive&&) = delete;
-        Archive& operator=(const Archive&) = delete;
+        //Archive(const Archive&) = delete;
+        //Archive(Archive&&) = delete;
+        //Archive& operator=(const Archive&) = delete;
 
         // passing a nullptr to data will initialize the archive for writing
         Archive(const uint8_t* data, size_t length);
@@ -27,6 +27,7 @@ namespace cyb
         [[nodiscard]] bool IsReading() const;
         [[nodiscard]] bool IsWriting() const;
 
+        [[nodiscard]] const uint8_t* GetReadData() const;
         [[nodiscard]] const uint8_t* GetWriteData() const;
         [[nodiscard]] size_t Size() const;
 
@@ -78,6 +79,7 @@ namespace cyb
         [[nodiscard]] bool IsReading() const;
         [[nodiscard]] bool IsWriting() const;
         [[nodiscard]] uint32_t GetVersion() const;
+        [[nodiscard]] const CSD_Header& GetHeader() const;
 
         void Serialize(char& value);
         void Serialize(uint8_t& value);
@@ -108,6 +110,9 @@ namespace cyb
             }
         }
 
+        void Compress(std::vector<uint8_t>& compressedData);
+        void Decompress(std::vector<uint8_t>& decompressedData);
+
     private:
         Archive* m_archive;
         CSD_Header m_header;
@@ -123,6 +128,13 @@ namespace cyb
 
         Archive archive(buffer.data(), buffer.size());
         Serializer ser(archive);
+
+        std::vector<uint8_t> decompressedData;
+        if (ser.GetHeader().info.bits.compressed)
+        {
+            ser.Decompress(decompressedData);
+            archive = Archive(decompressedData.data(), decompressedData.size());
+        }
         serializeable.Serialize(ser);
 
         CYB_INFO("Imported scene from file {} in {:.2f}ms", filename, timer.ElapsedMilliseconds());
@@ -135,6 +147,21 @@ namespace cyb
         Archive ar(nullptr, 0);
         Serializer ser(ar);
         serializeable.Serialize(ser);
+
+        bool forceCompression = 1;
+        if (forceCompression)
+        {
+            Archive compressedArchive(nullptr, 0);
+            std::vector<uint8_t> compressedData;
+            ser.Compress(compressedData);
+
+            CSD_Header header;
+            header.version = ARCHIVE_VERSION;
+            header.info.bits.compressed = 1;
+            compressedArchive.Write(&header, sizeof(CSD_Header));
+            compressedArchive.Write(compressedData.data(), compressedData.size());
+            return filesystem::WriteFile(filename, compressedArchive.GetWriteData(), compressedArchive.Size());
+        }
 
         return filesystem::WriteFile(filename, ar.GetWriteData(), ar.Size());
     }

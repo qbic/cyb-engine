@@ -1,8 +1,7 @@
 #include <deque>
-#include <mutex>
-#include "core/logger.h"
 #include "core/cvar.h"
-#include "core/spinlock.h"
+#include "core/mutex.h"
+#include "core/logger.h"
 
 namespace cyb::logger
 {
@@ -13,7 +12,7 @@ namespace cyb::logger
 
     std::vector<std::unique_ptr<OutputModule>> outputModules;
     std::deque<Message> logHistory;
-    SpinLock postLock;
+    SpinLockMutex locker;
 
     OutputModule_StringBuffer::OutputModule_StringBuffer(std::string* output) :
         m_stringBuffer(output)
@@ -54,7 +53,7 @@ namespace cyb::logger
     {
         void RegisterOutputModule(std::unique_ptr<OutputModule>&& outputModule)
         {
-            std::scoped_lock<SpinLock> lock(postLock);
+            ScopedLock lock(locker);
             for (const auto& it : logHistory)
                 outputModule->Write(it);
 
@@ -84,8 +83,7 @@ namespace cyb::logger
             log.timestamp = std::chrono::system_clock::now();
             log.severity = severity;
 
-            std::scoped_lock<SpinLock> lock(postLock);
-
+            ScopedLock lock(locker);
             logHistory.push_back(log);
             while (logHistory.size() > logHistorySize.GetValue<uint32_t>())
                 logHistory.pop_front();

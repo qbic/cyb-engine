@@ -1,11 +1,11 @@
-#include <mutex>
 #include <filesystem>
 #include "core/cvar.h"
-#include "core/logger.h"
-#include "core/filesystem.h"
 #include "core/directory_watcher.h"
-#include "core/timer.h"
+#include "core/filesystem.h"
 #include "core/hash.h"
+#include "core/logger.h"
+#include "core/mutex.h"
+#include "core/timer.h"
 #include "graphics/renderer.h"
 #define STB_RECT_PACK_IMPLEMENTATION
 #include "stb_rect_pack.h"
@@ -42,7 +42,7 @@ namespace cyb
 
 namespace cyb::resourcemanager
 {
-    std::mutex locker;
+    Mutex locker;
     std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
     DirectoryWatcher directoryWatcher;
@@ -68,9 +68,9 @@ namespace cyb::resourcemanager
             return;
 
         const uint64_t hash = hash::String(event.filename);
-        locker.lock();
+        locker.Acquire();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
-        locker.unlock();
+        locker.Release();
         if (internalState != nullptr)
         {
             CYB_TRACE("Detected change in loaded asset ({}), reloading...", event.filename);
@@ -104,7 +104,7 @@ namespace cyb::resourcemanager
 
     void AddSearchPath(const std::string& path)
     {
-        std::scoped_lock l(locker);
+        ScopedLock lck(locker);
         const std::string slash = (path[path.length() - 1] != '/') ? "/" : "";
         searchPaths.push_back(path + slash);
 
@@ -210,13 +210,13 @@ namespace cyb::resourcemanager
         // compute hash for the asset and try locate it in the cache
         std::string fixedName = filesystem::FixFilePath(name);
         const uint64_t hash = hash::String(fixedName);
-        locker.lock();
+        locker.Acquire();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
         if (internalState != nullptr)
         {
             if (!force)
             {
-                locker.unlock();
+                locker.Release();
                 CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), fixedName, hash);
                 return Resource(internalState);
             }
@@ -231,13 +231,13 @@ namespace cyb::resourcemanager
 
         if (!GetAssetTypeFromFilename(&internalState->type, fixedName))
         {
-            locker.unlock();
+            locker.Release();
             CYB_ERROR("Failed to determine resource type (filename={0})", fixedName);
             return Resource();
         }
 
         resourceCache[hash] = internalState;
-        locker.unlock();
+        locker.Release();
 
         // NOTE: Move the lock bellow ReadFile() so that we don't start to many asynchonous
         //       file reads wich might hurt perfomance on mechanical hard drives?
@@ -252,7 +252,7 @@ namespace cyb::resourcemanager
 
     void Clear()
     {
-        std::scoped_lock lock(locker);
+        ScopedLock lck(locker);
         resourceCache.clear();
     }
 };

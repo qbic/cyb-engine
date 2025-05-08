@@ -36,11 +36,14 @@ message(STATUS "")
 
 
 # install rules
+file(TO_CMAKE_PATH "$ENV{VULKAN_SDK}/Bin/shaderc_shared.dll" SHADERC_DLL_PATH)
+
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
 if(POLICY CMP0177)
     cmake_policy(SET CMP0177 OLD)
 endif()
 install(TARGETS game RUNTIME DESTINATION .)
+install(FILES ${SHADERC_DLL_PATH} DESTINATION .)
 install(FILES build/imgui.ini DESTINATION .)
 install(DIRECTORY assets/ DESTINATION assets)
 install(DIRECTORY engine/shaders/ DESTINATION engine/shaders)

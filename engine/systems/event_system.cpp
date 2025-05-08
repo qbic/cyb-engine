@@ -1,7 +1,7 @@
 #include <unordered_map>
 #include <vector>
 #include <list>
-#include <mutex>
+#include "core/mutex.h"
 #include "systems/event_system.h"
 
 namespace cyb::eventsystem
@@ -10,7 +10,7 @@ namespace cyb::eventsystem
     {
         std::unordered_map<int, std::list<std::function<void(uint64_t)>*>> subscribers;
         std::unordered_map<int, std::vector<std::function<void(uint64_t)>>> subscribers_once;
-        std::mutex locker;
+        Mutex locker;
     };
     std::shared_ptr<EventManager> manager = std::make_shared<EventManager>();
 
@@ -23,7 +23,7 @@ namespace cyb::eventsystem
 
 		~EventInternal()
 		{
-			std::scoped_lock lock(manager->locker);
+			ScopedLock lock(manager->locker);
 			auto it = manager->subscribers.find(id);
 			if (it != manager->subscribers.end())
 				it->second.remove(&callback);
@@ -40,25 +40,25 @@ namespace cyb::eventsystem
 		eventinternal->handle = handle;
 		eventinternal->callback = callback;
 
-		manager->locker.lock();
+		manager->locker.Acquire();
 		manager->subscribers[id].push_back(&eventinternal->callback);
-		manager->locker.unlock();
+		manager->locker.Release();
 
 		return handle;
 	}
 
 	void Subscribe_Once(int id, std::function<void(uint64_t)> callback)
 	{
-		manager->locker.lock();
+		manager->locker.Acquire();
 		manager->subscribers_once[id].push_back(callback);
-		manager->locker.unlock();
+		manager->locker.Release();
 	}
 
 	void FireEvent(int id, uint64_t userdata)
 	{
 		// Callbacks that only live for once:
 		{
-			manager->locker.lock();
+			manager->locker.Acquire();
 			auto it = manager->subscribers_once.find(id);
 			bool found = it != manager->subscribers_once.end();
 
@@ -70,14 +70,14 @@ namespace cyb::eventsystem
 
 				callbacks.clear();
 			}
-			manager->locker.unlock();
+			manager->locker.Release();
 		}
 		// Callbacks that live until deleted:
 		{
-			manager->locker.lock();
+			manager->locker.Acquire();
 			auto it = manager->subscribers.find(id);
 			bool found = it != manager->subscribers.end();
-			manager->locker.unlock();
+			manager->locker.Release();
 
 			if (found)
 			{

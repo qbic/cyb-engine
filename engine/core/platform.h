@@ -14,6 +14,8 @@
 #define CYB_DEBUGBREAK() __debugbreak()
 #endif // _WIN32
 
+static_assert(sizeof(size_t) == 8, "Only 64bit build is possible");
+
 namespace cyb {
 
 	template <typename T, std::size_t N>

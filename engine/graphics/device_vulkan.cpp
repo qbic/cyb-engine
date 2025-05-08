@@ -225,10 +225,10 @@ namespace cyb::graphics::vulkan_internal
         ~Buffer_Vulkan()
         {
             assert(allocationhandler != nullptr);
-            allocationhandler->destroylocker.lock();
+            allocationhandler->destroylocker.Acquire();
             uint64_t framecount = allocationhandler->framecount;
             allocationhandler->destroyer_buffers.push_back(std::make_pair(std::make_pair(resource, allocation), framecount));
-            allocationhandler->destroylocker.unlock();
+            allocationhandler->destroylocker.Release();
         }
     };
 
@@ -241,10 +241,10 @@ namespace cyb::graphics::vulkan_internal
         {
             if (allocationhandler == nullptr)
                 return;
-            allocationhandler->destroylocker.lock();
+            allocationhandler->destroylocker.Acquire();
             uint64_t framecount = allocationhandler->framecount;
             if (pool) allocationhandler->destroyer_querypools.push_back(std::make_pair(pool, framecount));
-            allocationhandler->destroylocker.unlock();
+            allocationhandler->destroylocker.Release();
         }
     };
 
@@ -272,13 +272,13 @@ namespace cyb::graphics::vulkan_internal
         ~Texture_Vulkan()
         {
             assert(allocationHandler != nullptr);
-            allocationHandler->destroylocker.lock();
+            allocationHandler->destroylocker.Acquire();
             uint64_t framecount = allocationHandler->framecount;
             if (resource) allocationHandler->destroyer_images.push_back(std::make_pair(std::make_pair(resource, allocation), framecount));
             if (srv.IsValid()) allocationHandler->destroyer_imageviews.push_back(std::make_pair(srv.imageView, framecount));
             if (rtv.IsValid()) allocationHandler->destroyer_imageviews.push_back(std::make_pair(rtv.imageView, framecount));
             if (dsv.IsValid()) allocationHandler->destroyer_imageviews.push_back(std::make_pair(dsv.imageView, framecount));
-            allocationHandler->destroylocker.unlock();
+            allocationHandler->destroylocker.Release();
         }
     };
 
@@ -298,10 +298,10 @@ namespace cyb::graphics::vulkan_internal
         ~Shader_Vulkan()
         {
             assert(allocationhandler != nullptr);
-            allocationhandler->destroylocker.lock();
+            allocationhandler->destroylocker.Acquire();
             uint64_t framecount = allocationhandler->framecount;
             if (shadermodule) allocationhandler->destroyer_shadermodules.push_back(std::make_pair(shadermodule, framecount));
-            allocationhandler->destroylocker.unlock();
+            allocationhandler->destroylocker.Release();
         }
     };
 
@@ -313,10 +313,10 @@ namespace cyb::graphics::vulkan_internal
         ~Sampler_Vulkan()
         {
             assert(allocationhandler != nullptr);
-            allocationhandler->destroylocker.lock();
+            allocationhandler->destroylocker.Acquire();
             uint64_t framecount = allocationhandler->framecount;
             if (resource) allocationhandler->destroyer_samplers.push_back(std::make_pair(resource, framecount));
-            allocationhandler->destroylocker.unlock();
+            allocationhandler->destroylocker.Release();
         }
     };
 
@@ -363,13 +363,13 @@ namespace cyb::graphics::vulkan_internal
         VkSemaphore swapchainReleaseSemaphore = VK_NULL_HANDLE;
 
         SwapchainDesc desc;
-        std::mutex locker;
+        Mutex locker;
 
         ~Swapchain_Vulkan()
         {
             if (allocationhandler == nullptr)
                 return;
-            allocationhandler->destroylocker.lock();
+            allocationhandler->destroylocker.Acquire();
             uint64_t framecount = allocationhandler->framecount;
 
             for (size_t i = 0; i < swapchainImages.size(); ++i)
@@ -381,7 +381,7 @@ namespace cyb::graphics::vulkan_internal
             allocationhandler->destroyer_swapchains.push_back(std::make_pair(swapchain, framecount));
             allocationhandler->destroyer_surfaces.push_back(std::make_pair(surface, framecount));
             allocationhandler->destroyer_semaphores.push_back(std::make_pair(swapchainReleaseSemaphore, framecount));
-            allocationhandler->destroylocker.unlock();
+            allocationhandler->destroylocker.Release();
         }
     };
 
@@ -583,9 +583,9 @@ namespace cyb::graphics::vulkan_internal
 
             if (internal_state->swapchainImageViews[i] != VK_NULL_HANDLE)
             {
-                allocationHandler->destroylocker.lock();
+                allocationHandler->destroylocker.Acquire();
                 allocationHandler->destroyer_imageviews.push_back(std::make_pair(internal_state->swapchainImageViews[i], allocationHandler->framecount));
-                allocationHandler->destroylocker.unlock();
+                allocationHandler->destroylocker.Release();
             }
 
             VK_CHECK(vkCreateImageView(device, &createInfo, nullptr, &internal_state->swapchainImageViews[i]));
@@ -639,7 +639,7 @@ namespace cyb::graphics
     {
         CopyCMD cmd;
 
-        locker.lock();
+        locker.Acquire();
         // Try to search for a staging buffer that can fit the request:
         for (size_t i = 0; i < freelist.size(); ++i)
         {
@@ -654,7 +654,7 @@ namespace cyb::graphics
                 }
             }
         }
-        locker.unlock();
+        locker.Release();
 
         // If no buffer was found that fits the data, create one:
         if (!cmd.IsValid())
@@ -738,7 +738,7 @@ namespace cyb::graphics
             submitInfo.signalSemaphoreInfoCount = 1;
             submitInfo.pSignalSemaphoreInfos = signalSemaphoreInfos;
 
-            std::scoped_lock lock(*device->queues[NumericalValue(QueueType::Copy)].locker);
+            ScopedLock lock(*device->queues[NumericalValue(QueueType::Copy)].locker);
             VK_CHECK(vkQueueSubmit2(device->queues[NumericalValue(QueueType::Copy)].queue, 1, &submitInfo, VK_NULL_HANDLE));
         }
 
@@ -757,7 +757,7 @@ namespace cyb::graphics
             submitInfo.signalSemaphoreInfoCount = 1;
             submitInfo.pSignalSemaphoreInfos = signalSemaphoreInfos;
 
-            std::scoped_lock lock(*device->queues[NumericalValue(QueueType::Graphics)].locker);
+            ScopedLock lock(*device->queues[NumericalValue(QueueType::Graphics)].locker);
             VK_CHECK(vkQueueSubmit2(device->queues[NumericalValue(QueueType::Graphics)].queue, 1, &submitInfo, VK_NULL_HANDLE));        }
 
         // This must be final submit in this function because it will also signal a fence for state tracking by CPU!
@@ -772,11 +772,11 @@ namespace cyb::graphics
             submitInfo.signalSemaphoreInfoCount = 0;
             submitInfo.pSignalSemaphoreInfos = nullptr;
 
-            std::scoped_lock lock(*device->queues[NumericalValue(QueueType::Compute)].locker);
+            ScopedLock lock(*device->queues[NumericalValue(QueueType::Compute)].locker);
             VK_CHECK(vkQueueSubmit2(device->queues[NumericalValue(QueueType::Compute)].queue, 1, &submitInfo, cmd.fence)); // final submit also signals fence!
         }
 
-        std::scoped_lock lock(locker);
+        ScopedLock lock(locker);
         freelist.push_back(cmd);
     }
 
@@ -978,10 +978,10 @@ namespace cyb::graphics
     {
         if (descriptorPool != VK_NULL_HANDLE)
         {
-            device->m_allocationHandler->destroylocker.lock();
+            device->m_allocationHandler->destroylocker.Acquire();
             device->m_allocationHandler->destroyer_descriptorPools.push_back(std::make_pair(descriptorPool, device->frameCount));
             descriptorPool = VK_NULL_HANDLE;
-            device->m_allocationHandler->destroylocker.unlock();
+            device->m_allocationHandler->destroylocker.Release();
         }
     }
 
@@ -1410,11 +1410,11 @@ namespace cyb::graphics
             vkGetDeviceQueue(device, copyFamily, 0, &copyQueue);
 
             queues[NumericalValue(QueueType::Graphics)].queue = graphicsQueue;
-            queues[NumericalValue(QueueType::Graphics)].locker = std::make_shared<std::mutex>();
+            queues[NumericalValue(QueueType::Graphics)].locker = std::make_shared<Mutex>();
             queues[NumericalValue(QueueType::Compute)].queue = computeQueue;
-            queues[NumericalValue(QueueType::Compute)].locker = std::make_shared<std::mutex>();;
+            queues[NumericalValue(QueueType::Compute)].locker = std::make_shared<Mutex>();;
             queues[NumericalValue(QueueType::Copy)].queue = copyQueue;
-            queues[NumericalValue(QueueType::Copy)].locker = std::make_shared<std::mutex>();;
+            queues[NumericalValue(QueueType::Copy)].locker = std::make_shared<Mutex>();;
         }
 
         memory_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
@@ -2455,7 +2455,7 @@ namespace cyb::graphics
         hash::Combine(internal_state->binding_hash, internal_state->pushconstants.size);
         hash::Combine(internal_state->binding_hash, internal_state->pushconstants.stageFlags);
 
-        m_psoLayoutCacheMutex.lock();
+        m_psoLayoutCacheMutex.Acquire();
         if (m_psoLayoutCache[internal_state->binding_hash].pipeline_layout == VK_NULL_HANDLE)
         {
             VkDescriptorSetLayoutCreateInfo descriptorset_layout_info = {};
@@ -2488,7 +2488,7 @@ namespace cyb::graphics
             internal_state->descriptorset_layout = m_psoLayoutCache[internal_state->binding_hash].descriptorset_layout;
             internal_state->pipelineLayout = m_psoLayoutCache[internal_state->binding_hash].pipeline_layout;
         }
-        m_psoLayoutCacheMutex.unlock();
+        m_psoLayoutCacheMutex.Release();
 
         // Viewport & Scissors:
         VkViewport& viewport = internal_state->viewport;
@@ -2718,13 +2718,13 @@ namespace cyb::graphics
 
     CommandList GraphicsDevice_Vulkan::BeginCommandList(QueueType queue)
     {
-        m_cmdLocker.lock();
+        m_cmdLocker.Acquire();
         const uint32_t cmd_current = m_cmdCount++;
         if (cmd_current >= m_commandlists.size())
             m_commandlists.push_back(std::make_unique<CommandList_Vulkan>());
         CommandList cmd;
         cmd.internal_state = m_commandlists[cmd_current].get();
-        m_cmdLocker.unlock();
+        m_cmdLocker.Release();
 
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         commandlist.Reset(GetBufferIndex());
@@ -2788,7 +2788,7 @@ namespace cyb::graphics
     {
         if (queue == VK_NULL_HANDLE)
             return;
-        std::scoped_lock lock(*locker);
+        ScopedLock lock(*locker);
 
         VkSubmitInfo2 submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
@@ -2867,9 +2867,9 @@ namespace cyb::graphics
                     }
                     else
                     {
-                        m_allocationHandler->destroylocker.lock();
+                        m_allocationHandler->destroylocker.Acquire();
                         m_allocationHandler->destroyer_pipelines.push_back(std::make_pair(x.second, frameCount));
-                        m_allocationHandler->destroylocker.unlock();
+                        m_allocationHandler->destroylocker.Release();
                     }
                 }
                 commandlist.pipelinesWorker.clear();
@@ -2902,9 +2902,9 @@ namespace cyb::graphics
 
     void GraphicsDevice_Vulkan::ClearPipelineStateCache()
     {
-        m_allocationHandler->destroylocker.lock();
+        m_allocationHandler->destroylocker.Acquire();
 
-        m_psoLayoutCacheMutex.lock();
+        m_psoLayoutCacheMutex.Acquire();
         for (auto& it : m_psoLayoutCache)
         {
             if (it.second.pipeline_layout)
@@ -2914,7 +2914,7 @@ namespace cyb::graphics
 
         }
         m_psoLayoutCache.clear();
-        m_psoLayoutCacheMutex.unlock();
+        m_psoLayoutCacheMutex.Release();
 
         for (auto& it : m_pipelinesGlobal)
         {
@@ -2930,7 +2930,7 @@ namespace cyb::graphics
             }
             x->pipelinesWorker.clear();
         }
-        m_allocationHandler->destroylocker.unlock();
+        m_allocationHandler->destroylocker.Release();
 
         // Destroy vulkan pipeline cache
         vkDestroyPipelineCache(device, m_pipelineCache, nullptr);
@@ -2953,7 +2953,7 @@ namespace cyb::graphics
 
         internal_state->swapchainAcquireSemaphoreIndex = (internal_state->swapchainAcquireSemaphoreIndex + 1) % internal_state->swapchainAcquireSemaphores.size();
 
-        internal_state->locker.lock();
+        internal_state->locker.Acquire();
         VkResult res = vkAcquireNextImageKHR(
             device,
             internal_state->swapchain,
@@ -2961,7 +2961,7 @@ namespace cyb::graphics
             internal_state->swapchainAcquireSemaphores[internal_state->swapchainAcquireSemaphoreIndex],
             VK_NULL_HANDLE,
             &internal_state->swapchainImageIndex);
-        internal_state->locker.unlock();
+        internal_state->locker.Release();
 
         if (res != VK_SUCCESS)
         {
@@ -2974,7 +2974,7 @@ namespace cyb::graphics
                 // https://github.com/KhronosGroup/Vulkan-Docs/issues/152
                 // https://www.khronos.org/blog/resolving-longstanding-issues-with-wsi
                 {
-                    std::scoped_lock lock(m_allocationHandler->destroylocker);
+                    ScopedLock lock(m_allocationHandler->destroylocker);
                     for (auto& x : internal_state->swapchainAcquireSemaphores)
                     {
                         m_allocationHandler->destroyer_semaphores.emplace_back(x, m_allocationHandler->framecount);

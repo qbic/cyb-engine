@@ -1,7 +1,6 @@
 #pragma once
 #include <deque>
-#include <mutex>
-#include "core/spinlock.h"
+#include "core/mutex.h"
 #include "graphics/device.h"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
@@ -51,7 +50,7 @@ namespace cyb::graphics
             std::vector<VkSemaphoreSubmitInfo> submit_waitSemaphoreInfos;
             std::vector<VkCommandBufferSubmitInfo> submit_cmds;
 
-            std::shared_ptr<std::mutex> locker;
+            std::shared_ptr<Mutex> locker;
 
             void Submit(GraphicsDevice_Vulkan* device, VkFence fence);
         };
@@ -60,7 +59,7 @@ namespace cyb::graphics
         struct CopyAllocator
         {
             GraphicsDevice_Vulkan* device = nullptr;
-            std::mutex locker;
+            Mutex locker;
 
             struct CopyCMD
             {
@@ -172,7 +171,7 @@ namespace cyb::graphics
 
         std::vector<std::unique_ptr<CommandList_Vulkan>> m_commandlists;
         uint32_t m_cmdCount = 0;
-        SpinLock m_cmdLocker;
+        SpinLockMutex m_cmdLocker;
 
         constexpr CommandList_Vulkan& GetCommandList(CommandList cmd) const
         {
@@ -186,7 +185,7 @@ namespace cyb::graphics
             VkDescriptorSetLayout descriptorset_layout = VK_NULL_HANDLE;
         };
         mutable std::unordered_map<size_t, PSOLayout> m_psoLayoutCache;
-        mutable std::mutex m_psoLayoutCacheMutex;
+        mutable Mutex m_psoLayoutCacheMutex;
 
         VkPipelineCache m_pipelineCache = VK_NULL_HANDLE;
         std::unordered_map<size_t, VkPipeline> m_pipelinesGlobal;
@@ -257,7 +256,7 @@ namespace cyb::graphics
             VmaAllocator allocator = VK_NULL_HANDLE;
             VkDevice device = VK_NULL_HANDLE;
             VkInstance instance = VK_NULL_HANDLE;
-            std::mutex destroylocker;
+            Mutex destroylocker;
             uint64_t framecount = 0;
 
             std::deque<std::pair<std::pair<VkImage, VmaAllocation>, uint64_t>> destroyer_images;
@@ -295,7 +294,7 @@ namespace cyb::graphics
                     }
                 };
 
-                destroylocker.lock();
+                ScopedLock lck(destroylocker);
                 framecount = frameCount;
 
                 destroy(destroyer_images, [&](auto& item) {
@@ -340,8 +339,6 @@ namespace cyb::graphics
                 destroy(destroyer_semaphores, [&](auto& item) {
                     vkDestroySemaphore(device, item, nullptr);
                 });
-
-                destroylocker.unlock();
             }
         };
 

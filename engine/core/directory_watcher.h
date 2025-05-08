@@ -1,8 +1,8 @@
 #pragma once
 #include <functional>
 #include <thread>
-#include <mutex>
 #include <chrono>
+#include "core/mutex.h"
 #include "core/platform.h"
 
 namespace cyb
@@ -46,7 +46,7 @@ namespace cyb
             };
 
             std::unordered_map<std::string, Entry> m_files;
-            std::mutex m_mutex;
+            Mutex m_mutex;
         };
     }
 

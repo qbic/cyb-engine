@@ -8,7 +8,7 @@ namespace cyb
     {
         void StableFileEventQueue::Enqueue(const FileChangeEvent& event)
         {
-            std::lock_guard lock(m_mutex);
+            ScopedLock lock(m_mutex);
             m_files[event.filename].event = event;
             m_files[event.filename].time = Clock::now();
         }
@@ -18,7 +18,7 @@ namespace cyb
             std::vector<FileChangeEvent> ready;
             auto now = Clock::now();
 
-            std::lock_guard lock(m_mutex);
+            ScopedLock lock(m_mutex);
             for (auto it = m_files.begin(); it != m_files.end(); )
             {
                 auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.time).count();

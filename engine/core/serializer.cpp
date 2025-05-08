@@ -52,17 +52,7 @@ namespace cyb
         return length;
     }
 
-#define READ_TYPE_IMPL(type, length) {          \
-    type value;                                 \
-    size_t bytesRead = Read(&value, length);    \
-    assert(bytesRead == length);                \
-    return value;                               \
-}
-
-#define READ_CHECK(value, length) {                         \
-    size_t bytesRead = Read(&value, length); \
-    assert(bytesRead = length);              \
-}
+#define READ_CHECK(value, length) { size_t bytesRead = Read(&value, length); assert(bytesRead = length); }
 
     void Archive::Read(char& value) const
     {
@@ -126,27 +116,27 @@ namespace cyb
 
     void Archive::Write(char value)
     {
-        Write(&value, 1);
+        Write(&value, sizeof(value));
     }
 
     void Archive::Write(uint8_t value)
     {
-        Write(&value, 1);
+        Write(&value, sizeof(value));
     }
 
     void Archive::Write(uint32_t value)
     {
-        Write(&value, 4);
+        Write(&value, sizeof(value));
     }
 
     void Archive::Write(uint64_t value)
     {
-        Write(&value, 8);
+        Write(&value, sizeof(value));
     }
 
     void Archive::Write(float value)
     {
-        Write(&value, 4);
+        Write(&value, sizeof(value));
     }
 
     void Archive::Write(const std::string& str)
@@ -182,52 +172,36 @@ namespace cyb
         return m_header.version;
     }
 
+#define SERIALIZE_VALUE(value) { IsWriting() ? m_archive->Write(value) : m_archive->Read(value); }
+
     void Serializer::Serialize(char& value)
     {
-        if (IsWriting())
-            m_archive->Write(value);
-        else
-            m_archive->Read(value);
+        SERIALIZE_VALUE(value);
     }
 
     void Serializer::Serialize(uint8_t& value)
     {
-        if (IsWriting())
-            m_archive->Write(value);
-        else
-            m_archive->Read(value);
+        SERIALIZE_VALUE(value);
     }
 
     void Serializer::Serialize(uint32_t& value)
     {
-        if (IsWriting())
-            m_archive->Write(value);
-        else
-            m_archive->Read(value);
+        SERIALIZE_VALUE(value);
     }
 
     void Serializer::Serialize(uint64_t& value)
     {
-        if (IsWriting())
-            m_archive->Write(value);
-        else
-            m_archive->Read(value);
+        SERIALIZE_VALUE(value);
     }
 
     void Serializer::Serialize(float& value)
     {
-        if (IsWriting())
-            m_archive->Write(value);
-        else
-            m_archive->Read(value);
+        SERIALIZE_VALUE(value);
     }
 
     void Serializer::Serialize(std::string& value)
     {
-        if (IsWriting())
-            m_archive->Write(value);
-        else
-            m_archive->Read(value);
+        SERIALIZE_VALUE(value);
     }
 
     void Serializer::Serialize(XMFLOAT3& value)

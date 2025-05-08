@@ -12,7 +12,7 @@ using DirectX::XMFLOAT4X4;
 
 namespace cyb
 {
-    constexpr uint64_t ARCHIVE_VERSION = 5;
+    constexpr uint32_t ARCHIVE_VERSION = 5;
 
     class Archive
     {

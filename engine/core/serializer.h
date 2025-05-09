@@ -164,10 +164,8 @@ namespace cyb
     }
 
     template <typename T>
-    bool SerializeToFile(const std::string& filename, T& serializeable)
+    bool SerializeToFile(const std::string& filename, T& serializeable, bool useCompression)
     {
-        bool forceCompression = 1;
-
         // serialize scene data
         Archive sceneDataArchive(nullptr, 0);
         Serializer ser(sceneDataArchive);
@@ -177,8 +175,8 @@ namespace cyb
         Archive archive(nullptr, 0);
         CSD_Header header = {};
         header.version = ARCHIVE_VERSION;
-        header.info.bits.compressed = forceCompression ? 1 : 0;
-        header.decompressedSize = forceCompression ? sceneDataArchive.Size() : 0;
+        header.info.bits.compressed = useCompression ? 1 : 0;
+        header.decompressedSize = useCompression ? sceneDataArchive.Size() : 0;
         archive.Write(&header, sizeof(CSD_Header));
         
         if (header.info.bits.compressed)

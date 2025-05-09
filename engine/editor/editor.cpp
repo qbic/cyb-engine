@@ -838,7 +838,7 @@ namespace cyb::editor
                 filename += ".csd";
 
             Timer timer;
-            if (SerializeToFile(filename, scene::GetScene()))
+            if (SerializeToFile(filename, scene::GetScene(), true))
                 CYB_INFO("Serialized scene to file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
         });
     }

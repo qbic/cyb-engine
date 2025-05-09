@@ -68,6 +68,8 @@ namespace cyb
             } bits;
             uint32_t raw;
         } info;
+        uint64_t decompressedSize;
+        uint64_t reserved[2];
     };
 
     class Serializer
@@ -111,7 +113,7 @@ namespace cyb
         }
 
         void Compress(std::vector<uint8_t>& compressedData);
-        void Decompress(std::vector<uint8_t>& decompressedData);
+        void Decompress(std::vector<uint8_t>& decompressedData, uint64_t decompressedSize);
 
     private:
         Archive* m_archive;
@@ -132,7 +134,12 @@ namespace cyb
         std::vector<uint8_t> decompressedData;
         if (ser.GetHeader().info.bits.compressed)
         {
-            ser.Decompress(decompressedData);
+            ser.Decompress(decompressedData, ser.GetHeader().decompressedSize);
+            if (decompressedData.empty())
+            {
+                CYB_ERROR("Failed to import {}, data decompression failed", filename);
+                return false;
+            }
             archive = Archive(decompressedData.data(), decompressedData.size());
         }
         serializeable.Serialize(ser);
@@ -154,10 +161,16 @@ namespace cyb
             Archive compressedArchive(nullptr, 0);
             std::vector<uint8_t> compressedData;
             ser.Compress(compressedData);
+            if (compressedData.size() == 0)
+            {
+                CYB_ERROR("Failed to write file {}, data compression failed", filename);
+                return false;
+            }
 
             CSD_Header header;
             header.version = ARCHIVE_VERSION;
             header.info.bits.compressed = 1;
+            header.decompressedSize = ar.Size() - sizeof(CSD_Header);
             compressedArchive.Write(&header, sizeof(CSD_Header));
             compressedArchive.Write(compressedData.data(), compressedData.size());
             return filesystem::WriteFile(filename, compressedArchive.GetWriteData(), compressedArchive.Size());

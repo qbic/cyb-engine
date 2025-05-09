@@ -161,7 +161,9 @@ namespace cyb
 
         Serialize(m_header.version);
         Serialize(m_header.info.raw);
-
+        Serialize(m_header.decompressedSize);
+        Serialize(m_header.reserved[0]);
+        Serialize(m_header.reserved[1]);
     }
 
     bool Serializer::IsReading() const
@@ -257,8 +259,8 @@ namespace cyb
 
     void Serializer::Compress(std::vector<uint8_t>& compressedData)
     {
-        compressedData.resize(LZ4_MAX_INPUT_SIZE);
-        int compressedSize = LZ4_compress_HC(
+        compressedData.resize(LZ4_compressBound(m_archive->Size()));
+        int res = LZ4_compress_HC(
             (const char*)m_archive->GetWriteData() + sizeof(CSD_Header),
             (char*)&compressedData[0],
             m_archive->Size() - sizeof(CSD_Header),
@@ -266,18 +268,27 @@ namespace cyb
             9
         );
 
-        compressedData.resize(compressedSize);
+        if (res <= 0)
+        {
+            compressedData.clear();
+            return;
+        }
+
+        compressedData.resize(res);
     }
 
-    void Serializer::Decompress(std::vector<uint8_t>& decompressedData)
+    void Serializer::Decompress(std::vector<uint8_t>& decompressedData, uint64_t decompressedSize)
     {
-        decompressedData.resize(LZ4_MAX_INPUT_SIZE);
-        int decompressedSize = LZ4_decompress_safe(
+        decompressedData.resize(decompressedSize);
+        int res = LZ4_decompress_safe(
             (const char*)m_archive->GetReadData() + sizeof(CSD_Header),
             (char*)&decompressedData[0],
             m_archive->Size() - sizeof(CSD_Header),
             decompressedData.capacity()
         );
-        decompressedData.resize(decompressedSize);
+
+        assert(res == decompressedSize);
+        if (res <= 0)
+            decompressedData.clear();
     }
 }

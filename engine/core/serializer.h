@@ -57,6 +57,7 @@ namespace cyb
     };
 
     // header data for cyb scene data (.csd) file
+    constexpr uint32_t CSD_MAGIC = ('.') | ('c' << 8) | ('s' << 16) | ('d' << 24);
     struct CSD_Header
     {
         uint32_t version;
@@ -69,7 +70,8 @@ namespace cyb
             } bits;
             uint32_t raw;
         } info;
-        uint64_t decompressedSize;
+        uint32_t decompressedSize;
+        uint32_t magic;
         uint64_t reserved[2];
     };
 
@@ -133,6 +135,12 @@ namespace cyb
         size_t ret = archive.Read(&header, sizeof(CSD_Header));
         assert(ret == sizeof(CSD_Header));
 
+        if (header.magic != CSD_MAGIC)
+        {
+            CYB_ERROR("Bad file magic on file {}", filename);
+            return false;
+        }
+
         if (header.info.bits.compressed)
         {
             std::vector<uint8_t> decompressedData;
@@ -175,6 +183,7 @@ namespace cyb
         Archive archive(nullptr, 0);
         CSD_Header header = {};
         header.version = ARCHIVE_VERSION;
+        header.magic = CSD_MAGIC;
         header.info.bits.compressed = useCompression ? 1 : 0;
         header.decompressedSize = useCompression ? sceneDataArchive.Size() : 0;
         archive.Write(&header, sizeof(CSD_Header));

@@ -17,9 +17,9 @@ namespace cyb
     class Archive
     {
     public:
-        //Archive(const Archive&) = delete;
-        //Archive(Archive&&) = delete;
-        //Archive& operator=(const Archive&) = delete;
+        Archive(const Archive&) = delete;
+        Archive(Archive&&) = delete;
+        Archive& operator=(const Archive&) = delete;
 
         // passing a nullptr to data will initialize the archive for writing
         Archive(const uint8_t* data, size_t length);
@@ -28,6 +28,7 @@ namespace cyb
         [[nodiscard]] bool IsWriting() const;
 
         [[nodiscard]] const uint8_t* GetReadData() const;
+        [[nodiscard]] const uint8_t* GetReadDataAtCurrentPosition() const;
         [[nodiscard]] const uint8_t* GetWriteData() const;
         [[nodiscard]] size_t Size() const;
 
@@ -39,7 +40,7 @@ namespace cyb
         void Read(float& value) const;
         void Read(std::string& value) const;
 
-        void Write(void* data, size_t length);
+        void Write(const void* data, size_t length);
         void Write(char value);
         void Write(uint8_t value);
         void Write(uint32_t value);
@@ -75,13 +76,12 @@ namespace cyb
     class Serializer
     {
     public:
-        Serializer(Archive& ar);
+        Serializer(Archive& ar, int32_t version = ARCHIVE_VERSION);
         ~Serializer() = default;
 
         [[nodiscard]] bool IsReading() const;
         [[nodiscard]] bool IsWriting() const;
         [[nodiscard]] uint32_t GetVersion() const;
-        [[nodiscard]] const CSD_Header& GetHeader() const;
 
         void Serialize(char& value);
         void Serialize(uint8_t& value);
@@ -112,13 +112,13 @@ namespace cyb
             }
         }
 
-        void Compress(std::vector<uint8_t>& compressedData);
-        void Decompress(std::vector<uint8_t>& decompressedData, uint64_t decompressedSize);
-
     private:
         Archive* m_archive;
-        CSD_Header m_header;
+        uint32_t m_version;
     };
+
+    void Decompress(const uint8_t* source, size_t sourceSize, std::vector<uint8_t>& dest, uint64_t decompressedSize);
+    void Compress(const uint8_t* source, size_t sourceSize, std::vector<uint8_t>& dest);
 
     template <typename T>
     bool SerializeFromFile(const std::string filename, T& serializeable)
@@ -129,20 +129,35 @@ namespace cyb
             return false;
 
         Archive archive(buffer.data(), buffer.size());
-        Serializer ser(archive);
+        CSD_Header header = {};
+        size_t ret = archive.Read(&header, sizeof(CSD_Header));
+        assert(ret == sizeof(CSD_Header));
 
-        std::vector<uint8_t> decompressedData;
-        if (ser.GetHeader().info.bits.compressed)
+        if (header.info.bits.compressed)
         {
-            ser.Decompress(decompressedData, ser.GetHeader().decompressedSize);
+            std::vector<uint8_t> decompressedData;
+            Decompress(
+                archive.GetReadData() + sizeof(CSD_Header),
+                archive.Size() - sizeof(CSD_Header),
+                decompressedData, 
+                header.decompressedSize
+            );
+            
             if (decompressedData.empty())
             {
                 CYB_ERROR("Failed to import {}, data decompression failed", filename);
                 return false;
             }
-            archive = Archive(decompressedData.data(), decompressedData.size());
+
+            Archive decompressedArchive(decompressedData.data(), decompressedData.size());
+            Serializer ser(decompressedArchive, header.version);
+            serializeable.Serialize(ser);
         }
-        serializeable.Serialize(ser);
+        else
+        {
+            Serializer ser(archive, header.version);
+            serializeable.Serialize(ser);
+        }
 
         CYB_INFO("Imported scene from file {} in {:.2f}ms", filename, timer.ElapsedMilliseconds());
         return true;
@@ -151,31 +166,43 @@ namespace cyb
     template <typename T>
     bool SerializeToFile(const std::string& filename, T& serializeable)
     {
-        Archive ar(nullptr, 0);
-        Serializer ser(ar);
+        bool forceCompression = 1;
+
+        // serialize scene data
+        Archive sceneDataArchive(nullptr, 0);
+        Serializer ser(sceneDataArchive);
         serializeable.Serialize(ser);
 
-        bool forceCompression = 1;
-        if (forceCompression)
+        // create archive and write the header
+        Archive archive(nullptr, 0);
+        CSD_Header header = {};
+        header.version = ARCHIVE_VERSION;
+        header.info.bits.compressed = forceCompression ? 1 : 0;
+        header.decompressedSize = forceCompression ? sceneDataArchive.Size() : 0;
+        archive.Write(&header, sizeof(CSD_Header));
+        
+        if (header.info.bits.compressed)
         {
-            Archive compressedArchive(nullptr, 0);
             std::vector<uint8_t> compressedData;
-            ser.Compress(compressedData);
+            Compress(
+                sceneDataArchive.GetWriteData(),
+                sceneDataArchive.Size(),
+                compressedData
+            );
+
             if (compressedData.size() == 0)
             {
                 CYB_ERROR("Failed to write file {}, data compression failed", filename);
                 return false;
             }
 
-            CSD_Header header;
-            header.version = ARCHIVE_VERSION;
-            header.info.bits.compressed = 1;
-            header.decompressedSize = ar.Size() - sizeof(CSD_Header);
-            compressedArchive.Write(&header, sizeof(CSD_Header));
-            compressedArchive.Write(compressedData.data(), compressedData.size());
-            return filesystem::WriteFile(filename, compressedArchive.GetWriteData(), compressedArchive.Size());
+            archive.Write(compressedData.data(), compressedData.size());
+        }
+        else
+        {
+            archive.Write((void*)sceneDataArchive.GetWriteData(), sceneDataArchive.Size());
         }
 
-        return filesystem::WriteFile(filename, ar.GetWriteData(), ar.Size());
+        return filesystem::WriteFile(filename, archive.GetWriteData(), archive.Size());
     }
 }

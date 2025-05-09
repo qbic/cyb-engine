@@ -34,6 +34,11 @@ namespace cyb
         return m_readData;
     }
 
+    const uint8_t* Archive::GetReadDataAtCurrentPosition() const
+    {
+        return GetReadData() + m_position;
+    }
+
     const uint8_t* Archive::GetWriteData() const
     {
         return m_writeData;
@@ -104,7 +109,7 @@ namespace cyb
         m_position += length + 1;
     }
 
-    void Archive::Write(void* data, size_t length)
+    void Archive::Write(const void* data, size_t length)
     {
         assert(IsWriting());
         assert(m_writeData != nullptr);
@@ -150,20 +155,10 @@ namespace cyb
         Write((void*)str.data(), str.length());
     }
 
-    Serializer::Serializer(Archive& ar) :
-        m_archive(&ar)
+    Serializer::Serializer(Archive& ar, int32_t version) :
+        m_archive(&ar),
+        m_version(version)
     {
-        if (IsWriting())
-        {
-            m_header.version = ARCHIVE_VERSION;
-            m_header.info.bits.compressed = 0;
-        }
-
-        Serialize(m_header.version);
-        Serialize(m_header.info.raw);
-        Serialize(m_header.decompressedSize);
-        Serialize(m_header.reserved[0]);
-        Serialize(m_header.reserved[1]);
     }
 
     bool Serializer::IsReading() const
@@ -178,12 +173,7 @@ namespace cyb
     
     uint32_t Serializer::GetVersion() const
     {
-        return m_header.version;
-    }
-
-    const CSD_Header& Serializer::GetHeader() const
-    {
-        return m_header;
+        return m_version;
     }
 
 #define SERIALIZE_VALUE(value) { IsWriting() ? m_archive->Write(value) : m_archive->Read(value); }
@@ -257,38 +247,38 @@ namespace cyb
         }
     }
 
-    void Serializer::Compress(std::vector<uint8_t>& compressedData)
+    void Compress(const uint8_t* source, size_t sourceSize, std::vector<uint8_t>& dest)
     {
-        compressedData.resize(LZ4_compressBound(m_archive->Size()));
+        dest.resize(LZ4_compressBound(sourceSize));
         int res = LZ4_compress_HC(
-            (const char*)m_archive->GetWriteData() + sizeof(CSD_Header),
-            (char*)&compressedData[0],
-            m_archive->Size() - sizeof(CSD_Header),
-            compressedData.capacity(),
+            (const char*)source,
+            (char*)&dest[0],
+            sourceSize,
+            dest.capacity(),
             9
         );
 
         if (res <= 0)
         {
-            compressedData.clear();
+            dest.clear();
             return;
         }
 
-        compressedData.resize(res);
+        dest.resize(res);
     }
 
-    void Serializer::Decompress(std::vector<uint8_t>& decompressedData, uint64_t decompressedSize)
+    void Decompress(const uint8_t* source, size_t sourceSize, std::vector<uint8_t>& dest, uint64_t decompressedSize)
     {
-        decompressedData.resize(decompressedSize);
+        dest.resize(decompressedSize);
         int res = LZ4_decompress_safe(
-            (const char*)m_archive->GetReadData() + sizeof(CSD_Header),
-            (char*)&decompressedData[0],
-            m_archive->Size() - sizeof(CSD_Header),
-            decompressedData.capacity()
+            (const char*)source,
+            (char*)&dest[0],
+            sourceSize,
+            decompressedSize
         );
 
         assert(res == decompressedSize);
         if (res <= 0)
-            decompressedData.clear();
+            dest.clear();
     }
 }

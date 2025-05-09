@@ -32,7 +32,7 @@ namespace cyb
         [[nodiscard]] const uint8_t* GetWriteData() const;
         [[nodiscard]] size_t Size() const;
 
-        size_t Read(void* data, size_t length) const;
+        [[nodiscard]] size_t Read(void* data, size_t length) const;
         void Read(char& value) const;
         void Read(uint8_t& value) const;
         void Read(uint32_t& value) const;

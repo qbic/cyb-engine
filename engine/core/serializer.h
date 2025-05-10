@@ -18,8 +18,9 @@ namespace cyb
     {
     public:
         Archive(const Archive&) = delete;
-        Archive(Archive&&) = delete;
         Archive& operator=(const Archive&) = delete;
+
+        Archive(Archive&&) = default;
 
         // passing a nullptr to data will initialize the archive for writing
         Archive(const uint8_t* data, size_t length);
@@ -78,12 +79,14 @@ namespace cyb
     class Serializer
     {
     public:
-        Serializer(Archive& ar, int32_t version = ARCHIVE_VERSION);
+        Serializer(Archive&& ar, int32_t version = ARCHIVE_VERSION);
         ~Serializer() = default;
 
         [[nodiscard]] bool IsReading() const;
         [[nodiscard]] bool IsWriting() const;
         [[nodiscard]] uint32_t GetVersion() const;
+        [[nodiscard]] const uint8_t* GetArchiveData() const;
+        [[nodiscard]] size_t GetArchiveSize() const;
 
         void Serialize(char& value);
         void Serialize(uint8_t& value);
@@ -104,18 +107,18 @@ namespace cyb
             const size_t numBytes = numElements * sizeof(T);
             if (IsWriting())
             {
-                m_archive->Write(vec.data(), numBytes);
+                m_archive.Write(vec.data(), numBytes);
             }
             else
             {
                 vec.resize(numElements);
-                size_t bytesRead = m_archive->Read(vec.data(), numBytes);
+                size_t bytesRead = m_archive.Read(vec.data(), numBytes);
                 assert(bytesRead == numBytes);
             }
         }
 
     private:
-        Archive* m_archive;
+        Archive m_archive;
         uint32_t m_version;
     };
 
@@ -157,13 +160,12 @@ namespace cyb
                 return false;
             }
 
-            Archive decompressedArchive(decompressedData.data(), decompressedData.size());
-            Serializer ser(decompressedArchive, header.version);
+            Serializer ser(Archive(decompressedData.data(), decompressedData.size()), header.version);
             serializeable.Serialize(ser);
         }
         else
         {
-            Serializer ser(archive, header.version);
+            Serializer ser(std::move(archive), header.version);
             serializeable.Serialize(ser);
         }
 
@@ -175,8 +177,7 @@ namespace cyb
     bool SerializeToFile(const std::string& filename, T& serializeable, bool useCompression)
     {
         // serialize scene data
-        Archive sceneDataArchive(nullptr, 0);
-        Serializer ser(sceneDataArchive);
+        Serializer ser(Archive(nullptr, 0));
         serializeable.Serialize(ser);
 
         // create archive and write the header
@@ -185,15 +186,15 @@ namespace cyb
         header.version = ARCHIVE_VERSION;
         header.magic = CSD_MAGIC;
         header.info.bits.compressed = useCompression ? 1 : 0;
-        header.decompressedSize = useCompression ? sceneDataArchive.Size() : 0;
+        header.decompressedSize = useCompression ? ser.GetArchiveSize() : 0;
         archive.Write(&header, sizeof(CSD_Header));
         
         if (header.info.bits.compressed)
         {
             std::vector<uint8_t> compressedData;
             Compress(
-                sceneDataArchive.GetWriteData(),
-                sceneDataArchive.Size(),
+                ser.GetArchiveData(),
+                ser.GetArchiveSize(),
                 compressedData
             );
 
@@ -207,7 +208,7 @@ namespace cyb
         }
         else
         {
-            archive.Write((void*)sceneDataArchive.GetWriteData(), sceneDataArchive.Size());
+            archive.Write((void*)ser.GetArchiveData(), ser.GetArchiveSize());
         }
 
         return filesystem::WriteFile(filename, archive.GetWriteData(), archive.Size());

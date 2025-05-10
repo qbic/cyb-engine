@@ -155,20 +155,20 @@ namespace cyb
         Write((void*)str.data(), str.length());
     }
 
-    Serializer::Serializer(Archive& ar, int32_t version) :
-        m_archive(&ar),
+    Serializer::Serializer(Archive&& ar, int32_t version) :
+        m_archive(std::move(ar)),
         m_version(version)
     {
     }
 
     bool Serializer::IsReading() const
     {
-        return !m_archive->IsWriting();
+        return !m_archive.IsWriting();
     }
     
     bool Serializer::IsWriting() const
     {
-        return m_archive->IsWriting();
+        return m_archive.IsWriting();
     }
     
     uint32_t Serializer::GetVersion() const
@@ -176,7 +176,17 @@ namespace cyb
         return m_version;
     }
 
-#define SERIALIZE_VALUE(value) { IsWriting() ? m_archive->Write(value) : m_archive->Read(value); }
+    const uint8_t* Serializer::GetArchiveData() const
+    {
+        return IsReading() ? m_archive.GetReadData() : m_archive.GetWriteData();
+    }
+
+    size_t Serializer::GetArchiveSize() const
+    {
+        return m_archive.Size();
+    }
+
+#define SERIALIZE_VALUE(value) { IsWriting() ? m_archive.Write(value) : m_archive.Read(value); }
 
     void Serializer::Serialize(char& value)
     {
@@ -212,11 +222,11 @@ namespace cyb
     {
         if (IsWriting())
         {
-            m_archive->Write(&value, sizeof(XMFLOAT3));
+            m_archive.Write(&value, sizeof(XMFLOAT3));
         }
         else
         {
-            size_t bytesRead = m_archive->Read(&value, sizeof(XMFLOAT3));
+            size_t bytesRead = m_archive.Read(&value, sizeof(XMFLOAT3));
             assert(bytesRead == sizeof(XMFLOAT3));
         }
     }
@@ -225,11 +235,11 @@ namespace cyb
     {
         if (IsWriting())
         {
-            m_archive->Write(&value, sizeof(XMFLOAT4));
+            m_archive.Write(&value, sizeof(XMFLOAT4));
         }
         else
         {
-            size_t bytesRead = m_archive->Read(&value, sizeof(XMFLOAT4));
+            size_t bytesRead = m_archive.Read(&value, sizeof(XMFLOAT4));
             assert(bytesRead == sizeof(XMFLOAT4));
         }
     }
@@ -238,11 +248,11 @@ namespace cyb
     {
         if (IsWriting())
         {
-            m_archive->Write(&value, sizeof(XMFLOAT4X4));
+            m_archive.Write(&value, sizeof(XMFLOAT4X4));
         }
         else
         {
-            size_t bytesRead = m_archive->Read(&value, sizeof(XMFLOAT4X4));
+            size_t bytesRead = m_archive.Read(&value, sizeof(XMFLOAT4X4));
             assert(bytesRead == sizeof(XMFLOAT4X4));
         }
     }

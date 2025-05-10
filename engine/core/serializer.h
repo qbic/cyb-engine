@@ -3,6 +3,7 @@
 #include <string>
 #include <DirectXMath.h>
 #include "core/logger.h"
+#include "core/non_copyable.h"
 #include "core/timer.h"
 #include "core/filesystem.h"
 
@@ -14,14 +15,9 @@ namespace cyb
 {
     constexpr uint32_t ARCHIVE_VERSION = 5;
 
-    class Archive
+    class Archive : private MovableNonCopyable
     {
     public:
-        Archive(const Archive&) = delete;
-        Archive& operator=(const Archive&) = delete;
-
-        Archive(Archive&&) = default;
-
         // passing a nullptr to data will initialize the archive for writing
         Archive(const uint8_t* data, size_t length);
 
@@ -76,7 +72,7 @@ namespace cyb
         uint64_t reserved[2];
     };
 
-    class Serializer
+    class Serializer : private NonCopyable
     {
     public:
         Serializer(Archive&& ar, int32_t version = ARCHIVE_VERSION);

@@ -10,6 +10,7 @@
 #else
 #include <mutex>
 #endif
+#include "core/non_copyable.h"
 
 namespace cyb
 {
@@ -79,7 +80,7 @@ namespace cyb
     };
 
     template<typename T>
-    class ScopedLock
+    class ScopedLock : private NonCopyable
     {
     public:
         explicit ScopedLock(T& mutex) : m_mutex(mutex) { m_mutex.Acquire(); }

@@ -57,6 +57,7 @@ namespace cyb
     constexpr uint32_t CSD_MAGIC = ('.') | ('c' << 8) | ('s' << 16) | ('d' << 24);
     struct CSD_Header
     {
+        uint32_t magic;
         uint32_t version;
         union Info
         {
@@ -68,7 +69,6 @@ namespace cyb
             uint32_t raw;
         } info;
         uint32_t decompressedSize;
-        uint32_t magic;
         uint64_t reserved[2];
     };
 

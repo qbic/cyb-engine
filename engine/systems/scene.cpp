@@ -407,6 +407,24 @@ namespace cyb::scene
         XMStoreFloat3(&up, _Up);
     }
 
+    AnimationComponent::Channel::PathDataType AnimationComponent::Channel::GetPathDataType() const
+    {
+        switch (path)
+        {
+        case Path::Translation:
+            return PathDataType::Float3;
+        case Path::Rotation:
+            return PathDataType::Float4;
+        case Path::Scale:
+            return PathDataType::Float3;
+        default:
+            assert(0);
+            break;
+        }
+
+        return PathDataType::Float;
+    }
+
     ecs::Entity Scene::CreateGroup(const std::string& name)
     {
         ecs::Entity entity = ecs::CreateEntity();
@@ -492,17 +510,17 @@ namespace cyb::scene
         HierarchyComponent& component = hierarchy.Create(entity);
         component.parentID = parentEntity;
 
-        // child is updated immediately so that another entity can
-        // be attached to it directly afterwards
         const TransformComponent* parent = transforms.GetComponent(parentEntity);
         TransformComponent* child = transforms.GetComponent(entity);
+        if (parent != nullptr && child != nullptr)
+        {
+            // move child to parent's local space
+            XMMATRIX B = XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent->world));
+            child->MatrixTransform(B);
+            child->UpdateTransform();
 
-        // move child to parent's local space
-        XMMATRIX B = XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent->world));
-        child->MatrixTransform(B);
-        child->UpdateTransform();
-
-        child->UpdateTransformParented(*parent);
+            child->UpdateTransformParented(*parent);
+        }
     }
 
     void Scene::ComponentDetach(ecs::Entity entity)

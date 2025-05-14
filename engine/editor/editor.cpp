@@ -328,6 +328,15 @@ namespace cyb::editor
         ui::CheckboxFlags("Cast shadows", (uint32_t*)&light->flags, (uint32_t)scene::LightComponent::Flags::CastShadowsBit, nullptr);
     }
 
+    void InspectAnimationComponent(scene::AnimationComponent* anim)
+    {
+        bool activeButton = !anim->IsPlaying();
+        if (ImGui::Button("Play"))
+            anim->Play();
+        if (ImGui::Button("Pause"))
+            anim->Pause();
+    }
+
     void InspectWeatherComponent(scene::WeatherComponent* weather)
     {
         ui::ColorEdit3("Horizon Color", &weather->horizon.x);
@@ -551,6 +560,7 @@ namespace cyb::editor
         InspectComponent<spatial::AxisAlignedBox>(ICON_FA_EXPAND " AABB##edit_object_aabb", scene.aabb_objects, InspectAABBComponent, entityID, false);
         InspectComponent<spatial::AxisAlignedBox>(ICON_FA_EXPAND " AABB##edit_light_aabb", scene.aabb_lights, InspectAABBComponent, entityID, false);
         InspectComponent<scene::HierarchyComponent>(ICON_FA_CODE_FORK " Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, false);
+        InspectComponent<scene::AnimationComponent>(ICON_FA_ROUTE " Animation", scene.animations, InspectAnimationComponent, entityID, false);
         InspectComponent<scene::WeatherComponent>(ICON_FA_CLOUD_RAIN " Weather", scene.weathers, InspectWeatherComponent, entityID, true);
     }
 

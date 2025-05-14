@@ -66,8 +66,7 @@ namespace cyb::hli
         camera->UpdateCamera();
 
         // Update the main view:
-        sceneViewMain.Clear();
-        sceneViewMain.Update(scene, camera);
+        sceneViewMain.Reset(scene, camera);
 
         // Update per frame constant buffer
         renderer::UpdatePerFrameData(sceneViewMain, static_cast<float>(runtime), frameCB);

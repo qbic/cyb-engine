@@ -93,20 +93,9 @@ namespace cyb
     void Archive::Read(std::string& value) const
     {
         size_t length = 0;
-        for (;;)
-        {
-            if (m_position + length >= m_readDataLength)
-            {
-                assert(0);
-                break;
-            }
-            if (m_readData[m_position + length] == 0)
-                break;
-            length++;
-        }
-
-        value = std::string((const char*)m_readData + m_position, length + 1);
-        m_position += length + 1;
+        Read(length);
+        value.resize(length);
+        READ_CHECK(value[0], length);
     }
 
     void Archive::Write(const void* data, size_t length)
@@ -152,6 +141,7 @@ namespace cyb
 
     void Archive::Write(const std::string& str)
     {
+        Write(str.length());
         Write((void*)str.data(), str.length());
     }
 

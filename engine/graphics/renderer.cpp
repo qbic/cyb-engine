@@ -417,19 +417,13 @@ namespace cyb::renderer
         static eventsystem::Handle handle = eventsystem::Subscribe(eventsystem::Event_ReloadShaders, [] (uint64_t userdata) { LoadShaders(); });
     }
 
-    void SceneView::Clear()
-    {
-        visibleObjects.clear();
-        visibleLights.clear();
-    }
-
-    void SceneView::Update(const scene::Scene* scene, const scene::CameraComponent* camera)
+    void SceneView::Reset(const scene::Scene* scene, const scene::CameraComponent* camera)
     {
         assert(scene);
         assert(camera);
-        assert(visibleObjects.empty());
-        assert(visibleLights.empty());
 
+        visibleObjects.clear();
+        visibleLights.clear();
         this->scene = scene;
         this->camera = camera;
 

@@ -97,13 +97,12 @@ namespace cyb::renderer
     // Contains a fully clipped view of the scene from the camera perspective
     struct SceneView
     {
+        void Reset(const scene::Scene* scene, const scene::CameraComponent* camera);
+
         const scene::Scene* scene = nullptr;
         const scene::CameraComponent* camera = nullptr;
         std::vector<uint32_t> visibleObjects;   // scene->objects indexes
         std::vector<uint32_t> visibleLights;    // scene->lights indexes
-
-        void Clear();
-        void Update(const scene::Scene* scene, const scene::CameraComponent* camera);
     };
 
     const graphics::Shader* GetShader(SHADERTYPE id);

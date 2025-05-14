@@ -239,6 +239,79 @@ namespace cyb::scene
         void TransformCamera(const TransformComponent& transform);
     };
 
+    struct AnimationComponent
+    {
+        enum class Flag : uint32_t
+        {
+            Empty = 0,
+            Playing = BIT(1),
+            Looped = BIT(2)
+        };
+
+        struct Channel
+        {
+            enum class Path : uint32_t
+            {
+                Unknown,
+                Translation,
+                Rotation,
+                Scale,
+                Weights
+            };
+
+            enum class PathDataType : uint32_t
+            {
+                Float,
+                Float2,
+                Float3,
+                Float4
+            };
+
+            ecs::Entity target = ecs::INVALID_ENTITY;
+            int samplerIndex = -1;
+            Path path = Path::Unknown;
+
+            PathDataType GetPathDataType() const;
+        };
+
+        struct Sampler
+        {
+            enum class Mode : uint32_t
+            {
+                Linear,
+                Step,
+                CubicSpline
+            };
+
+            Mode mode;
+            std::vector<float> keyframeTimes;
+            std::vector<float> keyframeData;
+        };
+
+        Flag flags = Flag::Looped;
+        float start = 0.0f;
+        float end = 0.0f;
+        float timer = 0.0f;
+        float speed = 1.0f;
+
+        std::vector<Channel> channels;
+        std::vector<Sampler> samplers;
+
+        // non-serialized attributes:
+        float lastUpdateTime = 0.0f;
+
+        [[nodiscard]] constexpr bool IsPlaying() const { return HasFlag(flags, Flag::Playing); }
+        [[nodiscard]] constexpr bool IsLooped() const { return HasFlag(flags, Flag::Looped); }
+        [[nodiscard]] constexpr bool GetLength() const { return end - start; }
+        [[nodiscard]] constexpr bool IsEnded() const { return timer >= end; }
+
+        constexpr void Play() { SetFlag(flags, Flag::Playing, true); }
+        constexpr void Pause() { SetFlag(flags, Flag::Playing, false); }
+        constexpr void Stop() { Pause(); timer = 0.0f; lastUpdateTime = timer; }
+        constexpr void SetLooped(bool value) { SetFlag(flags, Flag::Looped, value); }
+    };
+    CYB_ENABLE_BITMASK_OPERATORS(AnimationComponent::Flag);
+
     struct Scene
     {
         ecs::ComponentManager<NameComponent> names;
@@ -252,6 +325,7 @@ namespace cyb::scene
         ecs::ComponentManager<LightComponent> lights;
         ecs::ComponentManager<spatial::AxisAlignedBox> aabb_lights;
         ecs::ComponentManager<CameraComponent> cameras;
+        ecs::ComponentManager<AnimationComponent> animations;
         ecs::ComponentManager<WeatherComponent> weathers;
 
         WeatherComponent active_weather;   // weathers[0] copy

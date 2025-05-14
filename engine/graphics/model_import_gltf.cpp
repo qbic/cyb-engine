@@ -12,7 +12,7 @@ namespace cyb::renderer
     {
         tinygltf::Model gltfModel;
         scene::Scene* scene = nullptr;
-        std::unordered_map<size_t, ecs::Entity> materialMap;   // gltfModel index -> entity
+        std::unordered_map<size_t, ecs::Entity> entityMap;   // node -> entity
     };
 
     // Recursively loads nodes and resolves hierarchy
@@ -45,6 +45,8 @@ namespace cyb::renderer
             state.scene->names.Create(entity, node.name);
         }
 
+        state.entityMap[node_index] = entity;
+
         scene::TransformComponent* transform = state.scene->transforms.GetComponent(entity);
         if (!node.scale.empty())
             transform->scale_local = XMFLOAT3((float)node.scale[0], (float)node.scale[1], (float)node.scale[2]);
@@ -52,6 +54,7 @@ namespace cyb::renderer
             transform->rotation_local = XMFLOAT4((float)node.rotation[0], (float)node.rotation[1], (float)node.rotation[2], (float)node.rotation[3]);
         if (!node.translation.empty())
             transform->translation_local = XMFLOAT3((float)node.translation[0], (float)node.translation[1], (float)node.translation[2]);
+        transform->UpdateTransform();
 
         if (parent != ecs::INVALID_ENTITY)
             state.scene->ComponentAttach(entity, parent);
@@ -97,7 +100,7 @@ namespace cyb::renderer
         for (const auto& x : state.gltfModel.materials)
         {
             ecs::Entity material_id = scene.CreateMaterial(x.name);
-            state.materialMap.emplace(state.materialMap.size(), material_id);
+            state.entityMap.emplace(state.entityMap.size(), material_id);
             scene::MaterialComponent* material = scene.materials.GetComponent(material_id);
 
             const auto& baseColorFactor = x.values.find("baseColorFactor");
@@ -131,7 +134,7 @@ namespace cyb::renderer
             {
                 mesh->subsets.push_back(scene::MeshComponent::MeshSubset());
                 scene::MeshComponent::MeshSubset& subset = mesh->subsets.back();
-                subset.materialID = state.materialMap[prim.material];
+                subset.materialID = state.entityMap[prim.material];
                 scene::MaterialComponent* material = scene.materials.GetComponent(subset.materialID);
 
                 // Read submesh indices:
@@ -238,6 +241,115 @@ namespace cyb::renderer
         const tinygltf::Scene& glftScene = state.gltfModel.scenes[state.gltfModel.defaultScene];
         for (size_t i = 0; i < glftScene.nodes.size(); i++)
             rootEntity = LoadNode(state, mesh_offset, glftScene.nodes[i], ecs::INVALID_ENTITY);
+
+        // Create animations
+        for (const auto& anim : state.gltfModel.animations)
+        {
+            ecs::Entity entity = ecs::CreateEntity();
+            scene.names.Create(entity, anim.name);
+            scene.ComponentAttach(entity, rootEntity);
+            scene::AnimationComponent& animComponent = scene.animations.Create(entity);
+            animComponent.samplers.resize(anim.samplers.size());
+            animComponent.channels.resize(anim.channels.size());
+
+            for (size_t i = 0; i < anim.samplers.size(); ++i)
+            {
+                auto& sampler = anim.samplers[i];
+
+                if (sampler.interpolation.compare("LINEAR") == 0)
+                    animComponent.samplers[i].mode = scene::AnimationComponent::Sampler::Mode::Linear;
+                else if (sampler.interpolation.compare("STEP") == 0)
+                    animComponent.samplers[i].mode = scene::AnimationComponent::Sampler::Mode::Step;
+                else if (sampler.interpolation.compare("CUBICSPLINE") == 0)
+                    animComponent.samplers[i].mode = scene::AnimationComponent::Sampler::Mode::CubicSpline;
+
+                // sampler.input = keyframe times
+                {
+                    const tinygltf::Accessor& accessor = state.gltfModel.accessors[sampler.input];
+                    const tinygltf::BufferView& bufferView = state.gltfModel.bufferViews[accessor.bufferView];
+                    const tinygltf::Buffer& buffer = state.gltfModel.buffers[bufferView.buffer];
+                    assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+
+                    int stride = accessor.ByteStride(bufferView);
+                    assert(stride == 4);
+                    size_t count = accessor.count;
+
+                    std::vector<float>& keyframeTimes = animComponent.samplers[i].keyframeTimes;
+                    keyframeTimes.resize(count);
+
+                    const unsigned char* data = buffer.data.data() + accessor.byteOffset + bufferView.byteOffset;
+
+                    for (size_t j = 0; j < count; ++j)
+                    {
+                        const float time = ((float*)data)[j];
+                        keyframeTimes[j] = time;
+                        animComponent.start = std::min(animComponent.start, time);
+                        animComponent.end = std::max(animComponent.end, time);
+                    }
+                }
+
+                // sampler.ouput = keyframe data
+                {
+                    const tinygltf::Accessor& accessor = state.gltfModel.accessors[sampler.output];
+                    const tinygltf::BufferView& bufferView = state.gltfModel.bufferViews[accessor.bufferView];
+                    const tinygltf::Buffer& buffer = state.gltfModel.buffers[bufferView.buffer];
+
+                    int stride = accessor.ByteStride(bufferView);
+                    size_t count = accessor.count;
+
+                    std::vector<float>& keyframeData = animComponent.samplers[i].keyframeData;
+                    const unsigned char* data = buffer.data.data() + accessor.byteOffset + bufferView.byteOffset;
+
+                    switch (accessor.type)
+                    {
+                    case TINYGLTF_TYPE_SCALAR:
+                    {
+                        assert(stride == sizeof(float));
+                        keyframeData.resize(count);
+                        for (size_t j = 0; j < count; ++j)
+                            keyframeData[j] = ((float*)data)[j];
+                    } break;
+                    case TINYGLTF_TYPE_VEC3:
+                    {
+                        assert(stride == sizeof(XMFLOAT3));
+                        keyframeData.resize(count * 3);
+                        for (size_t j = 0; j < count; ++j)
+                            ((XMFLOAT3*)keyframeData.data())[j] = ((XMFLOAT3*)data)[j];
+                    } break;
+                    case TINYGLTF_TYPE_VEC4:
+                    {
+                        assert(stride == sizeof(XMFLOAT4));
+                        keyframeData.resize(count * 4);
+                        for (size_t j = 0; j < count; ++j)
+                            ((XMFLOAT4*)keyframeData.data())[j] = ((XMFLOAT4*)data)[j];
+                    } break;
+                    default:
+                        assert(0);
+                        break;
+                    }
+                }
+            }
+
+            for (size_t i = 0; i < anim.channels.size(); ++i)
+            {
+                auto& channel = anim.channels[i];
+
+                animComponent.channels[i].target = state.entityMap[channel.target_node];
+                assert(channel.sampler >= 0);
+                animComponent.channels[i].samplerIndex = (uint32_t)channel.sampler;
+
+                if (!channel.target_path.compare("scale"))
+                    animComponent.channels[i].path = scene::AnimationComponent::Channel::Path::Scale;
+                else if (!channel.target_path.compare("rotation"))
+                    animComponent.channels[i].path = scene::AnimationComponent::Channel::Path::Rotation;
+                else if (!channel.target_path.compare("translation"))
+                    animComponent.channels[i].path = scene::AnimationComponent::Channel::Path::Translation;
+                else if (!channel.target_path.compare("weights"))
+                    animComponent.channels[i].path = scene::AnimationComponent::Channel::Path::Weights;
+                else
+                    animComponent.channels[i].path = scene::AnimationComponent::Channel::Path::Unknown;
+            }
+        }
 
         CYB_TRACE("Imported model (filename={0}) in {1:.2f} milliseconds", filename, timer.ElapsedMilliseconds());
         return rootEntity;

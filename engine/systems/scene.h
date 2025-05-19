@@ -15,7 +15,7 @@ namespace cyb::scene
         NameComponent(const std::string& name_) : name(name_) {}
     };
 
-    struct TransformComponent
+    struct alignas(16) TransformComponent
     {
         enum class Flags
         {
@@ -59,7 +59,7 @@ namespace cyb::scene
     {
     };
 
-    struct HierarchyComponent
+    struct alignas(16) HierarchyComponent
     {
         ecs::Entity parentID = ecs::INVALID_ENTITY;
     };
@@ -93,7 +93,7 @@ namespace cyb::scene
     };
     CYB_ENABLE_BITMASK_OPERATORS(MaterialComponent::Flags);
 
-    struct MeshComponent
+    struct alignas(16) MeshComponent
     {
         std::vector<XMFLOAT3> vertex_positions;
         std::vector<XMFLOAT3> vertex_normals;
@@ -144,7 +144,7 @@ namespace cyb::scene
         };
     };
 
-    struct ObjectComponent
+    struct alignas(16) ObjectComponent
     {
         enum class Flags : uint32_t
         {
@@ -214,7 +214,7 @@ namespace cyb::scene
         float windSpeed = 10.0f;
     };
 
-    struct CameraComponent
+    struct alignas(16) CameraComponent
     {
         float aspect = 1.0f;
         float zNearPlane = 0.001f;
@@ -245,7 +245,8 @@ namespace cyb::scene
         {
             Empty = 0,
             Playing = BIT(1),
-            Looped = BIT(2)
+            Looped = BIT(2),
+            PingPong = BIT(3)
         };
 
         struct Channel
@@ -292,6 +293,7 @@ namespace cyb::scene
         float start = 0.0f;
         float end = 0.0f;
         float timer = 0.0f;
+        float blendAmount = 1.0f;
         float speed = 1.0f;
 
         std::vector<Channel> channels;
@@ -302,13 +304,16 @@ namespace cyb::scene
 
         [[nodiscard]] constexpr bool IsPlaying() const { return HasFlag(flags, Flag::Playing); }
         [[nodiscard]] constexpr bool IsLooped() const { return HasFlag(flags, Flag::Looped); }
+        [[nodiscard]] constexpr bool IsPingPong() const { return HasFlag(flags, Flag::PingPong); }
         [[nodiscard]] constexpr bool GetLength() const { return end - start; }
         [[nodiscard]] constexpr bool IsEnded() const { return timer >= end; }
 
         constexpr void Play() { SetFlag(flags, Flag::Playing, true); }
         constexpr void Pause() { SetFlag(flags, Flag::Playing, false); }
         constexpr void Stop() { Pause(); timer = 0.0f; lastUpdateTime = timer; }
-        constexpr void SetLooped(bool value) { SetFlag(flags, Flag::Looped, value); }
+        constexpr void SetLooped(bool value) { SetFlag(flags, Flag::Looped, value); if (value) SetFlag(flags, Flag::PingPong, false); }
+        constexpr void SetPingPong(bool value) { SetFlag(flags, Flag::PingPong, value); if (value) SetFlag(flags, Flag::Looped, false); }
+        void SetPlayOnce() { SetFlag(flags, Flag::Looped, false); SetFlag(flags, Flag::PingPong, false);  }
     };
     CYB_ENABLE_BITMASK_OPERATORS(AnimationComponent::Flag);
 
@@ -329,6 +334,10 @@ namespace cyb::scene
         ecs::ComponentManager<WeatherComponent> weathers;
 
         WeatherComponent active_weather;   // weathers[0] copy
+
+        // non-serialized attributes:
+        float dt = 0.0f;
+        float time = 0.0f;
 
         void Update(double dt);
         void Clear();
@@ -372,6 +381,7 @@ namespace cyb::scene
         void RunObjectUpdateSystem(jobsystem::Context& ctx);
         void RunLightUpdateSystem(jobsystem::Context& ctx);
         void RunCameraUpdateSystem(jobsystem::Context& ctx);
+        void RunAnimationUpdateSystem(jobsystem::Context& ctx);
         void RunWeatherUpdateSystem(jobsystem::Context& ctx);
     };
 

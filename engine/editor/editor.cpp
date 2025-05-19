@@ -330,11 +330,60 @@ namespace cyb::editor
 
     void InspectAnimationComponent(scene::AnimationComponent* anim)
     {
-        bool activeButton = !anim->IsPlaying();
-        if (ImGui::Button("Play"))
-            anim->Play();
-        if (ImGui::Button("Pause"))
-            anim->Pause();
+        static float speedSlider = std::abs(anim->speed);
+        constexpr ImVec2 iconButtonSize(50, 0);
+
+        const char* loopIcon = ICON_FA_RIGHT_LONG;
+        if (anim->IsLooped())
+            loopIcon = ICON_FA_REPEAT;
+        else if (anim->IsPingPong())
+            loopIcon = ICON_FA_RIGHT_LEFT;
+        if (ImGui::Button(loopIcon, iconButtonSize))
+        {
+            if (anim->IsLooped())
+                anim->SetPingPong(true);
+            else if (anim->IsPingPong())
+                anim->SetPlayOnce();
+            else
+                anim->SetLooped(true);
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", anim->IsLooped() ? "Looped" : anim->IsPingPong() ? "PingPong" : "PlayOnce");
+
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_FA_BACKWARD, iconButtonSize))
+            anim->timer = anim->start;
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Rewind");
+
+        ImGui::SameLine();
+        if (ImGui::Button(anim->IsPlaying() ? ICON_FA_PAUSE : ICON_FA_PLAY, iconButtonSize))
+        {
+            if (anim->IsPlaying())
+            {
+                anim->Pause();
+            }
+            else
+            {
+                anim->Play();
+                if (!anim->IsPingPong())
+                    anim->speed = speedSlider;
+            }
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s animation", anim->IsPlaying() ? "Pause" : "Play");
+
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_FA_STOP, iconButtonSize))
+            anim->Stop();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Stop and reset animation");
+
+        ImGui::SetNextItemWidth(-1);
+        ImGui::SliderFloat("##Animtime", &anim->timer, anim->start, anim->end);
+        
+        ui::SliderFloat("Speed", &speedSlider, nullptr, 0.1f, 2.0f);
+        anim->speed = anim->speed >= 0 ? speedSlider : -speedSlider;
     }
 
     void InspectWeatherComponent(scene::WeatherComponent* weather)

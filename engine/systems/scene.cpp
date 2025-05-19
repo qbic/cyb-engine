@@ -536,9 +536,13 @@ namespace cyb::scene
 
     void Scene::Update([[maybe_unused]] double dt)
     {
+        this->dt = dt;
+        this->time += dt;
+
         jobsystem::Context ctx;
 
         // update systems with no dependency
+        RunAnimationUpdateSystem(ctx);      // waits on ctx before returning
         RunTransformUpdateSystem(ctx);
         RunWeatherUpdateSystem(ctx);
 
@@ -735,6 +739,207 @@ namespace cyb::scene
             CameraComponent& camera = cameras[args.jobIndex];
             camera.UpdateCamera();
         });
+    }
+
+    void Scene::RunAnimationUpdateSystem(jobsystem::Context& ctx)
+    {
+        CYB_PROFILE_CPU_SCOPE("Animation");
+
+        jobsystem::Dispatch(ctx, (uint32_t)animations.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
+            AnimationComponent& animation = animations[args.jobIndex];
+            if (!animation.IsPlaying())
+                return;
+
+            animation.lastUpdateTime = animation.timer;
+
+            for (const AnimationComponent::Channel& channel : animation.channels)
+            {
+                assert(channel.samplerIndex < (int)animation.samplers.size());
+                const AnimationComponent::Sampler& sampler = animation.samplers[channel.samplerIndex];
+                if (sampler.keyframeTimes.empty())
+                    continue;
+
+                const AnimationComponent::Channel::PathDataType pathDataType = channel.GetPathDataType();
+
+                float timeFirst = std::numeric_limits<float>::max();
+                float timeLast = std::numeric_limits<float>::min();
+
+                float timeLeft = std::numeric_limits<float>::min();
+                float timeRight = std::numeric_limits<float>::max();
+                int keyLeft = 0, keyRight = 0;
+
+                // search for usable keyframes
+                for (int k = 0; k < (int)sampler.keyframeTimes.size(); ++k)
+                {
+                    const float time = sampler.keyframeTimes[k];
+
+                    timeFirst = std::min(timeFirst, time);
+                    timeLast = std::max(timeLast, time);
+
+                    if (time <= animation.timer && time > timeLeft)
+                    {
+                        timeLeft = time;
+                        keyLeft = k;
+                    }
+                    if (time >= animation.timer && time < timeRight)
+                    {
+                        timeRight = time;
+                        keyRight = k;
+                    }
+                }
+                timeLeft = std::max(timeLeft, timeFirst);
+                timeRight = std::max(timeRight, timeLast);
+
+                const float left = sampler.keyframeTimes[keyLeft];
+                const float right = sampler.keyframeTimes[keyRight];
+
+                union Interpolator
+                {
+                    XMFLOAT4 f4;
+                    XMFLOAT3 f3;
+                    XMFLOAT2 f2;
+                    float f;
+                } interpolator = {};
+
+                TransformComponent* targetTransform = nullptr;
+                if (channel.path == AnimationComponent::Channel::Path::Translation||
+                    channel.path == AnimationComponent::Channel::Path::Rotation ||
+                    channel.path == AnimationComponent::Channel::Path::Scale)
+                {
+                    targetTransform = transforms.GetComponent(channel.target);
+                    if (targetTransform == nullptr)
+                        continue;
+
+                    switch (channel.path)
+                    {
+                    case AnimationComponent::Channel::Path::Translation:
+                        interpolator.f3 = targetTransform->translation_local;
+                        break;
+                    case AnimationComponent::Channel::Path::Rotation:
+                        interpolator.f4 = targetTransform->rotation_local;
+                        break;
+                    case AnimationComponent::Channel::Path::Scale:
+                        interpolator.f3 = targetTransform->scale_local;
+                        break;
+                    default:
+                        break;
+                    }
+                }
+                else
+                {
+                    assert(0);
+                    continue;
+                }
+
+                // path data interpolation
+                switch (sampler.mode)
+                {
+                case AnimationComponent::Sampler::Mode::Linear:
+                {
+                    // Linear interpolation method:
+                    float t = 0.0f;
+                    if (keyLeft != keyRight)
+                        t = math::Saturate(animation.timer - left) / (right - left);
+
+                    switch (pathDataType)
+                    {
+                    case AnimationComponent::Channel::PathDataType::Float3:
+                    {
+                        assert(sampler.keyframeData.size() == sampler.keyframeTimes.size() * 3);
+                        const XMFLOAT3* data = (const XMFLOAT3*)sampler.keyframeData.data();
+                        XMVECTOR vLeft = XMLoadFloat3(&data[keyLeft]);
+                        XMVECTOR vRight = XMLoadFloat3(&data[keyRight]);
+                        XMVECTOR vAnim = XMVectorLerp(vLeft, vRight, t);
+                        XMStoreFloat3(&interpolator.f3, vAnim);
+                    } break;
+                    case AnimationComponent::Channel::PathDataType::Float4:
+                    {
+                        assert(sampler.keyframeData.size() == sampler.keyframeTimes.size() * 4);
+                        const XMFLOAT4* data = (const XMFLOAT4*)sampler.keyframeData.data();
+                        XMVECTOR vLeft = XMLoadFloat4(&data[keyLeft]);
+                        XMVECTOR vRight = XMLoadFloat4(&data[keyRight]);
+                        XMVECTOR vAnim;
+                        if (channel.path == AnimationComponent::Channel::Path::Rotation)
+                        {
+                            vAnim = XMQuaternionSlerp(vLeft, vRight, t);
+                            vAnim = XMQuaternionNormalize(vAnim);
+                        }
+                        else
+                        {
+                            vAnim = XMVectorLerp(vLeft, vRight, t);
+                        }
+                        XMStoreFloat4(&interpolator.f4, vAnim);
+                    } break;
+                    default:
+                        assert(0);
+                        break;
+                    }
+                } break;
+                default:
+                    assert(0);
+                    break;
+                }
+
+                // The interpolated raw values will be blended on top of component values:
+                const float t = animation.blendAmount;
+
+                if (targetTransform != nullptr)
+                {
+                    targetTransform->SetDirty();
+
+                    switch (channel.path)
+                    {
+                    case AnimationComponent::Channel::Path::Translation:
+                    {
+                        const XMVECTOR aT = XMLoadFloat3(&targetTransform->translation_local);
+                        const XMVECTOR bT = XMLoadFloat3(&interpolator.f3);
+                        const XMVECTOR T = XMVectorLerp(aT, bT, t);
+                        XMStoreFloat3(&targetTransform->translation_local, T);
+                    } break;
+                    case AnimationComponent::Channel::Path::Rotation:
+                    {
+                        const XMVECTOR aR = XMLoadFloat4(&targetTransform->rotation_local);
+                        const XMVECTOR bR = XMLoadFloat4(&interpolator.f4);
+                        const XMVECTOR R = XMQuaternionSlerp(aR, bR, t);
+                        XMStoreFloat4(&targetTransform->rotation_local, R);
+                    } break;
+                    case AnimationComponent::Channel::Path::Scale:
+                    {
+                        const XMVECTOR aS = XMLoadFloat3(&targetTransform->scale_local);
+                        const XMVECTOR bS = XMLoadFloat3(&interpolator.f3);
+                        const XMVECTOR S = XMVectorLerp(aS, bS, t);
+                        XMStoreFloat3(&targetTransform->scale_local, S);
+                    } break;
+                    }
+                }
+            }
+
+            const bool forward = animation.speed > 0;
+            const bool timerBeyondEnd = animation.timer > animation.end;
+            const bool timerBeforeStart = animation.timer < animation.start;
+            if ((forward && timerBeyondEnd) || (!forward && timerBeforeStart))
+            {
+                if (animation.IsLooped())
+                {
+                    animation.timer = forward ? animation.start : animation.end;
+                }
+                else if (animation.IsPingPong())
+                {
+                    animation.timer = forward ? animation.end : animation.start;
+                    animation.speed = -animation.speed;
+                }
+                else
+                {
+                    animation.timer = forward ? animation.end : animation.start;
+                    animation.Pause();
+                }
+            }
+
+            if (animation.IsPlaying())
+                animation.timer += dt * animation.speed;
+        });
+
+        jobsystem::Wait(ctx);
     }
 
     void Scene::RunWeatherUpdateSystem(jobsystem::Context& /* ctx */)

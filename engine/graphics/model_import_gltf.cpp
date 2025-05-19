@@ -30,7 +30,11 @@ namespace cyb::renderer
 
             // if (node.skin < 0):  mesh instance
             // if (node.skin >= 0): armature
-            if (node.skin < 0)
+            if (node.skin >= 0)
+            {
+                CYB_WARNING("ImportGLTF: Unhandled armature skin={} name={}", node.skin, node.name);
+            }
+            else
             {
                 entity = state.scene->CreateObject(node.name);
                 scene::ObjectComponent* object = state.scene->objects.GetComponent(entity);
@@ -89,13 +93,6 @@ namespace cyb::renderer
 
         CYB_CWARNING(!warningMsg.empty(), "ImportModel_GLTF (filename={0}): {1}", filename, warningMsg);
 
-        // Model must contain atleast one material!
-        if (state.gltfModel.materials.empty())
-        {
-            CYB_ERROR("ImportModel_GLTF failed to load (filename={0}): No materials", filename);
-            return ecs::INVALID_ENTITY;
-        }
-
         // Create materials
         for (const auto& x : state.gltfModel.materials)
         {
@@ -134,6 +131,11 @@ namespace cyb::renderer
             {
                 mesh->subsets.push_back(scene::MeshComponent::MeshSubset());
                 scene::MeshComponent::MeshSubset& subset = mesh->subsets.back();
+
+                // create a default material if none were provided
+                if (scene.materials.Size() == 0)
+                    scene.materials.Create(ecs::CreateEntity());
+
                 subset.materialID = state.entityMap[prim.material];
                 scene::MaterialComponent* material = scene.materials.GetComponent(subset.materialID);
 

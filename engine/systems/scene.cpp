@@ -455,7 +455,6 @@ namespace cyb::scene
         ecs::Entity entity = ecs::CreateEntity();
         names.Create(entity, name);
         transforms.Create(entity);
-        aabb_objects.Create(entity);
         objects.Create(entity);
         return entity;
     }
@@ -474,8 +473,6 @@ namespace cyb::scene
         TransformComponent& transform = transforms.Create(entity);
         transform.Translate(position);
         transform.UpdateTransform();
-
-        aabb_lights.Create(entity);
 
         LightComponent& light = lights.Create(entity);
         light.energy = energy;
@@ -568,11 +565,12 @@ namespace cyb::scene
         materials.Clear();
         meshes.Clear();
         objects.Clear();
-        aabb_objects.Clear();
         lights.Clear();
-        aabb_lights.Clear();
         cameras.Clear();
         weathers.Clear();
+
+        aabb_objects.clear();
+        aabb_lights.clear();
     }
 
     void Scene::Merge(Scene& other)
@@ -584,11 +582,12 @@ namespace cyb::scene
         materials.Merge(other.materials);
         meshes.Merge(other.meshes);
         objects.Merge(other.objects);
-        aabb_objects.Merge(other.aabb_objects);
         lights.Merge(other.lights);
-        aabb_lights.Merge(other.aabb_lights);
         cameras.Merge(other.cameras);
         weathers.Merge(other.weathers);
+
+        aabb_objects.insert(aabb_objects.end(), other.aabb_objects.begin(), other.aabb_objects.end());
+        aabb_lights.insert(aabb_lights.end(), other.aabb_lights.begin(), other.aabb_lights.end());
     }
 
     void Scene::RemoveEntity(ecs::Entity entity, bool recursive)
@@ -618,9 +617,7 @@ namespace cyb::scene
         materials.Remove(entity);
         meshes.Remove(entity);
         objects.Remove(entity);
-        aabb_objects.Remove(entity);
         lights.Remove(entity);
-        aabb_lights.Remove(entity);
         cameras.Remove(entity);
         weathers.Remove(entity);
     }
@@ -653,9 +650,7 @@ namespace cyb::scene
         materials.Serialize(ser, context);
         meshes.Serialize(ser, context);
         objects.Serialize(ser, context);
-        aabb_objects.Serialize(ser, context);
         lights.Serialize(ser, context);
-        aabb_lights.Serialize(ser, context);
         cameras.Serialize(ser, context);
         weathers.Serialize(ser, context);
     }
@@ -722,6 +717,8 @@ namespace cyb::scene
 
     void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
     {
+        aabb_objects.resize(objects.Size());
+
         jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
             ecs::Entity entity = objects.GetEntity(args.jobIndex);
             ObjectComponent& object = objects[args.jobIndex];
@@ -742,15 +739,25 @@ namespace cyb::scene
 
     void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)
     {
+        aabb_lights.resize(lights.Size());
+
         jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
-            const ecs::Entity entity = lights.GetEntity(args.jobIndex);
-            const TransformComponent* transform = transforms.GetComponent(entity);
-
             LightComponent& light = lights[args.jobIndex];
-            light.UpdateLight();
-
+            const ecs::Entity entity = lights.GetEntity(args.jobIndex);
+            if (!transforms.Contains(entity))
+                return;
+            const TransformComponent& transform = *transforms.GetComponent(entity);
             AxisAlignedBox& aabb = aabb_lights[args.jobIndex];
-            aabb = light.aabb.Transform(XMLoadFloat4x4(&transform->world));
+
+            XMMATRIX W = XMLoadFloat4x4(&transform.world);
+            XMVECTOR S, R, T;
+            XMMatrixDecompose(&S, &R, &T, W);
+
+            XMFLOAT3 lightPosition;
+            XMStoreFloat3(&lightPosition, T);
+
+            if (light.type == LightType::Point)
+                aabb.SetAsSphere(lightPosition, light.range * 0.5f);
         });
     }
 
@@ -977,18 +984,17 @@ namespace cyb::scene
         const XMVECTOR ray_origin = ray.GetOrigin();
         const XMVECTOR ray_direction = XMVector3Normalize(ray.GetDirection());
 
-        for (size_t i = 0; i < scene.aabb_objects.Size(); ++i)
+        for (size_t objectIndex = 0; objectIndex < scene.objects.Size(); ++objectIndex)
         {
-            const AxisAlignedBox& aabb = scene.aabb_objects[i];
+            const AxisAlignedBox& aabb = scene.aabb_objects[objectIndex];
 
             if (!ray.IntersectsBoundingBox(aabb))
                 continue;
 
-            const ObjectComponent& object = scene.objects[i];
+            const ObjectComponent& object = scene.objects[objectIndex];
             if (object.meshID == ecs::INVALID_ENTITY)
                 continue;
 
-            const ecs::Entity entity = scene.aabb_objects.GetEntity(i);
             const MeshComponent* mesh = scene.meshes.GetComponent(object.meshID);
             const XMMATRIX object_matrix = object.transformIndex >= 0 ? XMLoadFloat4x4(&scene.transforms[object.transformIndex].world) : XMMatrixIdentity();
             const XMMATRIX inv_object_matrix = XMMatrixInverse(nullptr, object_matrix);
@@ -1016,7 +1022,7 @@ namespace cyb::scene
 
                         if (distance < result.distance)
                         {
-                            result.entity = entity;
+                            result.entity = scene.objects.GetEntity(objectIndex);
                             XMStoreFloat3(&result.position, pos);
                             result.distance = distance;
                         }
@@ -1124,10 +1130,5 @@ namespace cyb::ecs
     {
         ser.Serialize(x.horizon);
         ser.Serialize(x.zenith);
-    }
-
-    void SerializeComponent(AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& context)
-    {
-        x.Serialize(ser);
     }
 }

@@ -438,11 +438,11 @@ namespace cyb::renderer
 
         {
             CYB_PROFILE_CPU_SCOPE("Frustum Culling");
-            // Perform camera frustum culling to all objects aabb and
-            // store all visible objects in the view
             const Frustum& cameraFrustum = camera->frustum;
+
+            // perform camera frustum culling to all objects aabb and
+            // store all visible objects in the view
             objectIndexes.resize(scene->objects.Size());
-            objectCount = 0;
             for (size_t objectIndex = 0; objectIndex < scene->objects.Size(); ++objectIndex)
             {
                 const AxisAlignedBox& aabb = scene->aabb_objects[objectIndex];
@@ -460,8 +460,8 @@ namespace cyb::renderer
             lightIndexes.resize(scene->lights.Size());
             for (size_t lightIndex = 0; lightIndex < scene->lights.Size(); ++lightIndex)
             {
-                const scene::LightComponent& light = scene->lights[lightIndex];
                 const AxisAlignedBox& aabb = scene->aabb_lights[lightIndex];
+                const scene::LightComponent& light = scene->lights[lightIndex];
                 if (cameraFrustum.IntersectsBoundingBox(aabb) ||
                     light.GetType() == LightType::Directional)
                 {
@@ -506,13 +506,13 @@ namespace cyb::renderer
                 const ecs::Entity lightID = view.scene->lights.GetEntity(i);
                 const scene::TransformComponent& transform = *view.scene->transforms.GetComponent(lightID);
 
-                LightSource& cbLight = frameCB.lights[i];
-                cbLight.type = static_cast<uint32_t>(light.GetType());
-                cbLight.position = XMFLOAT4(transform.translation_local.x, transform.translation_local.y, transform.translation_local.z, 0.0f);
-                cbLight.direction = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-                cbLight.color = XMFLOAT4(light.color.x, light.color.y, light.color.z, 0.0f);
-                cbLight.energy = light.energy;
-                cbLight.range = light.range;
+                LightSource& lightConstants = frameCB.lights[i];
+                lightConstants.type = static_cast<uint32_t>(light.GetType());
+                lightConstants.position = XMFLOAT4(transform.translation_local.x, transform.translation_local.y, transform.translation_local.z, 0.0f);
+                lightConstants.direction = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+                lightConstants.color = XMFLOAT4(light.color.x, light.color.y, light.color.z, 0.0f);
+                lightConstants.energy = light.energy;
+                lightConstants.range = light.range;
 
                 // most importand light will be used for placing the sun
                 if (light.GetType() == scene::LightType::Directional && light.energy > brightestLight)

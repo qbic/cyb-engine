@@ -1,6 +1,8 @@
 #include <algorithm>
 #include "core/intersect.h"
 
+#include "core/logger.h"
+
 namespace cyb
 {
     AxisAlignedBox::AxisAlignedBox()
@@ -183,8 +185,8 @@ namespace cyb
         planes[1] = XMPlaneNormalize(mat.r[3] - mat.r[0]); // right
         planes[2] = XMPlaneNormalize(mat.r[3] + mat.r[1]); // bottom
         planes[3] = XMPlaneNormalize(mat.r[3] - mat.r[1]); // top
-        planes[4] = XMPlaneNormalize(mat.r[3] + mat.r[2]); // near
-        planes[5] = XMPlaneNormalize(mat.r[3] - mat.r[2]); // far
+        planes[5] = XMPlaneNormalize(mat.r[3] + mat.r[2]); // near
+        planes[4] = XMPlaneNormalize(mat.r[3] - mat.r[2]); // far
     }
 
     bool Frustum::IntersectsBoundingBox(const AxisAlignedBox& aabb) const

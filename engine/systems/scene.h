@@ -330,9 +330,7 @@ namespace cyb::scene
         ecs::ComponentManager<MaterialComponent> materials;
         ecs::ComponentManager<MeshComponent> meshes;
         ecs::ComponentManager<ObjectComponent> objects;
-        ecs::ComponentManager<AxisAlignedBox> aabb_objects;
         ecs::ComponentManager<LightComponent> lights;
-        ecs::ComponentManager<AxisAlignedBox> aabb_lights;
         ecs::ComponentManager<CameraComponent> cameras;
         ecs::ComponentManager<AnimationComponent> animations;
         ecs::ComponentManager<WeatherComponent> weathers;
@@ -342,6 +340,10 @@ namespace cyb::scene
         // non-serialized attributes:
         float dt = 0.0f;
         float time = 0.0f;
+
+        // AABB culling streams:
+        std::vector<AxisAlignedBox> aabb_objects;
+        std::vector<AxisAlignedBox> aabb_lights;
 
         void Update(double dt);
         void Clear();

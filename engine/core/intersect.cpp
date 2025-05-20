@@ -179,34 +179,23 @@ namespace cyb
     {
         const XMMATRIX mat = XMMatrixTranspose(viewProjection);
 
-        // Near plane: 
-        XMStoreFloat4(&planes[0], XMPlaneNormalize(mat.r[2]));
-
-        // Far plane
-        XMStoreFloat4(&planes[1], XMPlaneNormalize(mat.r[3] - mat.r[2]));
-
-        // Left plane:
-        XMStoreFloat4(&planes[2], XMPlaneNormalize(mat.r[3] + mat.r[0]));
-
-        // Right plane:
-        XMStoreFloat4(&planes[3], XMPlaneNormalize(mat.r[3] - mat.r[0]));
-
-        // Top plane:
-        XMStoreFloat4(&planes[4], XMPlaneNormalize(mat.r[3] - mat.r[1]));
-
-        // Bottom plane:
-        XMStoreFloat4(&planes[5], XMPlaneNormalize(mat.r[3] + mat.r[1]));
+        planes[0] = XMPlaneNormalize(mat.r[3] + mat.r[0]); // left
+        planes[1] = XMPlaneNormalize(mat.r[3] - mat.r[0]); // right
+        planes[2] = XMPlaneNormalize(mat.r[3] + mat.r[1]); // bottom
+        planes[3] = XMPlaneNormalize(mat.r[3] - mat.r[1]); // top
+        planes[4] = XMPlaneNormalize(mat.r[3] + mat.r[2]); // near
+        planes[5] = XMPlaneNormalize(mat.r[3] - mat.r[2]); // far
     }
 
     bool Frustum::IntersectsBoundingBox(const AxisAlignedBox& aabb) const
     {
-        const XMVECTOR& min = aabb.GetMin();
-        const XMVECTOR& max = aabb.GetMax();
+        const XMVECTOR min = aabb.GetMin();
+        const XMVECTOR max = aabb.GetMax();
         const XMVECTOR zero = XMVectorZero();
 
         for (size_t p = 0; p < 6; ++p)
         {
-            XMVECTOR plane = XMLoadFloat4(&planes[p]);
+            const XMVECTOR plane = planes[p];
             XMVECTOR lt = XMVectorLess(plane, zero);
             XMVECTOR furthestFromPlane = XMVectorSelect(max, min, lt);
             if (XMVectorGetX(XMPlaneDotCoord(plane, furthestFromPlane)) < 0.0f)

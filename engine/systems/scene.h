@@ -177,7 +177,7 @@ namespace cyb::scene
         Point = LIGHTSOURCE_TYPE_POINT
     };
 
-    struct LightComponent
+    struct alignas(16) LightComponent
     {
         enum class Flags : uint32_t
         {

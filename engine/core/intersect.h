@@ -4,7 +4,7 @@
 
 namespace cyb
 {
-    class AxisAlignedBox
+    class alignas(16) AxisAlignedBox
     {
     public:
         AxisAlignedBox();
@@ -61,6 +61,6 @@ namespace cyb
 
         [[nodiscard]] bool IntersectsBoundingBox(const AxisAlignedBox& aabb) const;
 
-        XMFLOAT4 planes[6] = {};
+        XMVECTOR planes[6] = {};
     };
 }

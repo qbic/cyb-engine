@@ -70,6 +70,7 @@ namespace cyb::renderer
     {
         DSSTYPE_DEFAULT,
         DSSTYPE_SKY,
+        DSSTYPE_DEPTH_READ,
         DSSTYPE_DEPTH_DISABLED,
         DSSTYPE_COUNT
     };

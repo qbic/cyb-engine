@@ -287,7 +287,14 @@ namespace cyb::renderer
             depth_stencils[DSSTYPE_DEPTH_DISABLED] = dsd;
 
             dsd.depthEnable = true;
+            dsd.stencilEnable = false;
+            dsd.depthWriteMask = DepthWriteMask::Zero;
+            dsd.depthFunc = ComparisonFunc::GreaterEqual;
+            depth_stencils[DSSTYPE_DEPTH_READ] = dsd;
+
+            dsd.depthEnable = true;
             dsd.stencilEnable = true;
+            dsd.depthWriteMask = DepthWriteMask::All;
             dsd.depthFunc = ComparisonFunc::GreaterEqual;
             depth_stencils[DSSTYPE_SKY] = dsd;
         }
@@ -386,7 +393,7 @@ namespace cyb::renderer
             desc.vs = GetShader(VSTYPE_DEBUG_LINE);
             desc.fs = GetShader(FSTYPE_DEBUG_LINE);
             desc.rs = &rasterizers[RSTYPE_WIRE_DOUBLESIDED];
-            desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
+            desc.dss = &depth_stencils[DSSTYPE_DEPTH_READ];
             desc.il = &input_layouts[VLTYPE_DEBUG_LINE];
             desc.pt = PrimitiveTopology::LineList;
             device->CreatePipelineState(&desc, &pso_debug[DEBUGRENDERING_CUBE]);

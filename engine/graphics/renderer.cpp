@@ -460,11 +460,11 @@ namespace cyb::renderer
             lightIndexes.resize(scene->lights.Size());
             for (size_t lightIndex = 0; lightIndex < scene->lights.Size(); ++lightIndex)
             {
-                const AxisAlignedBox& aabb = scene->aabb_lights[lightIndex];
                 const scene::LightComponent& light = scene->lights[lightIndex];
                 if (!light.IsAffectingScene())
                     continue;
 
+                const AxisAlignedBox& aabb = scene->aabb_lights[lightIndex];
                 if (cameraFrustum.IntersectsBoundingBox(aabb) ||
                     light.GetType() == LightType::Directional)
                 {
@@ -483,21 +483,19 @@ namespace cyb::renderer
         frameCB.time = time;
         frameCB.gamma = GAMMA;
 
-        // Setup weather
-        const scene::WeatherComponent& weather = view.scene->active_weather;
+        // setup weather
+        const scene::WeatherComponent& weather = view.scene->weather;
         frameCB.horizon = weather.horizon;
         frameCB.zenith = weather.zenith;
         frameCB.drawSun = weather.drawSun;
-        frameCB.mostImportantLightIndex = 0;
+        frameCB.mostImportantLightIndex = weather.mostImportantLightIndex;
         frameCB.fog = XMFLOAT4(weather.fogStart, weather.fogEnd, weather.fogHeight, 1.0f / (weather.fogEnd - weather.fogStart));
         frameCB.cloudiness = weather.cloudiness;
         frameCB.cloudTurbulence = weather.cloudTurbulence;
         frameCB.cloudHeight = weather.cloudHeight;
         frameCB.windSpeed = weather.windSpeed;
 
-        // Setup lightsources
-        float brightestLight = 0.0f;
-
+        // setup lightsources
         frameCB.numLights = std::min((uint32_t)SHADER_MAX_LIGHTSOURCES, view.lightCount);
         for (uint32_t i = 0; i < frameCB.numLights; ++i)
         {
@@ -511,13 +509,6 @@ namespace cyb::renderer
             lightConstants.color = XMFLOAT4(light.color.x, light.color.y, light.color.z, 0.0f);
             lightConstants.energy = light.energy;
             lightConstants.range = light.range;
-
-            // most importand light will be used for placing the sun
-            if (light.GetType() == scene::LightType::Directional && light.energy > brightestLight)
-            {
-                frameCB.mostImportantLightIndex = (int)i;
-                brightestLight = light.energy;
-            }
         }
     }
 

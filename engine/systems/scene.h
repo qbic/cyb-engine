@@ -1,4 +1,5 @@
 #pragma once
+#include "core/mutex.h"
 #include "core/serializer.h"
 #include "core/intersect.h"
 #include "core/enum_flags.h"
@@ -215,6 +216,9 @@ namespace cyb::scene
         float cloudTurbulence = 0.9f;
         float cloudHeight = 500.0f;
         float windSpeed = 10.0f;
+
+        // non-serialized attributes:
+        uint32_t mostImportantLightIndex = 0;
     };
 
     struct alignas(16) CameraComponent
@@ -334,11 +338,12 @@ namespace cyb::scene
         ecs::ComponentManager<AnimationComponent> animations;
         ecs::ComponentManager<WeatherComponent> weathers;
 
-        WeatherComponent active_weather;   // weathers[0] copy
+        WeatherComponent weather;   // weathers[0] copy
 
         // non-serialized attributes:
         float dt = 0.0f;
         float time = 0.0f;
+        SpinLockMutex lock;
 
         // AABB culling streams:
         std::vector<AxisAlignedBox> aabb_objects;

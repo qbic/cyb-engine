@@ -730,6 +730,7 @@ namespace cyb::scene
     void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)
     {
         aabb_lights.resize(lights.Size());
+        float brightestLight = 0.0f;
 
         jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
             LightComponent& light = lights[args.jobIndex];
@@ -742,11 +743,26 @@ namespace cyb::scene
             XMMATRIX W = XMLoadFloat4x4(&transform.world);
             XMVECTOR S, R, T;
             XMMatrixDecompose(&S, &R, &T, W);
-
             XMStoreFloat3(&light.position, T);
 
-            if (light.type == LightType::Point)
+            switch (light.type)
+            {
+            default:
+            case LightType::Directional:
+                if (light.energy > brightestLight && 
+                    weather.mostImportantLightIndex != args.jobIndex)
+                {
+                    ScopedLock lck(lock);
+                    brightestLight = light.energy;
+
+                    // most importand light is used for sun position
+                    weather.mostImportantLightIndex = args.jobIndex;
+                }
+                break;
+            case LightType::Point:
                 aabb.SetFromSphere(light.position, light.range * 0.5f);
+                break;
+            }
         });
     }
 
@@ -962,7 +978,7 @@ namespace cyb::scene
     void Scene::RunWeatherUpdateSystem(jobsystem::Context& /* ctx */)
     {
         if (weathers.Size() > 0)
-            active_weather = weathers[0];
+            weather = weathers[0];
     }
 
     PickResult Pick(const Scene& scene, const Ray& ray)

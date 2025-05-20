@@ -1,7 +1,7 @@
 #include <algorithm>
 #include "core/intersect.h"
 
-namespace cyb::spatial
+namespace cyb
 {
     AxisAlignedBox::AxisAlignedBox()
     {

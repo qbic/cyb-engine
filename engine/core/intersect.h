@@ -2,7 +2,7 @@
 #include "core/serializer.h"
 #include "core/mathlib.h"
 
-namespace cyb::spatial
+namespace cyb
 {
     class AxisAlignedBox
     {

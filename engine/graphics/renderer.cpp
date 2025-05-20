@@ -440,12 +440,12 @@ namespace cyb::renderer
             CYB_PROFILE_CPU_SCOPE("Frustum Culling");
             // Perform camera frustum culling to all objects aabb and
             // store all visible objects in the view
-            const spatial::Frustum& frustum = camera->frustum;
+            const Frustum& frustum = camera->frustum;
             objectIndexes.resize(scene->objects.Size());
             objectCount = 0;
             for (size_t objectIndex = 0; objectIndex < scene->objects.Size(); ++objectIndex)
             {
-                const spatial::AxisAlignedBox& aabb = scene->aabb_objects[objectIndex];
+                const AxisAlignedBox& aabb = scene->aabb_objects[objectIndex];
                 const scene::ObjectComponent& object = scene->objects[objectIndex];
                 if (HasFlag(object.flags, scene::ObjectComponent::Flags::RenderableBit) &&
                     frustum.IntersectsBoundingBox(aabb))
@@ -684,7 +684,7 @@ namespace cyb::renderer
 
             for (uint32_t objectIndex : view.objectIndexes)
             {
-                const spatial::AxisAlignedBox& aabb = view.scene->aabb_objects[objectIndex];
+                const AxisAlignedBox& aabb = view.scene->aabb_objects[objectIndex];
                 MiscCB misc_cb;
                 XMStoreFloat4x4(&misc_cb.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
                 device->BindDynamicConstantBuffer(misc_cb, CBSLOT_MISC, cmd);
@@ -752,7 +752,7 @@ namespace cyb::renderer
 
                 if (light.type == LightType::Point)
                 {
-                    const spatial::AxisAlignedBox& aabb = view.scene->aabb_lights[lightIndex];
+                    const AxisAlignedBox& aabb = view.scene->aabb_lights[lightIndex];
                     MiscCB cbMisc;
                     XMStoreFloat4x4(&cbMisc.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
                     device->BindDynamicConstantBuffer(cbMisc, CBSLOT_MISC, cmd);

@@ -382,7 +382,7 @@ namespace cyb::scene
         XMMATRIX _Rot = XMMatrixRotationQuaternion(R);
         XMStoreFloat3x3(&rotation, _Rot);
 
-        frustum = spatial::Frustum(_VP);
+        frustum = Frustum(_VP);
     }
 
     void CameraComponent::TransformCamera(const TransformComponent& transform)
@@ -734,7 +734,7 @@ namespace cyb::scene
                 object.transformIndex = (int32_t)transforms.GetIndex(entity);
                 const TransformComponent& transform = transforms[object.transformIndex];
 
-                spatial::AxisAlignedBox& aabb = aabb_objects[args.jobIndex];
+                AxisAlignedBox& aabb = aabb_objects[args.jobIndex];
                 aabb = mesh.aabb.Transform(XMLoadFloat4x4(&transform.world));
             }
         });
@@ -749,7 +749,7 @@ namespace cyb::scene
             LightComponent& light = lights[args.jobIndex];
             light.UpdateLight();
 
-            spatial::AxisAlignedBox& aabb = aabb_lights[args.jobIndex];
+            AxisAlignedBox& aabb = aabb_lights[args.jobIndex];
             aabb = light.aabb.Transform(XMLoadFloat4x4(&transform->world));
         });
     }
@@ -969,7 +969,7 @@ namespace cyb::scene
             active_weather = weathers[0];
     }
 
-    PickResult Pick(const Scene& scene, const spatial::Ray& ray)
+    PickResult Pick(const Scene& scene, const Ray& ray)
     {
         CYB_TIMED_FUNCTION();
 
@@ -979,7 +979,7 @@ namespace cyb::scene
 
         for (size_t i = 0; i < scene.aabb_objects.Size(); ++i)
         {
-            const spatial::AxisAlignedBox& aabb = scene.aabb_objects[i];
+            const AxisAlignedBox& aabb = scene.aabb_objects[i];
 
             if (!ray.IntersectsBoundingBox(aabb))
                 continue;
@@ -1126,7 +1126,7 @@ namespace cyb::ecs
         ser.Serialize(x.zenith);
     }
 
-    void SerializeComponent(spatial::AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& context)
+    void SerializeComponent(AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& context)
     {
         x.Serialize(ser);
     }

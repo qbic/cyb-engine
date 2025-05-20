@@ -252,19 +252,6 @@ namespace cyb::editor
         return mesh.subsets[selectedSubsetIndex].materialIndex;
     }
 
-    void InspectAABBComponent(const AxisAlignedBox* aabb)
-    {
-        XMFLOAT3 min = {};
-        XMFLOAT3 max = {};
-        XMStoreFloat3(&min, aabb->GetMin());
-        XMStoreFloat3(&max, aabb->GetMax());
-        ImGui::Text("Min: [%.2f, %.2f, %.2f]", min.x, min.y, min.z);
-        ImGui::Text("Max: [%.2f, %.2f, %.2f]", max.x, max.y, max.z);
-        ImGui::Text("Width: %.2fm", max.x - min.x);
-        ImGui::Text("Height: %.2fm", max.y - min.y);
-        ImGui::Text("Depth: %.2fm", max.z - min.z);
-    }
-
     [[nodiscard]] uint32_t SelectAndGetMeshIndexForObject(scene::ObjectComponent& object)
     {
         scene::Scene& scene = scene::GetScene();

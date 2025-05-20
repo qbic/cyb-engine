@@ -422,8 +422,10 @@ namespace cyb::renderer
         assert(scene);
         assert(camera);
 
-        visibleObjects.clear();
-        visibleLights.clear();
+        objectIndexes.clear();
+        lightIndexes.clear();
+        objectCount = 0;
+        lightCount = 0;
         this->scene = scene;
         this->camera = camera;
 
@@ -432,22 +434,31 @@ namespace cyb::renderer
             // Perform camera frustum culling to all objects aabb and
             // store all visible objects in the view
             const spatial::Frustum& frustum = camera->frustum;
-            visibleObjects.resize(scene->aabb_objects.Size());
-            size_t visibleObjectsCount = 0;
-            for (size_t i = 0; i < scene->aabb_objects.Size(); ++i)
+            objectIndexes.resize(scene->objects.Size());
+            objectCount = 0;
+            for (size_t objectIndex = 0; objectIndex < scene->objects.Size(); ++objectIndex)
             {
-                const spatial::AxisAlignedBox& aabb = scene->aabb_objects[i];
-                const scene::ObjectComponent& object = scene->objects[i];
+                const spatial::AxisAlignedBox& aabb = scene->aabb_objects[objectIndex];
+                const scene::ObjectComponent& object = scene->objects[objectIndex];
                 if (HasFlag(object.flags, scene::ObjectComponent::Flags::RenderableBit) &&
                     frustum.IntersectsBoundingBox(aabb))
                 {
-                    visibleObjects[visibleObjectsCount] = static_cast<uint32_t>(i);
-                    visibleObjectsCount++;
+                    objectIndexes[objectCount] = static_cast<uint32_t>(objectIndex);
+                    ++objectCount;
                 }
             }
-            visibleObjects.resize(visibleObjectsCount);
 
             // TODO: Perform aabb light culling
+            // NOTE: For now just add all scene lights
+            lightIndexes.resize(scene->lights.Size());
+            for (size_t lightIndex = 0; lightIndex < scene->lights.Size(); ++lightIndex)
+            {
+                lightIndexes[lightCount] = lightIndex;
+                ++lightCount;
+            }
+
+            objectIndexes.resize(objectCount);
+            lightIndexes.resize(lightCount);
         }
     }
 
@@ -469,30 +480,32 @@ namespace cyb::renderer
         frameCB.windSpeed = weather.windSpeed;
 
         // Setup lightsources
-        frameCB.numLights = 0;
         float brightestLight = 0.0f;
-        for (size_t i = 0; i < view.scene->lights.Size(); ++i)
-        {
-            const ecs::Entity lightID = view.scene->lights.GetEntity(i);
-            const scene::LightComponent* light = view.scene->lights.GetComponent(lightID);
-            const scene::TransformComponent* transform = view.scene->transforms.GetComponent(lightID);
 
-            if (light->IsAffectingScene())
+        frameCB.numLights = std::min((uint32_t)SHADER_MAX_LIGHTSOURCES, view.lightCount);
+        for (uint32_t i = 0; i < frameCB.numLights; ++i)
+        {
+            const uint32_t lightIndex = view.lightIndexes[i];
+            const scene::LightComponent& light = view.scene->lights[lightIndex];
+
+            if (light.IsAffectingScene())
             {
-                LightSource& cbLight = frameCB.lights[frameCB.numLights];
-                cbLight.type = static_cast<uint32_t>(light->GetType());
-                cbLight.position = XMFLOAT4(transform->translation_local.x, transform->translation_local.y, transform->translation_local.z, 0.0f);
+                const ecs::Entity lightID = view.scene->lights.GetEntity(i);
+                const scene::TransformComponent& transform = *view.scene->transforms.GetComponent(lightID);
+
+                LightSource& cbLight = frameCB.lights[i];
+                cbLight.type = static_cast<uint32_t>(light.GetType());
+                cbLight.position = XMFLOAT4(transform.translation_local.x, transform.translation_local.y, transform.translation_local.z, 0.0f);
                 cbLight.direction = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-                cbLight.color = XMFLOAT4(light->color.x, light->color.y, light->color.z, 0.0f);
-                cbLight.energy = light->energy;
-                cbLight.range = light->range;
-                ++frameCB.numLights;
+                cbLight.color = XMFLOAT4(light.color.x, light.color.y, light.color.z, 0.0f);
+                cbLight.energy = light.energy;
+                cbLight.range = light.range;
 
                 // most importand light will be used for placing the sun
-                if (light->GetType() == scene::LightType::Directional && light->energy > brightestLight)
+                if (light.GetType() == scene::LightType::Directional && light.energy > brightestLight)
                 {
                     frameCB.mostImportantLightIndex = (int)i;
-                    brightestLight = light->energy;
+                    brightestLight = light.energy;
                 }
             }
         }
@@ -532,9 +545,9 @@ namespace cyb::renderer
         device->BindStencilRef(0, cmd);
 
         // Draw all visiable objects
-        for (uint32_t instanceIndex : view.visibleObjects)
+        for (uint32_t objectIndex : view.objectIndexes)
         {
-            const ObjectComponent& object = view.scene->objects[instanceIndex];
+            const ObjectComponent& object = view.scene->objects[objectIndex];
 
             if (object.userStencilRef != prevUserStencilRef)
             {
@@ -542,53 +555,47 @@ namespace cyb::renderer
                 device->BindStencilRef(object.userStencilRef, cmd);
             }
 
-            if (object.meshID != ecs::INVALID_ENTITY)
+            const MeshComponent& mesh = view.scene->meshes[object.meshIndex];
+            if (mesh.vertex_buffer_col.IsValid())
             {
-                const MeshComponent* mesh = view.scene->meshes.GetComponent(object.meshID);
-                if (mesh != nullptr)
-                {
-                    if (mesh->vertex_buffer_col.IsValid())
-                    {
-                        const graphics::GPUBuffer* vertex_buffers[] = {
-                            &mesh->vertex_buffer_pos,
-                            &mesh->vertex_buffer_col
-                        };
+                const graphics::GPUBuffer* vertex_buffers[] = {
+                    &mesh.vertex_buffer_pos,
+                    &mesh.vertex_buffer_col
+                };
 
-                        const uint32_t strides[] = {
-                            sizeof(scene::MeshComponent::Vertex_Pos),
-                            sizeof(scene::MeshComponent::Vertex_Col)
-                        };
+                const uint32_t strides[] = {
+                    sizeof(scene::MeshComponent::Vertex_Pos),
+                    sizeof(scene::MeshComponent::Vertex_Col)
+                };
 
-                        device->BindVertexBuffers(vertex_buffers, (uint32_t)CountOf(vertex_buffers), strides, nullptr, cmd);
-                        device->BindIndexBuffer(&mesh->index_buffer, IndexBufferFormat::Uint32, 0, cmd);
-                    }
-                    else
-                    {
-                        //device->BindVertexBuffer(&mesh->vertex_buffer_pos);
-                    }
+                device->BindVertexBuffers(vertex_buffers, (uint32_t)CountOf(vertex_buffers), strides, nullptr, cmd);
+                device->BindIndexBuffer(&mesh.index_buffer, IndexBufferFormat::Uint32, 0, cmd);
+            }
+            else
+            {
+                //device->BindVertexBuffer(&mesh->vertex_buffer_pos);
+            }
 
-                    const TransformComponent& transform = view.scene->transforms[object.transformIndex];
-                    MiscCB cb = {};
-                    XMMATRIX W = XMLoadFloat4x4(&transform.world);
-                    XMStoreFloat4x4(&cb.g_xModelMatrix, XMMatrixTranspose(W));
-                    XMStoreFloat4x4(&cb.g_xTransform, XMMatrixTranspose(W * view.camera->GetViewProjection()));
-                    device->BindDynamicConstantBuffer(cb, CBSLOT_MISC, cmd);
+            const TransformComponent& transform = view.scene->transforms[object.transformIndex];
+            MiscCB cb = {};
+            XMMATRIX W = XMLoadFloat4x4(&transform.world);
+            XMStoreFloat4x4(&cb.g_xModelMatrix, XMMatrixTranspose(W));
+            XMStoreFloat4x4(&cb.g_xTransform, XMMatrixTranspose(W * view.camera->GetViewProjection()));
+            device->BindDynamicConstantBuffer(cb, CBSLOT_MISC, cmd);
 
-                    for (const auto& subset : mesh->subsets)
-                    {
-                        // Setup Object constant buffer
-                        const MaterialComponent* material = view.scene->materials.GetComponent(subset.materialID);
-                        MaterialCB material_cb;
-                        material_cb.baseColor = material->baseColor;
-                        material_cb.roughness = material->roughness;
-                        material_cb.metalness = material->metalness;
-                        device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
+            for (const auto& subset : mesh.subsets)
+            {
+                // Setup Object constant buffer
+                const MaterialComponent& material = view.scene->materials[subset.materialIndex];
+                MaterialCB material_cb;
+                material_cb.baseColor = material.baseColor;
+                material_cb.roughness = material.roughness;
+                material_cb.metalness = material.metalness;
+                device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
 
-                        const PipelineState* pso = &psoMaterial[material->shaderType];
-                        device->BindPipelineState(pso, cmd);
-                        device->DrawIndexed(subset.indexCount, subset.indexOffset, 0, cmd);
-                    }
-                }
+                const PipelineState* pso = &psoMaterial[material.shaderType];
+                device->BindPipelineState(pso, cmd);
+                device->DrawIndexed(subset.indexCount, subset.indexOffset, 0, cmd);
             }
         }
 
@@ -668,9 +675,9 @@ namespace cyb::renderer
             material_cb.baseColor = XMFLOAT4(1.0f, 0.933f, 0.6f, 1.0f);
             device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
 
-            for (uint32_t instanceIndex : view.visibleObjects)
+            for (uint32_t objectIndex : view.objectIndexes)
             {
-                const spatial::AxisAlignedBox& aabb = view.scene->aabb_objects[instanceIndex];
+                const spatial::AxisAlignedBox& aabb = view.scene->aabb_objects[objectIndex];
                 MiscCB misc_cb;
                 XMStoreFloat4x4(&misc_cb.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
                 device->BindDynamicConstantBuffer(misc_cb, CBSLOT_MISC, cmd);
@@ -683,14 +690,13 @@ namespace cyb::renderer
         if (r_debugLightSources.GetValue<bool>())
         {
             device->BeginEvent("DebugLightsources", cmd);
-            const scene::Scene& scene = *view.scene;
 
             // Draw icons over all the lightsources
-            for (uint32_t i = 0; i < scene.lights.Size(); ++i)
+            for (uint32_t lightIndex : view.lightIndexes)
             {
-                const ecs::Entity lightID = scene.lights.GetEntity(i);
-                const scene::LightComponent* light = scene.lights.GetComponent(lightID);
-                const scene::TransformComponent* transform = scene.transforms.GetComponent(lightID);
+                const ecs::Entity lightID = view.scene->lights.GetEntity(lightIndex);
+                const scene::LightComponent& light = view.scene->lights[lightIndex];
+                const scene::TransformComponent* transform = view.scene->transforms.GetComponent(lightID);
 
                 float dist = math::Distance(transform->translation_local, view.camera->pos) * 0.05f;
                 renderer::ImageParams params;
@@ -705,7 +711,7 @@ namespace cyb::renderer
 
                 device->BindSampler(GetSamplerState(renderer::SSLOT_BILINEAR_CLAMP), 0, cmd);
 
-                switch (light->GetType())
+                switch (light.GetType())
                 {
                 case scene::LightType::Directional:
                     renderer::DrawImage(&builtin_textures[BUILTIN_TEXTURE_DIRLIGHT].GetTexture(), params, cmd);
@@ -733,14 +739,13 @@ namespace cyb::renderer
             cbMaterial.baseColor = XMFLOAT4(0.666f, 0.874f, 0.933f, 1.0f);
             device->BindDynamicConstantBuffer(cbMaterial, CBSLOT_MATERIAL, cmd);
 
-            for (uint32_t i = 0; i < scene.aabb_lights.Size(); ++i)
+            for (uint32_t lightIndex : view.lightIndexes)
             {
-                ecs::Entity entity = scene.aabb_lights.GetEntity(i);
-                const LightComponent* light = scene.lights.GetComponent(entity);
+                const LightComponent& light = view.scene->lights[lightIndex];
 
-                if (light->type == LightType::Point)
+                if (light.type == LightType::Point)
                 {
-                    const spatial::AxisAlignedBox& aabb = scene.aabb_lights[i];
+                    const spatial::AxisAlignedBox& aabb = view.scene->aabb_lights[lightIndex];
                     MiscCB cbMisc;
                     XMStoreFloat4x4(&cbMisc.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
                     device->BindDynamicConstantBuffer(cbMisc, CBSLOT_MISC, cmd);

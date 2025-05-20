@@ -90,9 +90,6 @@ namespace cyb::editor
 
     void InspectMeshComponent(scene::MeshComponent* mesh)
     {
-        if (!mesh)
-            return;
-
         scene::Scene& scene = scene::GetScene();
 
         // Mesh info
@@ -218,21 +215,21 @@ namespace cyb::editor
         return selectedEntity;
     }
 
-    ecs::Entity SelectAndGetMaterialForMesh(scene::MeshComponent* mesh)
+    [[nodiscard]] uint32_t SelectAndGetMaterialIndexForMesh(scene::MeshComponent& mesh)
     {
         scene::Scene& scene = scene::GetScene();
 
         std::vector<std::string_view> names;
-        for (const auto& subset : mesh->subsets)
+        for (const auto& subset : mesh.subsets)
         {
             const scene::NameComponent* comp = scene.names.GetComponent(subset.materialID);
             names.push_back(comp->name);
         }
 
         static int selectedSubsetIndex = 0;
-        selectedSubsetIndex = std::min(selectedSubsetIndex, (int)mesh->subsets.size() - 1);
+        selectedSubsetIndex = std::min(selectedSubsetIndex, (int)mesh.subsets.size() - 1);
         ui::ListBox("Material", &selectedSubsetIndex, names);
-        ecs::Entity selectedMaterialID = mesh->subsets[selectedSubsetIndex].materialID;
+        ecs::Entity selectedMaterialID = mesh.subsets[selectedSubsetIndex].materialID;
 
         // Edit material name / select material
         scene::NameComponent* name = scene.names.GetComponent(selectedMaterialID);
@@ -245,16 +242,14 @@ namespace cyb::editor
 
         if (ImGui::BeginPopup("MaterialSelectPopup"))
         {
-            ecs::Entity selectedID = SelectEntityPopup(scene.materials, scene.names, mesh->subsets[selectedSubsetIndex].materialID);
+            ecs::Entity selectedID = SelectEntityPopup(scene.materials, scene.names, mesh.subsets[selectedSubsetIndex].materialID);
             if (selectedID != ecs::INVALID_ENTITY)
-            {
-                mesh->subsets[selectedSubsetIndex].materialID = selectedID;
-            }
+                mesh.subsets[selectedSubsetIndex].materialID = selectedID;
 
             ImGui::EndPopup();
         }
 
-        return selectedMaterialID;
+        return mesh.subsets[selectedSubsetIndex].materialIndex;
     }
 
     void InspectAABBComponent(const spatial::AxisAlignedBox* aabb)
@@ -270,12 +265,12 @@ namespace cyb::editor
         ImGui::Text("Depth: %.2fm", max.z - min.z);
     }
 
-    ecs::Entity SelectAndGetMeshForObject(scene::ObjectComponent* object)
+    [[nodiscard]] uint32_t SelectAndGetMeshIndexForObject(scene::ObjectComponent& object)
     {
         scene::Scene& scene = scene::GetScene();
 
         // Edit mesh name / select mesh
-        scene::NameComponent* name = scene.names.GetComponent(object->meshID);
+        scene::NameComponent* name = scene.names.GetComponent(object.meshID);
         ImGui::InputText("##Mesh_Name", &name->name);
         ImGui::SameLine();
         if (ImGui::Button("Change"))
@@ -285,15 +280,15 @@ namespace cyb::editor
 
         if (ImGui::BeginPopup("MeshSelectPopup"))
         {
-            ecs::Entity selectedID = SelectEntityPopup(scene.meshes, scene.names, object->meshID);
+            ecs::Entity selectedID = SelectEntityPopup(scene.meshes, scene.names, object.meshID);
             if (selectedID != ecs::INVALID_ENTITY)
             {
-                object->meshID = selectedID;
+                object.meshID = selectedID;
             }
             ImGui::EndPopup();
         }
 
-        return object->meshID;
+        return object.meshIndex;
     }
 
     void InspectObjectComponent(scene::ObjectComponent* object)
@@ -576,28 +571,23 @@ namespace cyb::editor
                 ImGui::Unindent();
             }
 
-            scene::MeshComponent* mesh = nullptr;
 
+            uint32_t meshIndex = object->meshIndex;
             if (ImGui::CollapsingHeader(ICON_FA_DICE_D6 " Mesh *"))
             {
                 ImGui::Indent();
-                const ecs::Entity meshID = SelectAndGetMeshForObject(object);
+                meshIndex = SelectAndGetMeshIndexForObject(*object);
                 ImGui::Separator();
-                mesh = scene.meshes.GetComponent(meshID);
-                InspectMeshComponent(mesh);
+                InspectMeshComponent(&scene.meshes[meshIndex]);
                 ImGui::Unindent();
-            }
-            else
-            {
-                mesh = scene.meshes.GetComponent(object->meshID);
             }
 
             if (ImGui::CollapsingHeader(ICON_FA_PALETTE " Materials *"))
             {
                 ImGui::Indent();
-                const ecs::Entity materialID = SelectAndGetMaterialForMesh(mesh);
+                const uint32_t materialIndex = SelectAndGetMaterialIndexForMesh(scene.meshes[meshIndex]);
                 ImGui::Separator();
-                InspectMaterialComponent(scene.materials.GetComponent(materialID));
+                InspectMaterialComponent(&scene.materials[materialIndex]);
                 ImGui::Unindent();
             }
         }

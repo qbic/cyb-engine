@@ -105,6 +105,9 @@ namespace cyb::scene
             ecs::Entity materialID = ecs::INVALID_ENTITY;
             uint32_t indexOffset = 0;
             uint32_t indexCount = 0;
+
+            // non-serialized attributes:
+            uint32_t materialIndex = 0;
         };
         std::vector<MeshSubset> subsets;
 
@@ -162,6 +165,7 @@ namespace cyb::scene
         void SetUserStencilRef(uint8_t value);
 
         // non-serialized data
+        uint32_t meshIndex = ~0u;
         int32_t transformIndex = -1;        // only valid for a single frame
     };
     CYB_ENABLE_BITMASK_OPERATORS(ObjectComponent::Flags);
@@ -378,6 +382,7 @@ namespace cyb::scene
 
         void RunTransformUpdateSystem(jobsystem::Context& ctx);
         void RunHierarchyUpdateSystem(jobsystem::Context& ctx);
+        void RunMeshUpdateSystem(jobsystem::Context& ctx);
         void RunObjectUpdateSystem(jobsystem::Context& ctx);
         void RunLightUpdateSystem(jobsystem::Context& ctx);
         void RunCameraUpdateSystem(jobsystem::Context& ctx);

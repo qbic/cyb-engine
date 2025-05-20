@@ -549,6 +549,7 @@ namespace cyb::scene
         // update systems that only depends on local transform
         jobsystem::Wait(ctx);
         RunHierarchyUpdateSystem(ctx);
+        RunMeshUpdateSystem(ctx);
 
         // update systems that is dependent on world transform
         jobsystem::Wait(ctx);
@@ -698,6 +699,27 @@ namespace cyb::scene
         });
     }
 
+    void Scene::RunMeshUpdateSystem(jobsystem::Context& ctx)
+    {
+        jobsystem::Dispatch(ctx, (uint32_t)meshes.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
+            ecs::Entity entity = meshes.GetEntity(args.jobIndex);
+            MeshComponent& mesh = meshes[args.jobIndex];
+
+            for (auto& subset : mesh.subsets)
+            {
+                const MaterialComponent* material = materials.GetComponent(subset.materialID);
+                if (material != nullptr)
+                {
+                    subset.materialIndex = (uint32_t)materials.GetIndex(subset.materialID);
+                }
+                else
+                {
+                    subset.materialIndex = 0;
+                }
+            }
+        });
+    }
+
     void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
     {
         jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
@@ -706,15 +728,14 @@ namespace cyb::scene
 
             if (object.meshID != ecs::INVALID_ENTITY && meshes.Contains(object.meshID) && transforms.Contains(entity))
             {
-                const MeshComponent* mesh = meshes.GetComponent(object.meshID);
-                if (mesh != nullptr)
-                {
-                    object.transformIndex = (int32_t)transforms.GetIndex(entity);
-                    const TransformComponent* transform = transforms.GetComponent(entity);
+                object.meshIndex = (uint32_t)meshes.GetIndex(object.meshID);
+                const MeshComponent& mesh = meshes[object.meshIndex];
 
-                    spatial::AxisAlignedBox& aabb = aabb_objects[args.jobIndex];
-                    aabb = mesh->aabb.Transform(XMLoadFloat4x4(&transform->world));
-                }
+                object.transformIndex = (int32_t)transforms.GetIndex(entity);
+                const TransformComponent& transform = transforms[object.transformIndex];
+
+                spatial::AxisAlignedBox& aabb = aabb_objects[args.jobIndex];
+                aabb = mesh.aabb.Transform(XMLoadFloat4x4(&transform.world));
             }
         });
     }

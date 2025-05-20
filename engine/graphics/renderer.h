@@ -101,8 +101,11 @@ namespace cyb::renderer
 
         const scene::Scene* scene = nullptr;
         const scene::CameraComponent* camera = nullptr;
-        std::vector<uint32_t> visibleObjects;   // scene->objects indexes
-        std::vector<uint32_t> visibleLights;    // scene->lights indexes
+
+        uint32_t objectCount = 0;
+        uint32_t lightCount = 0;
+        std::vector<uint32_t> objectIndexes;   // scene->objects indexes
+        std::vector<uint32_t> lightIndexes;    // scene->lights indexes
     };
 
     const graphics::Shader* GetShader(SHADERTYPE id);

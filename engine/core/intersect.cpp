@@ -45,7 +45,7 @@ namespace cyb
         m_max = XMLoadFloat3(&boxMax);
     }
 
-    void AxisAlignedBox::SetAsSphere(const XMFLOAT3& center, float radius)
+    void AxisAlignedBox::SetFromSphere(const XMFLOAT3& center, float radius)
     {
         XMVECTOR C = XMLoadFloat3(&center);
         XMVECTOR R = XMVectorReplicate(radius);

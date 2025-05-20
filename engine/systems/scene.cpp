@@ -339,16 +339,6 @@ namespace cyb::scene
         return HasFlag(flags, Flags::AffectsSceneBit);
     }
 
-    void LightComponent::UpdateLight()
-    {
-        // skip directional lights as they affect the whole scene
-        if (type == LightType::Directional)
-            return;
-
-        const float halfRange = range * 0.5f;
-        aabb.SetAsSphere(XMFLOAT3(0, 0, 0), halfRange);
-    }
-
     void CameraComponent::CreatePerspective(float newAspect, float newNear, float newFar, float newFOV)
     {
         aspect = newAspect;
@@ -753,11 +743,10 @@ namespace cyb::scene
             XMVECTOR S, R, T;
             XMMatrixDecompose(&S, &R, &T, W);
 
-            XMFLOAT3 lightPosition;
-            XMStoreFloat3(&lightPosition, T);
+            XMStoreFloat3(&light.position, T);
 
             if (light.type == LightType::Point)
-                aabb.SetAsSphere(lightPosition, light.range * 0.5f);
+                aabb.SetFromSphere(light.position, light.range * 0.5f);
         });
     }
 

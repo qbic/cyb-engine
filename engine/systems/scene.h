@@ -193,13 +193,12 @@ namespace cyb::scene
         float range = 10.0f;
 
         // non-serialized data
-        AxisAlignedBox aabb;          // non-transformed localspace box
+        XMFLOAT3 position;
 
         void SetffectingSceney(bool value);
         bool IsAffectingScene() const;
         void SetType(LightType value) { type = value; }
         LightType GetType() const { return type; }
-        void UpdateLight();
     };
     CYB_ENABLE_BITMASK_OPERATORS(LightComponent::Flags);
 
@@ -429,5 +428,4 @@ namespace cyb::ecs
     void SerializeComponent(scene::LightComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
     void SerializeComponent(scene::CameraComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
     void SerializeComponent(scene::WeatherComponent& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
-    void SerializeComponent(AxisAlignedBox& x, Serializer& ser, ecs::SceneSerializeContext& entitySerializer);
 }

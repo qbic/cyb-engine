@@ -16,7 +16,7 @@ namespace cyb
         void Set(const XMFLOAT3& boxMin, const XMFLOAT3& boxMax);
         void SetMin(const XMFLOAT3& boxMin);
         void SetMax(const XMFLOAT3& boxMax);
-        void SetAsSphere(const XMFLOAT3& center, float radius);
+        void SetFromSphere(const XMFLOAT3& center, float radius);
 
         void GrowPoint(const XMFLOAT3& point);
         void GrowAABB(const AxisAlignedBox& box);

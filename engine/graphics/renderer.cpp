@@ -440,7 +440,7 @@ namespace cyb::renderer
             CYB_PROFILE_CPU_SCOPE("Frustum Culling");
             // Perform camera frustum culling to all objects aabb and
             // store all visible objects in the view
-            const Frustum& frustum = camera->frustum;
+            const Frustum& cameraFrustum = camera->frustum;
             objectIndexes.resize(scene->objects.Size());
             objectCount = 0;
             for (size_t objectIndex = 0; objectIndex < scene->objects.Size(); ++objectIndex)
@@ -448,20 +448,26 @@ namespace cyb::renderer
                 const AxisAlignedBox& aabb = scene->aabb_objects[objectIndex];
                 const scene::ObjectComponent& object = scene->objects[objectIndex];
                 if (HasFlag(object.flags, scene::ObjectComponent::Flags::RenderableBit) &&
-                    frustum.IntersectsBoundingBox(aabb))
+                    cameraFrustum.IntersectsBoundingBox(aabb))
                 {
                     objectIndexes[objectCount] = static_cast<uint32_t>(objectIndex);
                     ++objectCount;
                 }
             }
 
-            // TODO: Perform aabb light culling
-            // NOTE: For now just add all scene lights
+            // perform basic camera frustum calling to all light sources
+            // all directional lights will be added
             lightIndexes.resize(scene->lights.Size());
             for (size_t lightIndex = 0; lightIndex < scene->lights.Size(); ++lightIndex)
             {
-                lightIndexes[lightCount] = lightIndex;
-                ++lightCount;
+                const scene::LightComponent& light = scene->lights[lightIndex];
+                const AxisAlignedBox& aabb = scene->aabb_lights[lightIndex];
+                if (cameraFrustum.IntersectsBoundingBox(aabb) ||
+                    light.GetType() == LightType::Directional)
+                {
+                    lightIndexes[lightCount] = lightIndex;
+                    ++lightCount;
+                }
             }
 
             objectIndexes.resize(objectCount);

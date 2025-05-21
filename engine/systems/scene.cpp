@@ -326,7 +326,7 @@ namespace cyb::scene
         userStencilRef = value & 0x0F;
     }
 
-    void LightComponent::SetffectingSceney(bool value)
+    void LightComponent::SetAffectingScene(bool value)
     {
         if (value)
             flags |= Flags::AffectsSceneBit;
@@ -351,28 +351,30 @@ namespace cyb::scene
 
     void CameraComponent::UpdateCamera()
     {
-        // NOTE: using reverse zbuffer!
-        XMMATRIX _P = XMMatrixPerspectiveFovLH(math::ToRadians(fov), aspect, zFarPlane, zNearPlane);
+        // using reverse z-buffer: zNear > zFar
+        const XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(math::ToRadians(fov), aspect, zFarPlane, zNearPlane);
 
-        XMVECTOR _Eye = XMLoadFloat3(&pos);
-        XMVECTOR _At = XMLoadFloat3(&target);
-        XMVECTOR _Up = XMLoadFloat3(&up);
-        XMMATRIX _V = XMMatrixLookToLH(_Eye, _At, _Up);
-        XMMATRIX _VP = XMMatrixMultiply(_V, _P);
+        const XMVECTOR cameraEye = XMLoadFloat3(&pos);
+        const XMVECTOR cameraDirection = XMLoadFloat3(&target);
+        const XMVECTOR cameraUp = XMLoadFloat3(&up);
+        const XMMATRIX viewMatrix = XMMatrixLookToLH(cameraEye, cameraDirection, cameraUp);
+        
+        XMStoreFloat4x4(&view, viewMatrix);
+        XMStoreFloat4x4(&projection, projectionMatrix);
+        
+        XMStoreFloat4x4(&inv_view, XMMatrixInverse(nullptr, viewMatrix));
+        XMStoreFloat4x4(&inv_projection, XMMatrixInverse(nullptr, projectionMatrix));
 
-        XMStoreFloat4x4(&view, _V);
-        XMStoreFloat4x4(&VP, _VP);
-        XMStoreFloat4x4(&inv_view, XMMatrixInverse(nullptr, _V));
-        XMStoreFloat4x4(&inv_VP, XMMatrixInverse(nullptr, _VP));
-        XMStoreFloat4x4(&projection, _P);
-        XMStoreFloat4x4(&inv_projection, XMMatrixInverse(nullptr, _P));
+        const XMMATRIX viewProjectionMatrix = XMMatrixMultiply(viewMatrix, projectionMatrix);
+        XMStoreFloat4x4(&VP, viewProjectionMatrix);
+        XMStoreFloat4x4(&inv_VP, XMMatrixInverse(nullptr, viewProjectionMatrix));
 
         XMVECTOR S, R, T;
-        XMMatrixDecompose(&S, &R, &T, _V);
-        XMMATRIX _Rot = XMMatrixRotationQuaternion(R);
+        XMMatrixDecompose(&S, &R, &T, viewMatrix);
+        const XMMATRIX _Rot = XMMatrixRotationQuaternion(R);
         XMStoreFloat3x3(&rotation, _Rot);
 
-        frustum = Frustum(_VP);
+        frustum = Frustum(viewProjectionMatrix);
     }
 
     void CameraComponent::TransformCamera(const TransformComponent& transform)

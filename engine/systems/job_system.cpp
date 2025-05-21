@@ -122,6 +122,9 @@ namespace cyb::jobsystem
         internal_state.threads.reserve(internal_state.numThreads);
         internal_state.mainThreadId = std::this_thread::get_id();
 
+        // explicitly set localQueueIndex for the main thread
+        localQueueIndex = 0;
+
         // start from 1, leaving the main thread free
         for (uint32_t threadID = 1; threadID < internal_state.numThreads; ++threadID)
         {
@@ -139,6 +142,10 @@ namespace cyb::jobsystem
             std::wstring wthreadname = L"cyb::thread_" + std::to_wstring(threadID);
             HRESULT hr = SetThreadDescription(handle, wthreadname.c_str());
             assert(SUCCEEDED(hr));
+
+            // set thread affinity: each thread to a specific core
+            DWORD_PTR affinityMask = 1ull << threadID;
+            SetThreadAffinityMask(handle, affinityMask);
 #endif // _WIN32
         }
 

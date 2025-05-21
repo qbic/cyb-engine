@@ -196,7 +196,7 @@ namespace cyb::scene
         // non-serialized data
         XMFLOAT3 position;
 
-        void SetffectingSceney(bool value);
+        void SetAffectingScene(bool value);
         bool IsAffectingScene() const;
         void SetType(LightType value) { type = value; }
         LightType GetType() const { return type; }
@@ -312,7 +312,7 @@ namespace cyb::scene
         [[nodiscard]] constexpr bool IsPlaying() const { return HasFlag(flags, Flag::Playing); }
         [[nodiscard]] constexpr bool IsLooped() const { return HasFlag(flags, Flag::Looped); }
         [[nodiscard]] constexpr bool IsPingPong() const { return HasFlag(flags, Flag::PingPong); }
-        [[nodiscard]] constexpr bool GetLength() const { return end - start; }
+        [[nodiscard]] constexpr float GetLength() const { return end - start; }
         [[nodiscard]] constexpr bool IsEnded() const { return timer >= end; }
 
         constexpr void Play() { SetFlag(flags, Flag::Playing, true); }

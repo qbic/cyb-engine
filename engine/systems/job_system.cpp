@@ -1,7 +1,5 @@
 #include <thread>
 #include <semaphore>
-#include <deque>
-#include <condition_variable>
 #if defined(_WIN32)
 #include <Windows.h>
 #endif // _WIN32
@@ -60,7 +58,7 @@ namespace cyb::jobsystem
         std::unique_ptr<AtomicJobQueue[]> jobQueuePerThread;
         std::atomic_bool alive{ true };
         std::counting_semaphore<> wakeSemaphore{ 0 };
-        std::atomic<uint32_t> alignas(64) nextQueue{ 0 };
+        std::atomic<uint32_t> nextQueue{ 0 };
         std::vector<std::thread> threads;
 
         void Submit(Job&& job)

@@ -488,7 +488,7 @@ namespace cyb::renderer
         frameCB.horizon = weather.horizon;
         frameCB.zenith = weather.zenith;
         frameCB.drawSun = weather.drawSun;
-        frameCB.mostImportantLightIndex = weather.mostImportantLightIndex;
+        frameCB.mostImportantLightIndex = 0;
         frameCB.fog = XMFLOAT4(weather.fogStart, weather.fogEnd, weather.fogHeight, 1.0f / (weather.fogEnd - weather.fogStart));
         frameCB.cloudiness = weather.cloudiness;
         frameCB.cloudTurbulence = weather.cloudTurbulence;
@@ -496,11 +496,18 @@ namespace cyb::renderer
         frameCB.windSpeed = weather.windSpeed;
 
         // setup lightsources
+        float brightestList = 0.0f;
         frameCB.numLights = std::min((uint32_t)SHADER_MAX_LIGHTSOURCES, view.lightCount);
         for (uint32_t i = 0; i < frameCB.numLights; ++i)
         {
             const uint32_t lightIndex = view.lightIndexes[i];
             const scene::LightComponent& light = view.scene->lights[lightIndex];
+
+            if (light.energy > brightestList)
+            {
+                brightestList = light.energy;
+                frameCB.mostImportantLightIndex = i;
+            }
 
             LightSource& lightConstants = frameCB.lights[i];
             lightConstants.type = static_cast<uint32_t>(light.GetType());

@@ -343,7 +343,7 @@ namespace cyb::scene
         // non-serialized attributes:
         float dt = 0.0f;
         float time = 0.0f;
-        SpinLockMutex lock;
+        Mutex lock;
 
         // AABB culling streams:
         std::vector<AxisAlignedBox> aabb_objects;

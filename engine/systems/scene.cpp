@@ -732,7 +732,6 @@ namespace cyb::scene
     void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)
     {
         aabb_lights.resize(lights.Size());
-        float brightestLight = 0.0f;
 
         jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
             LightComponent& light = lights[args.jobIndex];
@@ -749,20 +748,11 @@ namespace cyb::scene
 
             switch (light.type)
             {
-            default:
-            case LightType::Directional:
-                if (light.energy > brightestLight && 
-                    weather.mostImportantLightIndex != args.jobIndex)
-                {
-                    ScopedLock lck(lock);
-                    brightestLight = light.energy;
-
-                    // most importand light is used for sun position
-                    weather.mostImportantLightIndex = args.jobIndex;
-                }
-                break;
             case LightType::Point:
                 aabb.SetFromSphere(light.position, light.range * 0.5f);
+                break;
+            case LightType::Directional:
+            default:
                 break;
             }
         });

@@ -496,16 +496,16 @@ namespace cyb::renderer
         frameCB.windSpeed = weather.windSpeed;
 
         // setup lightsources
-        float brightestList = 0.0f;
+        float brightestLight = 0.0f;
         frameCB.numLights = std::min((uint32_t)SHADER_MAX_LIGHTSOURCES, view.lightCount);
         for (uint32_t i = 0; i < frameCB.numLights; ++i)
         {
             const uint32_t lightIndex = view.lightIndexes[i];
             const scene::LightComponent& light = view.scene->lights[lightIndex];
 
-            if (light.energy > brightestList)
+            if (light.energy > brightestLight)
             {
-                brightestList = light.energy;
+                brightestLight = light.energy;
                 frameCB.mostImportantLightIndex = i;
             }
 

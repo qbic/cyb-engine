@@ -495,7 +495,7 @@ namespace cyb::graphics
 
     struct RenderPassInfo
     {
-        Format rtFormats[8];                // render target formats
+        Format rtFormats[8] = {};           // render target formats
         uint32_t rtCount = 0;               // number of render targets
         Format dsFormat = Format::Unknown;  // depth stencil format
 
@@ -554,7 +554,7 @@ namespace cyb::graphics
 
         static RenderPassInfo GetFrom(const SwapchainDesc& swapchainDesc)
         {
-            RenderPassInfo info;
+            RenderPassInfo info = {};
             info.rtCount = 1;
             info.rtFormats[0] = swapchainDesc.format;
             return info;

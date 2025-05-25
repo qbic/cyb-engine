@@ -4,10 +4,10 @@
 namespace cyb
 {
     template<typename T, size_t Capacity>
-    class AtomicQueue
+    class alignas(64) AtomicQueue
     {
     public:
-        static_assert((Capacity& (Capacity - 1)) == 0, "Capacity must be power of 2!");
+        static_assert((Capacity & (Capacity - 1)) == 0, "Capacity must be power of 2!");
 
         struct Slot
         {
@@ -25,7 +25,7 @@ namespace cyb
                 buffer[i].sequence.store(i, std::memory_order_relaxed);
         }
 
-        bool Push(const T& value)
+        bool Push(T&& value)
         {
             size_t pos = enqueuePos.load(std::memory_order_relaxed);
             for (;;)
@@ -38,7 +38,7 @@ namespace cyb
                 {
                     if (enqueuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
                     {
-                        slot.data = value;
+                        slot.data = std::move(value);
                         slot.sequence.store(pos + 1, std::memory_order_release);
                         return true;
                     }
@@ -68,7 +68,7 @@ namespace cyb
                 {
                     if (dequeuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
                     {
-                        result = slot.data;
+                        result = std::move(slot.data);
                         slot.sequence.store(pos + Capacity, std::memory_order_release);
                         return true;
                     }

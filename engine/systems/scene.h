@@ -194,7 +194,7 @@ namespace cyb::scene
         float range = 10.0f;
 
         // non-serialized data
-        XMFLOAT3 position;
+        XMFLOAT3 position = {};
 
         void SetAffectingScene(bool value);
         bool IsAffectingScene() const;

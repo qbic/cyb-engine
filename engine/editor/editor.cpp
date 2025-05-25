@@ -1,5 +1,4 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include <stack>
 #include <numeric>
 #include <format>
 #include "core/cvar.h"
@@ -12,11 +11,9 @@
 #include "systems/event_system.h"
 #include "systems/profiler.h"
 #include "editor/editor.h"
-#include "editor/imgui_backend.h"
 #include "editor/undo_manager.h"
 #include "editor/icons_font_awesome6.h"
 #include "imgui_internal.h"
-#include "backends/imgui_impl_win32.h"
 #include "imgui_stdlib.h"
 #include "ImGuizmo.h"
 #include "editor/widgets.h"
@@ -26,10 +23,10 @@ using namespace std::string_literals;
 
 // filters are passed to FileDialog function as std::string, thus we 
 // need to use string literals to avoid them of being stripped
-#define FILE_FILTER_ALL             "All Files (*.*)\0*.*\0"s
-#define FILE_FILTER_SCENE           "Cyb Scene Data Files (*.csd)\0*.csd\0"s
-#define FILE_FILTER_GLTF            "GLTF Files (*.gltf; *.glb)\0*.gltf;*.glb\0"s
-#define FILE_FILTER_IMPORT_MODEL    FILE_FILTER_GLTF FILE_FILTER_SCENE FILE_FILTER_ALL
+const auto FILE_FILTER_ALL = "All Files (*.*)\0*.*\0"s;
+const auto FILE_FILTER_SCENE = "Cyb Scene Data Files (*.csd)\0*.csd\0"s;
+const auto FILE_FILTER_GLTF = "GLTF Files (*.gltf; *.glb)\0*.gltf;*.glb\0"s;
+const auto FILE_FILTER_IMPORT_MODEL = FILE_FILTER_GLTF + FILE_FILTER_SCENE + FILE_FILTER_ALL;
 
 namespace cyb::editor
 {
@@ -59,7 +56,7 @@ namespace cyb::editor
     double deltatimes[100] = {};
     uint32_t fpsAgvCounter = 0;
     uint32_t avgFps = 0;
-
+    
     //------------------------------------------------------------------------------
     // Component inspectors
     //------------------------------------------------------------------------------

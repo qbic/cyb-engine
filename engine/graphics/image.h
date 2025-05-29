@@ -53,5 +53,5 @@ namespace cyb::renderer
 
     void Image_Initialize();
 
-    void DrawImage(const graphics::Texture* texture, const ImageParams& params, graphics::CommandList cmd);
+    void DrawImage(const rhi::Texture* texture, const ImageParams& params, rhi::CommandList cmd);
 }

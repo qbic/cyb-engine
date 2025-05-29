@@ -28,10 +28,10 @@ namespace cyb
     struct ResourceInternal : public Resource::InternalBaseData
     {
         std::vector<uint8_t> data;
-        cyb::graphics::Texture texture;
+        cyb::rhi::Texture texture;
     };
 
-    const graphics::Texture& Resource::GetTexture() const
+    const rhi::Texture& Resource::GetTexture() const
     {
         assert(m_internalState != nullptr);
         assert(m_internalState->type == ResourceType::Image);
@@ -164,18 +164,18 @@ namespace cyb::resourcemanager
             return false;
         }
 
-        graphics::TextureDesc desc;
+        rhi::TextureDesc desc;
         desc.width = width;
         desc.height = height;
-        desc.format = graphics::Format::R8G8B8A8_Unorm;
-        desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
+        desc.format = rhi::Format::R8G8B8A8_Unorm;
+        desc.bindFlags = rhi::BindFlags::ShaderResourceBit;
         desc.mipLevels = 1;     // generate full mip chain at runtime
 
-        graphics::SubresourceData subresourceData;
+        rhi::SubresourceData subresourceData;
         subresourceData.mem = rawImage;
         subresourceData.rowPitch = width * channels;
 
-        graphics::GetDevice()->CreateTexture(&desc, &subresourceData, &resource->texture);
+        rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &resource->texture);
         stbi_image_free(rawImage);
         return true;
     }

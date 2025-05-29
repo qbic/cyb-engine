@@ -17,7 +17,7 @@ namespace cyb::hli
         virtual void Initialize();
         virtual void Update(double dt);
         virtual void Render();
-        virtual void Compose(graphics::CommandList cmd);
+        virtual void Compose(rhi::CommandList cmd);
 
         // implemented by game, returned object must be kept alive until application exit
         [[nodiscard]] virtual RenderPath* GetRenderPath() const = 0;
@@ -32,7 +32,7 @@ namespace cyb::hli
 
     private:
         bool isWindowActive = true;
-        std::unique_ptr<graphics::GraphicsDevice> graphicsDevice;
+        std::unique_ptr<rhi::GraphicsDevice> graphicsDevice;
         eventsystem::Handle changeVSyncEvent;
         bool initialized = false;
         Timer timer;
@@ -40,6 +40,6 @@ namespace cyb::hli
         Canvas canvas;
         RenderPath* activePath = nullptr;
         WindowHandle window;
-        graphics::Swapchain swapchain;
+        rhi::Swapchain swapchain;
     };
 }

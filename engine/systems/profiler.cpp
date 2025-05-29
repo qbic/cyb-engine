@@ -11,8 +11,8 @@ namespace cyb::profiler
 
     bool initialized = false;
     Mutex lock;
-    graphics::GPUQuery query;
-    graphics::GPUBuffer queryResultBuffer[graphics::GraphicsDevice::GetBufferCount()];
+    rhi::GPUQuery query;
+    rhi::GPUBuffer queryResultBuffer[rhi::GraphicsDevice::GetBufferCount()];
     std::atomic<uint32_t> queryCount = 0;
     uint32_t queryIndex = 0;
 
@@ -34,16 +34,16 @@ namespace cyb::profiler
         if (!initialized)
         {
             initialized = true;
-            graphics::GraphicsDevice* device = graphics::GetDevice();
+            rhi::GraphicsDevice* device = rhi::GetDevice();
 
-            graphics::GPUQueryDesc desc;
-            desc.type = graphics::GPUQueryType::Timestamp;
+            rhi::GPUQueryDesc desc;
+            desc.type = rhi::GPUQueryType::Timestamp;
             desc.queryCount = 1024;
             bool success = device->CreateQuery(&desc, &query);
             assert(success);
 
-            graphics::GPUBufferDesc bd;
-            bd.usage = graphics::MemoryAccess::Readback;
+            rhi::GPUBufferDesc bd;
+            bd.usage = rhi::MemoryAccess::Readback;
             bd.size = desc.queryCount * sizeof(uint64_t);
 
             for (uint32_t i = 0; i < _countof(queryResultBuffer); ++i)
@@ -55,8 +55,8 @@ namespace cyb::profiler
 
         context.cpuFrame = BeginCpuEntry("CPU Frame");
 
-        graphics::GraphicsDevice* device = graphics::GetDevice();
-        graphics::CommandList cmd = device->BeginCommandList();
+        rhi::GraphicsDevice* device = rhi::GetDevice();
+        rhi::CommandList cmd = device->BeginCommandList();
 
         const double gpuFrequency = (double)device->GetTimestampFrequency() / 1000.0;
         queryIndex = (queryIndex + 1) % _countof(queryResultBuffer);
@@ -101,11 +101,11 @@ namespace cyb::profiler
         context.gpuFrameGraph[FRAME_GRAPH_ENTRIES - 1] = context.entries[context.gpuFrame].time;
     }
 
-    void EndFrame(graphics::CommandList cmd)
+    void EndFrame(rhi::CommandList cmd)
     {
         assert(initialized);
 
-        graphics::GraphicsDevice* device = graphics::GetDevice();
+        rhi::GraphicsDevice* device = rhi::GetDevice();
 
         // read the GPU Frame end range manually because it will be on a separate 
         // command list than start point
@@ -130,7 +130,7 @@ namespace cyb::profiler
         return id;
     }
 
-    EntryId BeginGpuEntry(const std::string& name, graphics::CommandList cmd)
+    EntryId BeginGpuEntry(const std::string& name, rhi::CommandList cmd)
     {
         const EntryId id = context.GetUniqueId(name);
         Entry& entry = context.entries[id];
@@ -140,7 +140,7 @@ namespace cyb::profiler
         entry.cmd = cmd;
         entry.gpuBegin[queryIndex] = queryCount.fetch_add(1);
 
-        graphics::GetDevice()->EndQuery(&query, entry.gpuBegin[queryIndex], cmd);
+        rhi::GetDevice()->EndQuery(&query, entry.gpuBegin[queryIndex], cmd);
         return id;
     }
 
@@ -159,7 +159,7 @@ namespace cyb::profiler
         else
         {
             entry.gpuEnd[queryIndex] = queryCount.fetch_add(1);
-            graphics::GetDevice()->EndQuery(&query, entry.gpuEnd[queryIndex], entry.cmd);
+            rhi::GetDevice()->EndQuery(&query, entry.gpuEnd[queryIndex], entry.cmd);
         }
     }
 
@@ -173,7 +173,7 @@ namespace cyb::profiler
         EndEntry(m_id);
     }
 
-    ScopedGpuEntry::ScopedGpuEntry(const std::string& name, graphics::CommandList cmd)
+    ScopedGpuEntry::ScopedGpuEntry(const std::string& name, rhi::CommandList cmd)
     {
         m_id = BeginGpuEntry(name, cmd);
     }

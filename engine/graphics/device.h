@@ -4,7 +4,7 @@
 #include "core/mathlib.h"
 #include "core/logger.h"
 
-namespace cyb::graphics
+namespace cyb::rhi
 {
     struct Texture;
     struct Shader;
@@ -188,7 +188,7 @@ namespace cyb::graphics
         // Texture specific resource states:
         RenderTargetBit = BIT(10),	        // Render target, write enabled
         DepthStencilBit = BIT(11),	        // Depth stencil, write enabled
-        DepthStencil_ReadOnlyBit = BIT(12),  // Depth stencil, read only
+        DepthStencil_ReadOnlyBit = BIT(12), // Depth stencil, read only
 
         // GPUBuffer specific resource states:
         VertexBufferBit = BIT(20),          // Vertex buffer, read only
@@ -620,7 +620,7 @@ namespace cyb::graphics
     {
     protected:
         static const uint32_t BUFFERCOUNT = 2;
-        const bool VALIDATION_MODE_ENABLED = false;
+        const bool VALIDATION_MODE_ENABLED = true;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 
@@ -873,9 +873,9 @@ namespace cyb::graphics
         return 16u;
     }
 
-    inline graphics::GraphicsDevice*& GetDevice()
+    inline GraphicsDevice*& GetDevice()
     {
-        static graphics::GraphicsDevice* device = nullptr;
+        static GraphicsDevice* device = nullptr;
         return device;
     }
 }

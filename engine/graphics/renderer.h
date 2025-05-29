@@ -109,36 +109,36 @@ namespace cyb::renderer
         std::vector<uint32_t> lightIndexes;    // scene->lights indexes
     };
 
-    const graphics::Shader* GetShader(SHADERTYPE id);
-    const graphics::Sampler* GetSamplerState(SSLOT id);
-    const graphics::RasterizerState* GetRasterizerState(RSTYPES id);
-    const graphics::DepthStencilState* GetDepthStencilState(DSSTYPES id);
+    const rhi::Shader* GetShader(SHADERTYPE id);
+    const rhi::Sampler* GetSamplerState(SSLOT id);
+    const rhi::RasterizerState* GetRasterizerState(RSTYPES id);
+    const rhi::DepthStencilState* GetDepthStencilState(DSSTYPES id);
 
     void Initialize();
     void ReloadShaders();
-    bool LoadShader(graphics::ShaderStage stage, graphics::Shader& shader, const std::string& filename);
+    bool LoadShader(rhi::ShaderStage stage, rhi::Shader& shader, const std::string& filename);
 
     // Prepare view for rendering
     void UpdatePerFrameData(const SceneView& view, float time, FrameConstants& frameCB);
 
     // Updates the GPU state according to the previously called UpdatePerFrameData()
-    void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, graphics::CommandList cmd);
+    void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, rhi::CommandList cmd);
 
     // Updated the per camera constant buffer
-    void BindCameraCB(const scene::CameraComponent* camera, graphics::CommandList cmd);
+    void BindCameraCB(const scene::CameraComponent* camera, rhi::CommandList cmd);
 
     // Draw the scene from a RenderView
-    void DrawScene(const SceneView& view, graphics::CommandList cmd);
+    void DrawScene(const SceneView& view, rhi::CommandList cmd);
 
     // Draw skydome centered at the camera
-    void DrawSky(const scene::CameraComponent* scene, graphics::CommandList cmd);
+    void DrawSky(const scene::CameraComponent* scene, rhi::CommandList cmd);
 
     // Draw debug primitives according to the debug states
-    void DrawDebugScene(const SceneView& view, graphics::CommandList cmd);
+    void DrawDebugScene(const SceneView& view, rhi::CommandList cmd);
 
     void Postprocess_Outline(
-        const graphics::Texture& input,
-        graphics::CommandList cmd,
+        const rhi::Texture& input,
+        rhi::CommandList cmd,
         float thickness,
         float threshold,
         const XMFLOAT4& color);

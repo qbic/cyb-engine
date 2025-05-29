@@ -38,7 +38,7 @@ namespace cyb
         [[nodiscard]] bool IsValid() const { return m_internalState.get() != nullptr; }
         [[nodiscard]] long GetReferenceCount() const { return IsValid() ? m_internalState.use_count() : 0; }
         [[nodiscard]] ResourceType GetType() const { return IsValid() ? m_internalState->type : ResourceType::None; }
-        [[nodiscard]] const graphics::Texture& GetTexture() const;
+        [[nodiscard]] const rhi::Texture& GetTexture() const;
 
     private:
         std::shared_ptr<InternalBaseData> m_internalState;

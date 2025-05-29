@@ -8,14 +8,14 @@
 
 #include "editor//editor.h"
 
-using namespace cyb::graphics;
+using namespace cyb::rhi;
 
 namespace cyb::hli
 {
     CVar r_selectionOutlineThickness("r_selectionOutlineThickness", 1.5f, CVarFlag::RendererBit, "Thickness of selection outline");
     void RenderPath3D::ResizeBuffers()
     {
-        GraphicsDevice* device = cyb::graphics::GetDevice();
+        GraphicsDevice* device = cyb::rhi::GetDevice();
         XMUINT2 internalResolution = GetInternalResolution();
 
         // Render targets:
@@ -74,7 +74,7 @@ namespace cyb::hli
 
     void RenderPath3D::Render() const
     {
-        auto device = cyb::graphics::GetDevice();
+        auto device = cyb::rhi::GetDevice();
 
         // Prepare the frame:
         auto cmd = device->BeginCommandList();
@@ -155,12 +155,12 @@ namespace cyb::hli
 
     void RenderPath3D::Compose(CommandList cmd) const
     {
-        GraphicsDevice* device = graphics::GetDevice();
+        GraphicsDevice* device = rhi::GetDevice();
         renderer::ImageParams params = {};
         params.EnableFullscreen();
 
         device->BeginEvent("Composition", cmd);
-        const graphics::Sampler* pointSampler = GetSamplerState(renderer::SSLOT_POINT_CLAMP);
+        const rhi::Sampler* pointSampler = GetSamplerState(renderer::SSLOT_POINT_CLAMP);
         device->BindSampler(pointSampler, 0, cmd);
         renderer::DrawImage(&renderTarget_Main, params, cmd);
         device->EndEvent(cmd);

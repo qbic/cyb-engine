@@ -7,7 +7,7 @@
 #include "volk.h"
 #include "vk_mem_alloc.h"
 
-namespace cyb::graphics
+namespace cyb::rhi
 {
     class GraphicsDevice_Vulkan final : public GraphicsDevice
     {

@@ -1,7 +1,7 @@
 #include "graphics/image.h"
 #include "systems/event_system.h"
 
-using namespace cyb::graphics;
+using namespace cyb::rhi;
 
 namespace cyb::renderer
 {
@@ -21,7 +21,7 @@ namespace cyb::renderer
 
     void DrawImage(const Texture* texture, const ImageParams& params, CommandList cmd)
     {
-        GraphicsDevice* device = graphics::GetDevice();
+        GraphicsDevice* device = rhi::GetDevice();
         device->BeginEvent("Image", cmd);
 
         ImageConstants image = {};
@@ -61,7 +61,7 @@ namespace cyb::renderer
 
     void Image_LoadShaders()
     {
-        GraphicsDevice* device = graphics::GetDevice();
+        GraphicsDevice* device = rhi::GetDevice();
 
         renderer::LoadShader(ShaderStage::VS, vertShader, "image.vert");
         renderer::LoadShader(ShaderStage::FS, fragShader, "image.frag");
@@ -84,21 +84,21 @@ namespace cyb::renderer
 
     void Image_Initialize()
     {
-        GraphicsDevice* device = graphics::GetDevice();
+        GraphicsDevice* device = rhi::GetDevice();
 
         {
             TextureDesc desc;
             desc.width = 4;
             desc.height = 4;
-            desc.format = graphics::Format::R8G8B8A8_Unorm;
-            desc.bindFlags = graphics::BindFlags::ShaderResourceBit;
+            desc.format = rhi::Format::R8G8B8A8_Unorm;
+            desc.bindFlags = rhi::BindFlags::ShaderResourceBit;
             desc.mipLevels = 1;
 
             uint32_t textureData[4 * 4] = {};
             for (int i = 0; i < (4 * 4); ++i)
                 textureData[i] = 0xffffffff;
 
-            graphics::SubresourceData subresourceData;
+            rhi::SubresourceData subresourceData;
             subresourceData.mem = textureData;
             subresourceData.rowPitch = 4 * 4;
             device->CreateTexture(&desc, &subresourceData, &whiteTexture);

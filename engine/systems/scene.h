@@ -114,10 +114,10 @@ namespace cyb::scene
 
         // non-serialized data
         AxisAlignedBox aabb;
-        graphics::GPUBuffer vertex_buffer_pos;
-        graphics::GPUBuffer vertex_buffer_col;
-        graphics::GPUBuffer index_buffer;
-        graphics::GPUBuffer vertexBuffer;
+        rhi::GPUBuffer vertex_buffer_pos;
+        rhi::GPUBuffer vertex_buffer_col;
+        rhi::GPUBuffer index_buffer;
+        rhi::GPUBuffer vertexBuffer;
 
         // clear vertex and index data. GPUBuffer's will be left untouched
         void Clear();
@@ -130,7 +130,7 @@ namespace cyb::scene
         //      12: normal (normalized & encoded)
         struct Vertex_Pos
         {
-            static constexpr graphics::Format FORMAT = graphics::Format::R32G32B32A32_Float;
+            static constexpr rhi::Format FORMAT = rhi::Format::R32G32B32A32_Float;
             XMFLOAT3 pos = math::VECTOR_ZERO;
             uint32_t normal = 0;
 
@@ -143,7 +143,7 @@ namespace cyb::scene
         // internal format for vertex_buffer_col
         struct Vertex_Col
         {
-            static constexpr graphics::Format FORMAT = graphics::Format::R8G8B8A8_Unorm;
+            static constexpr rhi::Format FORMAT = rhi::Format::R8G8B8A8_Unorm;
             uint32_t color = 0;
         };
     };

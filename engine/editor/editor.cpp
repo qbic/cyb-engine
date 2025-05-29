@@ -45,7 +45,7 @@ namespace cyb::editor
     Resource rotate_icon;
     Resource scale_icon;
 
-    graphics::Texture rtSelectionOutline;
+    rhi::Texture rtSelectionOutline;
 
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::TRANSLATE;
     bool guizmo_world_mode = true;
@@ -612,9 +612,9 @@ namespace cyb::editor
             const auto& cpuFrame = profilerContext.entries.find(profilerContext.cpuFrame);
             const auto& gpuFrame = profilerContext.entries.find(profilerContext.gpuFrame);
 
-            ImGui::Text("Frame counter: %llu", graphics::GetDevice()->GetFrameCount());
+            ImGui::Text("Frame counter: %llu", rhi::GetDevice()->GetFrameCount());
             ImGui::Text("Average FPS (over %zu frames): %d", CountOf(deltatimes), avgFps);
-            graphics::GraphicsDevice::MemoryUsage vram = graphics::GetDevice()->GetMemoryUsage();
+            rhi::GraphicsDevice::MemoryUsage vram = rhi::GetDevice()->GetMemoryUsage();
             ImGui::Text("VRAM usage: %lluMB / %lluMB", vram.usage / 1024 / 1024, vram.budget / 1024 / 1024);
 
             ImGui::BeginTable("CPU/GPU Profiling", 2, ImGuiTableFlags_Borders);
@@ -1016,7 +1016,7 @@ namespace cyb::editor
 
     static bool DrawIconButton(
         const std::string& strId,
-        const graphics::Texture& texture,
+        const rhi::Texture& texture,
         const std::string& tooltip,
         bool is_selected = false,
         ImVec2 size = ImVec2(24, 24))
@@ -1148,13 +1148,13 @@ namespace cyb::editor
 
     void ResizeBuffers(const XMUINT2& internalResolution)
     {
-        graphics::GraphicsDevice* device = graphics::GetDevice();
+        rhi::GraphicsDevice* device = rhi::GetDevice();
 
-        graphics::TextureDesc desc{};
+        rhi::TextureDesc desc{};
         desc.width = internalResolution.x;
         desc.height = internalResolution.y;
-        desc.format = graphics::Format::R8_Unorm;
-        desc.bindFlags = graphics::BindFlags::RenderTargetBit | graphics::BindFlags::ShaderResourceBit;
+        desc.format = rhi::Format::R8_Unorm;
+        desc.bindFlags = rhi::BindFlags::RenderTargetBit | rhi::BindFlags::ShaderResourceBit;
         device->CreateTexture(&desc, nullptr, &rtSelectionOutline);
         device->SetName(&rtSelectionOutline, "rtSelectionOutline");
     }
@@ -1279,17 +1279,17 @@ namespace cyb::editor
         DrawTools();
     }
 
-    void Render(const graphics::Texture* rtDepthStencil, graphics::CommandList cmd)
+    void Render(const rhi::Texture* rtDepthStencil, rhi::CommandList cmd)
     {
-        graphics::GraphicsDevice* device = graphics::GetDevice();
-        graphics::RenderPassImage rp[] = {
-            graphics::RenderPassImage::RenderTarget(
+        rhi::GraphicsDevice* device = rhi::GetDevice();
+        rhi::RenderPassImage rp[] = {
+            rhi::RenderPassImage::RenderTarget(
                 &rtSelectionOutline,
-                graphics::RenderPassImage::LoadOp::Clear),
-            graphics::RenderPassImage::DepthStencil(
+                rhi::RenderPassImage::LoadOp::Clear),
+            rhi::RenderPassImage::DepthStencil(
                 rtDepthStencil,
-                graphics::RenderPassImage::LoadOp::Load,
-                graphics::RenderPassImage::StoreOp::Store)};
+                rhi::RenderPassImage::LoadOp::Load,
+                rhi::RenderPassImage::StoreOp::Store)};
         /*
         device->BeginRenderPass(rp, _countof(rp), cmd);
 

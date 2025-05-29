@@ -2,7 +2,7 @@
 #include "core/enum_flags.h"
 #include "graphics/device.h"
 
-namespace cyb::graphics
+namespace cyb::rhi
 {
     enum class ShaderCompilerFlags
     {

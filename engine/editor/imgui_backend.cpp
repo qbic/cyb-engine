@@ -11,7 +11,7 @@
 #include "editor/icons_font_awesome6.h"
 
 using namespace cyb::scene;
-using namespace cyb::graphics;
+using namespace cyb::rhi;
 using namespace cyb::renderer;
 
 struct ImGui_Impl_Data

@@ -6,4 +6,4 @@
 
 void ImGui_Impl_CybEngine_Init(cyb::WindowHandle window);
 void ImGui_Impl_CybEngine_Update();
-void ImGui_Impl_CybEngine_Compose(cyb::graphics::CommandList cmd);
+void ImGui_Impl_CybEngine_Compose(cyb::rhi::CommandList cmd);

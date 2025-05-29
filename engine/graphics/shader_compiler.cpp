@@ -8,7 +8,7 @@
 #include "core/timer.h"
 #include "graphics/shader_compiler.h"
 
-namespace cyb::graphics
+namespace cyb::rhi
 {
     static shaderc_shader_kind _ConvertShaderKind(ShaderStage stage)
     {

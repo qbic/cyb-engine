@@ -23,6 +23,6 @@ namespace cyb::hli
 
         // Compose the rendered layers (for example blend the layers together as Images)
         // This will be rendered to the backbuffer
-        virtual void Compose(graphics::CommandList cmd) const = 0;
+        virtual void Compose(rhi::CommandList cmd) const = 0;
     };
 }

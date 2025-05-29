@@ -66,7 +66,7 @@ namespace cyb::editor
         // previous preview update without stalling other jobsystems
         jobsystem::Context m_updatePreviewCtx;
         XMINT2 m_previewOffset = XMINT2(0, 0);
-        graphics::Texture m_preview;
+        rhi::Texture m_preview;
 
         jobsystem::Context jobContext;
         HeightmapGenerator heightmap;

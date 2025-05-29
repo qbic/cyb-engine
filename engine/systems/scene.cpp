@@ -3,7 +3,7 @@
 #include "systems/profiler.h"
 #include "systems/scene.h"
 
-using namespace cyb::graphics;
+using namespace cyb::rhi;
 
 namespace cyb::scene
 {
@@ -155,13 +155,13 @@ namespace cyb::scene
 
     void MeshComponent::CreateRenderData()
     {
-        graphics::GraphicsDevice* device = graphics::GetDevice();
+        rhi::GraphicsDevice* device = rhi::GetDevice();
 
         // create index buffer gpu data
         {
-            graphics::GPUBufferDesc desc;
+            rhi::GPUBufferDesc desc;
             desc.size = uint32_t(sizeof(uint32_t) * indices.size());
-            desc.bindFlags = graphics::BindFlags::IndexBufferBit;
+            desc.bindFlags = rhi::BindFlags::IndexBufferBit;
 
             bool result = device->CreateBuffer(&desc, indices.data(), &index_buffer);
             assert(result == true);
@@ -182,9 +182,9 @@ namespace cyb::scene
                 aabb.GrowPoint(pos);
             }
 
-            graphics::GPUBufferDesc desc;
+            rhi::GPUBufferDesc desc;
             desc.size = uint32_t(sizeof(Vertex_Pos) * _vertices.size());
-            desc.bindFlags = graphics::BindFlags::VertexBufferBit;
+            desc.bindFlags = rhi::BindFlags::VertexBufferBit;
             bool result = device->CreateBuffer(&desc, _vertices.data(), &vertex_buffer_pos);
             assert(result == true);
         }
@@ -192,9 +192,9 @@ namespace cyb::scene
         // vertex_buffer_col - COLOR
         if (!vertex_colors.empty())
         {
-            graphics::GPUBufferDesc desc;
+            rhi::GPUBufferDesc desc;
             desc.size = uint32_t(sizeof(uint32_t) * vertex_colors.size());
-            desc.bindFlags = graphics::BindFlags::VertexBufferBit;
+            desc.bindFlags = rhi::BindFlags::VertexBufferBit;
             bool result = device->CreateBuffer(&desc, vertex_colors.data(), &vertex_buffer_col);
             assert(result == true);
         }

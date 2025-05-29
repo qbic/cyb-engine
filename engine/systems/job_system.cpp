@@ -152,7 +152,8 @@ namespace cyb::jobsystem
         internal_state.threads.reserve(internal_state.numThreads);
         internal_state.mainThreadId = std::this_thread::get_id();
 
-        // explicitly set localQueueIndex for the main thread
+        // explicitly set localQueueIndex for the main thread, this isn't an issue sence
+        // no jobs are pushed to the main thread queue and is only used for stealing jobs
         localQueueIndex = 0;
 
         for (uint32_t threadID = 0; threadID < internal_state.numThreads; ++threadID)

@@ -10,7 +10,7 @@
 
 #include "editor/imgui_backend.h"
 
-using namespace cyb::graphics;
+using namespace cyb::rhi;
 
 namespace cyb::hli
 {
@@ -114,7 +114,7 @@ namespace cyb::hli
             activePath->Render();
     }
 
-    void Application::Compose(graphics::CommandList cmd)
+    void Application::Compose(rhi::CommandList cmd)
     {
         CYB_PROFILE_CPU_SCOPE("Compose");
         if (activePath != nullptr)
@@ -127,18 +127,18 @@ namespace cyb::hli
 
         if (graphicsDevice == nullptr)
         {
-            graphicsDevice = std::make_unique<graphics::GraphicsDevice_Vulkan>();
-            graphics::GetDevice() = graphicsDevice.get();
-            graphics::GraphicsDevice* device = graphics::GetDevice();
+            graphicsDevice = std::make_unique<rhi::GraphicsDevice_Vulkan>();
+            rhi::GetDevice() = graphicsDevice.get();
+            rhi::GraphicsDevice* device = rhi::GetDevice();
         }
 
         canvas.SetCanvas(window);
 
-        graphics::SwapchainDesc desc = {};
+        rhi::SwapchainDesc desc = {};
         WindowInfo info = GetWindowInfo(window);
         desc.width = canvas.GetPhysicalWidth();
         desc.height = canvas.GetPhysicalHeight();;
-        graphics::GetDevice()->CreateSwapchain(&desc, window, &swapchain);
+        rhi::GetDevice()->CreateSwapchain(&desc, window, &swapchain);
 
         changeVSyncEvent = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this] (uint64_t userdata) {
             SwapchainDesc desc = swapchain.desc;

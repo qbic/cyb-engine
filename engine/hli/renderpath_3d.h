@@ -11,11 +11,11 @@ namespace cyb::hli
         void ResizeBuffers() override;
         void Update(double dt) override;
         void Render() const override;
-        void Compose(graphics::CommandList cmd) const override;
+        void Compose(rhi::CommandList cmd) const override;
 
-        graphics::Rect GetScissorInternalResolution() const
+        rhi::Rect GetScissorInternalResolution() const
         {
-            graphics::Rect scissor;
+            rhi::Rect scissor;
             scissor.left = int(0);
             scissor.top = int(0);
             scissor.right = int(GetInternalResolution().x);
@@ -32,9 +32,9 @@ namespace cyb::hli
 
         renderer::FrameConstants frameCB = {};
 
-        graphics::Texture renderTarget_Main;
-        graphics::Texture depthBuffer_Main;
-        graphics::Texture rtSelectionOutline;
+        rhi::Texture renderTarget_Main;
+        rhi::Texture depthBuffer_Main;
+        rhi::Texture rtSelectionOutline;
 
         double runtime = 0.0;                       // Accumilated delta times
     };

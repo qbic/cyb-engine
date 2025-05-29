@@ -9,7 +9,7 @@
 #include "graphics/shader_compiler.h"
 #include "../../shaders/shader_interop.h"
 
-using namespace cyb::graphics;
+using namespace cyb::rhi;
 using namespace cyb::scene;
 
 namespace cyb::renderer
@@ -64,13 +64,13 @@ namespace cyb::renderer
         return &samplerStates[id];
     }
 
-    const graphics::RasterizerState* GetRasterizerState(RSTYPES id)
+    const rhi::RasterizerState* GetRasterizerState(RSTYPES id)
     {
         assert(id < RSTYPE_COUNT);
         return &rasterizers[id];
     }
 
-    const graphics::DepthStencilState* GetDepthStencilState(DSSTYPES id)
+    const rhi::DepthStencilState* GetDepthStencilState(DSSTYPES id)
     {
         assert(id < DSSTYPE_COUNT);
         return &depth_stencils[id];
@@ -519,14 +519,14 @@ namespace cyb::renderer
         }
     }
 
-    void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, graphics::CommandList cmd)
+    void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, rhi::CommandList cmd)
     {
         device->BeginEvent("UpdateRenderData", cmd);
         device->UpdateBuffer(&constantbuffers[CBTYPE_FRAME], &frameCB, cmd);
         device->EndEvent(cmd);
     }
 
-    void BindCameraCB(const scene::CameraComponent* camera, graphics::CommandList cmd)
+    void BindCameraCB(const scene::CameraComponent* camera, rhi::CommandList cmd)
     {
         assert(camera);
 
@@ -566,7 +566,7 @@ namespace cyb::renderer
             const MeshComponent& mesh = view.scene->meshes[object.meshIndex];
             if (mesh.vertex_buffer_col.IsValid())
             {
-                const graphics::GPUBuffer* vertex_buffers[] = {
+                const rhi::GPUBuffer* vertex_buffers[] = {
                     &mesh.vertex_buffer_pos,
                     &mesh.vertex_buffer_col
                 };

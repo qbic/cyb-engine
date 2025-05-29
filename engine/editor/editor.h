@@ -67,7 +67,7 @@ namespace cyb::editor
     void Update();
 
     // NOTE: need to be called from RenderPath3D
-    void Render(const graphics::Texture* rtDepthStencil, graphics::CommandList cmd);
+    void Render(const rhi::Texture* rtDepthStencil, rhi::CommandList cmd);
 
     void UpdateFPSCounter(double dt);
 

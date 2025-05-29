@@ -13,7 +13,7 @@ namespace cyb::hli
         void Update(double dt) override;
         void PostUpdate() override;
         void Render() const override;
-        void Compose(graphics::CommandList cmd) const override;
+        void Compose(rhi::CommandList cmd) const override;
 
         [[nodiscard]] XMUINT2 GetInternalResolution() const
         {

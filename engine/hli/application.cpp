@@ -67,7 +67,7 @@ namespace cyb::hli
         graphicsDevice->EndRenderPass(cmd);
 
         profiler::EndFrame(cmd);
-        graphicsDevice->SubmitCommandList();
+        graphicsDevice->ExecuteCommandList();
     }
 
     void Application::Initialize()

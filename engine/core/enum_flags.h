@@ -65,7 +65,7 @@ constexpr void SetFlag(E& lhs, E rhs, bool value) noexcept
 }
 
 template<typename E>
-constexpr std::underlying_type<E>::type NumericalValue(E e) noexcept
+constexpr std::underlying_type<E>::type Numerical(E e) noexcept
 {
     return (static_cast<std::underlying_type<E>::type>(e));
 }

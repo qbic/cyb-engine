@@ -68,9 +68,9 @@ namespace cyb::resourcemanager
             return;
 
         const uint64_t hash = hash::String(event.filename);
-        locker.Acquire();
+        locker.Lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
-        locker.Release();
+        locker.Unlock();
         if (internalState != nullptr)
         {
             CYB_TRACE("Detected change in loaded asset ({}), reloading...", event.filename);
@@ -210,13 +210,13 @@ namespace cyb::resourcemanager
         // compute hash for the asset and try locate it in the cache
         std::string fixedName = filesystem::FixFilePath(name);
         const uint64_t hash = hash::String(fixedName);
-        locker.Acquire();
+        locker.Lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
         if (internalState != nullptr)
         {
             if (!force)
             {
-                locker.Release();
+                locker.Unlock();
                 CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), fixedName, hash);
                 return Resource(internalState);
             }
@@ -231,13 +231,13 @@ namespace cyb::resourcemanager
 
         if (!GetAssetTypeFromFilename(&internalState->type, fixedName))
         {
-            locker.Release();
+            locker.Unlock();
             CYB_ERROR("Failed to determine resource type (filename={0})", fixedName);
             return Resource();
         }
 
         resourceCache[hash] = internalState;
-        locker.Release();
+        locker.Unlock();
 
         // NOTE: Move the lock bellow ReadFile() so that we don't start to many asynchonous
         //       file reads wich might hurt perfomance on mechanical hard drives?

@@ -29,7 +29,7 @@ namespace cyb::rhi
     {
         ShaderCompilerFlags flags = ShaderCompilerFlags::None;
         ShaderFormat format = ShaderFormat::None;
-        ShaderStage stage = ShaderStage::_Count;
+        ShaderStage stage = ShaderStage::Count;
         std::string name = "shader_src";
         const uint8_t* shadersource = nullptr;
         size_t shadersize = 0;

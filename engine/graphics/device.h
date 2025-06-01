@@ -157,7 +157,7 @@ namespace cyb::rhi
         VS,                                 // Vertex shader
         FS,                                 // Fragment shader
         GS,                                 // Geometry shader
-        _Count
+        Count
     };
 
     enum class ShaderFormat
@@ -172,7 +172,7 @@ namespace cyb::rhi
         Graphics,
         Compute,
         Copy,
-        _Count
+        Count
     };
 
     enum class ResourceState
@@ -636,7 +636,7 @@ namespace cyb::rhi
         virtual bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const = 0;
 
         virtual CommandList BeginCommandList(QueueType queue = QueueType::Graphics) = 0;
-        virtual void SubmitCommandList() {}
+        virtual void ExecuteCommandList() {}
         virtual void SetName(GPUResource* resource, const char* name) { (void)resource; (void)name; }
         virtual void SetName(Shader* shader, const char* name) { (void)shader; (void)name; }
 

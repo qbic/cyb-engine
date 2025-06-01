@@ -146,10 +146,10 @@ namespace cyb::profiler
 
     void EndEntry(EntryId id)
     {
-        lock.Acquire();
+        lock.Lock();
         auto it = context.entries.find(id);
         assert(it != context.entries.end());
-        lock.Release();
+        lock.Unlock();
 
         Entry& entry = it->second;
         if (entry.IsCPUEntry())

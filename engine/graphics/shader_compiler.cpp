@@ -98,7 +98,7 @@ namespace cyb::rhi
     {
         assert(input != nullptr);
         assert(input->format != ShaderFormat::None);
-        assert(input->stage != ShaderStage::_Count);
+        assert(input->stage != ShaderStage::Count);
         assert(output != nullptr);
 
         Timer timer;

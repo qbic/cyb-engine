@@ -40,25 +40,25 @@ namespace cyb::eventsystem
 		eventinternal->handle = handle;
 		eventinternal->callback = callback;
 
-		manager->locker.Acquire();
+		manager->locker.Lock();
 		manager->subscribers[id].push_back(&eventinternal->callback);
-		manager->locker.Release();
+		manager->locker.Unlock();
 
 		return handle;
 	}
 
 	void Subscribe_Once(int id, std::function<void(uint64_t)> callback)
 	{
-		manager->locker.Acquire();
+		manager->locker.Lock();
 		manager->subscribers_once[id].push_back(callback);
-		manager->locker.Release();
+		manager->locker.Unlock();
 	}
 
 	void FireEvent(int id, uint64_t userdata)
 	{
 		// Callbacks that only live for once:
 		{
-			manager->locker.Acquire();
+			manager->locker.Lock();
 			auto it = manager->subscribers_once.find(id);
 			bool found = it != manager->subscribers_once.end();
 
@@ -70,14 +70,14 @@ namespace cyb::eventsystem
 
 				callbacks.clear();
 			}
-			manager->locker.Release();
+			manager->locker.Unlock();
 		}
 		// Callbacks that live until deleted:
 		{
-			manager->locker.Acquire();
+			manager->locker.Lock();
 			auto it = manager->subscribers.find(id);
 			bool found = it != manager->subscribers.end();
-			manager->locker.Release();
+			manager->locker.Unlock();
 
 			if (found)
 			{

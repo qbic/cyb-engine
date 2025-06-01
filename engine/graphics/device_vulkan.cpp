@@ -29,6 +29,8 @@
 
 namespace cyb::rhi::vulkan_internal
 {
+    static constexpr uint64_t timeoutValue = 2000000000ull; // 2 seconds
+
     static constexpr VkFormat ConvertFormat(Format value)
     {
         switch (value)
@@ -250,10 +252,10 @@ namespace cyb::rhi::vulkan_internal
         ~Buffer_Vulkan()
         {
             assert(allocationhandler != nullptr);
-            allocationhandler->destroylocker.Acquire();
+            allocationhandler->destroylocker.Lock();
             uint64_t framecount = allocationhandler->framecount;
             allocationhandler->destroyer_buffers.push_back(std::make_pair(std::make_pair(resource, allocation), framecount));
-            allocationhandler->destroylocker.Release();
+            allocationhandler->destroylocker.Unlock();
         }
     };
 
@@ -266,10 +268,10 @@ namespace cyb::rhi::vulkan_internal
         {
             if (allocationhandler == nullptr)
                 return;
-            allocationhandler->destroylocker.Acquire();
+            allocationhandler->destroylocker.Lock();
             uint64_t framecount = allocationhandler->framecount;
             if (pool) allocationhandler->destroyer_querypools.push_back(std::make_pair(pool, framecount));
-            allocationhandler->destroylocker.Release();
+            allocationhandler->destroylocker.Unlock();
         }
     };
 
@@ -297,13 +299,13 @@ namespace cyb::rhi::vulkan_internal
         ~Texture_Vulkan()
         {
             assert(allocationHandler != nullptr);
-            allocationHandler->destroylocker.Acquire();
+            allocationHandler->destroylocker.Lock();
             uint64_t framecount = allocationHandler->framecount;
             if (resource) allocationHandler->destroyer_images.push_back(std::make_pair(std::make_pair(resource, allocation), framecount));
             if (srv.IsValid()) allocationHandler->destroyer_imageviews.push_back(std::make_pair(srv.imageView, framecount));
             if (rtv.IsValid()) allocationHandler->destroyer_imageviews.push_back(std::make_pair(rtv.imageView, framecount));
             if (dsv.IsValid()) allocationHandler->destroyer_imageviews.push_back(std::make_pair(dsv.imageView, framecount));
-            allocationHandler->destroylocker.Release();
+            allocationHandler->destroylocker.Unlock();
         }
     };
 
@@ -323,10 +325,10 @@ namespace cyb::rhi::vulkan_internal
         ~Shader_Vulkan()
         {
             assert(allocationhandler != nullptr);
-            allocationhandler->destroylocker.Acquire();
+            allocationhandler->destroylocker.Lock();
             uint64_t framecount = allocationhandler->framecount;
             if (shadermodule) allocationhandler->destroyer_shadermodules.push_back(std::make_pair(shadermodule, framecount));
-            allocationhandler->destroylocker.Release();
+            allocationhandler->destroylocker.Unlock();
         }
     };
 
@@ -338,10 +340,10 @@ namespace cyb::rhi::vulkan_internal
         ~Sampler_Vulkan()
         {
             assert(allocationhandler != nullptr);
-            allocationhandler->destroylocker.Acquire();
+            allocationhandler->destroylocker.Lock();
             uint64_t framecount = allocationhandler->framecount;
             if (resource) allocationhandler->destroyer_samplers.push_back(std::make_pair(resource, framecount));
-            allocationhandler->destroylocker.Release();
+            allocationhandler->destroylocker.Unlock();
         }
     };
 
@@ -361,7 +363,7 @@ namespace cyb::rhi::vulkan_internal
         size_t binding_hash = 0;
 
         VkGraphicsPipelineCreateInfo pipelineInfo = {};
-        VkPipelineShaderStageCreateInfo shaderStages[static_cast<size_t>(ShaderStage::_Count)] = {};
+        VkPipelineShaderStageCreateInfo shaderStages[static_cast<size_t>(ShaderStage::Count)] = {};
         VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
         VkPipelineRasterizationStateCreateInfo rasterizer = {};
         VkPipelineRasterizationDepthClipStateCreateInfoEXT depthclip = {};
@@ -394,7 +396,7 @@ namespace cyb::rhi::vulkan_internal
         {
             if (allocationhandler == nullptr)
                 return;
-            allocationhandler->destroylocker.Acquire();
+            allocationhandler->destroylocker.Lock();
             uint64_t framecount = allocationhandler->framecount;
 
             for (size_t i = 0; i < swapchainImages.size(); ++i)
@@ -406,7 +408,7 @@ namespace cyb::rhi::vulkan_internal
             allocationhandler->destroyer_swapchains.push_back(std::make_pair(swapchain, framecount));
             allocationhandler->destroyer_surfaces.push_back(std::make_pair(surface, framecount));
             allocationhandler->destroyer_semaphores.push_back(std::make_pair(swapchainReleaseSemaphore, framecount));
-            allocationhandler->destroylocker.Release();
+            allocationhandler->destroylocker.Unlock();
         }
     };
 
@@ -608,9 +610,9 @@ namespace cyb::rhi::vulkan_internal
 
             if (internal_state->swapchainImageViews[i] != VK_NULL_HANDLE)
             {
-                allocationHandler->destroylocker.Acquire();
+                allocationHandler->destroylocker.Lock();
                 allocationHandler->destroyer_imageviews.push_back(std::make_pair(internal_state->swapchainImageViews[i], allocationHandler->framecount));
-                allocationHandler->destroylocker.Release();
+                allocationHandler->destroylocker.Unlock();
             }
 
             VK_CHECK(vkCreateImageView(device, &createInfo, nullptr, &internal_state->swapchainImageViews[i]));
@@ -647,7 +649,7 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::CopyAllocator::Destroy()
     {
-        vkQueueWaitIdle(device->queues[NumericalValue(QueueType::Copy)].queue);
+        vkQueueWaitIdle(device->queues[Numerical(QueueType::Copy)].queue);
         for (auto& x : freelist)
         {
             vkDestroyCommandPool(device->device, x.transferCommandPool, nullptr);
@@ -664,7 +666,7 @@ namespace cyb::rhi
     {
         CopyCMD cmd;
 
-        locker.Acquire();
+        locker.Lock();
         // Try to search for a staging buffer that can fit the request:
         for (size_t i = 0; i < freelist.size(); ++i)
         {
@@ -679,7 +681,7 @@ namespace cyb::rhi
                 }
             }
         }
-        locker.Release();
+        locker.Unlock();
 
         // If no buffer was found that fits the data, create one:
         if (!cmd.IsValid())
@@ -703,7 +705,9 @@ namespace cyb::rhi
 
             VkFenceCreateInfo fenceInfo = {};
             fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
             VK_CHECK(vkCreateFence(device->device, &fenceInfo, nullptr, &cmd.fence));
+            device->SetFenceName(cmd.fence, "CopyAllocator::fence");
 
             VkSemaphoreCreateInfo semaphoreInfo = {};
             semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -763,8 +767,8 @@ namespace cyb::rhi
             submitInfo.signalSemaphoreInfoCount = 1;
             submitInfo.pSignalSemaphoreInfos = signalSemaphoreInfos;
 
-            ScopedLock lock(*device->queues[NumericalValue(QueueType::Copy)].locker);
-            VK_CHECK(vkQueueSubmit2(device->queues[NumericalValue(QueueType::Copy)].queue, 1, &submitInfo, VK_NULL_HANDLE));
+            ScopedLock lock(*device->queues[Numerical(QueueType::Copy)].locker);
+            VK_CHECK(vkQueueSubmit2(device->queues[Numerical(QueueType::Copy)].queue, 1, &submitInfo, VK_NULL_HANDLE));
         }
 
         {
@@ -782,8 +786,9 @@ namespace cyb::rhi
             submitInfo.signalSemaphoreInfoCount = 1;
             submitInfo.pSignalSemaphoreInfos = signalSemaphoreInfos;
 
-            ScopedLock lock(*device->queues[NumericalValue(QueueType::Graphics)].locker);
-            VK_CHECK(vkQueueSubmit2(device->queues[NumericalValue(QueueType::Graphics)].queue, 1, &submitInfo, VK_NULL_HANDLE));        }
+            ScopedLock lock(*device->queues[Numerical(QueueType::Graphics)].locker);
+            VK_CHECK(vkQueueSubmit2(device->queues[Numerical(QueueType::Graphics)].queue, 1, &submitInfo, VK_NULL_HANDLE));
+        }
 
         // This must be final submit in this function because it will also signal a fence for state tracking by CPU!
         {
@@ -797,8 +802,14 @@ namespace cyb::rhi
             submitInfo.signalSemaphoreInfoCount = 0;
             submitInfo.pSignalSemaphoreInfos = nullptr;
 
-            ScopedLock lock(*device->queues[NumericalValue(QueueType::Compute)].locker);
-            VK_CHECK(vkQueueSubmit2(device->queues[NumericalValue(QueueType::Compute)].queue, 1, &submitInfo, cmd.fence)); // final submit also signals fence!
+            ScopedLock lock(*device->queues[Numerical(QueueType::Compute)].locker);
+            VK_CHECK(vkQueueSubmit2(device->queues[Numerical(QueueType::Compute)].queue, 1, &submitInfo, cmd.fence)); // final submit also signals fence!
+        }
+
+        while (VK_CHECK(vkWaitForFences(device->device, 1, &cmd.fence, VK_TRUE, timeoutValue)) == VK_TIMEOUT)
+        {
+            CYB_ERROR("[CopyAllocator::submit] vkWaitForFences resulted in VK_TIMEOUT");
+            std::this_thread::yield();
         }
 
         ScopedLock lock(locker);
@@ -1003,10 +1014,10 @@ namespace cyb::rhi
     {
         if (descriptorPool != VK_NULL_HANDLE)
         {
-            device->m_allocationHandler->destroylocker.Acquire();
+            device->m_allocationHandler->destroylocker.Lock();
             device->m_allocationHandler->destroyer_descriptorPools.push_back(std::make_pair(descriptorPool, device->frameCount));
             descriptorPool = VK_NULL_HANDLE;
-            device->m_allocationHandler->destroylocker.Release();
+            device->m_allocationHandler->destroylocker.Unlock();
         }
     }
 
@@ -1434,12 +1445,12 @@ namespace cyb::rhi
             vkGetDeviceQueue(device, computeFamily, 0, &computeQueue);
             vkGetDeviceQueue(device, copyFamily, 0, &copyQueue);
 
-            queues[NumericalValue(QueueType::Graphics)].queue = graphicsQueue;
-            queues[NumericalValue(QueueType::Graphics)].locker = std::make_shared<Mutex>();
-            queues[NumericalValue(QueueType::Compute)].queue = computeQueue;
-            queues[NumericalValue(QueueType::Compute)].locker = std::make_shared<Mutex>();
-            queues[NumericalValue(QueueType::Copy)].queue = copyQueue;
-            queues[NumericalValue(QueueType::Copy)].locker = std::make_shared<Mutex>();
+            queues[Numerical(QueueType::Graphics)].queue = graphicsQueue;
+            queues[Numerical(QueueType::Graphics)].locker = std::make_shared<Mutex>();
+            queues[Numerical(QueueType::Compute)].queue = computeQueue;
+            queues[Numerical(QueueType::Compute)].locker = std::make_shared<Mutex>();
+            queues[Numerical(QueueType::Copy)].queue = copyQueue;
+            queues[Numerical(QueueType::Copy)].locker = std::make_shared<Mutex>();
         }
 
         memory_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
@@ -1477,18 +1488,31 @@ namespace cyb::rhi
 
         // Create frame resources:
         {
-            for (uint32_t i = 0; i < BUFFERCOUNT; ++i)
+            // create a timeline semaphore in each queue for state tracking
+            for (uint32_t i = 0; i < Numerical(QueueType::Count); ++i)
             {
-                for (uint32_t queue = 0; queue < NumericalValue(QueueType::_Count); ++queue)
-                {
-                    if (queues[queue].queue == VK_NULL_HANDLE)
-                        continue;
+                VkSemaphoreTypeCreateInfo timelineCreateInfo = {};
+                timelineCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
+                timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+                timelineCreateInfo.initialValue = 0;
 
-                    VkFenceCreateInfo fenceInfo = {};
-                    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-                    //fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-                    VK_CHECK(vkCreateFence(device, &fenceInfo, nullptr, &m_frameFence[i][queue]));
-                }
+                VkSemaphoreCreateInfo semaphoreInfo = {};
+                semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+                semaphoreInfo.pNext = &timelineCreateInfo;
+
+                vkCreateSemaphore(device, &semaphoreInfo, nullptr, &queues[i].trackingSemaphore);
+                switch (static_cast<QueueType>(i))
+                {
+                case QueueType::Graphics:
+                    SetSemaphoreName(queues[i].trackingSemaphore, "CommandQueue::trackingSemaphore[QueueType::Graphics]");
+                    break;
+                case QueueType::Compute:
+                    SetSemaphoreName(queues[i].trackingSemaphore, "CommandQueue::trackingSemaphore[QueueType::Compute]");
+                    break;
+                case QueueType::Copy:
+                    SetSemaphoreName(queues[i].trackingSemaphore, "CommandQueue::trackingSemaphore[QueueType::Copy]");
+                    break;
+                };
             }
         }
 
@@ -1530,12 +1554,6 @@ namespace cyb::rhi
         if (debugUtilsMessenger != VK_NULL_HANDLE)
             vkDestroyDebugUtilsMessengerEXT(instance, debugUtilsMessenger, nullptr);
 
-        for (uint32_t i = 0; i < BUFFERCOUNT; ++i)
-        {
-            for (int queue = 0; queue < NumericalValue(QueueType::_Count); ++queue)
-                vkDestroyFence(device, m_frameFence[i][queue], nullptr);
-        }
-
         m_copyAllocator.Destroy();
 
         for (auto& x : m_psoLayoutCache)
@@ -1555,7 +1573,7 @@ namespace cyb::rhi
         {
             for (uint32_t buffer_index = 0; buffer_index < BUFFERCOUNT; ++buffer_index)
             {
-                for (uint32_t q = 0; q < static_cast<uint32_t>(QueueType::_Count); ++q)
+                for (uint32_t q = 0; q < static_cast<uint32_t>(QueueType::Count); ++q)
                 {
                     vkDestroyCommandPool(device, commandlist->commandpools[buffer_index][q], nullptr);
                 }
@@ -1564,6 +1582,9 @@ namespace cyb::rhi
             for (auto& x : commandlist->binder_pools)
                 x.Destroy();
         }
+
+        for (auto& queue : queues)
+            vkDestroySemaphore(device, queue.trackingSemaphore, nullptr);
     }
 
     bool GraphicsDevice_Vulkan::CreateSwapchain(const SwapchainDesc* desc, WindowHandle window, Swapchain* swapchain) const
@@ -1753,12 +1774,12 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::BindIndexBuffer(const GPUBuffer* index_buffer, const IndexBufferFormat format, uint64_t offset, CommandList cmd)
     {
-        if (index_buffer != nullptr)
-        {
-            auto internal_state = ToInternal(index_buffer);
-            CommandList_Vulkan& commandlist = GetCommandList(cmd);
-            vkCmdBindIndexBuffer(commandlist.GetCommandBuffer(), internal_state->resource, offset, format == IndexBufferFormat::Uint16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
-        }
+        if (index_buffer == nullptr)
+            return;
+
+        auto internal_state = ToInternal(index_buffer);
+        CommandList_Vulkan& commandlist = GetCommandList(cmd);
+        vkCmdBindIndexBuffer(commandlist.GetCommandBuffer(), internal_state->resource, offset, format == IndexBufferFormat::Uint16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
     }
 
     void GraphicsDevice_Vulkan::BindStencilRef(uint32_t value, CommandList cmd)
@@ -2449,7 +2470,7 @@ namespace cyb::rhi
         hash::Combine(internal_state->binding_hash, internal_state->pushconstants.size);
         hash::Combine(internal_state->binding_hash, internal_state->pushconstants.stageFlags);
 
-        m_psoLayoutCacheMutex.Acquire();
+        m_psoLayoutCacheMutex.Lock();
         if (m_psoLayoutCache[internal_state->binding_hash].pipeline_layout == VK_NULL_HANDLE)
         {
             VkDescriptorSetLayoutCreateInfo descriptorset_layout_info = {};
@@ -2482,7 +2503,7 @@ namespace cyb::rhi
             internal_state->descriptorset_layout = m_psoLayoutCache[internal_state->binding_hash].descriptorset_layout;
             internal_state->pipelineLayout = m_psoLayoutCache[internal_state->binding_hash].pipeline_layout;
         }
-        m_psoLayoutCacheMutex.Release();
+        m_psoLayoutCacheMutex.Unlock();
 
         // Viewport & Scissors:
         VkViewport& viewport = internal_state->viewport;
@@ -2712,13 +2733,13 @@ namespace cyb::rhi
 
     CommandList GraphicsDevice_Vulkan::BeginCommandList(QueueType queue)
     {
-        m_cmdLocker.Acquire();
+        m_cmdLocker.Lock();
         const uint32_t cmd_current = m_cmdCount++;
         if (cmd_current >= m_commandlists.size())
             m_commandlists.push_back(std::make_unique<CommandList_Vulkan>());
         CommandList cmd;
         cmd.internal_state = m_commandlists[cmd_current].get();
-        m_cmdLocker.Release();
+        m_cmdLocker.Unlock();
 
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         commandlist.Reset(GetBufferIndex());
@@ -2778,24 +2799,81 @@ namespace cyb::rhi
         return cmd;
     }
 
-    void GraphicsDevice_Vulkan::CommandQueue::Submit(GraphicsDevice_Vulkan* device, VkFence fence)
+    void GraphicsDevice_Vulkan::SetFenceName(VkFence fence, const char* name)
     {
-        if (queue == VK_NULL_HANDLE)
+        if (!debugUtils)
             return;
+        if (fence == VK_NULL_HANDLE)
+            return;
+
+        VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+        info.pObjectName = name;
+        info.objectType = VK_OBJECT_TYPE_FENCE;
+        info.objectHandle = (uint64_t)fence;
+
+        VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
+    }
+
+    void GraphicsDevice_Vulkan::SetSemaphoreName(VkSemaphore semaphore, const char* name)
+    {
+        if (!debugUtils)
+            return;
+
+        VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+        info.pObjectName = name;
+        info.objectType = VK_OBJECT_TYPE_SEMAPHORE;
+        info.objectHandle = (uint64_t)semaphore;
+
+        VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
+    }
+
+    void GraphicsDevice_Vulkan::CommandQueue::AddWaitSemaphore(VkSemaphore semaphore, uint64_t value)
+    {
+        if (semaphore == VK_NULL_HANDLE)
+            return;
+
+        VkSemaphoreSubmitInfo& waitSemaphore = submit_waitSemaphoreInfos.emplace_back();
+        waitSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        waitSemaphore.semaphore = semaphore;
+        waitSemaphore.value = value;
+        waitSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    }
+
+    void GraphicsDevice_Vulkan::CommandQueue::AddSignalSemaphore(VkSemaphore semaphore, uint64_t value)
+    {
+        if (semaphore == VK_NULL_HANDLE)
+            return;
+
+        VkSemaphoreSubmitInfo& signalSemaphore = submit_signalSemaphoreInfos.emplace_back();
+        signalSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        signalSemaphore.semaphore = semaphore;
+        signalSemaphore.value = value;
+        signalSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    }
+
+    uint64_t GraphicsDevice_Vulkan::CommandQueue::Submit(GraphicsDevice_Vulkan* device, VkFence fence)
+    {
         ScopedLock lock(*locker);
+
+        // signal the tracking semaphore with the last submitted ID to mark 
+        // the end of the frame
+        lastSubmittedID++;
+        AddSignalSemaphore(trackingSemaphore, lastSubmittedID);
 
         VkSubmitInfo2 submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
         submitInfo.commandBufferInfoCount = (uint32_t)submit_cmds.size();
         submitInfo.pCommandBufferInfos = submit_cmds.data();
-
         submitInfo.waitSemaphoreInfoCount = static_cast<uint32_t>(submit_waitSemaphoreInfos.size());
         submitInfo.pWaitSemaphoreInfos = submit_waitSemaphoreInfos.data();
-
         submitInfo.signalSemaphoreInfoCount = static_cast<uint32_t>(submit_signalSemaphoreInfos.size());
         submitInfo.pSignalSemaphoreInfos = submit_signalSemaphoreInfos.data();
 
         VK_CHECK(vkQueueSubmit2(queue, 1, &submitInfo, fence));
+
+        submit_waitSemaphoreInfos.clear();
+        submit_signalSemaphoreInfos.clear();
+        submit_cmds.clear();
 
         if (!submit_swapchains.empty())
         {
@@ -2807,17 +2885,16 @@ namespace cyb::rhi
             presentInfo.pSwapchains = submit_swapchains.data();
             presentInfo.pImageIndices = submit_swapchainImageIndices.data();
             VK_CHECK(vkQueuePresentKHR(queue, &presentInfo));
+
+            submit_swapchains.clear();
+            submit_swapchainImageIndices.clear();
+            submit_signalSemaphores.clear();
         }
 
-        submit_swapchains.clear();
-        submit_swapchainImageIndices.clear();
-        submit_waitSemaphoreInfos.clear();
-        submit_signalSemaphores.clear();
-        submit_signalSemaphoreInfos.clear();
-        submit_cmds.clear();
+        return lastSubmittedID;
     }
 
-    void GraphicsDevice_Vulkan::SubmitCommandList()
+    void GraphicsDevice_Vulkan::ExecuteCommandList()
     {
         // Submit current frame:
         {
@@ -2830,6 +2907,7 @@ namespace cyb::rhi
                 VK_CHECK(vkEndCommandBuffer(commandlist.GetCommandBuffer()));
 
                 CommandQueue& queue = queues[static_cast<uint32_t>(commandlist.queue)];
+
                 VkCommandBufferSubmitInfo& submitInfo = queue.submit_cmds.emplace_back();
                 submitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
                 submitInfo.commandBuffer = commandlist.GetCommandBuffer();
@@ -2861,16 +2939,29 @@ namespace cyb::rhi
                     }
                     else
                     {
-                        m_allocationHandler->destroylocker.Acquire();
+                        m_allocationHandler->destroylocker.Lock();
                         m_allocationHandler->destroyer_pipelines.push_back(std::make_pair(x.second, frameCount));
-                        m_allocationHandler->destroylocker.Release();
+                        m_allocationHandler->destroylocker.Unlock();
                     }
                 }
                 commandlist.pipelinesWorker.clear();
             }
 
-            for (uint32_t i = 0; i < NumericalValue(QueueType::_Count); ++i)
-                queues[i].Submit(this, m_frameFence[GetBufferIndex()][i]);
+            for (uint32_t i = 0; i < Numerical(QueueType::Count); ++i)
+                queues[i].Submit(this, nullptr);
+        }
+
+        // Sync up every queue to every other queue at the end of the frame:
+        //	Note: it disables overlapping queues into the next frame
+        //	Note: it's not submitted immediately here, but the waits are recorded before next frame submits
+        for (int queue1 = 0; queue1 < Numerical(QueueType::Count); ++queue1)
+        {
+            for (int queue2 = 0; queue2 < Numerical(QueueType::Count); ++queue2)
+            {
+                if (queue1 == queue2)
+                    continue;
+                queues[queue1].AddWaitSemaphore(queues[queue2].trackingSemaphore, queues[queue2].lastSubmittedID);
+            }
         }
 
         frameCount++;
@@ -2879,14 +2970,33 @@ namespace cyb::rhi
         {
             if (frameCount >= BUFFERCOUNT)
             {
-                const uint32_t bufferindex = GetBufferIndex();
-                for (uint32_t queue = 0; queue < NumericalValue(QueueType::_Count); ++queue)
+                VkSemaphore waitSemaphores[Numerical(QueueType::Count)] = {};
+                uint64_t waitValues[Numerical(QueueType::Count)] = {};
+                uint32_t waitSemaphoreCount = 0;
+
+                for (uint32_t i = 0; i < Numerical(QueueType::Count); ++i)
                 {
-                    if (m_frameFence[bufferindex][queue] == VK_NULL_HANDLE)
+                    CommandQueue& queue = queues[i];
+                    if (queue.lastSubmittedID < BUFFERCOUNT)
                         continue;
 
-                    VK_CHECK(vkWaitForFences(device, 1, &m_frameFence[bufferindex][queue], VK_TRUE, UINT64_MAX));
-                    VK_CHECK(vkResetFences(device, 1, &m_frameFence[bufferindex][queue]));
+                    waitSemaphores[waitSemaphoreCount] = queue.trackingSemaphore;
+                    waitValues[waitSemaphoreCount] = queue.lastSubmittedID - BUFFERCOUNT + 1;
+                    ++waitSemaphoreCount;
+                }
+                if (waitSemaphoreCount > 0)
+                {
+                    VkSemaphoreWaitInfo waitInfo = {};
+                    waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+                    waitInfo.semaphoreCount = waitSemaphoreCount;
+                    waitInfo.pSemaphores = waitSemaphores;
+                    waitInfo.pValues = waitValues;
+
+                    while (VK_CHECK(vkWaitSemaphores(device, &waitInfo, timeoutValue)) == VK_TIMEOUT)
+                    {
+                        CYB_ERROR("[SubmitCommandLists] vkWaitSemaphores resulted in VK_TIMEOUT");
+                        std::this_thread::yield();
+                    }
                 }
             }
         }
@@ -2896,9 +3006,9 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::ClearPipelineStateCache()
     {
-        m_allocationHandler->destroylocker.Acquire();
+        m_allocationHandler->destroylocker.Lock();
 
-        m_psoLayoutCacheMutex.Acquire();
+        m_psoLayoutCacheMutex.Lock();
         for (auto& it : m_psoLayoutCache)
         {
             if (it.second.pipeline_layout)
@@ -2908,7 +3018,7 @@ namespace cyb::rhi
 
         }
         m_psoLayoutCache.clear();
-        m_psoLayoutCacheMutex.Release();
+        m_psoLayoutCacheMutex.Unlock();
 
         for (auto& it : m_pipelinesGlobal)
         {
@@ -2924,7 +3034,7 @@ namespace cyb::rhi
             }
             x->pipelinesWorker.clear();
         }
-        m_allocationHandler->destroylocker.Release();
+        m_allocationHandler->destroylocker.Unlock();
 
         // Destroy vulkan pipeline cache
         vkDestroyPipelineCache(device, m_pipelineCache, nullptr);
@@ -2947,7 +3057,7 @@ namespace cyb::rhi
 
         internal_state->swapchainAcquireSemaphoreIndex = (internal_state->swapchainAcquireSemaphoreIndex + 1) % internal_state->swapchainAcquireSemaphores.size();
 
-        internal_state->locker.Acquire();
+        internal_state->locker.Lock();
         VkResult res = vkAcquireNextImageKHR(
             device,
             internal_state->swapchain,
@@ -2955,7 +3065,7 @@ namespace cyb::rhi
             internal_state->swapchainAcquireSemaphores[internal_state->swapchainAcquireSemaphoreIndex],
             VK_NULL_HANDLE,
             &internal_state->swapchainImageIndex);
-        internal_state->locker.Release();
+        internal_state->locker.Unlock();
 
         if (res != VK_SUCCESS)
         {

@@ -12,7 +12,7 @@ namespace cyb::rhi
     class GraphicsDevice_Vulkan final : public GraphicsDevice
     {
     private:
-        bool debugUtils = false;
+        bool debugUtils = true;
         VkInstance instance = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -43,6 +43,7 @@ namespace cyb::rhi
         struct CommandQueue
         {
             VkQueue queue = VK_NULL_HANDLE;
+            VkSemaphore trackingSemaphore;
             std::vector<VkSwapchainKHR> submit_swapchains;
             std::vector<uint32_t> submit_swapchainImageIndices;
             std::vector<VkSemaphore> submit_signalSemaphores;
@@ -52,9 +53,13 @@ namespace cyb::rhi
 
             std::shared_ptr<Mutex> locker;
 
-            void Submit(GraphicsDevice_Vulkan* device, VkFence fence);
+            uint64_t lastSubmittedID = 0;
+
+            void AddWaitSemaphore(VkSemaphore semaphore, uint64_t value);
+            void AddSignalSemaphore(VkSemaphore semaphore, uint64_t value);
+            uint64_t Submit(GraphicsDevice_Vulkan* device, VkFence fence);
         };
-        CommandQueue queues[static_cast<uint32_t>(QueueType::_Count)];
+        CommandQueue queues[static_cast<uint32_t>(QueueType::Count)];
 
         struct CopyAllocator
         {
@@ -81,7 +86,6 @@ namespace cyb::rhi
             void Submit(CopyCMD cmd);
         };
         mutable CopyAllocator m_copyAllocator;
-        VkFence m_frameFence[BUFFERCOUNT][NumericalValue(QueueType::_Count)] = {};
 
         struct DescriptorBinder
         {
@@ -122,12 +126,13 @@ namespace cyb::rhi
             void Reset();
         };
 
-        struct CommandList_Vulkan {
-            VkCommandPool commandpools[BUFFERCOUNT][static_cast<uint32_t>(QueueType::_Count)] = {};
-            VkCommandBuffer commandbuffers[BUFFERCOUNT][static_cast<uint32_t>(QueueType::_Count)] = {};
+        struct CommandList_Vulkan
+        {
+            VkCommandPool commandpools[BUFFERCOUNT][static_cast<uint32_t>(QueueType::Count)] = {};
+            VkCommandBuffer commandbuffers[BUFFERCOUNT][static_cast<uint32_t>(QueueType::Count)] = {};
             uint32_t buffer_index = 0;
 
-            QueueType queue = QueueType::_Count;
+            QueueType queue = QueueType::Count;
             uint32_t id = 0;
 
             DescriptorBinder binder;
@@ -193,6 +198,9 @@ namespace cyb::rhi
         void ValidatePSO(CommandList cmds);
         void PreDraw(CommandList cmds);
 
+        void SetFenceName(VkFence fence, const char* name);
+        void SetSemaphoreName(VkSemaphore semaphore, const char* name);
+
     public:
         GraphicsDevice_Vulkan();
         virtual ~GraphicsDevice_Vulkan();
@@ -207,7 +215,7 @@ namespace cyb::rhi
         void CreateSubresource(Texture* texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const;
 
         CommandList BeginCommandList(QueueType queue) override;
-        void SubmitCommandList() override;
+        void ExecuteCommandList() override;
         void SetName(GPUResource* pResource, const char* name) override;
         void SetName(Shader* shader, const char* name) override;
 
@@ -252,7 +260,8 @@ namespace cyb::rhi
             return GetCommandList(cmd).frame_allocators[GetBufferIndex()];
         }
 
-        struct AllocationHandler {
+        struct AllocationHandler
+        {
             VmaAllocator allocator = VK_NULL_HANDLE;
             VkDevice device = VK_NULL_HANDLE;
             VkInstance instance = VK_NULL_HANDLE;
@@ -274,7 +283,8 @@ namespace cyb::rhi
             std::deque<std::pair<VkSurfaceKHR, uint64_t>> destroyer_surfaces;
             std::deque<std::pair<VkSemaphore, uint64_t>> destroyer_semaphores;
 
-            ~AllocationHandler() {
+            ~AllocationHandler()
+            {
                 Update(~0, 0); // destroy all remaining
                 vmaDestroyAllocator(allocator);
                 vkDestroyDevice(device, nullptr);
@@ -282,7 +292,8 @@ namespace cyb::rhi
             }
 
             // Deferred destroy of resources that the GPU is already finished with:
-            void Update(uint64_t frameCount, uint32_t BUFFERCOUNT) {
+            void Update(uint64_t frameCount, uint32_t BUFFERCOUNT)
+            {
                 const auto destroy = [&](auto&& queue, auto&& handler) {
                     while (!queue.empty()) {
                         if (queue.front().second + BUFFERCOUNT >= frameCount)

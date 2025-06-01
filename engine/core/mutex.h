@@ -38,11 +38,11 @@ namespace cyb
     class SpinLockMutex
     {
     public:
-        void Acquire() noexcept
+        void Lock() noexcept
         {
             int spin = 0;
 
-            while (!TryAcquire())
+            while (!TryLock())
             {
                 // try SMT thread swapping for a few spins by pause(), should be enough
                 // most use cases, but put a yeald() fallback for OS level thread 
@@ -54,12 +54,12 @@ namespace cyb
             }
         }
 
-        [[nodiscard]] bool TryAcquire() noexcept
+        [[nodiscard]] bool TryLock() noexcept
         {
             return !m_lock.test_and_set(std::memory_order_acquire);
         }
 
-        void Release() noexcept
+        void Unlock() noexcept
         {
             m_lock.clear(std::memory_order_release);
         }
@@ -71,9 +71,9 @@ namespace cyb
     class Mutex
     {
     public:
-        void Acquire() { m_lock.lock(); }
-        [[nodiscard]] bool TryAcquire() { return m_lock.try_lock(); }
-        void Release() { m_lock.unlock(); }
+        void Lock() { m_lock.lock(); }
+        [[nodiscard]] bool TryLock() { return m_lock.try_lock(); }
+        void Unlock() { m_lock.unlock(); }
 
     private:
         MutexType m_lock;
@@ -83,8 +83,8 @@ namespace cyb
     class ScopedLock : private NonCopyable
     {
     public:
-        explicit ScopedLock(T& mutex) : m_mutex(mutex) { m_mutex.Acquire(); }
-        ~ScopedLock() { m_mutex.Release(); }
+        explicit ScopedLock(T& mutex) : m_mutex(mutex) { m_mutex.Lock(); }
+        ~ScopedLock() { m_mutex.Unlock(); }
 
     private:
         T& m_mutex;

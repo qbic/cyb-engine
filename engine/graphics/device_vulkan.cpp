@@ -654,10 +654,6 @@ namespace cyb::rhi
         {
             vkDestroyCommandPool(device->device, x.transferCommandPool, nullptr);
             vkDestroyCommandPool(device->device, x.transitionCommandPool, nullptr);
-            for (auto& sema : x.semaphores)
-            {
-                vkDestroySemaphore(device->device, sema, nullptr);
-            }
             vkDestroyFence(device->device, x.fence, nullptr);
         }
     }
@@ -709,11 +705,6 @@ namespace cyb::rhi
             VK_CHECK(vkCreateFence(device->device, &fenceInfo, nullptr, &cmd.fence));
             device->SetFenceName(cmd.fence, "CopyAllocator::fence");
 
-            VkSemaphoreCreateInfo semaphoreInfo = {};
-            semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            VK_CHECK(vkCreateSemaphore(device->device, &semaphoreInfo, nullptr, &cmd.semaphores[0]));
-            VK_CHECK(vkCreateSemaphore(device->device, &semaphoreInfo, nullptr, &cmd.semaphores[1]));
-
             GPUBufferDesc uploaddesc;
             uploaddesc.size = math::GetNextPowerOfTwo(staging_size);
             uploaddesc.size = std::max(uploaddesc.size, uint64_t(65536));
@@ -744,66 +735,32 @@ namespace cyb::rhi
         VK_CHECK(vkEndCommandBuffer(cmd.transferCommandBuffer));
         VK_CHECK(vkEndCommandBuffer(cmd.transitionCommandBuffer));
 
-        VkSubmitInfo2 submitInfo = {};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+        VkCommandBufferSubmitInfo cmdSubmitInfo = {};
+        cmdSubmitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
 
-        VkCommandBufferSubmitInfo cbSubmitInfo = {};
-        cbSubmitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+        VkSemaphoreSubmitInfo copyQueueSignalInfo = {};
+        copyQueueSignalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
 
-        VkSemaphoreSubmitInfo signalSemaphoreInfos[2] = {};
-        signalSemaphoreInfos[0].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        signalSemaphoreInfos[1].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-
-        VkSemaphoreSubmitInfo waitSemaphoreInfo = {};
-        waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        ScopedLock lock(locker);
 
         {
-            cbSubmitInfo.commandBuffer = cmd.transferCommandBuffer;
-            signalSemaphoreInfos[0].semaphore = cmd.semaphores[0]; // signal for graphics queue
-            signalSemaphoreInfos[0].stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+            auto& queue = device->queues[Numerical(QueueType::Copy)];
+            cmdSubmitInfo.commandBuffer = cmd.transferCommandBuffer;
+            queue.submit_cmds.push_back(cmdSubmitInfo);
+            
+            queue.Submit(device, VK_NULL_HANDLE);
 
-            submitInfo.commandBufferInfoCount = 1;
-            submitInfo.pCommandBufferInfos = &cbSubmitInfo;
-            submitInfo.signalSemaphoreInfoCount = 1;
-            submitInfo.pSignalSemaphoreInfos = signalSemaphoreInfos;
-
-            ScopedLock lock(*device->queues[Numerical(QueueType::Copy)].locker);
-            VK_CHECK(vkQueueSubmit2(device->queues[Numerical(QueueType::Copy)].queue, 1, &submitInfo, VK_NULL_HANDLE));
+            copyQueueSignalInfo.semaphore = queue.trackingSemaphore;
+            copyQueueSignalInfo.value = queue.lastSubmittedID;
         }
 
         {
-            waitSemaphoreInfo.semaphore = cmd.semaphores[0]; // wait for copy queue
-            waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-
-            cbSubmitInfo.commandBuffer = cmd.transitionCommandBuffer;
-            signalSemaphoreInfos[0].semaphore = cmd.semaphores[1]; // signal for compute queue
-            signalSemaphoreInfos[0].stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT; // signal for compute queue
-
-            submitInfo.waitSemaphoreInfoCount = 1;
-            submitInfo.pWaitSemaphoreInfos = &waitSemaphoreInfo;
-            submitInfo.commandBufferInfoCount = 1;
-            submitInfo.pCommandBufferInfos = &cbSubmitInfo;
-            submitInfo.signalSemaphoreInfoCount = 1;
-            submitInfo.pSignalSemaphoreInfos = signalSemaphoreInfos;
-
-            ScopedLock lock(*device->queues[Numerical(QueueType::Graphics)].locker);
-            VK_CHECK(vkQueueSubmit2(device->queues[Numerical(QueueType::Graphics)].queue, 1, &submitInfo, VK_NULL_HANDLE));
-        }
-
-        // This must be final submit in this function because it will also signal a fence for state tracking by CPU!
-        {
-            waitSemaphoreInfo.semaphore = cmd.semaphores[1]; // wait for graphics queue
-            waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-
-            submitInfo.waitSemaphoreInfoCount = 1;
-            submitInfo.pWaitSemaphoreInfos = &waitSemaphoreInfo;
-            submitInfo.commandBufferInfoCount = 0;
-            submitInfo.pCommandBufferInfos = nullptr;
-            submitInfo.signalSemaphoreInfoCount = 0;
-            submitInfo.pSignalSemaphoreInfos = nullptr;
-
-            ScopedLock lock(*device->queues[Numerical(QueueType::Compute)].locker);
-            VK_CHECK(vkQueueSubmit2(device->queues[Numerical(QueueType::Compute)].queue, 1, &submitInfo, cmd.fence)); // final submit also signals fence!
+            auto& queue = device->queues[Numerical(QueueType::Graphics)];
+            cmdSubmitInfo.commandBuffer = cmd.transitionCommandBuffer;
+            queue.submit_waitSemaphoreInfos.push_back(copyQueueSignalInfo);
+            queue.submit_cmds.push_back(cmdSubmitInfo);
+            
+            queue.Submit(device, cmd.fence);    // signal fence on last submit
         }
 
         while (VK_CHECK(vkWaitForFences(device->device, 1, &cmd.fence, VK_TRUE, timeoutValue)) == VK_TIMEOUT)
@@ -812,7 +769,6 @@ namespace cyb::rhi
             std::this_thread::yield();
         }
 
-        ScopedLock lock(locker);
         freelist.push_back(cmd);
     }
 
@@ -1441,6 +1397,9 @@ namespace cyb::rhi
 
         // Queues:
         {
+            VkQueue graphicsQueue = VK_NULL_HANDLE;
+            VkQueue computeQueue = VK_NULL_HANDLE;
+            VkQueue copyQueue = VK_NULL_HANDLE;
             vkGetDeviceQueue(device, graphicsFamily, 0, &graphicsQueue);
             vkGetDeviceQueue(device, computeFamily, 0, &computeQueue);
             vkGetDeviceQueue(device, copyFamily, 0, &copyQueue);
@@ -1512,7 +1471,7 @@ namespace cyb::rhi
                 case QueueType::Copy:
                     SetSemaphoreName(queues[i].trackingSemaphore, "CommandQueue::trackingSemaphore[QueueType::Copy]");
                     break;
-                };
+                }
             }
         }
 
@@ -2744,7 +2703,6 @@ namespace cyb::rhi
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         commandlist.Reset(GetBufferIndex());
         commandlist.queue = queue;
-        commandlist.id = cmd_current;
 
         if (commandlist.GetCommandBuffer() == VK_NULL_HANDLE)
         {
@@ -2827,30 +2785,6 @@ namespace cyb::rhi
         VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
     }
 
-    void GraphicsDevice_Vulkan::CommandQueue::AddWaitSemaphore(VkSemaphore semaphore, uint64_t value)
-    {
-        if (semaphore == VK_NULL_HANDLE)
-            return;
-
-        VkSemaphoreSubmitInfo& waitSemaphore = submit_waitSemaphoreInfos.emplace_back();
-        waitSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        waitSemaphore.semaphore = semaphore;
-        waitSemaphore.value = value;
-        waitSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-    }
-
-    void GraphicsDevice_Vulkan::CommandQueue::AddSignalSemaphore(VkSemaphore semaphore, uint64_t value)
-    {
-        if (semaphore == VK_NULL_HANDLE)
-            return;
-
-        VkSemaphoreSubmitInfo& signalSemaphore = submit_signalSemaphoreInfos.emplace_back();
-        signalSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        signalSemaphore.semaphore = semaphore;
-        signalSemaphore.value = value;
-        signalSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-    }
-
     uint64_t GraphicsDevice_Vulkan::CommandQueue::Submit(GraphicsDevice_Vulkan* device, VkFence fence)
     {
         ScopedLock lock(*locker);
@@ -2858,7 +2792,11 @@ namespace cyb::rhi
         // signal the tracking semaphore with the last submitted ID to mark 
         // the end of the frame
         lastSubmittedID++;
-        AddSignalSemaphore(trackingSemaphore, lastSubmittedID);
+        VkSemaphoreSubmitInfo signalInfo = {};
+        signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        signalInfo.semaphore = trackingSemaphore;
+        signalInfo.value = lastSubmittedID;
+        submit_signalSemaphoreInfos.push_back(signalInfo);
 
         VkSubmitInfo2 submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
@@ -2906,7 +2844,7 @@ namespace cyb::rhi
                 CommandList_Vulkan& commandlist = *m_commandlists[cmd_index].get();
                 VK_CHECK(vkEndCommandBuffer(commandlist.GetCommandBuffer()));
 
-                CommandQueue& queue = queues[static_cast<uint32_t>(commandlist.queue)];
+                CommandQueue& queue = queues[Numerical(commandlist.queue)];
 
                 VkCommandBufferSubmitInfo& submitInfo = queue.submit_cmds.emplace_back();
                 submitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
@@ -2947,21 +2885,8 @@ namespace cyb::rhi
                 commandlist.pipelinesWorker.clear();
             }
 
-            for (uint32_t i = 0; i < Numerical(QueueType::Count); ++i)
-                queues[i].Submit(this, nullptr);
-        }
-
-        // Sync up every queue to every other queue at the end of the frame:
-        //	Note: it disables overlapping queues into the next frame
-        //	Note: it's not submitted immediately here, but the waits are recorded before next frame submits
-        for (int queue1 = 0; queue1 < Numerical(QueueType::Count); ++queue1)
-        {
-            for (int queue2 = 0; queue2 < Numerical(QueueType::Count); ++queue2)
-            {
-                if (queue1 == queue2)
-                    continue;
-                queues[queue1].AddWaitSemaphore(queues[queue2].trackingSemaphore, queues[queue2].lastSubmittedID);
-            }
+            for (auto& queue : queues)
+                queue.Submit(this, nullptr);
         }
 
         frameCount++;
@@ -2974,9 +2899,8 @@ namespace cyb::rhi
                 uint64_t waitValues[Numerical(QueueType::Count)] = {};
                 uint32_t waitSemaphoreCount = 0;
 
-                for (uint32_t i = 0; i < Numerical(QueueType::Count); ++i)
+                for (auto& queue : queues)
                 {
-                    CommandQueue& queue = queues[i];
                     if (queue.lastSubmittedID < BUFFERCOUNT)
                         continue;
 

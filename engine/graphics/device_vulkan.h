@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <deque>
 #include "core/mutex.h"
 #include "graphics/device.h"
@@ -50,16 +51,13 @@ namespace cyb::rhi
             std::vector<VkSemaphoreSubmitInfo> submit_signalSemaphoreInfos;
             std::vector<VkSemaphoreSubmitInfo> submit_waitSemaphoreInfos;
             std::vector<VkCommandBufferSubmitInfo> submit_cmds;
-
             std::shared_ptr<Mutex> locker;
 
             uint64_t lastSubmittedID = 0;
 
-            void AddWaitSemaphore(VkSemaphore semaphore, uint64_t value);
-            void AddSignalSemaphore(VkSemaphore semaphore, uint64_t value);
             uint64_t Submit(GraphicsDevice_Vulkan* device, VkFence fence);
         };
-        CommandQueue queues[static_cast<uint32_t>(QueueType::Count)];
+        std::array<CommandQueue, Numerical(QueueType::Count)> queues;
 
         struct CopyAllocator
         {
@@ -73,7 +71,6 @@ namespace cyb::rhi
                 VkCommandPool transitionCommandPool = VK_NULL_HANDLE;
                 VkCommandBuffer transitionCommandBuffer = VK_NULL_HANDLE;
                 VkFence fence = VK_NULL_HANDLE;
-                VkSemaphore semaphores[2] = { VK_NULL_HANDLE, VK_NULL_HANDLE }; // graphics, compute
                 GPUBuffer uploadBuffer;
                 inline bool IsValid() const { return transferCommandBuffer != VK_NULL_HANDLE; }
             };
@@ -133,7 +130,6 @@ namespace cyb::rhi
             uint32_t buffer_index = 0;
 
             QueueType queue = QueueType::Count;
-            uint32_t id = 0;
 
             DescriptorBinder binder;
             DescriptorBinderPool binder_pools[BUFFERCOUNT];

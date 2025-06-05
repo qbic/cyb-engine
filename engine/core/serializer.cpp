@@ -58,7 +58,7 @@ namespace cyb
         return length;
     }
 
-#define READ_CHECK(value, length) { size_t bytesRead = Read(&value, length); assert(bytesRead = length); }
+#define READ_CHECK(value, length) { size_t bytesRead = Read(&value, length); assert(bytesRead == length); }
 
     void Archive::Read(char& value) const
     {

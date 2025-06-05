@@ -6,7 +6,8 @@
 #include "core/logger.h"
 #include "core/mutex.h"
 #include "core/timer.h"
-#include "graphics/renderer.h"
+#include "graphics/device.h"
+#include "systems/resource_manager.h"
 #define STB_RECT_PACK_IMPLEMENTATION
 #include "stb_rect_pack.h"
 #define STB_TRUETYPE_IMPLEMENTATION

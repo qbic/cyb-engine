@@ -291,7 +291,7 @@ namespace cyb::scene
                 CubicSpline
             };
 
-            Mode mode;
+            Mode mode = Mode::Linear;
             std::vector<float> keyframeTimes;
             std::vector<float> keyframeData;
         };

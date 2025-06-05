@@ -30,7 +30,7 @@ namespace cyb::logger
     {
         std::string text;
         std::chrono::system_clock::time_point timestamp;
-        Level severity;
+        Level severity = Level::Trace;
     };
 
     class OutputModule

@@ -12,7 +12,7 @@ namespace cyb::profiler
     bool initialized = false;
     Mutex lock;
     rhi::GPUQuery query;
-    rhi::GPUBuffer queryResultBuffer[rhi::GraphicsDevice::GetBufferCount()];
+    std::array<rhi::GPUBuffer, rhi::GraphicsDevice::GetBufferCount()> queryResultBuffer = {};
     std::atomic<uint32_t> queryCount = 0;
     uint32_t queryIndex = 0;
 
@@ -46,9 +46,9 @@ namespace cyb::profiler
             bd.usage = rhi::MemoryAccess::Readback;
             bd.size = desc.queryCount * sizeof(uint64_t);
 
-            for (uint32_t i = 0; i < _countof(queryResultBuffer); ++i)
+            for (auto& buffer : queryResultBuffer)
             {
-                success = device->CreateBuffer(&bd, nullptr, &queryResultBuffer[i]);
+                success = device->CreateBuffer(&bd, nullptr, &buffer);
                 assert(success);
             }
         }
@@ -59,7 +59,7 @@ namespace cyb::profiler
         rhi::CommandList cmd = device->BeginCommandList();
 
         const double gpuFrequency = (double)device->GetTimestampFrequency() / 1000.0;
-        queryIndex = (queryIndex + 1) % _countof(queryResultBuffer);
+        queryIndex = (queryIndex + 1) % queryResultBuffer.size();
         uint64_t* queryResults = (uint64_t*)queryResultBuffer[queryIndex].mappedData;
 
         for (auto& [entryID, entry] : context.entries)

@@ -22,7 +22,7 @@ struct ImGui_Impl_Data
 	Sampler sampler;
 	VertexInputLayout inputLayout;
 	PipelineState pso;
-	IndexBufferFormat indexFormat;
+	IndexBufferFormat indexFormat = IndexBufferFormat::Uint16;
 };
 
 struct ImGuiConstants

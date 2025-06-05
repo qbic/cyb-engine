@@ -26,9 +26,9 @@ namespace cyb
         struct InternalBaseData
         {
             std::string name;
-            uint64_t hash;
-            ResourceType type;
-            AssetFlags flags;
+            uint64_t hash = 0;
+            ResourceType type = ResourceType::None;
+            AssetFlags flags = AssetFlags::None;
         };
 
         Resource() = default;

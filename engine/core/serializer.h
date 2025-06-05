@@ -197,7 +197,7 @@ namespace cyb
         }
         else
         {
-            archive.Write((void*)ser.GetArchiveData().data(), ser.GetArchiveSize());
+            archive.Write(ser.GetArchiveData().data(), ser.GetArchiveSize());
         }
 
         return filesystem::WriteFile(filename, archive.GetWriteData());

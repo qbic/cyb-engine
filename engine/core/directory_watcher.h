@@ -20,9 +20,9 @@ namespace cyb
     struct FileChangeEvent
     {
         std::string filename;       // relative to watched dir
-        FileChangeAction action;
-        uint64_t fileSize;
-        uint64_t lastWriteTime;
+        FileChangeAction action = FileChangeAction::Invalid;
+        uint64_t fileSize = 0;
+        uint64_t lastWriteTime = 0;
     };
 
     namespace detail

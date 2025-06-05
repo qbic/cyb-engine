@@ -377,7 +377,7 @@ namespace cyb::rhi::vulkan_internal
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
         VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-        VkFormat swapchainImageFormat;
+        VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
         VkExtent2D swapchainExtent = {};
         std::vector<VkImage> swapchainImages;
         std::vector<VkImageView> swapchainImageViews;
@@ -412,37 +412,37 @@ namespace cyb::rhi::vulkan_internal
         }
     };
 
-    Buffer_Vulkan* ToInternal(const GPUBuffer* param)
+    static Buffer_Vulkan* ToInternal(const GPUBuffer* param)
     {
         return static_cast<Buffer_Vulkan*>(param->internal_state.get());
     }
 
-    Texture_Vulkan* ToInternal(const Texture* param)
+    static Texture_Vulkan* ToInternal(const Texture* param)
     {
         return static_cast<Texture_Vulkan*>(param->internal_state.get());
     }
 
-    Shader_Vulkan* ToInternal(const Shader* param)
+    static Shader_Vulkan* ToInternal(const Shader* param)
     {
         return static_cast<Shader_Vulkan*>(param->internal_state.get());
     }
 
-    Sampler_Vulkan* ToInternal(const Sampler* param)
+    static Sampler_Vulkan* ToInternal(const Sampler* param)
     {
         return static_cast<Sampler_Vulkan*>(param->internal_state.get());
     }
 
-    PipelineState_Vulkan* ToInternal(const PipelineState* param)
+    static PipelineState_Vulkan* ToInternal(const PipelineState* param)
     {
         return static_cast<PipelineState_Vulkan*>(param->internal_state.get());
     }
 
-    Swapchain_Vulkan* ToInternal(const Swapchain* param)
+    static Swapchain_Vulkan* ToInternal(const Swapchain* param)
     {
         return static_cast<Swapchain_Vulkan*>(param->internal_state.get());
     }
 
-    bool CheckExtensionSupport(
+    static bool CheckExtensionSupport(
         const char* checkExtension,
         const std::vector<VkExtensionProperties>& availableExtensions)
     {
@@ -455,7 +455,7 @@ namespace cyb::rhi::vulkan_internal
         return false;
     }
 
-    bool ValidateLayers(
+    static bool ValidateLayers(
         const std::vector<const char*>& required,
         const std::vector<VkLayerProperties>& available)
     {
@@ -478,7 +478,7 @@ namespace cyb::rhi::vulkan_internal
         return true;
     }
 
-    VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsMessengerCallback(
+    static VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsMessengerCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
@@ -489,7 +489,7 @@ namespace cyb::rhi::vulkan_internal
         return VK_FALSE;
     }
 
-    bool CreateSwapchainInternal(
+    static bool CreateSwapchainInternal(
         Swapchain_Vulkan* internal_state,
         VkPhysicalDevice physicalDevice,
         VkDevice device,
@@ -744,7 +744,7 @@ namespace cyb::rhi
         ScopedLock lock(locker);
 
         {
-            auto& queue = device->queues[Numerical(QueueType::Copy)];
+            auto& queue = device->GetQueue(QueueType::Copy);
             cmdSubmitInfo.commandBuffer = cmd.transferCommandBuffer;
             queue.submit_cmds.push_back(cmdSubmitInfo);
             
@@ -755,7 +755,7 @@ namespace cyb::rhi
         }
 
         {
-            auto& queue = device->queues[Numerical(QueueType::Graphics)];
+            auto& queue = device->GetQueue(QueueType::Graphics);
             cmdSubmitInfo.commandBuffer = cmd.transitionCommandBuffer;
             queue.submit_waitSemaphoreInfos.push_back(copyQueueSignalInfo);
             queue.submit_cmds.push_back(cmdSubmitInfo);
@@ -930,7 +930,7 @@ namespace cyb::rhi
             1,
             &descriptorset,
             uniform_buffer_dynamic_count,
-            uniformBufferDynamicOffsets);
+            uniformBufferDynamicOffsets.data());
 
         descriptorsetGraphics = descriptorset;
         dirtyFlags = DIRTY_NONE;
@@ -1193,7 +1193,7 @@ namespace cyb::rhi
         if (VALIDATION_MODE_ENABLED)
         {
             // Determine the optimal validation layers to enable that are necessary for useful debugging
-            static const std::vector<const char*> validationLayerPriorityList[] = {
+            const std::vector<const char*> validationLayerPriorityList[] = {
                 // The preferred validation layer is "VK_LAYER_KHRONOS_validation"
                 {"VK_LAYER_KHRONOS_validation"},
 
@@ -2832,7 +2832,13 @@ namespace cyb::rhi
         return lastSubmittedID;
     }
 
-    void GraphicsDevice_Vulkan::ExecuteCommandList()
+    GraphicsDevice_Vulkan::CommandQueue& GraphicsDevice_Vulkan::GetQueue(QueueType queueType)
+    {
+        assert(queueType < QueueType::Count);
+        return queues[Numerical(queueType)];
+    }
+
+    void GraphicsDevice_Vulkan::ExecuteCommandLists()
     {
         // Submit current frame:
         {
@@ -2844,7 +2850,7 @@ namespace cyb::rhi
                 CommandList_Vulkan& commandlist = *m_commandlists[cmd_index].get();
                 VK_CHECK(vkEndCommandBuffer(commandlist.GetCommandBuffer()));
 
-                CommandQueue& queue = queues[Numerical(commandlist.queue)];
+                CommandQueue& queue = GetQueue(commandlist.queue);
 
                 VkCommandBufferSubmitInfo& submitInfo = queue.submit_cmds.emplace_back();
                 submitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;

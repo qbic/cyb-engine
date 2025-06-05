@@ -44,7 +44,7 @@ namespace cyb::rhi
         struct CommandQueue
         {
             VkQueue queue = VK_NULL_HANDLE;
-            VkSemaphore trackingSemaphore;
+            VkSemaphore trackingSemaphore = VK_NULL_HANDLE;
             std::vector<VkSwapchainKHR> submit_swapchains;
             std::vector<uint32_t> submit_swapchainImageIndices;
             std::vector<VkSemaphore> submit_signalSemaphores;
@@ -57,6 +57,7 @@ namespace cyb::rhi
 
             uint64_t Submit(GraphicsDevice_Vulkan* device, VkFence fence);
         };
+        [[nodiscard]] CommandQueue& GetQueue(QueueType queueType);
         std::array<CommandQueue, Numerical(QueueType::Count)> queues;
 
         struct CopyAllocator
@@ -93,7 +94,7 @@ namespace cyb::rhi
             std::vector<VkDescriptorBufferInfo> bufferInfos;
             std::vector<VkDescriptorImageInfo> imageInfos;
 
-            uint32_t uniformBufferDynamicOffsets[DESCRIPTORBINDER_CBV_COUNT] = {};
+            std::array<uint32_t, DESCRIPTORBINDER_CBV_COUNT> uniformBufferDynamicOffsets = {};
 
             VkDescriptorSet descriptorsetGraphics = VK_NULL_HANDLE;
             VkDescriptorSet descriptorsetCompute = VK_NULL_HANDLE;
@@ -132,8 +133,8 @@ namespace cyb::rhi
             QueueType queue = QueueType::Count;
 
             DescriptorBinder binder;
-            DescriptorBinderPool binder_pools[BUFFERCOUNT];
-            GPULinearAllocator frame_allocators[BUFFERCOUNT];
+            std::array<DescriptorBinderPool, BUFFERCOUNT> binder_pools;
+            std::array<GPULinearAllocator, BUFFERCOUNT> frame_allocators;
 
             std::vector<std::pair<size_t, VkPipeline>> pipelinesWorker;
             size_t prevPipelineHash = 0;
@@ -211,7 +212,7 @@ namespace cyb::rhi
         void CreateSubresource(Texture* texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const;
 
         CommandList BeginCommandList(QueueType queue) override;
-        void ExecuteCommandList() override;
+        void ExecuteCommandLists() override;
         void SetName(GPUResource* pResource, const char* name) override;
         void SetName(Shader* shader, const char* name) override;
 

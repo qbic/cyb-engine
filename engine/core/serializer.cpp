@@ -3,13 +3,13 @@
 
 namespace cyb
 {
-    Archive::Archive(const uint8_t* data, size_t length)
+    Archive::Archive(const std::span<uint8_t> data)
     {
-        if (data != nullptr)
+        if (!data.empty())
         {
             // read mode
-            m_readData = data;
-            m_readDataLength = length;
+            m_readData = data.data();
+            m_readDataLength = data.size();
         }
         else
         {
@@ -29,19 +29,14 @@ namespace cyb
         return m_writeData != nullptr;
     }
 
-    const uint8_t* Archive::GetReadData() const
+    std::span<const uint8_t> Archive::GetReadData() const
     {
-        return m_readData;
+        return std::span<const uint8_t>{ m_readData, Size() };
     }
 
-    const uint8_t* Archive::GetReadDataAtCurrentPosition() const
+    std::span<const uint8_t> Archive::GetWriteData() const
     {
-        return GetReadData() + m_position;
-    }
-
-    const uint8_t* Archive::GetWriteData() const
-    {
-        return m_writeData;
+        return std::span{ m_writeData, Size() };
     }
     
     size_t Archive::Size() const
@@ -166,7 +161,7 @@ namespace cyb
         return m_version;
     }
 
-    const uint8_t* Serializer::GetArchiveData() const
+    std::span<const uint8_t> Serializer::GetArchiveData() const
     {
         return IsReading() ? m_archive.GetReadData() : m_archive.GetWriteData();
     }
@@ -247,15 +242,16 @@ namespace cyb
         }
     }
 
-    void Compress(const uint8_t* source, size_t sourceSize, std::vector<uint8_t>& dest)
+    void Compress(std::span<const uint8_t> source, std::vector<uint8_t>& dest)
     {
-        dest.resize(LZ4_compressBound(sourceSize));
+        constexpr int compressionLevel = 9; // 0..12
+        dest.resize(LZ4_compressBound(source.size()));
         int res = LZ4_compress_HC(
-            (const char*)source,
-            (char*)&dest[0],
-            sourceSize,
+            (const char*)source.data(),
+            (char*)dest.data(),
+            source.size(),
             dest.capacity(),
-            9
+            compressionLevel
         );
 
         if (res <= 0)
@@ -267,13 +263,13 @@ namespace cyb
         dest.resize(res);
     }
 
-    void Decompress(const uint8_t* source, size_t sourceSize, std::vector<uint8_t>& dest, uint64_t decompressedSize)
+    void Decompress(std::span<const uint8_t> source, std::vector<uint8_t>& dest, uint64_t decompressedSize)
     {
         dest.resize(decompressedSize);
         int res = LZ4_decompress_safe(
-            (const char*)source,
-            (char*)&dest[0],
-            sourceSize,
+            (const char*)source.data(),
+            (char*)dest.data(),
+            source.size(),
             decompressedSize
         );
 

@@ -47,10 +47,9 @@ namespace cyb::filesystem
         return true;
     }
 
-    bool WriteFile(const std::string& filename, const uint8_t* data, size_t size)
+    bool WriteFile(const std::string& filename, std::span<const uint8_t> data)
     {
-        assert(data != nullptr);
-        assert(size != 0);
+        assert(!data.empty());
 
         std::ofstream file(filename, std::ios::binary | std::ios::trunc);
         if (!file.is_open())
@@ -59,7 +58,7 @@ namespace cyb::filesystem
             return false;
         }
 
-        file.write((const char*)data, size);
+        file.write((const char*)data.data(), data.size());
         return true;
     }
 

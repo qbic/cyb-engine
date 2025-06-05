@@ -62,7 +62,7 @@ namespace cyb::resourcemanager
         std::make_pair("comp",  ResourceType::Shader)
     };
 
-    void OnAssetFileChangeEvent(const FileChangeEvent& event)
+    static void OnAssetFileChangeEvent(const FileChangeEvent& event)
     {
         if (event.action != cyb::FileChangeAction::Modified)
             return;
@@ -180,7 +180,7 @@ namespace cyb::resourcemanager
         return true;
     }
 
-    static [[nodiscard]] Resource Load(std::shared_ptr<ResourceInternal> internalState)
+    [[nodiscard]] static Resource Load(std::shared_ptr<ResourceInternal> internalState)
     {
         switch (internalState->type)
         {

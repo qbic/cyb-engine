@@ -121,7 +121,7 @@ namespace cyb::ecs
         // only one of this component type per entity is allowed!
         template <typename... Args,
             typename std::enable_if < std::is_constructible<T, Args&&...>{}, bool > ::type = true >
-        T & Create(Entity entity, Args&&... args)
+        T& Create(Entity entity, Args&&... args)
         {
             assert(entity != INVALID_ENTITY);
             assert(m_lookup.find(entity) == m_lookup.end());
@@ -129,10 +129,8 @@ namespace cyb::ecs
             assert(m_lookup.size() == m_components.size());
 
             m_lookup[entity] = m_components.size();
-            m_components.emplace_back(std::forward<Args>(args)...);
             m_entities.push_back(entity);
-
-            return m_components.back();
+            return m_components.emplace_back(std::forward<Args>(args)...);
         }
 
         void Remove(Entity entity)

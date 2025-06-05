@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 #include <functional>
-#include <unordered_map>
+#include <span>
 #include <memory>
 #include <thread>
 #include "core/platform.h"
@@ -20,8 +20,8 @@ namespace cyb::filesystem
     // Read an entire file from the filesystem and store its content in a vector.
     [[nodiscard]] bool ReadFile(const std::string& filename, std::vector<uint8_t>& data);
 
-    // Write a file to the filesystem, is the file allready exist it will be trunced.
-    [[nodiscard]] bool WriteFile(const std::string& filename, const uint8_t* data, size_t size);
+    // Write a file to the filesystem, if the file allready exist it will be trunced.
+    [[nodiscard]] bool WriteFile(const std::string& filename, std::span<const uint8_t> data);
 
     // Open a file browser dialog window for opening a file on a seperate thread.
     // If the user clicks on "Open", onSuccess is executed

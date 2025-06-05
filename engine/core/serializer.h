@@ -1,4 +1,5 @@
 #pragma once
+#include <span>
 #include <vector>
 #include <string>
 #include <DirectXMath.h>
@@ -19,14 +20,13 @@ namespace cyb
     {
     public:
         // passing a nullptr to data will initialize the archive for writing
-        Archive(const uint8_t* data, size_t length);
+        Archive(const std::span<uint8_t> data);
 
         [[nodiscard]] bool IsReading() const;
         [[nodiscard]] bool IsWriting() const;
 
-        [[nodiscard]] const uint8_t* GetReadData() const;
-        [[nodiscard]] const uint8_t* GetReadDataAtCurrentPosition() const;
-        [[nodiscard]] const uint8_t* GetWriteData() const;
+        [[nodiscard]] std::span<const uint8_t> GetReadData() const;
+        [[nodiscard]] std::span<const uint8_t> GetWriteData() const;
         [[nodiscard]] size_t Size() const;
 
         [[nodiscard]] size_t Read(void* data, size_t length) const;
@@ -81,7 +81,7 @@ namespace cyb
         [[nodiscard]] bool IsReading() const;
         [[nodiscard]] bool IsWriting() const;
         [[nodiscard]] uint32_t GetVersion() const;
-        [[nodiscard]] const uint8_t* GetArchiveData() const;
+        [[nodiscard]] std::span<const uint8_t> GetArchiveData() const;
         [[nodiscard]] size_t GetArchiveSize() const;
 
         void Serialize(char& value);
@@ -118,8 +118,8 @@ namespace cyb
         uint32_t m_version;
     };
 
-    void Decompress(const uint8_t* source, size_t sourceSize, std::vector<uint8_t>& dest, uint64_t decompressedSize);
-    void Compress(const uint8_t* source, size_t sourceSize, std::vector<uint8_t>& dest);
+    void Decompress(std::span<const uint8_t> source, std::vector<uint8_t>& dest, uint64_t decompressedSize);
+    void Compress(std::span<const uint8_t> source, std::vector<uint8_t>& dest);
 
     template <typename T>
     bool SerializeFromFile(const std::string filename, T& serializeable)
@@ -129,7 +129,7 @@ namespace cyb
         if (!filesystem::ReadFile(filename, buffer))
             return false;
 
-        Archive archive(buffer.data(), buffer.size());
+        Archive archive(buffer);
         CSD_Header header = {};
         size_t ret = archive.Read(&header, sizeof(CSD_Header));
         assert(ret == sizeof(CSD_Header));
@@ -142,13 +142,10 @@ namespace cyb
 
         if (header.info.bits.compressed)
         {
+            // offset the source data to skip compression of the header
+            auto sourceData = archive.GetReadData().subspan(sizeof(CSD_Header));
             std::vector<uint8_t> decompressedData;
-            Decompress(
-                archive.GetReadData() + sizeof(CSD_Header),
-                archive.Size() - sizeof(CSD_Header),
-                decompressedData, 
-                header.decompressedSize
-            );
+            Decompress(sourceData, decompressedData, header.decompressedSize);
             
             if (decompressedData.empty())
             {
@@ -156,7 +153,7 @@ namespace cyb
                 return false;
             }
 
-            Serializer ser(Archive(decompressedData.data(), decompressedData.size()), header.version);
+            Serializer ser(Archive(decompressedData), header.version);
             serializeable.Serialize(ser);
         }
         else
@@ -173,11 +170,11 @@ namespace cyb
     bool SerializeToFile(const std::string& filename, T& serializeable, bool useCompression)
     {
         // serialize scene data
-        Serializer ser(Archive(nullptr, 0));
+        Serializer ser(Archive({}));
         serializeable.Serialize(ser);
 
         // create archive and write the header
-        Archive archive(nullptr, 0);
+        Archive archive({});
         CSD_Header header = {};
         header.version = ARCHIVE_VERSION;
         header.magic = CSD_MAGIC;
@@ -188,11 +185,7 @@ namespace cyb
         if (header.info.bits.compressed)
         {
             std::vector<uint8_t> compressedData;
-            Compress(
-                ser.GetArchiveData(),
-                ser.GetArchiveSize(),
-                compressedData
-            );
+            Compress(ser.GetArchiveData(), compressedData);
 
             if (compressedData.size() == 0)
             {
@@ -204,9 +197,9 @@ namespace cyb
         }
         else
         {
-            archive.Write((void*)ser.GetArchiveData(), ser.GetArchiveSize());
+            archive.Write((void*)ser.GetArchiveData().data(), ser.GetArchiveSize());
         }
 
-        return filesystem::WriteFile(filename, archive.GetWriteData(), archive.Size());
+        return filesystem::WriteFile(filename, archive.GetWriteData());
     }
 }

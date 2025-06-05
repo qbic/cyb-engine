@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <vector>
 #include "core/platform.h"
 #include "core/mathlib.h"
@@ -603,11 +604,11 @@ namespace cyb::rhi
 
     struct DescriptorBindingTable
     {
-        GPUBuffer CBV[DESCRIPTORBINDER_CBV_COUNT];
-        uint64_t CBV_offset[DESCRIPTORBINDER_CBV_COUNT] = {};
-        GPUResource SRV[DESCRIPTORBINDER_SRV_COUNT];
-        int SRV_index[DESCRIPTORBINDER_SRV_COUNT] = {};
-        Sampler SAM[DESCRIPTORBINDER_SAMPLER_COUNT];
+        std::array<GPUBuffer, DESCRIPTORBINDER_CBV_COUNT> CBV = {};
+        std::array<uint64_t, DESCRIPTORBINDER_CBV_COUNT> CBV_offset = {};
+        std::array<GPUResource, DESCRIPTORBINDER_SRV_COUNT> SRV = {};
+        std::array<int, DESCRIPTORBINDER_SRV_COUNT> SRV_index = {};
+        std::array<Sampler, DESCRIPTORBINDER_SAMPLER_COUNT> SAM = {};
     };
 
     template <typename T>
@@ -620,7 +621,7 @@ namespace cyb::rhi
     {
     protected:
         static const uint32_t BUFFERCOUNT = 2;
-        const bool VALIDATION_MODE_ENABLED = true;
+        const bool VALIDATION_MODE_ENABLED = false;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 
@@ -636,7 +637,7 @@ namespace cyb::rhi
         virtual bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const = 0;
 
         virtual CommandList BeginCommandList(QueueType queue = QueueType::Graphics) = 0;
-        virtual void ExecuteCommandList() {}
+        virtual void ExecuteCommandLists() {}
         virtual void SetName(GPUResource* resource, const char* name) { (void)resource; (void)name; }
         virtual void SetName(Shader* shader, const char* name) { (void)shader; (void)name; }
 

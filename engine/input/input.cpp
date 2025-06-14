@@ -145,7 +145,7 @@ namespace cyb::input
 #endif // _WIN32
         }
 
-        assert(keycode < _countof(keyboard.buttons));
+        assert(keycode < keyboard.buttons.size());
         return keyboard.buttons[keycode];
     }
 

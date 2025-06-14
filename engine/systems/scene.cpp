@@ -770,6 +770,41 @@ namespace cyb::scene
     {
         CYB_PROFILE_CPU_SCOPE("Animation");
 
+        struct Keyframe
+        {
+            float time = 0.0f;
+            size_t dataIndex = 0;
+        };
+
+        // search for usable keyframe
+        auto getKeyframes = [] (float t, const std::vector<float>& keyframeTimes) {
+            // assume keyframes in ascending order
+            assert(std::is_sorted(keyframeTimes.begin(), keyframeTimes.end()));
+
+            size_t leftIndex = 0;
+            size_t rightIndex = keyframeTimes.size();
+
+            // binary search for the first index where keyframeTime > t
+            while (leftIndex < rightIndex)
+            {
+                const size_t mid = (leftIndex + rightIndex) / 2;
+                if (keyframeTimes[mid] <= t)
+                    leftIndex = mid + 1;
+                else
+                    rightIndex = mid;
+            }
+
+            Keyframe left = { -std::numeric_limits<float>::infinity(), 0 };
+            Keyframe right = { std::numeric_limits<float>::infinity(), 0 };
+
+            if (leftIndex > 0)
+                left = { keyframeTimes[leftIndex - 1], leftIndex - 1};
+            if (leftIndex < keyframeTimes.size())
+                right = { keyframeTimes[leftIndex], leftIndex };
+
+            return std::pair(left, right);
+        };
+
         jobsystem::Dispatch(ctx, (uint32_t)animations.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
             AnimationComponent& animation = animations[args.jobIndex];
             if (!animation.IsPlaying())
@@ -784,39 +819,8 @@ namespace cyb::scene
                 if (sampler.keyframeTimes.empty())
                     continue;
 
-                const AnimationComponent::Channel::PathDataType pathDataType = channel.GetPathDataType();
 
-                float timeFirst = std::numeric_limits<float>::max();
-                float timeLast = std::numeric_limits<float>::min();
-
-                float timeLeft = std::numeric_limits<float>::min();
-                float timeRight = std::numeric_limits<float>::max();
-                int keyLeft = 0, keyRight = 0;
-
-                // search for usable keyframes
-                for (int k = 0; k < (int)sampler.keyframeTimes.size(); ++k)
-                {
-                    const float time = sampler.keyframeTimes[k];
-
-                    timeFirst = std::min(timeFirst, time);
-                    timeLast = std::max(timeLast, time);
-
-                    if (time <= animation.timer && time > timeLeft)
-                    {
-                        timeLeft = time;
-                        keyLeft = k;
-                    }
-                    if (time >= animation.timer && time < timeRight)
-                    {
-                        timeRight = time;
-                        keyRight = k;
-                    }
-                }
-                timeLeft = std::max(timeLeft, timeFirst);
-                timeRight = std::max(timeRight, timeLast);
-
-                const float left = sampler.keyframeTimes[keyLeft];
-                const float right = sampler.keyframeTimes[keyRight];
+                const auto [left, right] = getKeyframes(animation.timer, sampler.keyframeTimes);
 
                 union Interpolator
                 {
@@ -856,6 +860,8 @@ namespace cyb::scene
                     continue;
                 }
 
+                const auto pathDataType = channel.GetPathDataType();
+
                 // path data interpolation
                 switch (sampler.mode)
                 {
@@ -863,8 +869,8 @@ namespace cyb::scene
                 {
                     // Linear interpolation method:
                     float t = 0.0f;
-                    if (keyLeft != keyRight)
-                        t = math::Saturate(animation.timer - left) / (right - left);
+                    if (left.dataIndex != right.dataIndex)  // avoid div by zero
+                        t = math::Saturate(animation.timer - left.time) / (right.time - left.time);
 
                     switch (pathDataType)
                     {
@@ -872,8 +878,8 @@ namespace cyb::scene
                     {
                         assert(sampler.keyframeData.size() == sampler.keyframeTimes.size() * 3);
                         const XMFLOAT3* data = (const XMFLOAT3*)sampler.keyframeData.data();
-                        XMVECTOR vLeft = XMLoadFloat3(&data[keyLeft]);
-                        XMVECTOR vRight = XMLoadFloat3(&data[keyRight]);
+                        XMVECTOR vLeft = XMLoadFloat3(&data[left.dataIndex]);
+                        XMVECTOR vRight = XMLoadFloat3(&data[right.dataIndex]);
                         XMVECTOR vAnim = XMVectorLerp(vLeft, vRight, t);
                         XMStoreFloat3(&interpolator.f3, vAnim);
                     } break;
@@ -881,8 +887,8 @@ namespace cyb::scene
                     {
                         assert(sampler.keyframeData.size() == sampler.keyframeTimes.size() * 4);
                         const XMFLOAT4* data = (const XMFLOAT4*)sampler.keyframeData.data();
-                        XMVECTOR vLeft = XMLoadFloat4(&data[keyLeft]);
-                        XMVECTOR vRight = XMLoadFloat4(&data[keyRight]);
+                        XMVECTOR vLeft = XMLoadFloat4(&data[left.dataIndex]);
+                        XMVECTOR vRight = XMLoadFloat4(&data[right.dataIndex]);
                         XMVECTOR vAnim;
                         if (channel.path == AnimationComponent::Channel::Path::Rotation)
                         {

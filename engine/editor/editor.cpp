@@ -50,10 +50,10 @@ namespace cyb::editor
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::TRANSLATE;
     bool guizmo_world_mode = true;
     SceneGraphView scenegraphView;
-    std::vector<VideoMode> videoModeList;
+    std::vector<VideoModeInfo> videoModeList;
 
     // fps counter data
-    double deltatimes[100] = {};
+    std::array<double, 100> deltatimes = {};
     uint32_t fpsAgvCounter = 0;
     uint32_t avgFps = 0;
     
@@ -613,7 +613,7 @@ namespace cyb::editor
             const auto& gpuFrame = profilerContext.entries.find(profilerContext.gpuFrame);
 
             ImGui::Text("Frame counter: %llu", rhi::GetDevice()->GetFrameCount());
-            ImGui::Text("Average FPS (over %zu frames): %d", CountOf(deltatimes), avgFps);
+            ImGui::Text("Average FPS (over %zu frames): %d", deltatimes.size(), avgFps);
             rhi::GraphicsDevice::MemoryUsage vram = rhi::GetDevice()->GetMemoryUsage();
             ImGui::Text("VRAM usage: %lluMB / %lluMB", vram.usage / 1024 / 1024, vram.budget / 1024 / 1024);
 
@@ -977,7 +977,7 @@ namespace cyb::editor
                 {
                     for (size_t i = 0; i < videoModeList.size(); i++)
                     {
-                        VideoMode& mode = videoModeList[i];
+                        VideoModeInfo& mode = videoModeList[i];
                         std::string str = std::format("{}x{} {}bpp @ {}hz", mode.width, mode.height, mode.bitsPerPixel, mode.displayFrequency);
                         if (ImGui::MenuItem(str.c_str()))
                         {
@@ -1301,10 +1301,10 @@ namespace cyb::editor
 
     void UpdateFPSCounter(double dt)
     {
-        deltatimes[fpsAgvCounter++ % _countof(deltatimes)] = dt;
-        if (fpsAgvCounter > _countof(deltatimes))
+        deltatimes[fpsAgvCounter++ % deltatimes.size()] = dt;
+        if (fpsAgvCounter > deltatimes.size())
         {
-            double avgTime = std::accumulate(std::begin(deltatimes), std::end(deltatimes), 0.0) / _countof(deltatimes);
+            double avgTime = std::accumulate(deltatimes.begin(), deltatimes.end(), 0.0) / deltatimes.size();
             avgFps = (uint32_t)std::round(1.0 / avgTime);
         }
     }

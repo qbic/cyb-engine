@@ -566,17 +566,17 @@ namespace cyb::renderer
             const MeshComponent& mesh = view.scene->meshes[object.meshIndex];
             if (mesh.vertex_buffer_col.IsValid())
             {
-                const rhi::GPUBuffer* vertex_buffers[] = {
+                std::array<const rhi::GPUBuffer*, 2> vertex_buffers = {
                     &mesh.vertex_buffer_pos,
                     &mesh.vertex_buffer_col
                 };
 
-                const uint32_t strides[] = {
+                std::array<uint32_t, 2> strides = {
                     sizeof(scene::MeshComponent::Vertex_Pos),
                     sizeof(scene::MeshComponent::Vertex_Col)
                 };
 
-                device->BindVertexBuffers(vertex_buffers, (uint32_t)CountOf(vertex_buffers), strides, nullptr, cmd);
+                device->BindVertexBuffers(vertex_buffers.data(), vertex_buffers.size(), strides.data(), nullptr, cmd);
                 device->BindIndexBuffer(&mesh.index_buffer, IndexBufferFormat::Uint32, 0, cmd);
             }
             else

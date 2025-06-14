@@ -19,7 +19,7 @@ namespace cyb::input::rawinput
 
     void Initialize()
     {
-        RAWINPUTDEVICE rid[2];
+        std::array<RAWINPUTDEVICE, 2> rid = {};
 
         // Register mouse:
         rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
@@ -33,7 +33,7 @@ namespace cyb::input::rawinput
         rid[1].dwFlags = 0;
         rid[1].hwndTarget = 0;
 
-        if (RegisterRawInputDevices(rid, (UINT)CountOf(rid), sizeof(rid[0])) == FALSE)
+        if (RegisterRawInputDevices(rid.data(), (UINT)rid.size(), sizeof(rid[0])) == FALSE)
         {
             // registration failed. Call GetLastError for the cause of the error
             assert(0);
@@ -49,7 +49,7 @@ namespace cyb::input::rawinput
         if (raw.header.dwType == RIM_TYPEKEYBOARD)
         {
             const RAWKEYBOARD& rawkeyboard = raw.data.keyboard;
-            assert(rawkeyboard.VKey < _countof(keyboard.buttons));
+            assert(rawkeyboard.VKey < keyboard.buttons.size());
 
             if (rawkeyboard.Flags == RI_KEY_MAKE)
                 keyboard.buttons[rawkeyboard.VKey].RegisterKeyDown();
@@ -93,8 +93,8 @@ namespace cyb::input::rawinput
     {
         if (hasWindowFocus)
         {
-            for (uint32_t i = 0; i < CountOf(keyboard.buttons); ++i)
-                keyboard.buttons[i].Reset();
+            for (auto& button : keyboard.buttons)
+                button.Reset();
 
             mouse.position = XMFLOAT2(0, 0);
             mouse.deltaPosition = XMFLOAT2(0, 0);

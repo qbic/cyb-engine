@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include "core/platform.h"
 
 namespace cyb::input
@@ -50,7 +51,7 @@ namespace cyb::input
 
     struct KeyboardState
     {
-        ButtonState buttons[256] = {};
+        std::array<ButtonState, 256> buttons = {};
     };
 
     struct MouseState

@@ -7,8 +7,8 @@ namespace cyb::logger
 {
     // logHistorySize only used to append logs to newly registrated output
     // modules and should't need to be very big
-    CVar logHistorySize("logHistorySize", 40u, CVarFlag::SystemBit, "Maximum numbers of log lines to save");
-    CVar logSeverityThreshold("logSeverityThreshold", 0u, CVarFlag::SystemBit, "0=Trace, 1=Info, 2=Warning, 3=Error");
+    cvar::CVar logHistorySize("logHistorySize", 40u, cvar::Flag::SystemBit, "Maximum numbers of log lines to save");
+    cvar::CVar logSeverityThreshold("logSeverityThreshold", 0u, cvar::Flag::SystemBit, "0=Trace, 1=Info, 2=Warning, 3=Error");
 
     std::vector<std::unique_ptr<OutputModule>> outputModules;
     std::deque<Message> logHistory;

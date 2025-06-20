@@ -9,7 +9,7 @@
 
 namespace cyb::input::rawinput
 {
-    CVar inputArenaSize("inputArenaSize", 16u * 1024u, CVarFlag::SystemBit, "Memory arena size (64bit aligned) for the raw input system (restart requierd)");
+    cvar::CVar inputArenaSize("inputArenaSize", 16u * 1024u, cvar::Flag::SystemBit, "Memory arena size (64bit aligned) for the raw input system (restart requierd)");
     Arena inputArena;
     std::vector<RAWINPUT*> inputMessages;
 

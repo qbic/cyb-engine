@@ -47,8 +47,8 @@ namespace cyb::resourcemanager
     std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
     DirectoryWatcher directoryWatcher;
-    CVar assetReloadOnChange("assetReloadOnChange", true, CVarFlag::SystemBit, "Auto reload loaded asset on filesystem change");
-    CVar assetFileWatcherStableDelay("assetFileWatcherStableDelay", 200u, CVarFlag::SystemBit, "Delay in milliseconds from filesystem change to stable file");
+    cvar::CVar assetReloadOnChange("assetReloadOnChange", true, cvar::Flag::SystemBit, "Auto reload loaded asset on filesystem change");
+    cvar::CVar assetFileWatcherStableDelay("assetFileWatcherStableDelay", 200u, cvar::Flag::SystemBit, "Delay in milliseconds from filesystem change to stable file");
 
     static const ska::flat_hash_map<std::string_view, ResourceType> types = {
         std::make_pair("jpg",  ResourceType::Image),
@@ -81,7 +81,7 @@ namespace cyb::resourcemanager
 
     void Initialize()
     {
-        assetReloadOnChange.SetOnChangeCallback([&] (const CVar* cvar) {
+        assetReloadOnChange.SetOnChangeCallback([&] (const cvar::CVar* cvar) {
             if (cvar->GetValue<bool>())
             {
                 // re-add all search paths and start
@@ -95,7 +95,7 @@ namespace cyb::resourcemanager
             }
         });
 
-        assetFileWatcherStableDelay.SetOnChangeCallback([&] (const CVar* cvar) {
+        assetFileWatcherStableDelay.SetOnChangeCallback([&] (const cvar::CVar* cvar) {
             directoryWatcher.SetEnqueueToStableDelay(cvar->GetValue<uint32_t>());
         });
 

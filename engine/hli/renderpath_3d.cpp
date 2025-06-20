@@ -12,7 +12,8 @@ using namespace cyb::rhi;
 
 namespace cyb::hli
 {
-    CVar r_selectionOutlineThickness("r_selectionOutlineThickness", 1.5f, CVarFlag::RendererBit, "Thickness of selection outline");
+    cvar::CVar r_selectionOutlineThickness("r_selectionOutlineThickness", 1.5f, cvar::Flag::RendererBit, "Thickness of selection outline");
+    
     void RenderPath3D::ResizeBuffers()
     {
         GraphicsDevice* device = cyb::rhi::GetDevice();

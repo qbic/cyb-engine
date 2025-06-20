@@ -33,9 +33,9 @@ namespace cyb::editor
     bool initialized = false;
     bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
 
-    CVar* r_vsync = nullptr;
-    CVar* r_debugObjectAABB = nullptr;
-    CVar* r_debugLightSources = nullptr;
+    cvar::CVar* r_vsync = nullptr;
+    cvar::CVar* r_debugObjectAABB = nullptr;
+    cvar::CVar* r_debugLightSources = nullptr;
 
     Resource import_icon;
     Resource delete_icon;
@@ -363,6 +363,7 @@ namespace cyb::editor
         
         ui::SliderFloat("Speed", &speedSlider, nullptr, 0.1f, 2.0f);
         anim->speed = anim->speed >= 0 ? speedSlider : -speedSlider;
+        ui::SliderFloat("Blend", &anim->blendAmount, nullptr, 0.0, 2.0);
     }
 
     void InspectWeatherComponent(scene::WeatherComponent* weather)
@@ -735,7 +736,7 @@ namespace cyb::editor
                 ImGui::TableSetupColumn("Description");
                 ImGui::TableHeadersRow();
 
-                const auto& registry = cvar_system::GetRegistry();
+                const auto& registry = cvar::GetRegistry();
 
                 for (const auto& [_, cvar] : registry)
                 {
@@ -1177,9 +1178,9 @@ namespace cyb::editor
         rotate_icon = resourcemanager::LoadFile("textures/editor/rotate.png");
         scale_icon = resourcemanager::LoadFile("textures/editor/resize.png");
 
-        r_vsync = cvar_system::Find("r_vsync");
-        r_debugObjectAABB = cvar_system::Find("r_debugObjectAABB");
-        r_debugLightSources = cvar_system::Find("r_debugLightSources");
+        r_vsync = cvar::Find("r_vsync");
+        r_debugObjectAABB = cvar::Find("r_debugObjectAABB");
+        r_debugLightSources = cvar::Find("r_debugLightSources");
 
 #if 1
         // ImGuizmo style

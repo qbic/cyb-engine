@@ -1,8 +1,10 @@
 #include "core/cvar.h"
 #include "core/logger.h"
 
-namespace cyb
+namespace cyb::cvar
 {
+    std::unordered_map<std::string_view, CVar*> cvarRegistry;
+
     static std::vector<CVar*>& StaticRegistry()
     {
         static std::vector<CVar*> registry;
@@ -15,7 +17,7 @@ namespace cyb
         return registered;
     }
 
-    CVar::CVar(const std::string_view& name, const CVarValue& value, CVarFlag flags, const std::string_view& description) :
+    CVar::CVar(const std::string_view& name, const Value& value, Flag flags, const std::string_view& description) :
         m_name(name),
         m_value(value),
         m_typeIndex(value.index()),
@@ -27,10 +29,10 @@ namespace cyb
         if (!IsStaticCVarsRegistered())
             StaticRegistry().push_back(this);
         else
-            cvar_system::Register(this);
+            cvar::Register(this);
     }
 
-    void CVar::SetValueImpl(const CVarValue& value)
+    void CVar::SetValueImpl(const Value& value)
     {
         if (m_value.index() != value.index())
         {
@@ -38,7 +40,7 @@ namespace cyb
             return;
         }
 
-        if (HasFlag(m_flags, CVarFlag::RomBit))
+        if (HasFlag(m_flags, Flag::RomBit))
         {
             CYB_WARNING("Cannot change value of read-only CVar: {}", GetName());
             return;
@@ -49,7 +51,7 @@ namespace cyb
 
         m_value = value;
         Update();
-        SetFlag(m_flags, CVarFlag::ModifiedBit, true);
+        SetFlag(m_flags, Flag::ModifiedBit, true);
 
         if (m_onChangeCallback)
             m_onChangeCallback(this);
@@ -72,7 +74,7 @@ namespace cyb
         }, m_value);
     }
 
-    const CVarValue& CVar::GetVariant() const
+    const CVar::Value& CVar::GetVariant() const
     {
         return m_value;
     }
@@ -82,8 +84,7 @@ namespace cyb
         return std::visit([&] (auto&& v) -> const std::string& {
             if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::string>)
                 return v;
-            else
-                return m_valueAsString;
+            return m_valueAsString;
         }, m_value);
     }
 
@@ -112,20 +113,20 @@ namespace cyb
 
     bool CVar::IsModified() const
     {
-        return HasFlag(m_flags, CVarFlag::ModifiedBit);
+        return HasFlag(m_flags, Flag::ModifiedBit);
     }
 
     void CVar::SetModified()
     {
-        SetFlag(m_flags, CVarFlag::ModifiedBit, true);
+        SetFlag(m_flags, Flag::ModifiedBit, true);
     }
     
     void CVar::ClearModified()
     {
-        SetFlag(m_flags, CVarFlag::ModifiedBit, false);
+        SetFlag(m_flags, Flag::ModifiedBit, false);
     }
     
-    void CVar::SetOnChangeCallback(const CVarCallback& callback)
+    void CVar::SetOnChangeCallback(const Callback& callback)
     {
         m_onChangeCallback = callback;
     }
@@ -136,16 +137,11 @@ namespace cyb
             return;
 
         for (CVar* cvar : StaticRegistry())
-            cvar_system::Register(cvar);
+            cvar::Register(cvar);
 
         IsStaticCVarsRegistered() = true;
         StaticRegistry().clear();
     }
-}
-
-namespace cyb::cvar_system
-{
-    std::unordered_map<std::string_view, CVar*> cvarRegistry;
 
     void Register(CVar* cvar)
     {

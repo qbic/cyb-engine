@@ -267,19 +267,9 @@ namespace cyb::scene
                 Weights
             };
 
-            enum class PathDataType : uint32_t
-            {
-                Float,
-                Float2,
-                Float3,
-                Float4
-            };
-
             ecs::Entity target = ecs::INVALID_ENTITY;
             int samplerIndex = -1;
             Path path = Path::Unknown;
-
-            PathDataType GetPathDataType() const;
         };
 
         struct Sampler

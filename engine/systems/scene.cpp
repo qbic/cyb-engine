@@ -7,7 +7,7 @@ using namespace cyb::rhi;
 
 namespace cyb::scene
 {
-    CVar r_sceneSubtaskGroupsize("r_sceneSubtaskGroupsize", 64u, CVarFlag::RendererBit, "Groupsize for multithreaded scene update tasks");
+    cvar::CVar r_sceneSubtaskGroupsize("r_sceneSubtaskGroupsize", 64u, cvar::Flag::RendererBit, "Groupsize for multithreaded scene update tasks");
 
     void TransformComponent::SetDirty(bool value)
     {
@@ -171,21 +171,21 @@ namespace cyb::scene
 
         // vertex_buffer_pos - POSITION + NORMAL
         {
-            std::vector<Vertex_Pos> _vertices(vertex_positions.size());
-            for (size_t i = 0; i < _vertices.size(); ++i)
+            std::vector<Vertex_Pos> vertices(vertex_positions.size());
+            for (size_t i = 0; i < vertices.size(); ++i)
             {
                 const XMFLOAT3& pos = vertex_positions[i];
                 XMFLOAT3 nor = vertex_normals.empty() ? XMFLOAT3(1, 1, 1) : vertex_normals[i];
                 XMStoreFloat3(&nor, XMVector3Normalize(XMLoadFloat3(&nor)));
-                _vertices[i].Set(pos, nor);
+                vertices[i].Set(pos, nor);
 
                 aabb.GrowPoint(pos);
             }
 
             rhi::GPUBufferDesc desc;
-            desc.size = uint32_t(sizeof(Vertex_Pos) * _vertices.size());
+            desc.size = uint32_t(sizeof(Vertex_Pos) * vertices.size());
             desc.bindFlags = rhi::BindFlags::VertexBufferBit;
-            bool result = device->CreateBuffer(&desc, _vertices.data(), &vertex_buffer_pos);
+            bool result = device->CreateBuffer(&desc, vertices.data(), &vertex_buffer_pos);
             assert(result == true);
         }
 
@@ -397,24 +397,6 @@ namespace cyb::scene
         XMStoreFloat3(&pos, _Eye);
         XMStoreFloat3(&target, _At);
         XMStoreFloat3(&up, _Up);
-    }
-
-    AnimationComponent::Channel::PathDataType AnimationComponent::Channel::GetPathDataType() const
-    {
-        switch (path)
-        {
-        case Path::Translation:
-            return PathDataType::Float3;
-        case Path::Rotation:
-            return PathDataType::Float4;
-        case Path::Scale:
-            return PathDataType::Float3;
-        default:
-            assert(0);
-            break;
-        }
-
-        return PathDataType::Float;
     }
 
     ecs::Entity Scene::CreateGroup(const std::string& name)
@@ -770,41 +752,6 @@ namespace cyb::scene
     {
         CYB_PROFILE_CPU_SCOPE("Animation");
 
-        struct Keyframe
-        {
-            float time = 0.0f;
-            size_t dataIndex = 0;
-        };
-
-        // search for usable keyframe
-        auto getKeyframes = [] (float t, const std::vector<float>& keyframeTimes) {
-            // assume keyframes in ascending order
-            assert(std::is_sorted(keyframeTimes.begin(), keyframeTimes.end()));
-
-            size_t leftIndex = 0;
-            size_t rightIndex = keyframeTimes.size();
-
-            // binary search for the first index where keyframeTime > t
-            while (leftIndex < rightIndex)
-            {
-                const size_t mid = (leftIndex + rightIndex) / 2;
-                if (keyframeTimes[mid] <= t)
-                    leftIndex = mid + 1;
-                else
-                    rightIndex = mid;
-            }
-
-            Keyframe left = { -std::numeric_limits<float>::infinity(), 0 };
-            Keyframe right = { std::numeric_limits<float>::infinity(), 0 };
-
-            if (leftIndex > 0)
-                left = { keyframeTimes[leftIndex - 1], leftIndex - 1};
-            if (leftIndex < keyframeTimes.size())
-                right = { keyframeTimes[leftIndex], leftIndex };
-
-            return std::pair(left, right);
-        };
-
         jobsystem::Dispatch(ctx, (uint32_t)animations.Size(), r_sceneSubtaskGroupsize.GetValue<uint32_t>(), [&] (jobsystem::JobArgs args) {
             AnimationComponent& animation = animations[args.jobIndex];
             if (!animation.IsPlaying())
@@ -815,20 +762,20 @@ namespace cyb::scene
             for (const AnimationComponent::Channel& channel : animation.channels)
             {
                 assert(channel.samplerIndex < (int)animation.samplers.size());
-                const AnimationComponent::Sampler& sampler = animation.samplers[channel.samplerIndex];
+                AnimationComponent::Sampler& sampler = animation.samplers[channel.samplerIndex];
                 if (sampler.keyframeTimes.empty())
                     continue;
 
+                const auto keyframe = std::lower_bound(sampler.keyframeTimes.begin(), sampler.keyframeTimes.end(), animation.timer);
+                if (keyframe == sampler.keyframeTimes.begin())
+                    continue;
+                if (keyframe == sampler.keyframeTimes.end())
+                    continue;
+                const auto rightKeyIndex = keyframe - sampler.keyframeTimes.begin();
+                const auto leftKeyIndex = rightKeyIndex - 1;
 
-                const auto [left, right] = getKeyframes(animation.timer, sampler.keyframeTimes);
-
-                union Interpolator
-                {
-                    XMFLOAT4 f4;
-                    XMFLOAT3 f3;
-                    XMFLOAT2 f2;
-                    float f;
-                } interpolator = {};
+                using Interpolator = std::variant<float, XMFLOAT3, XMFLOAT4>;
+                Interpolator interpolator = {};
 
                 TransformComponent* targetTransform = nullptr;
                 if (channel.path == AnimationComponent::Channel::Path::Translation||
@@ -842,13 +789,13 @@ namespace cyb::scene
                     switch (channel.path)
                     {
                     case AnimationComponent::Channel::Path::Translation:
-                        interpolator.f3 = targetTransform->translation_local;
+                        interpolator = targetTransform->translation_local;
                         break;
                     case AnimationComponent::Channel::Path::Rotation:
-                        interpolator.f4 = targetTransform->rotation_local;
+                        interpolator = targetTransform->rotation_local;
                         break;
                     case AnimationComponent::Channel::Path::Scale:
-                        interpolator.f3 = targetTransform->scale_local;
+                        interpolator = targetTransform->scale_local;
                         break;
                     default:
                         break;
@@ -860,59 +807,84 @@ namespace cyb::scene
                     continue;
                 }
 
-                const auto pathDataType = channel.GetPathDataType();
+                const float td = (sampler.keyframeTimes[rightKeyIndex] - sampler.keyframeTimes[leftKeyIndex]);
+                const float t = (animation.timer - sampler.keyframeTimes[leftKeyIndex]) / std::max(td, FLT_EPSILON);
 
                 // path data interpolation
                 switch (sampler.mode)
                 {
                 case AnimationComponent::Sampler::Mode::Linear:
-                {
                     // Linear interpolation method:
-                    float t = 0.0f;
-                    if (left.dataIndex != right.dataIndex)  // avoid div by zero
-                        t = math::Saturate(animation.timer - left.time) / (right.time - left.time);
+                    std::visit([&] (auto& value) {
+                        using T = std::decay_t<decltype(value)>;
+                        if constexpr (std::is_same_v<T, XMFLOAT3>)
+                        {
+                            assert(sampler.keyframeData.size() == sampler.keyframeTimes.size() * 3);
+                            const XMFLOAT3* data = (const XMFLOAT3*)sampler.keyframeData.data();
+                            XMVECTOR vLeft = XMLoadFloat3(&data[leftKeyIndex]);
+                            XMVECTOR vRight = XMLoadFloat3(&data[rightKeyIndex]);
+                            XMVECTOR vAnim = XMVectorLerp(vLeft, vRight, t);
+                            XMStoreFloat3(&value, vAnim);
+                        }
+                        else if constexpr (std::is_same_v<T, XMFLOAT4>)
+                        {
+                            assert(sampler.keyframeData.size() == sampler.keyframeTimes.size() * 4);
+                            const XMFLOAT4* data = (const XMFLOAT4*)sampler.keyframeData.data();
+                            XMVECTOR vLeft = XMLoadFloat4(&data[leftKeyIndex]);
+                            XMVECTOR vRight = XMLoadFloat4(&data[rightKeyIndex]);
+                            XMVECTOR vAnim;
+                            if (channel.path == AnimationComponent::Channel::Path::Rotation)
+                            {
+                                vAnim = XMQuaternionSlerp(vLeft, vRight, t);
+                                vAnim = XMQuaternionNormalize(vAnim);
+                            }
+                            else
+                            {
+                                vAnim = XMVectorLerp(vLeft, vRight, t);
+                            }
+                            XMStoreFloat4(&value, vAnim);
+                        }
+                    }, interpolator);
+                    break;
+                case AnimationComponent::Sampler::Mode::CubicSpline:
+                    // Cubic spline interpolation method:
+                    std::visit([&] (auto& value) {
+                        const float t2 = t * t;
+                        const float t3 = t2 * t;
 
-                    switch (pathDataType)
-                    {
-                    case AnimationComponent::Channel::PathDataType::Float3:
-                    {
-                        assert(sampler.keyframeData.size() == sampler.keyframeTimes.size() * 3);
-                        const XMFLOAT3* data = (const XMFLOAT3*)sampler.keyframeData.data();
-                        XMVECTOR vLeft = XMLoadFloat3(&data[left.dataIndex]);
-                        XMVECTOR vRight = XMLoadFloat3(&data[right.dataIndex]);
-                        XMVECTOR vAnim = XMVectorLerp(vLeft, vRight, t);
-                        XMStoreFloat3(&interpolator.f3, vAnim);
-                    } break;
-                    case AnimationComponent::Channel::PathDataType::Float4:
-                    {
-                        assert(sampler.keyframeData.size() == sampler.keyframeTimes.size() * 4);
-                        const XMFLOAT4* data = (const XMFLOAT4*)sampler.keyframeData.data();
-                        XMVECTOR vLeft = XMLoadFloat4(&data[left.dataIndex]);
-                        XMVECTOR vRight = XMLoadFloat4(&data[right.dataIndex]);
-                        XMVECTOR vAnim;
-                        if (channel.path == AnimationComponent::Channel::Path::Rotation)
+                        using T = std::decay_t<decltype(value)>;
+                        if constexpr (std::is_same_v<T, XMFLOAT3>)
                         {
-                            vAnim = XMQuaternionSlerp(vLeft, vRight, t);
-                            vAnim = XMQuaternionNormalize(vAnim);
+                            assert(sampler.keyframeData.size() == sampler.keyframeTimes.size() * 3 * 3);
+                            const XMFLOAT3* data = (const XMFLOAT3*)sampler.keyframeData.data();
+                            XMVECTOR vLeft = XMLoadFloat3(&data[leftKeyIndex * 3 + 1]);
+                            XMVECTOR vLeftTanOut = dt * XMLoadFloat3(&data[leftKeyIndex * 3 + 2]);
+                            XMVECTOR vRightTanIn = dt * XMLoadFloat3(&data[rightKeyIndex * 3 + 0]);
+                            XMVECTOR vRight = XMLoadFloat3(&data[rightKeyIndex * 3 + 1]);
+                            XMVECTOR vAnim = (2 * t3 - 3 * t2 + 1) * vLeft + (t3 - 2 * t2 + t) * vLeftTanOut + (-2 * t3 + 3 * t2) * vRight + (t3 - t2) * vRightTanIn;
+                            XMStoreFloat3(&value, vAnim);
                         }
-                        else
+                        else if constexpr (std::is_same_v<T, XMFLOAT4>)
                         {
-                            vAnim = XMVectorLerp(vLeft, vRight, t);
+                            assert(sampler.keyframeData.size() == sampler.keyframeTimes.size() * 4 * 3);
+                            const XMFLOAT4* data = (const XMFLOAT4*)sampler.keyframeData.data();
+                            XMVECTOR vLeft = XMLoadFloat4(&data[leftKeyIndex * 3 + 1]);
+                            XMVECTOR vLeftTanOut = td * XMLoadFloat4(&data[leftKeyIndex * 3 + 2]);
+                            XMVECTOR vRightTanIn = td * XMLoadFloat4(&data[rightKeyIndex * 3 + 0]);
+                            XMVECTOR vRight = XMLoadFloat4(&data[rightKeyIndex * 3 + 1]);
+                            XMVECTOR vAnim = (2 * t3 - 3 * t2 + 1) * vLeft + (t3 - 2 * t2 + t) * vLeftTanOut + (-2 * t3 + 3 * t2) * vRight + (t3 - t2) * vRightTanIn;
+                            if (channel.path == AnimationComponent::Channel::Path::Rotation)
+                            {
+                                vAnim = XMQuaternionNormalize(vAnim);
+                            }
+                            XMStoreFloat4(&value, vAnim);
                         }
-                        XMStoreFloat4(&interpolator.f4, vAnim);
-                    } break;
-                    default:
-                        assert(0);
-                        break;
-                    }
-                } break;
+                    }, interpolator);
+                    break;
                 default:
                     assert(0);
                     break;
                 }
-
-                // The interpolated raw values will be blended on top of component values:
-                const float t = animation.blendAmount;
 
                 if (targetTransform != nullptr)
                 {
@@ -923,22 +895,22 @@ namespace cyb::scene
                     case AnimationComponent::Channel::Path::Translation:
                     {
                         const XMVECTOR aT = XMLoadFloat3(&targetTransform->translation_local);
-                        const XMVECTOR bT = XMLoadFloat3(&interpolator.f3);
-                        const XMVECTOR T = XMVectorLerp(aT, bT, t);
+                        const XMVECTOR bT = XMLoadFloat3(&std::get<XMFLOAT3>(interpolator));
+                        const XMVECTOR T = XMVectorLerp(aT, bT, animation.blendAmount);
                         XMStoreFloat3(&targetTransform->translation_local, T);
                     } break;
                     case AnimationComponent::Channel::Path::Rotation:
                     {
                         const XMVECTOR aR = XMLoadFloat4(&targetTransform->rotation_local);
-                        const XMVECTOR bR = XMLoadFloat4(&interpolator.f4);
-                        const XMVECTOR R = XMQuaternionSlerp(aR, bR, t);
+                        const XMVECTOR bR = XMLoadFloat4(&std::get<XMFLOAT4>(interpolator));
+                        const XMVECTOR R = XMQuaternionSlerp(aR, bR, animation.blendAmount);
                         XMStoreFloat4(&targetTransform->rotation_local, R);
                     } break;
                     case AnimationComponent::Channel::Path::Scale:
                     {
                         const XMVECTOR aS = XMLoadFloat3(&targetTransform->scale_local);
-                        const XMVECTOR bS = XMLoadFloat3(&interpolator.f3);
-                        const XMVECTOR S = XMVectorLerp(aS, bS, t);
+                        const XMVECTOR bS = XMLoadFloat3(&std::get<XMFLOAT3>(interpolator));
+                        const XMVECTOR S = XMVectorLerp(aS, bS, animation.blendAmount);
                         XMStoreFloat3(&targetTransform->scale_local, S);
                     } break;
                     }

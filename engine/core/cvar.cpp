@@ -1,9 +1,10 @@
 #include "core/cvar.h"
+#include "core/hash.h"
 #include "core/logger.h"
 
 namespace cyb::cvar
 {
-    std::unordered_map<std::string_view, CVar*> cvarRegistry;
+    Registry cvarRegistry;
 
     static std::vector<CVar*>& StaticRegistry()
     {
@@ -72,6 +73,8 @@ namespace cyb::cvar
             else
                 return std::to_string(v);
         }, m_value);
+
+        m_hash = hash::String(GetName());
     }
 
     const CVar::Value& CVar::GetVariant() const
@@ -109,6 +112,11 @@ namespace cyb::cvar
     const std::string& CVar::GetDescription() const
     {
         return m_description;
+    }
+
+    const uint64_t CVar::GetHash() const
+    {
+        return m_hash;
     }
 
     bool CVar::IsModified() const
@@ -152,16 +160,17 @@ namespace cyb::cvar
         }
 
         CYB_TRACE("Registered CVar '{}' [Type: {}] with value '{}'", cvar->GetName(), cvar->GetTypeAsString(), cvar->GetValueAsString());
-        cvarRegistry[cvar->GetName()] = cvar;
+        cvarRegistry[cvar->GetHash()] = cvar;
     }
 
     CVar* Find(const std::string_view& name)
     {
-        auto it = cvarRegistry.find(name);
+        uint64_t hash = hash::String(name);
+        auto it = cvarRegistry.find(hash);
         return (it != cvarRegistry.end()) ? it->second : nullptr;
     }
 
-    const std::unordered_map<std::string_view, CVar*>& GetRegistry()
+    const Registry& GetRegistry()
     {
         return cvarRegistry;
     }

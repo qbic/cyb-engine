@@ -3,6 +3,7 @@
 #include <variant>
 #include <functional>
 #include "core/enum_flags.h"
+#include "core/non_copyable.h"
 #include "core/types.h"
 
 namespace cyb::cvar
@@ -13,19 +14,20 @@ namespace cyb::cvar
         RendererBit = BIT(1),
         GuiBit = BIT(2),
         GameBit = BIT(3),
-        RomBit = BIT(10),          // read only access, cannot be changed by user
-        NoSave = BIT(11),          // cvar wont be written during serialization
+        RomBit = BIT(10),           // read only access, cannot be changed by user
+        NoSaveBit = BIT(11),        // cvar wont be written during serialization
         ModifiedBit = BIT(12)
     };
     CYB_ENABLE_BITMASK_OPERATORS(Flag);
 
-    class CVar
+    class CVar : private NonCopyable
     {
     public:
         using Value = std::variant<int32_t, uint32_t, float, bool, std::string>;
         using Callback = std::function<void(const CVar*)>;
 
-        CVar(const std::string_view& name, const Value& value, Flag flags, const std::string_view& description);
+        CVar() = delete;
+        explicit CVar(const std::string_view& name, const Value& value, Flag flags, const std::string_view& description);
 
         // if variant type is constructable by T, value will be implicitly cast
         template <typename T>
@@ -59,11 +61,14 @@ namespace cyb::cvar
         [[nodiscard]] const std::string GetTypeAsString() const;
         [[nodiscard]] const std::string& GetName() const;
         [[nodiscard]] const std::string& GetDescription() const;
+        [[nodiscard]] const uint64_t GetHash() const;
         [[nodiscard]] bool IsModified() const;
         void SetModified();
         void ClearModified();
         void SetOnChangeCallback(const Callback& callback);
 
+        // this need's to be called once on initialization to register
+        // all globally declared cvars
         static void RegisterStaticCVars();
 
     private:
@@ -71,14 +76,17 @@ namespace cyb::cvar
 
         const std::string m_name;
         const std::string m_description;
+        uint64_t m_hash = 0;
         Value m_value;
         std::string m_valueAsString;        // only used for non-string types
-        size_t m_typeIndex;
+        size_t m_typeIndex = 0;
         Flag m_flags;
         Callback m_onChangeCallback;
     };
 
+    using Registry = std::unordered_map<uint64_t, CVar*>;
+
     void Register(CVar* cvar);
     [[nodiscard]] CVar* Find(const std::string_view& name);
-    [[nodiscard]] const std::unordered_map<std::string_view, CVar*>& GetRegistry();
+    [[nodiscard]] const Registry& GetRegistry();
 }

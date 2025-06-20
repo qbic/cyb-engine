@@ -6,6 +6,30 @@ namespace cyb
 {
     namespace detail
     {
+        const char* FileChangeActionToString(FileChangeAction action)
+        {
+            switch (action)
+            {
+            case FileChangeAction::Added:   return "Added";
+            case FileChangeAction::Removed: return "Removed";
+            case FileChangeAction::Modified:    return "Modified";
+            case FileChangeAction::RenamedNewName:  return "RenamedNewName";
+            case FileChangeAction::RenamedOldName:  return "RenamedOldName";
+            case FileChangeAction::Invalid: 
+            default:
+                return "Invalid";
+            }
+        }
+
+        auto GetLocaltime(uint64_t time)
+        {
+            constexpr int64_t WINDOWS_TICK = 10'000'000;
+            constexpr int64_t SEC_TO_UNIX_EPOCH = 11'644'473'600LL;
+            const auto unix_seconds = (time / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH;
+            const std::chrono::system_clock::time_point tp = std::chrono::system_clock::from_time_t(unix_seconds);
+            return std::chrono::zoned_time{ std::chrono::current_zone(), tp };
+        }
+
         void StableFileEventQueue::Enqueue(const FileChangeEvent& event)
         {
             ScopedLock lock(m_mutex);
@@ -95,7 +119,14 @@ namespace cyb
                     }
 
                     for (const auto& event : m_stableQueue.PollStableFiles(m_enqueueToStableDelay))
+                    {
+                        auto localTime = detail::GetLocaltime(event.lastWriteTime);
+                        CYB_TRACE("DirectoryWatcher(): {} \"{}\", last writen {}",
+                            detail::FileChangeActionToString(event.action),
+                            event.filename,
+                            std::format("{:%c}", localTime));
                         info.callback(event);
+                    }
                 }
             }
         });

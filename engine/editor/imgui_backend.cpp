@@ -202,7 +202,7 @@ void ImGui_Impl_CybEngine_Update()
 	ImGui::NewFrame();
 
 	// This can be disabled from imconfig.h aswell
-	//ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 }
 
 void ImGui_Impl_CybEngine_Compose(CommandList cmd)

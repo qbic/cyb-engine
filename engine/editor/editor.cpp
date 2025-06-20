@@ -660,16 +660,60 @@ namespace cyb::editor
     class Tool_LogDisplay : public ToolWindow
     {
     public:
+        struct LogLine
+        {
+            ImVec4 color;
+            std::string text;
+        };
+
+        class LogModule : public logger::OutputModule
+        {
+        public:
+            LogModule(std::vector<LogLine>* messages) :
+                m_messages(messages)
+            {
+            }
+
+            void Write(const logger::Message& log) override
+            {
+                auto& newline = m_messages->emplace_back();
+                newline.text = log.text;
+                switch (log.severity)
+                {
+                case logger::Level::Trace:
+                    newline.color = ImVec4(0.45f, 0.65f, 1.0f, 1.0f);
+                    break;
+                case logger::Level::Info:
+                    newline.color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                    break;
+                case logger::Level::Warning:
+                    newline.color = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+                    break;
+                case logger::Level::Error:
+                    newline.color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+                    break;
+                }
+            }
+
+        private:
+            std::vector<LogLine>* m_messages;
+        };
+
         Tool_LogDisplay(const std::string& title) :
             ToolWindow(title)
         {
-            logger::RegisterOutputModule<logger::OutputModule_StringBuffer>(&m_textBuffer);
+            logger::RegisterOutputModule<LogModule>(&m_messages);
         }
 
         void WindowContent() override
         {
             ImGui::PushTextWrapPos(0.0f);
-            ImGui::TextUnformatted(m_textBuffer.c_str());
+            for (const auto& msg : m_messages)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, msg.color);
+                ImGui::TextUnformatted(msg.text.c_str());
+                ImGui::PopStyleColor();
+            }
             ImGui::PopTextWrapPos();
 
             if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
@@ -677,7 +721,7 @@ namespace cyb::editor
         }
 
     private:
-        std::string m_textBuffer;
+        std::vector<LogLine> m_messages;
     };
 
     //------------------------------------------------------------------------------

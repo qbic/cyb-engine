@@ -86,7 +86,7 @@ namespace cyb::logger
     template <typename T, typename ...Args,
         typename std::enable_if <
         std::is_base_of<OutputModule, T>{}&&
-        std::is_constructible<T, Args&&...>{}, bool > ::type = true >
+        std::is_constructible<T, Args&&...>{}, bool>::type = true>
     void RegisterOutputModule(Args&&... args)
     {
         detail::RegisterOutputModule(std::make_unique<T>(std::forward<Args>(args)...));

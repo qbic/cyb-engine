@@ -153,14 +153,15 @@ namespace cyb::cvar
 
     void Register(CVar* cvar)
     {
-        if (Find(cvar->GetName()))
+        assert(cvar != nullptr);
+        const auto& [_, inserted] = cvarRegistry.insert({ cvar->GetHash(), cvar });
+        if (!inserted)
         {
-            CYB_WARNING("CVar '{}' allready exist", cvar->GetName());
+            CYB_WARNING("cvar::Register(): '{}' allready exist", cvar->GetName());
             return;
         }
 
         CYB_TRACE("Registered CVar '{}' [Type: {}] with value '{}'", cvar->GetName(), cvar->GetTypeAsString(), cvar->GetValueAsString());
-        cvarRegistry[cvar->GetHash()] = cvar;
     }
 
     CVar* Find(const std::string_view& name)

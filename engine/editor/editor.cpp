@@ -490,7 +490,7 @@ namespace cyb::editor
 
     void SceneGraphView::WindowContent()
     {
-        ui::ScopedStyleColor colorGuard(ImGuiCol_Header, ImVec4(0.38f, 0.58f, 0.71f, 0.94f));
+        ui::ScopedStyleColor colorGuard(ImGuiCol_Header, ImGui::GetStyle().Colors[ImGuiCol_CheckMark]);
 
         for (const auto& x : m_root.children)
             DrawNode(&x);

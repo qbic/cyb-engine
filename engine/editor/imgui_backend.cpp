@@ -101,22 +101,26 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 
 static void SetupCustomStyle()
 {
+	constexpr ImVec4 titleBg = ImVec4(0.01, 0.19, 0.28, 1.0f);
+	constexpr ImVec4 titleActiveBg = ImVec4(0.98, 0.52, 0.00, 1.0f);
+	constexpr ImVec4 selectedItem = ImVec4(0.13f, 0.62f, 0.74f, 1.0f);
+
 	ImVec4* colors = ImGui::GetStyle().Colors;
 	colors[ImGuiCol_WindowBg] = ImVec4(0.13f, 0.13f, 0.11f, 0.98f);
 	colors[ImGuiCol_FrameBg] = ImVec4(0.06f, 0.06f, 0.06f, 0.71f);
 	colors[ImGuiCol_FrameBgHovered] = ImVec4(0.15f, 0.15f, 0.15f, 0.71f);
 	colors[ImGuiCol_FrameBgActive] = ImVec4(0.10f, 0.10f, 0.10f, 0.71f);
-	colors[ImGuiCol_TitleBg] = ImVec4(0.13f, 0.13f, 0.11f, 0.94f);
-	colors[ImGuiCol_TitleBgActive] = ImVec4(0.25f, 0.25f, 0.25f, 0.94f);
+	colors[ImGuiCol_TitleBg] = titleBg;
+	colors[ImGuiCol_TitleBgActive] = titleActiveBg;
 	colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
 	colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
 	colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
-	colors[ImGuiCol_CheckMark] = ImVec4(0.38f, 0.58f, 0.71f, 0.94f);
+	colors[ImGuiCol_CheckMark] = selectedItem;
 	colors[ImGuiCol_SliderGrab] = ImVec4(0.38f, 0.58f, 0.71f, 0.94f);
 	colors[ImGuiCol_SliderGrabActive] = ImVec4(0.58f, 0.75f, 0.81f, 1.00f);
 	colors[ImGuiCol_Button] = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
 	colors[ImGuiCol_ButtonHovered] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
-	colors[ImGuiCol_ButtonActive] = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
+	colors[ImGuiCol_ButtonActive] = selectedItem;
 	colors[ImGuiCol_Header] = ImVec4(0.26f, 0.26f, 0.26f, 1.00f);
 	colors[ImGuiCol_HeaderHovered] = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
 	colors[ImGuiCol_HeaderActive] = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);

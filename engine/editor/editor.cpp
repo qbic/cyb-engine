@@ -26,26 +26,18 @@ extern ImFont* imguiBigFont;    // from imgui_backend.cpp
 // filters are passed to FileDialog function as std::string, thus we 
 // need to use string literals to avoid them of being stripped
 const auto FILE_FILTER_ALL = "All Files (*.*)\0*.*\0"s;
-const auto FILE_FILTER_SCENE = "Cyb Scene Data Files (*.csd)\0*.csd\0"s;
-const auto FILE_FILTER_GLTF = "GLTF Files (*.gltf; *.glb)\0*.gltf;*.glb\0"s;
-const auto FILE_FILTER_IMPORT_MODEL = FILE_FILTER_GLTF + FILE_FILTER_SCENE + FILE_FILTER_ALL;
+const auto FILE_FILTER_SCD = "CybSceneData (*.csd)\0*.csd\0"s;
+const auto FILE_FILTER_GLTF = "glTF 2.0 (*.gltf; *.glb)\0*.gltf;*.glb\0"s;
+const auto FILE_FILTER_IMPORT_MODEL = FILE_FILTER_GLTF + FILE_FILTER_SCD + FILE_FILTER_ALL;
 
 namespace cyb::editor
 {
     bool initialized = false;
     bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
-
+    bool displayCubeView = false;
     cvar::CVar* r_vsync = nullptr;
     cvar::CVar* r_debugObjectAABB = nullptr;
     cvar::CVar* r_debugLightSources = nullptr;
-
-    Resource import_icon;
-    Resource delete_icon;
-    Resource light_icon;
-    Resource editor_icon_select;
-    Resource translate_icon;
-    Resource rotate_icon;
-    Resource scale_icon;
 
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::TRANSLATE;
     bool guizmo_world_mode = true;
@@ -616,7 +608,7 @@ namespace cyb::editor
     // TODO: Add a dialog to prompt user about unsaved progress
     void OpenDialog_Open()
     {
-        filesystem::OpenDialog(FILE_FILTER_SCENE, [] (std::string filename) {
+        filesystem::OpenDialog(FILE_FILTER_SCD, [] (std::string filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
                 Timer timer;
                 scene::Scene& scene = scene::GetScene();
@@ -635,17 +627,12 @@ namespace cyb::editor
 
     // Import a new model to the scene, once the loading is complete
     // it will be automaticly selected in the scene graph view.
-    void OpenDialog_ImportModel(const std::string filter)
+    void OpenDialog_ImportGLTF(const std::string filter)
     {
         filesystem::OpenDialog(filter, [] (std::string filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
                 const std::string extension = filesystem::GetExtension(filename);
-                if (filesystem::HasExtension(filename, "csb"))
-                {
-                    //scene::LoadModel(filename);
-                    CYB_WARNING("OpenDialog_ImportModel: Loading .csb file from here is currently not working");
-                }
-                else if (filesystem::HasExtension(filename, "glb") || filesystem::HasExtension(filename, "gltf"))
+                if (filesystem::HasExtension(filename, "glb") || filesystem::HasExtension(filename, "gltf"))
                 {
                     ecs::Entity entity = renderer::ImportModel_GLTF(filename, scene::GetScene());
                     scenegraphView.SetSelectedEntity(entity);
@@ -654,9 +641,23 @@ namespace cyb::editor
         });
     }
 
+    void OpenDialog_ImportCSD(const std::string filter)
+    {
+        filesystem::OpenDialog(filter, [] (std::string filename) {
+            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
+                const std::string extension = filesystem::GetExtension(filename);
+                if (filesystem::HasExtension(filename, "csd"))
+                {
+                    //scene::LoadModel(filename);
+                    CYB_WARNING("OpenDialog_ImportCSD: Loading .csd file from here is currently not working");
+                }
+            });
+        });
+    }
+
     void OpenDialog_SaveAs()
     {
-        filesystem::SaveDialog(FILE_FILTER_SCENE, [] (std::string filename) {
+        filesystem::SaveDialog(FILE_FILTER_SCD, [] (std::string filename) {
             if (!filesystem::HasExtension(filename, "csd"))
                 filename += ".csd";
 
@@ -931,9 +932,6 @@ namespace cyb::editor
             if (ImGui::Shortcut(ImGuiKey_Delete, 0, ImGuiInputFlags_RouteGlobalLow))
                 DeleteSelectedEntity();
 
-            // use windowID for gizmo undo commands
-            //gizmoWindowID = ImGui::GetCurrentWindow()->ID;
-
             ImGui::Text("Scene Hierarchy:");
             ImGui::BeginChild("Scene hierarchy", ImVec2(0, 300), ImGuiChildFlags_Border);
             scenegraphView.GenerateView();
@@ -986,8 +984,10 @@ namespace cyb::editor
 
                 if (ImGui::BeginMenu("Import"))
                 {
-                    if (ImGui::MenuItem("Model (.gltf/.glb/.csd)"))
-                        OpenDialog_ImportModel(FILE_FILTER_IMPORT_MODEL);
+                    if (ImGui::MenuItem("CybSceneData (.csd)"))
+                        OpenDialog_ImportCSD(FILE_FILTER_SCD);
+                    if (ImGui::MenuItem("glTF 2.0 (.gltf/.glb)"))
+                        OpenDialog_ImportGLTF(FILE_FILTER_GLTF);
 
                     ImGui::EndMenu();
                 }
@@ -1038,6 +1038,12 @@ namespace cyb::editor
                 if (ImGui::MenuItem("Reload Shaders"))
                     renderer::ReloadShaders();
 
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("View"))
+            {
+                ImGui::Checkbox("CubeView transform", &displayCubeView);
                 ImGui::EndMenu();
             }
 
@@ -1121,19 +1127,20 @@ namespace cyb::editor
             mode,
             &world._11);
 
-        /*
-        ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
-        ImGuizmo::ViewManipulate(
-            &camera.view._11,
-            &camera.projection._11,
-            guizmo_operation,
-            mode,
-            &world._11,
-            1.0f,
-            ImVec2(viewportSize.x - 110.0f, 30.0f),
-            ImVec2(100.0f, 100.0f),
-            0x00000000);
-        */
+        if (displayCubeView)
+        {
+            ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+            ImGuizmo::ViewManipulate(
+                &camera.view._11,
+                &camera.projection._11,
+                guizmo_operation,
+                mode,
+                &world._11,
+                1.0f,
+                ImVec2(viewportSize.x - 110.0f, 30.0f),
+                ImVec2(100.0f, 100.0f),
+                0x00000000);
+        }
 
         if (ImGuizmo::IsUsing() && isEnabled)
         {
@@ -1193,10 +1200,7 @@ namespace cyb::editor
         ActionButtonMenu() = default;
         ~ActionButtonMenu() = default;
 
-        bool Button(
-            const std::string& strId,
-            const std::string& tooltip,
-            bool isSelected = false)
+        bool Button(const std::string& text, const std::string& tooltip, bool isSelected)
         {
             if (isSelected)
             {
@@ -1207,7 +1211,7 @@ namespace cyb::editor
             }
 
             ImGui::PushFont(imguiBigFont);
-            bool clicked = ImGui::Button(strId.c_str(), buttonSize);
+            bool clicked = ImGui::Button(text.c_str(), buttonSize);
             ImGui::PopFont();
 
             if (isSelected)
@@ -1231,7 +1235,9 @@ namespace cyb::editor
             ImGui::SetNextWindowPos(ImVec2(16.0f, (viewportSize.y * 0.5f) - 260.0f));
             
             // most flags ever on a window...
+            ImGui::SetNextFrameWantCaptureMouse(false);
             ImGui::Begin("ActionButtonMenu", 0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus);
+            ImGui::PushID("ActionButtons");
 
             if (Button(ICON_FA_ARROW_POINTER, "Select item", m_gizmoOp == 0))
                 m_gizmoOp = (ImGuizmo::OPERATION)0;
@@ -1242,6 +1248,7 @@ namespace cyb::editor
             if (Button(ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE, "Scale selected item", m_gizmoOp & ImGuizmo::SCALEU))
                 m_gizmoOp = ImGuizmo::SCALEU;
 
+            ImGui::PopID();
             ImGui::End();
             ImGui::PopStyleVar(4);
             ImGui::PopStyleColor(1);
@@ -1269,15 +1276,6 @@ namespace cyb::editor
         AttachToolToMenu(std::make_unique<Tool_CVarViewer>("CVar viewer"));
         AttachToolToMenu(std::make_unique<Tool_LogDisplay>("Backlog"));
 
-        // Icons rendered by ImGui need's to be flipped manually at loadtime
-        import_icon = resourcemanager::LoadFile("textures/editor/import.png");
-        delete_icon = resourcemanager::LoadFile("textures/editor/delete.png");
-        light_icon = resourcemanager::LoadFile("textures/editor/add.png");
-        editor_icon_select = resourcemanager::LoadFile("textures/editor/select.png");
-        translate_icon = resourcemanager::LoadFile("textures/editor/move.png");
-        rotate_icon = resourcemanager::LoadFile("textures/editor/rotate.png");
-        scale_icon = resourcemanager::LoadFile("textures/editor/resize.png");
-
         r_vsync = cvar::Find("r_vsync");
         r_debugObjectAABB = cvar::Find("r_debugObjectAABB");
         r_debugLightSources = cvar::Find("r_debugLightSources");
@@ -1292,6 +1290,7 @@ namespace cyb::editor
         style.Colors[ImGuizmo::PLANE_X].w = 0.6f;
         style.Colors[ImGuizmo::PLANE_Y].w = 0.6f;
         style.Colors[ImGuizmo::PLANE_Z].w = 0.6f;
+        ImGuizmo::AllowAxisFlip(false);
 #endif
 
         // Grab available fullscreen resolutions
@@ -1311,7 +1310,22 @@ namespace cyb::editor
         actionButtonMenu.Draw();
         guizmo_operation = actionButtonMenu.GetSelectedGizmoOp();
 
+        // create an invisible dummy window for recording actions for the
+        // undo manager for the 3d viewport
         ImGuiID gizmoWindowID = 0;
+        if (ImGui::Begin("##viewportDummy", 0, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings))
+        {
+            // use windowID for gizmo undo commands
+            gizmoWindowID = ImGui::GetCurrentWindow()->ID;
+
+            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z, 0, ImGuiInputFlags_RouteGlobalLow))
+                ui::GetUndoManager().Undo();
+            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y, 0, ImGuiInputFlags_RouteGlobalLow))
+                ui::GetUndoManager().Redo();
+            if (ImGui::Shortcut(ImGuiKey_Delete, 0, ImGuiInputFlags_RouteGlobalLow))
+                DeleteSelectedEntity();
+            ImGui::End();
+        }
        
         // Only draw gizmo with a valid entity containing transform component
         if (scene::GetScene().transforms.GetComponent(scenegraphView.GetSelectedEntity()))

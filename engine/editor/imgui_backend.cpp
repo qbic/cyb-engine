@@ -30,6 +30,8 @@ struct ImGuiConstants
 	XMMATRIX mvp;
 };
 
+ImFont* imguiBigFont = nullptr;
+
 static ImGui_Impl_Data* ImGui_Impl_GetBackendData()
 {
 	return ImGui::GetCurrentContext() ? (ImGui_Impl_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
@@ -56,9 +58,8 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 	const ImWchar notoMonoRanges[] = { 0x20, 0x513, 0x1e00, 0x1f4d, 0 };
 
 	AddFont("fonts/CascadiaCode-Regular.ttf", notoSansRanges, 14.0f, false);
-	AddFont("fonts/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 13.f, true);
-	AddFont("fonts/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 12.f, true);
-	AddFont("fonts/NotoMono-Regular.ttf", notoMonoRanges, 14.0, false);
+	AddFont("fonts/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 14.f, true);
+	imguiBigFont = AddFont("fonts/" FONT_ICON_FILE_NAME_FAS, fontAwesomeIconRanges, 22.f, false);
 
 	// Build texture atlas:
 	unsigned char* pixels;

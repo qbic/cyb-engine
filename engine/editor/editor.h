@@ -62,7 +62,6 @@ namespace cyb::editor
         void DrawNode(const Node* node);
     };
 
-    void ResizeBuffers(const XMUINT2& internalResolution);
     void Initialize();
     void Update();
 

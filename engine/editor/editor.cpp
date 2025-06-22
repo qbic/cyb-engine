@@ -21,6 +21,8 @@
 
 using namespace std::string_literals;
 
+extern ImFont* imguiBigFont;    // from imgui_backend.cpp
+
 // filters are passed to FileDialog function as std::string, thus we 
 // need to use string literals to avoid them of being stripped
 const auto FILE_FILTER_ALL = "All Files (*.*)\0*.*\0"s;
@@ -44,8 +46,6 @@ namespace cyb::editor
     Resource translate_icon;
     Resource rotate_icon;
     Resource scale_icon;
-
-    rhi::Texture rtSelectionOutline;
 
     ImGuizmo::OPERATION guizmo_operation = ImGuizmo::TRANSLATE;
     bool guizmo_world_mode = true;
@@ -588,259 +588,6 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    void ToolWindow::Draw()
-    {
-        if (IsHidden())
-            return;
-
-        if (ImGui::Begin(GetWindowTitle(), &m_isVisible, m_windowFlags))
-            WindowContent();
-            
-        ImGui::End();
-    }
-
-    class Tool_Profiler : public ToolWindow
-    {
-    public:
-        Tool_Profiler(const std::string& title) :
-            ToolWindow(title)
-        {
-        }
-
-        virtual void WindowContent() override
-        {
-            const auto& profilerContext = profiler::GetContext();
-            const auto& cpuFrame = profilerContext.entries.find(profilerContext.cpuFrame);
-            const auto& gpuFrame = profilerContext.entries.find(profilerContext.gpuFrame);
-
-            ImGui::Text("Frame counter: %llu", rhi::GetDevice()->GetFrameCount());
-            ImGui::Text("Average FPS (over %zu frames): %d", deltatimes.size(), avgFps);
-            rhi::GraphicsDevice::MemoryUsage vram = rhi::GetDevice()->GetMemoryUsage();
-            ImGui::Text("VRAM usage: %lluMB / %lluMB", vram.usage / 1024 / 1024, vram.budget / 1024 / 1024);
-
-            ImGui::BeginTable("CPU/GPU Profiling", 2, ImGuiTableFlags_Borders);
-            ImGui::TableNextColumn();
-            ui::ScopedStyleColor cpuFrameLineColor(ImGuiCol_PlotLines, ImColor(255, 0, 0));
-            const std::string cpuOverlayText = std::format("CPU Frame: {:.1f}ms", cpuFrame->second.time);
-            ImGui::SetNextItemWidth(-1);
-            ImGui::PlotLines("##CPUFrame", profilerContext.cpuFrameGraph.data(), profiler::FRAME_GRAPH_ENTRIES, 0, cpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
-            ImGui::Spacing();
-            ImGui::Text("CPU Frame: %.2fms", cpuFrame->second.time);
-            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8);
-            ImGui::Indent();
-            for (auto& [entryID, entry] : profilerContext.entries)
-                if (entry.IsCPUEntry() && entryID != cpuFrame->first)
-                    ImGui::Text("%s: %.2fms", entry.name.c_str(), entry.time);
-            ImGui::Unindent();
-            ImGui::PopStyleVar();
-
-            ImGui::TableNextColumn();
-            ui::ScopedStyleColor gpuFrameLineColor(ImGuiCol_PlotLines, ImColor(0, 0, 255));
-            const std::string gpuOverlayText = std::format("GPU Frame: {:.1f}ms", gpuFrame->second.time);
-            ImGui::SetNextItemWidth(-1);
-            ImGui::PlotLines("##GPUFrame", profilerContext.gpuFrameGraph.data(), profiler::FRAME_GRAPH_ENTRIES, 0, gpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
-            ImGui::Separator();
-            ImGui::Text("GPU Frame: %.2fms", gpuFrame->second.time);
-            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8);
-            ImGui::Indent();
-            for (auto& [entryID, entry] : profilerContext.entries)
-            {
-                if (!entry.IsCPUEntry() && entryID != gpuFrame->first)
-                    ImGui::Text("%s: %.2fms", entry.name.c_str(), entry.time);
-            }
-
-            ImGui::Unindent();
-            ImGui::PopStyleVar();
-            ImGui::EndTable();
-        }
-    };
-
-    //------------------------------------------------------------------------------
-
-    class Tool_LogDisplay : public ToolWindow
-    {
-    public:
-        struct LogLine
-        {
-            ImVec4 color;
-            std::string text;
-        };
-
-        class LogModule : public logger::OutputModule
-        {
-        public:
-            LogModule(std::vector<LogLine>* messages) :
-                m_messages(messages)
-            {
-            }
-
-            void Write(const logger::Message& log) override
-            {
-                auto& newline = m_messages->emplace_back();
-                newline.text = log.text;
-                switch (log.severity)
-                {
-                case logger::Level::Trace:
-                    newline.color = ImVec4(0.45f, 0.65f, 1.0f, 1.0f);
-                    break;
-                case logger::Level::Info:
-                    newline.color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-                    break;
-                case logger::Level::Warning:
-                    newline.color = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
-                    break;
-                case logger::Level::Error:
-                    newline.color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
-                    break;
-                }
-            }
-
-        private:
-            std::vector<LogLine>* m_messages;
-        };
-
-        Tool_LogDisplay(const std::string& title) :
-            ToolWindow(title)
-        {
-            logger::RegisterOutputModule<LogModule>(&m_messages);
-        }
-
-        void WindowContent() override
-        {
-            ImGui::PushTextWrapPos(0.0f);
-            for (const auto& msg : m_messages)
-            {
-                ImGui::PushStyleColor(ImGuiCol_Text, msg.color);
-                ImGui::TextUnformatted(msg.text.c_str());
-                ImGui::PopStyleColor();
-            }
-            ImGui::PopTextWrapPos();
-
-            if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-                ImGui::SetScrollHereY(1.0f);
-        }
-
-    private:
-        std::vector<LogLine> m_messages;
-    };
-
-    //------------------------------------------------------------------------------
-
-    class Tool_ContentBrowser : public ToolWindow
-    {
-    public:
-        Tool_ContentBrowser(const std::string& title) :
-            ToolWindow(title)
-        {
-        }
-
-        virtual void WindowContent() override
-        {
-            const scene::Scene& scene = scene::GetScene();
-
-            ImGui::Text("Meshes:");
-            for (size_t i = 0; i < scene.meshes.Size(); ++i)
-            {
-                const ecs::Entity entityID = scene.meshes.GetEntity(i);
-                const std::string& name = scene.names.GetComponent(entityID)->name;
-
-                ImGui::Text("%s\n", name.c_str());
-            }
-
-            ImGui::Separator();
-
-            ImGui::Text("Materials:");
-            for (size_t i = 0; i < scene.materials.Size(); ++i)
-            {
-                const ecs::Entity entityID = scene.materials.GetEntity(i);
-                const std::string& name = scene.names.GetComponent(entityID)->name;
-
-                ImGui::Text("%s [%u]\n", name.c_str(), entityID);
-            }
-        }
-    };
-
-    //------------------------------------------------------------------------------
-
-    class Tool_CVarViewer : public ToolWindow
-    {
-    public:
-        Tool_CVarViewer(const std::string& title) :
-            ToolWindow(title)
-        {
-        }
-
-        virtual void WindowContent() override
-        {
-            if (ImGui::BeginTable("CVars", 4, ImGuiTableFlags_Reorderable | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
-            {
-                ImGui::TableSetupColumn("Name");
-                ImGui::TableSetupColumn("Type");
-                ImGui::TableSetupColumn("Value");
-                ImGui::TableSetupColumn("Description");
-                ImGui::TableHeadersRow();
-
-                const auto& registry = cvar::GetRegistry();
-
-                for (const auto& [_, cvar] : registry)
-                {
-                    ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetName().c_str());
-
-                    ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetTypeAsString().c_str());
-
-                    ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetValueAsString().c_str());
-
-                    ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetDescription().c_str());
-                }
-
-                ImGui::EndTable();
-            }
-        }
-    };
-
-    //------------------------------------------------------------------------------
-
-    class Tool_TerrainGeneration : public ToolWindow
-    {
-    public:
-        TerrainGenerator generator;
-
-        Tool_TerrainGeneration(const std::string& windowTitle) :
-            ToolWindow(windowTitle, ImGuiWindowFlags_MenuBar)
-        {
-        }
-
-        virtual void WindowContent() override
-        {
-            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z))
-                ui::GetUndoManager().Undo();
-            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y))
-                ui::GetUndoManager().Redo();
-            generator.DrawGui(scenegraphView.GetSelectedEntity());
-        }
-    };
-
-    //------------------------------------------------------------------------------
-
-    std::vector<std::unique_ptr<ToolWindow>> tools;
-
-    void AttachToolToMenu(std::unique_ptr<ToolWindow> tool)
-    {
-        tools.push_back(std::move(tool));
-    }
-
-    void DrawTools()
-    {
-        for (auto& x : tools)
-            x->Draw();
-    }
-
-    //------------------------------------------------------------------------------
-
     ecs::Entity CreateDirectionalLight()
     {
         scene::Scene& scene = scene::GetScene();
@@ -928,12 +675,301 @@ namespace cyb::editor
     }
 
     //------------------------------------------------------------------------------
+
+    void ToolWindow::Draw()
+    {
+        if (IsHidden())
+            return;
+
+        if (ImGui::Begin(GetWindowTitle(), &m_isVisible, m_windowFlags))
+            WindowContent();
+            
+        ImGui::End();
+    }
+
+    class Tool_Profiler : public ToolWindow, private NonCopyable
+    {
+    public:
+        Tool_Profiler(const std::string& title) :
+            ToolWindow(title)
+        {
+        }
+
+        void WindowContent() override
+        {
+            const auto& profilerContext = profiler::GetContext();
+            const auto& cpuFrame = profilerContext.entries.find(profilerContext.cpuFrame);
+            const auto& gpuFrame = profilerContext.entries.find(profilerContext.gpuFrame);
+
+            ImGui::Text("Frame counter: %llu", rhi::GetDevice()->GetFrameCount());
+            ImGui::Text("Average FPS (over %zu frames): %d", deltatimes.size(), avgFps);
+            rhi::GraphicsDevice::MemoryUsage vram = rhi::GetDevice()->GetMemoryUsage();
+            ImGui::Text("VRAM usage: %lluMB / %lluMB", vram.usage / 1024 / 1024, vram.budget / 1024 / 1024);
+
+            ImGui::BeginTable("CPU/GPU Profiling", 2, ImGuiTableFlags_Borders);
+            ImGui::TableNextColumn();
+            ui::ScopedStyleColor cpuFrameLineColor(ImGuiCol_PlotLines, ImColor(255, 0, 0));
+            const std::string cpuOverlayText = std::format("CPU Frame: {:.1f}ms", cpuFrame->second.time);
+            ImGui::SetNextItemWidth(-1);
+            ImGui::PlotLines("##CPUFrame", profilerContext.cpuFrameGraph.data(), profiler::FRAME_GRAPH_ENTRIES, 0, cpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
+            ImGui::Spacing();
+            ImGui::Text("CPU Frame: %.2fms", cpuFrame->second.time);
+            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8);
+            ImGui::Indent();
+            for (auto& [entryID, entry] : profilerContext.entries)
+                if (entry.IsCPUEntry() && entryID != cpuFrame->first)
+                    ImGui::Text("%s: %.2fms", entry.name.c_str(), entry.time);
+            ImGui::Unindent();
+            ImGui::PopStyleVar();
+
+            ImGui::TableNextColumn();
+            ui::ScopedStyleColor gpuFrameLineColor(ImGuiCol_PlotLines, ImColor(0, 0, 255));
+            const std::string gpuOverlayText = std::format("GPU Frame: {:.1f}ms", gpuFrame->second.time);
+            ImGui::SetNextItemWidth(-1);
+            ImGui::PlotLines("##GPUFrame", profilerContext.gpuFrameGraph.data(), profiler::FRAME_GRAPH_ENTRIES, 0, gpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
+            ImGui::Separator();
+            ImGui::Text("GPU Frame: %.2fms", gpuFrame->second.time);
+            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8);
+            ImGui::Indent();
+            for (auto& [entryID, entry] : profilerContext.entries)
+            {
+                if (!entry.IsCPUEntry() && entryID != gpuFrame->first)
+                    ImGui::Text("%s: %.2fms", entry.name.c_str(), entry.time);
+            }
+
+            ImGui::Unindent();
+            ImGui::PopStyleVar();
+            ImGui::EndTable();
+        }
+    };
+
+    //------------------------------------------------------------------------------
+
+    class Tool_LogDisplay : public ToolWindow, private NonCopyable
+    {
+    public:
+        struct LogLine
+        {
+            ImVec4 color;
+            std::string text;
+        };
+
+        class LogModule : public logger::OutputModule
+        {
+        public:
+            LogModule(std::vector<LogLine>* messages) :
+                m_messages(messages)
+            {
+            }
+
+            void Write(const logger::Message& log) override
+            {
+                auto& newline = m_messages->emplace_back();
+                newline.text = log.text;
+                switch (log.severity)
+                {
+                case logger::Level::Trace:
+                    newline.color = ImVec4(0.45f, 0.65f, 1.0f, 1.0f);
+                    break;
+                case logger::Level::Info:
+                    newline.color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                    break;
+                case logger::Level::Warning:
+                    newline.color = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+                    break;
+                case logger::Level::Error:
+                    newline.color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+                    break;
+                }
+            }
+
+        private:
+            std::vector<LogLine>* m_messages;
+        };
+
+        Tool_LogDisplay(const std::string& title) :
+            ToolWindow(title)
+        {
+            logger::RegisterOutputModule<LogModule>(&m_messages);
+        }
+
+        void WindowContent() override
+        {
+            ImGui::PushTextWrapPos(0.0f);
+            for (const auto& msg : m_messages)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, msg.color);
+                ImGui::TextUnformatted(msg.text.c_str());
+                ImGui::PopStyleColor();
+            }
+            ImGui::PopTextWrapPos();
+
+            if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+                ImGui::SetScrollHereY(1.0f);
+        }
+
+    private:
+        std::vector<LogLine> m_messages;
+    };
+
+    //------------------------------------------------------------------------------
+
+    class Tool_ContentBrowser : public ToolWindow, private NonCopyable
+    {
+    public:
+        Tool_ContentBrowser(const std::string& title) :
+            ToolWindow(title)
+        {
+        }
+
+        void WindowContent() override
+        {
+            const scene::Scene& scene = scene::GetScene();
+
+            ImGui::Text("Meshes:");
+            for (size_t i = 0; i < scene.meshes.Size(); ++i)
+            {
+                const ecs::Entity entityID = scene.meshes.GetEntity(i);
+                const std::string& name = scene.names.GetComponent(entityID)->name;
+
+                ImGui::Text("%s\n", name.c_str());
+            }
+
+            ImGui::Separator();
+
+            ImGui::Text("Materials:");
+            for (size_t i = 0; i < scene.materials.Size(); ++i)
+            {
+                const ecs::Entity entityID = scene.materials.GetEntity(i);
+                const std::string& name = scene.names.GetComponent(entityID)->name;
+
+                ImGui::Text("%s [%u]\n", name.c_str(), entityID);
+            }
+        }
+    };
+
+    //------------------------------------------------------------------------------
+
+    class Tool_CVarViewer : public ToolWindow, private NonCopyable
+    {
+    public:
+        Tool_CVarViewer(const std::string& title) :
+            ToolWindow(title)
+        {
+        }
+
+        void WindowContent() override
+        {
+            if (ImGui::BeginTable("CVars", 4, ImGuiTableFlags_Reorderable | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
+            {
+                ImGui::TableSetupColumn("Name");
+                ImGui::TableSetupColumn("Type");
+                ImGui::TableSetupColumn("Value");
+                ImGui::TableSetupColumn("Description");
+                ImGui::TableHeadersRow();
+
+                const auto& registry = cvar::GetRegistry();
+
+                for (const auto& [_, cvar] : registry)
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::Text(cvar->GetName().c_str());
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text(cvar->GetTypeAsString().c_str());
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text(cvar->GetValueAsString().c_str());
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text(cvar->GetDescription().c_str());
+                }
+
+                ImGui::EndTable();
+            }
+        }
+    };
+
+    //------------------------------------------------------------------------------
+
+    class Tool_TerrainGeneration : public ToolWindow, private NonCopyable
+    {
+    public:
+        TerrainGenerator generator;
+
+        Tool_TerrainGeneration(const std::string& windowTitle) :
+            ToolWindow(windowTitle, ImGuiWindowFlags_MenuBar)
+        {
+        }
+
+        void WindowContent() override
+        {
+            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z))
+                ui::GetUndoManager().Undo();
+            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y))
+                ui::GetUndoManager().Redo();
+            generator.DrawGui(scenegraphView.GetSelectedEntity());
+        }
+    };
+
+    //------------------------------------------------------------------------------
+
+    class Tool_Scenegraph : public ToolWindow, private NonCopyable
+    {
+    public:
+        Tool_Scenegraph(const std::string& title) :
+            ToolWindow(title)
+        {
+        }
+
+        void WindowContent() override
+        {
+            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z, 0, ImGuiInputFlags_RouteGlobalLow))
+                ui::GetUndoManager().Undo();
+            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y, 0, ImGuiInputFlags_RouteGlobalLow))
+                ui::GetUndoManager().Redo();
+            if (ImGui::Shortcut(ImGuiKey_Delete, 0, ImGuiInputFlags_RouteGlobalLow))
+                DeleteSelectedEntity();
+
+            // use windowID for gizmo undo commands
+            //gizmoWindowID = ImGui::GetCurrentWindow()->ID;
+
+            ImGui::Text("Scene Hierarchy:");
+            ImGui::BeginChild("Scene hierarchy", ImVec2(0, 300), ImGuiChildFlags_Border);
+            scenegraphView.GenerateView();
+            scenegraphView.WindowContent();
+            ImGui::EndChild();
+
+            ImGui::Text("Components:");
+            const float componentChildHeight = math::Max(300.0f, ImGui::GetContentRegionAvail().y);
+            ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), ImGuiChildFlags_Border);
+            EditEntityComponents(scenegraphView.GetSelectedEntity());
+            ImGui::EndChild();
+        }
+    };
+
+    //------------------------------------------------------------------------------
+
+    std::vector<std::unique_ptr<ToolWindow>> tools;
+
+    void AttachToolToMenu(std::unique_ptr<ToolWindow> tool)
+    {
+        tools.push_back(std::move(tool));
+    }
+
+    void DrawTools()
+    {
+        for (auto& x : tools)
+            x->Draw();
+    }
+
+    //------------------------------------------------------------------------------
     // Editor main window
     //------------------------------------------------------------------------------
 
     void DrawMenuBar()
     {
-        if (ImGui::BeginMenuBar())
+        if (ImGui::BeginMainMenuBar())
         {
             if (ImGui::BeginMenu("File"))
             {
@@ -1055,62 +1091,8 @@ namespace cyb::editor
                 ImGui::EndMenu();
             }
 
-            ImGui::EndMenuBar();
+            ImGui::EndMainMenuBar();
         }
-    }
-
-    static bool DrawIconButton(
-        const std::string& strId,
-        const rhi::Texture& texture,
-        const std::string& tooltip,
-        bool is_selected = false,
-        ImVec2 size = ImVec2(24, 24))
-    {
-        if (is_selected)
-        {
-            ImVec4 color = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
-            ImGui::PushStyleColor(ImGuiCol_Button, color);
-        }
-        bool clicked = ImGui::ImageButton(strId.c_str(), (ImTextureID)&texture, size);
-        if (is_selected)
-            ImGui::PopStyleColor(1);
-
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", tooltip.c_str());
-
-        return clicked;
-    }
-
-    void DrawIconBar()
-    {
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 16.0f);
-        if (DrawIconButton("#Import", import_icon.GetTexture(), "Import a 3D model to the scene"))
-            OpenDialog_ImportModel(FILE_FILTER_IMPORT_MODEL);
-
-        ImGui::SameLine();
-        if (DrawIconButton("##AddLight", light_icon.GetTexture(), "Add a pointlight to the scene"))
-            CreatePointLight();
-
-        ImGui::SameLine();
-        if (DrawIconButton("##Delete", delete_icon.GetTexture(), "Delete the selected entity"))
-            DeleteSelectedEntity();
-
-        ImGui::SameLine();
-        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-
-        ImGui::SameLine();
-        if (DrawIconButton("##Translate", translate_icon.GetTexture(), "Translate mode", guizmo_operation & ImGuizmo::TRANSLATE))
-            guizmo_operation = ImGuizmo::TRANSLATE;
-
-        ImGui::SameLine();
-        if (DrawIconButton("##Rotate", rotate_icon.GetTexture(), "Rotate mode", guizmo_operation & ImGuizmo::ROTATE))
-            guizmo_operation = ImGuizmo::ROTATE;
-
-        ImGui::SameLine();
-        if (DrawIconButton("##Scale", scale_icon.GetTexture(), "Scale mode", guizmo_operation & ImGuizmo::SCALEU))
-            guizmo_operation = ImGuizmo::SCALEU;
-
-        ImGui::PopStyleVar();
     }
 
     // windowID is only used for recording undo commands
@@ -1138,6 +1120,20 @@ namespace cyb::editor
             guizmo_operation,
             mode,
             &world._11);
+
+        /*
+        ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+        ImGuizmo::ViewManipulate(
+            &camera.view._11,
+            &camera.projection._11,
+            guizmo_operation,
+            mode,
+            &world._11,
+            1.0f,
+            ImVec2(viewportSize.x - 110.0f, 30.0f),
+            ImVec2(100.0f, 100.0f),
+            0x00000000);
+        */
 
         if (ImGuizmo::IsUsing() && isEnabled)
         {
@@ -1188,25 +1184,85 @@ namespace cyb::editor
     }
 
     //------------------------------------------------------------------------------
+
+    class ActionButtonMenu : private NonCopyable
+    {
+    public:
+        const ImVec2 buttonSize = ImVec2(42, 42);
+
+        ActionButtonMenu() = default;
+        ~ActionButtonMenu() = default;
+
+        bool Button(
+            const std::string& strId,
+            const std::string& tooltip,
+            bool isSelected = false)
+        {
+            if (isSelected)
+            {
+                ImVec4 color = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+                ImGui::PushStyleColor(ImGuiCol_Button, color);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color);
+                ImGui::PushStyleColor(ImGuiCol_Border, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
+            }
+
+            ImGui::PushFont(imguiBigFont);
+            bool clicked = ImGui::Button(strId.c_str(), buttonSize);
+            ImGui::PopFont();
+
+            if (isSelected)
+                ImGui::PopStyleColor(3);
+
+            if (!tooltip.empty() && ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", tooltip.c_str());
+
+            return clicked;
+        }
+
+        void Draw()
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 12.0f));
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+            ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+            ImGui::SetNextWindowPos(ImVec2(16.0f, (viewportSize.y * 0.5f) - 260.0f));
+            
+            // most flags ever on a window...
+            ImGui::Begin("ActionButtonMenu", 0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+            if (Button(ICON_FA_ARROW_POINTER, "Select item", m_gizmoOp == 0))
+                m_gizmoOp = (ImGuizmo::OPERATION)0;
+            if (Button(ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT, "Move selected item", m_gizmoOp & ImGuizmo::TRANSLATE))
+                m_gizmoOp = ImGuizmo::TRANSLATE;
+            if (Button(ICON_FA_ARROW_ROTATE_LEFT, "Rotate selected item", m_gizmoOp & ImGuizmo::ROTATE))
+                m_gizmoOp = ImGuizmo::ROTATE;
+            if (Button(ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE, "Scale selected item", m_gizmoOp & ImGuizmo::SCALEU))
+                m_gizmoOp = ImGuizmo::SCALEU;
+
+            ImGui::End();
+            ImGui::PopStyleVar(4);
+            ImGui::PopStyleColor(1);
+        }
+
+        ImGuizmo::OPERATION GetSelectedGizmoOp() const { return m_gizmoOp; }
+
+    private:
+        ImGuizmo::OPERATION m_gizmoOp = ImGuizmo::TRANSLATE;
+    };
+
+    //------------------------------------------------------------------------------
     // PUBLIC API
     //------------------------------------------------------------------------------
 
-    void ResizeBuffers(const XMUINT2& internalResolution)
-    {
-        rhi::GraphicsDevice* device = rhi::GetDevice();
-
-        rhi::TextureDesc desc{};
-        desc.width = internalResolution.x;
-        desc.height = internalResolution.y;
-        desc.format = rhi::Format::R8_Unorm;
-        desc.bindFlags = rhi::BindFlags::RenderTargetBit | rhi::BindFlags::ShaderResourceBit;
-        device->CreateTexture(&desc, nullptr, &rtSelectionOutline);
-        device->SetName(&rtSelectionOutline, "rtSelectionOutline");
-    }
+    ActionButtonMenu actionButtonMenu;
 
     void Initialize()
     {
         // Attach built-in tools
+        AttachToolToMenu(std::make_unique<Tool_Scenegraph>("Scenegraph & Components"));
         AttachToolToMenu(std::make_unique<Tool_TerrainGeneration>("Terrain Generator"));
         AttachToolToMenu(std::make_unique<Tool_ContentBrowser>("Scene Content Browser"));
         AttachToolToMenu(std::make_unique<Tool_Profiler>("Profiler"));
@@ -1251,43 +1307,24 @@ namespace cyb::editor
 
         ImGuizmo::BeginFrame();
 
+        DrawMenuBar();
+        actionButtonMenu.Draw();
+        guizmo_operation = actionButtonMenu.GetSelectedGizmoOp();
+
         ImGuiID gizmoWindowID = 0;
-        if (ImGui::Begin("CybEngine Editor", 0, ImGuiWindowFlags_MenuBar))
-        {
-            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z, 0, ImGuiInputFlags_RouteGlobalLow))
-                ui::GetUndoManager().Undo();
-            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y, 0, ImGuiInputFlags_RouteGlobalLow))
-                ui::GetUndoManager().Redo();
-            if (ImGui::Shortcut(ImGuiKey_Delete, 0, ImGuiInputFlags_RouteGlobalLow))
-                DeleteSelectedEntity();
-
-            // use windowID for gizmo undo commands
-            gizmoWindowID = ImGui::GetCurrentWindow()->ID;
-
-            DrawMenuBar();
-            DrawIconBar();
-
-            ImGui::Text("Scene Hierarchy:");
-            ImGui::BeginChild("Scene hierarchy", ImVec2(0, 300), ImGuiChildFlags_Border);
-            scenegraphView.GenerateView();
-            scenegraphView.WindowContent();
-            ImGui::EndChild();
-
-            ImGui::Text("Components:");
-            const float componentChildHeight = math::Max(300.0f, ImGui::GetContentRegionAvail().y);
-            ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), ImGuiChildFlags_Border);
-            EditEntityComponents(scenegraphView.GetSelectedEntity());
-            ImGui::EndChild();
-        }
-        ImGui::End();
-
+       
         // Only draw gizmo with a valid entity containing transform component
         if (scene::GetScene().transforms.GetComponent(scenegraphView.GetSelectedEntity()))
             DrawGizmo(gizmoWindowID);
 
-        // Pick on left mouse click
+        // clear selection with escape
         ImGuiIO& io = ImGui::GetIO();
         bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver();
+
+        if (isMouseIn3DView && ImGui::IsKeyPressed(ImGuiKey_Escape))
+            scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);
+
+        // Pick on left mouse click
         if (isMouseIn3DView && io.MouseClicked[0])
         {
             const scene::Scene& scene = scene::GetScene();
@@ -1322,26 +1359,6 @@ namespace cyb::editor
 
 
         DrawTools();
-    }
-
-    void Render(const rhi::Texture* rtDepthStencil, rhi::CommandList cmd)
-    {
-        rhi::GraphicsDevice* device = rhi::GetDevice();
-        rhi::RenderPassImage rp[] = {
-            rhi::RenderPassImage::RenderTarget(
-                &rtSelectionOutline,
-                rhi::RenderPassImage::LoadOp::Clear),
-            rhi::RenderPassImage::DepthStencil(
-                rtDepthStencil,
-                rhi::RenderPassImage::LoadOp::Load,
-                rhi::RenderPassImage::StoreOp::Store)};
-        /*
-        device->BeginRenderPass(rp, _countof(rp), cmd);
-
-        renderer::ImageParams params = renderer::ImageParams::DefaultFullscreen();
-        renderer::DrawImage(nullptr, params, cmd);
-        device->EndRenderPass(cmd);
-        */
     }
 
     void UpdateFPSCounter(double dt)

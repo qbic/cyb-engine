@@ -2,6 +2,7 @@
 #include <numeric>
 #include <format>
 #include "core/cvar.h"
+#include "core/hash.h"
 #include "core/logger.h"
 #include "core/timer.h"
 #include "core/filesystem.h"
@@ -758,40 +759,40 @@ namespace cyb::editor
         class LogModule : public logger::OutputModule
         {
         public:
-            LogModule(std::vector<LogLine>* messages) :
+            LogModule(std::vector<LogLine>& messages) :
                 m_messages(messages)
             {
             }
 
-            void Write(const logger::Message& log) override
+            [[nodiscard]] ImVec4 GetMessageColor(logger::Level level)
             {
-                auto& newline = m_messages->emplace_back();
-                newline.text = log.text;
-                switch (log.severity)
+                switch (level)
                 {
-                case logger::Level::Trace:
-                    newline.color = ImVec4(0.45f, 0.65f, 1.0f, 1.0f);
-                    break;
-                case logger::Level::Info:
-                    newline.color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-                    break;
-                case logger::Level::Warning:
-                    newline.color = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
-                    break;
-                case logger::Level::Error:
-                    newline.color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
-                    break;
+                case logger::Level::Trace:      return ImVec4(0.45f, 0.65f, 1.0f, 1.0f);
+                case logger::Level::Info:       return ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                case logger::Level::Warning:    return ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+                case logger::Level::Error:      return ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
                 }
+
+                assert(0);
+                return ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+            }
+
+            void Write(const logger::Message& msg) override
+            {
+                auto& newline = m_messages.emplace_back();
+                newline.text = msg.text;
+                newline.color = GetMessageColor(msg.severity);
             }
 
         private:
-            std::vector<LogLine>* m_messages;
+            std::vector<LogLine>& m_messages;
         };
 
         Tool_LogDisplay(const std::string& title) :
             ToolWindow(title)
         {
-            logger::RegisterOutputModule<LogModule>(&m_messages);
+            logger::RegisterOutputModule<LogModule>(m_messages);
         }
 
         void WindowContent() override
@@ -1195,7 +1196,7 @@ namespace cyb::editor
     class ActionButtonMenu : private NonCopyable
     {
     public:
-        const ImVec2 buttonSize = ImVec2(42, 42);
+        const ImVec2 buttonSize = ImVec2(48, 42);
 
         ActionButtonMenu() = default;
         ~ActionButtonMenu() = default;
@@ -1276,9 +1277,9 @@ namespace cyb::editor
         AttachToolToMenu(std::make_unique<Tool_CVarViewer>("CVar viewer"));
         AttachToolToMenu(std::make_unique<Tool_LogDisplay>("Backlog"));
 
-        r_vsync = cvar::Find("r_vsync");
-        r_debugObjectAABB = cvar::Find("r_debugObjectAABB");
-        r_debugLightSources = cvar::Find("r_debugLightSources");
+        r_vsync = cvar::Find(hash::String("r_vsync"));
+        r_debugObjectAABB = cvar::Find(hash::String("r_debugObjectAABB"));
+        r_debugLightSources = cvar::Find(hash::String("r_debugLightSources"));
 
 #if 1
         // ImGuizmo style

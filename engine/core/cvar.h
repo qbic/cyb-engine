@@ -87,6 +87,10 @@ namespace cyb::cvar
     using Registry = std::unordered_map<uint64_t, CVar*>;
 
     void Register(CVar* cvar);
+
+    // finding cvar using hash enables compile time hashing, usage:
+    //  auto* cvar = Find(hash::String("cvarName"));
+    [[nodiscard]] CVar* Find(const uint64_t hash);
     [[nodiscard]] CVar* Find(const std::string_view& name);
     [[nodiscard]] const Registry& GetRegistry();
 }

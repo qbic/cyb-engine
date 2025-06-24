@@ -37,25 +37,24 @@ namespace cyb::logger
     {
     public:
         virtual ~OutputModule() = default;
-        virtual void Write(const Message& log) = 0;
+        virtual void Write(const Message& msg) = 0;
     };
 
     class OutputModule_StringBuffer : public OutputModule
     {
     public:
-        OutputModule_StringBuffer(std::string* output);
-        void Write(const logger::Message& log) override;
+        OutputModule_StringBuffer(std::string& output);
+        void Write(const logger::Message& msg) override;
 
     private:
-        std::stringstream m_logStream;
-        std::string* m_stringBuffer;
+        std::string& m_stringBuffer;
     };
 
     class OutputModule_File : public OutputModule
     {
     public:
         OutputModule_File(const std::filesystem::path& filename, bool timestampMessages = true);
-        void Write(const logger::Message& log) override;
+        void Write(const logger::Message& msg) override;
 
     private:
         std::ofstream m_output;
@@ -67,10 +66,7 @@ namespace cyb::logger
     class LogOutputModule_VisualStudio : public OutputModule
     {
     public:
-        void Write(const cyb::logger::Message& log) override
-        {
-            OutputDebugStringA(log.text.c_str());
-        }
+        void Write(const cyb::logger::Message& msg) override;
     };
 #endif // _WIN32
 
@@ -84,7 +80,7 @@ namespace cyb::logger
     }
 
     template <typename T, typename ...Args,
-        typename std::enable_if <
+        typename std::enable_if<
         std::is_base_of<OutputModule, T>{}&&
         std::is_constructible<T, Args&&...>{}, bool>::type = true>
     void RegisterOutputModule(Args&&... args)

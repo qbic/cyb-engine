@@ -164,11 +164,16 @@ namespace cyb::cvar
         CYB_TRACE("Registered CVar '{}' [Type: {}] with value '{}'", cvar->GetName(), cvar->GetTypeAsString(), cvar->GetValueAsString());
     }
 
+    CVar* Find(uint64_t hash)
+    {
+        auto it = cvarRegistry.find(hash);
+        return (it != cvarRegistry.end()) ? it->second : nullptr;
+    }
+
     CVar* Find(const std::string_view& name)
     {
         uint64_t hash = hash::String(name);
-        auto it = cvarRegistry.find(hash);
-        return (it != cvarRegistry.end()) ? it->second : nullptr;
+        return Find(hash);
     }
 
     const Registry& GetRegistry()

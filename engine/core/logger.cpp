@@ -14,18 +14,14 @@ namespace cyb::logger
     std::deque<Message> logHistory;
     SpinLockMutex locker;
 
-    OutputModule_StringBuffer::OutputModule_StringBuffer(std::string* output) :
+    OutputModule_StringBuffer::OutputModule_StringBuffer(std::string& output) :
         m_stringBuffer(output)
     {
     }
 
-    // FIXME: we're copying the whole stringstream on each write, this will
-    //        lead to some bad performace when the stringstream gets big
-    void OutputModule_StringBuffer::Write(const logger::Message& log)
+    void OutputModule_StringBuffer::Write(const logger::Message& msg)
     {
-        m_logStream << log.text;
-        if (m_stringBuffer != nullptr)
-            *m_stringBuffer = m_logStream.str();
+        m_stringBuffer.append(msg.text);
     }
 
     OutputModule_File::OutputModule_File(const std::filesystem::path& filename, bool timestampMessages) :
@@ -35,19 +31,26 @@ namespace cyb::logger
         m_output.open(filename);
     }
 
-    void OutputModule_File::Write(const logger::Message& log)
+    void OutputModule_File::Write(const logger::Message& msg)
     {
         if (!m_output.is_open())
             return;
 
         if (m_useTimestamp)
         {
-            const auto time = std::chrono::system_clock::to_time_t(log.timestamp);
+            const auto time = std::chrono::system_clock::to_time_t(msg.timestamp);
             m_output << std::put_time(std::localtime(&time), "%Y-%m-%d %X ");
         }
 
-        m_output << log.text;
+        m_output << msg.text;
     }
+
+#ifdef _WIN32
+    void LogOutputModule_VisualStudio::Write(const cyb::logger::Message& msg)
+    {
+        OutputDebugStringA(msg.text.c_str());
+    }
+#endif // _WIN32
 
     namespace detail
     {
@@ -70,6 +73,7 @@ namespace cyb::logger
             case Level::Error:   return "[ERROR]";
             }
 
+            assert(0);
             return {};
         }
 

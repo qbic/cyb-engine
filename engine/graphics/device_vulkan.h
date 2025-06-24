@@ -126,8 +126,8 @@ namespace cyb::rhi
 
         struct CommandList_Vulkan
         {
-            VkCommandPool commandpools[BUFFERCOUNT][static_cast<uint32_t>(QueueType::Count)] = {};
-            VkCommandBuffer commandbuffers[BUFFERCOUNT][static_cast<uint32_t>(QueueType::Count)] = {};
+            VkCommandPool commandpools[BUFFERCOUNT][Numerical(QueueType::Count)] = {};
+            VkCommandBuffer commandbuffers[BUFFERCOUNT][Numerical(QueueType::Count)] = {};
             uint32_t buffer_index = 0;
 
             QueueType queue = QueueType::Count;

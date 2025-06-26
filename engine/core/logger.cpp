@@ -1,4 +1,5 @@
 #include <deque>
+#include <cassert>
 #include "core/cvar.h"
 #include "core/mutex.h"
 #include "core/logger.h"

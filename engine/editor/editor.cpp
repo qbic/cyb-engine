@@ -683,10 +683,13 @@ namespace cyb::editor
         if (IsHidden())
             return;
 
+        PreDraw();
         if (ImGui::Begin(GetWindowTitle(), &m_isVisible, m_windowFlags))
+        {
             WindowContent();
-            
-        ImGui::End();
+            ImGui::End();
+        }
+        PostDraw();
     }
 
     class Tool_Profiler : public ToolWindow, private NonCopyable
@@ -900,7 +903,7 @@ namespace cyb::editor
         TerrainGenerator generator;
 
         Tool_TerrainGeneration(const std::string& windowTitle) :
-            ToolWindow(windowTitle, ImGuiWindowFlags_MenuBar)
+            ToolWindow(windowTitle, false, ImGuiWindowFlags_MenuBar)
         {
         }
 
@@ -961,6 +964,137 @@ namespace cyb::editor
         for (auto& x : tools)
             x->Draw();
     }
+
+    //------------------------------------------------------------------------------
+
+    static constexpr int WidgetWindowFlags = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+    class ActionButtonMenu : public ToolWindow, private NonCopyable
+    {
+    public:
+        const ImVec2 buttonSize = ImVec2(48, 42);
+
+        ActionButtonMenu() :
+            ToolWindow("ActionButtonMenu", true, WidgetWindowFlags)
+        {
+        }
+
+        bool Button(const std::string& text, const std::string& tooltip, bool isSelected)
+        {
+            if (isSelected)
+            {
+                ImVec4 color = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+                ImGui::PushStyleColor(ImGuiCol_Button, color);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color);
+                ImGui::PushStyleColor(ImGuiCol_Border, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
+            }
+
+            ImGui::PushFont(imguiBigFont);
+            bool clicked = ImGui::Button(text.c_str(), buttonSize);
+            ImGui::PopFont();
+
+            if (isSelected)
+                ImGui::PopStyleColor(3);
+
+            if (!tooltip.empty() && ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", tooltip.c_str());
+
+            return clicked;
+        }
+
+        void PreDraw() override
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 12.0f));
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+            const ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+            ImGui::SetNextWindowPos(ImVec2(16.0f, (viewportSize.y * 0.5f) - 260.0f));
+            ImGui::SetNextFrameWantCaptureMouse(false);
+        }
+
+        void PostDraw()
+        {
+            ImGui::PopStyleVar(4);
+            ImGui::PopStyleColor(1);
+        }
+
+        void WindowContent() override
+        {
+            if (Button(ICON_FA_ARROW_POINTER, "Select item", m_gizmoOp == 0))
+                m_gizmoOp = (ImGuizmo::OPERATION)0;
+            if (Button(ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT, "Move selected item", m_gizmoOp & ImGuizmo::TRANSLATE))
+                m_gizmoOp = ImGuizmo::TRANSLATE;
+            if (Button(ICON_FA_ARROW_ROTATE_LEFT, "Rotate selected item", m_gizmoOp & ImGuizmo::ROTATE))
+                m_gizmoOp = ImGuizmo::ROTATE;
+            if (Button(ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE, "Scale selected item", m_gizmoOp & ImGuizmo::SCALEU))
+                m_gizmoOp = ImGuizmo::SCALEU;
+        }
+
+        ImGuizmo::OPERATION GetSelectedGizmoOp() const { return m_gizmoOp; }
+
+    private:
+        ImGuizmo::OPERATION m_gizmoOp = ImGuizmo::TRANSLATE;
+    };
+
+    class PerformanceVisualizer : public ToolWindow, private NonCopyable
+    {
+    public:
+        const ImVec2 plotSize = ImVec2(250, 100);
+        const ImU32 plotCpuColor = 0xff00ffff;
+        const ImU32 plotGpuColor = 0xff0000ff;
+
+        PerformanceVisualizer() :
+            ToolWindow("PerfVis", true, WidgetWindowFlags)
+        {
+        }
+
+        void PreDraw() override
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+            const ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+            ImGui::SetNextWindowPos(ImVec2(40.0f, viewportSize.y - 200.0f));
+            ImGui::SetNextFrameWantCaptureMouse(false);
+        }
+
+        void PostDraw() override
+        {
+            ImGui::PopStyleVar(1);
+            ImGui::PopStyleColor(1);
+        }
+
+        void WindowContent() override
+        {
+            const auto& profilerContext = profiler::GetContext();
+            const auto& cpuFrame = profilerContext.entries.find(profilerContext.cpuFrame);
+            const auto& gpuFrame = profilerContext.entries.find(profilerContext.gpuFrame);
+
+            std::array<ui::PlotLineDesc, 2> plotDesc = { {
+                { "CPU", plotCpuColor, profilerContext.cpuFrameGraph },
+                { "GPU", plotGpuColor, profilerContext.gpuFrameGraph }
+            } };
+
+            ImGui::SetNextItemWidth(-1);
+            PlotMultiLines("##PerfVis", plotDesc, nullptr, 0.0f, 10.0f, plotSize);
+            ui::SolidRect(plotCpuColor, ImVec2(12, 12), ImVec2(0, 8));
+            ImGui::SameLine();
+            ImGui::Text("CPU %.1fms", cpuFrame->second.time);
+            ImGui::SameLine();
+            ImGui::Spacing();
+            ImGui::SameLine();
+            ui::SolidRect(plotGpuColor, ImVec2(12, 12), ImVec2(0, 8));
+            ImGui::SameLine();
+            ImGui::Text("GPU %.1fms", gpuFrame->second.time);
+
+        }
+    };
+
+    ActionButtonMenu actionButtonMenu;
+    PerformanceVisualizer performanceVisualizer;
 
     //------------------------------------------------------------------------------
     // Editor main window
@@ -1044,7 +1178,13 @@ namespace cyb::editor
 
             if (ImGui::BeginMenu("View"))
             {
-                ImGui::Checkbox("CubeView transform", &displayCubeView);
+                bool showWidget = actionButtonMenu.IsVisible();
+                if (ImGui::MenuItem("Action Buttons", NULL, &showWidget))
+                    actionButtonMenu.SetVisible(showWidget);
+                showWidget = performanceVisualizer.IsVisible();
+                if (ImGui::MenuItem("Performance Visualizer", NULL, &showWidget))
+                    performanceVisualizer.SetVisible(showWidget);
+                ImGui::MenuItem("CubeView transform", NULL, &displayCubeView);
                 ImGui::EndMenu();
             }
 
@@ -1192,80 +1332,8 @@ namespace cyb::editor
     }
 
     //------------------------------------------------------------------------------
-
-    class ActionButtonMenu : private NonCopyable
-    {
-    public:
-        const ImVec2 buttonSize = ImVec2(48, 42);
-
-        ActionButtonMenu() = default;
-        ~ActionButtonMenu() = default;
-
-        bool Button(const std::string& text, const std::string& tooltip, bool isSelected)
-        {
-            if (isSelected)
-            {
-                ImVec4 color = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
-                ImGui::PushStyleColor(ImGuiCol_Button, color);
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color);
-                ImGui::PushStyleColor(ImGuiCol_Border, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
-            }
-
-            ImGui::PushFont(imguiBigFont);
-            bool clicked = ImGui::Button(text.c_str(), buttonSize);
-            ImGui::PopFont();
-
-            if (isSelected)
-                ImGui::PopStyleColor(3);
-
-            if (!tooltip.empty() && ImGui::IsItemHovered())
-                ImGui::SetTooltip("%s", tooltip.c_str());
-
-            return clicked;
-        }
-
-        void Draw()
-        {
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3);
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 12.0f));
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-
-            ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
-            ImGui::SetNextWindowPos(ImVec2(16.0f, (viewportSize.y * 0.5f) - 260.0f));
-            
-            // most flags ever on a window...
-            ImGui::SetNextFrameWantCaptureMouse(false);
-            ImGui::Begin("ActionButtonMenu", 0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ImGui::PushID("ActionButtons");
-
-            if (Button(ICON_FA_ARROW_POINTER, "Select item", m_gizmoOp == 0))
-                m_gizmoOp = (ImGuizmo::OPERATION)0;
-            if (Button(ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT, "Move selected item", m_gizmoOp & ImGuizmo::TRANSLATE))
-                m_gizmoOp = ImGuizmo::TRANSLATE;
-            if (Button(ICON_FA_ARROW_ROTATE_LEFT, "Rotate selected item", m_gizmoOp & ImGuizmo::ROTATE))
-                m_gizmoOp = ImGuizmo::ROTATE;
-            if (Button(ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE, "Scale selected item", m_gizmoOp & ImGuizmo::SCALEU))
-                m_gizmoOp = ImGuizmo::SCALEU;
-
-            ImGui::PopID();
-            ImGui::End();
-            ImGui::PopStyleVar(4);
-            ImGui::PopStyleColor(1);
-        }
-
-        ImGuizmo::OPERATION GetSelectedGizmoOp() const { return m_gizmoOp; }
-
-    private:
-        ImGuizmo::OPERATION m_gizmoOp = ImGuizmo::TRANSLATE;
-    };
-
-    //------------------------------------------------------------------------------
     // PUBLIC API
     //------------------------------------------------------------------------------
-
-    ActionButtonMenu actionButtonMenu;
 
     void Initialize()
     {
@@ -1309,6 +1377,7 @@ namespace cyb::editor
 
         DrawMenuBar();
         actionButtonMenu.Draw();
+        performanceVisualizer.Draw();
         guizmo_operation = actionButtonMenu.GetSelectedGizmoOp();
 
         // create an invisible dummy window for recording actions for the

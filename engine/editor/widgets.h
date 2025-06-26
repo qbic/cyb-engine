@@ -88,4 +88,25 @@ namespace cyb::ui
     };
 
     bool GradientButton(const char* label, Gradient* gradient);
+
+    void SolidRect(ImU32 color, const ImVec2& size, const ImVec2& offset = ImVec2(0, 0), bool border = false);
+
+    //------------------------------------------------------------------------------
+    // Plotting functions, supporting mutiple plot lines on a single frame
+    //------------------------------------------------------------------------------
+
+    struct PlotLineDesc
+    {
+        std::string_view Label;
+        ImU32 Color = 0;
+        std::span<const float> Values = {};
+    };
+
+    void PlotMultiLines(
+        const char* label,
+        std::span<const PlotLineDesc> lines,
+        const char* overlay_text = NULL,
+        float scale_min = FLT_MAX,
+        float scale_max = FLT_MAX,
+        ImVec2 graph_size = ImVec2(0, 0));
 }

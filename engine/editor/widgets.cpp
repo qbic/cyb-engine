@@ -632,4 +632,121 @@ namespace cyb::ui {
         COMMON_WIDGET_CODE(label);
         return GradientButtonImpl(gradient);
     }
+
+    using namespace ImGui;
+
+    void SolidRect(ImU32 color, const ImVec2& size, const ImVec2& offset, bool border)
+    {
+        ImGuiContext& g = *GImGui;
+        ImGuiWindow* window = GetCurrentWindow();
+        if (window->SkipItems)
+            return;
+
+        const ImGuiStyle& style = g.Style;
+        const ImVec2 frame_size = CalcItemSize(size, CalcItemWidth(), style.FramePadding.y * 2.0f);
+        const ImRect frame_bb(window->DC.CursorPos + offset, window->DC.CursorPos + offset +frame_size);
+        const ImRect inner_bb(frame_bb.Min + style.FramePadding, frame_bb.Max - style.FramePadding);
+        const ImRect total_bb(frame_bb.Min, frame_bb.Max);
+        ItemSize(total_bb, style.FramePadding.y);
+        if (!ItemAdd(total_bb, 0, &frame_bb))
+            return;
+
+        RenderFrame(frame_bb.Min, frame_bb.Max, color, border, 0);
+    }
+
+    //------------------------------------------------------------------------------
+    // Plotting functions
+    //------------------------------------------------------------------------------
+
+    void PlotMultiLines(
+        const char* label,
+        std::span<const PlotLineDesc> lines,
+        const char* overlay_text,
+        float scale_min,
+        float scale_max,
+        ImVec2 graph_size)
+    {
+        ImGuiContext& g = *GImGui;
+        ImGuiWindow* window = GetCurrentWindow();
+        if (window->SkipItems)
+            return;
+
+        const ImGuiStyle& style = g.Style;
+        const ImGuiID id = window->GetID(label);
+
+        const ImVec2 label_size = CalcTextSize(label, NULL, true);
+        const ImVec2 frame_size = CalcItemSize(graph_size, CalcItemWidth(), label_size.y + style.FramePadding.y * 2.0f);
+
+        const ImRect frame_bb(window->DC.CursorPos, window->DC.CursorPos + frame_size);
+        const ImRect inner_bb(frame_bb.Min + style.FramePadding, frame_bb.Max - style.FramePadding);
+        const ImRect total_bb(frame_bb.Min, frame_bb.Max + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0));
+        ItemSize(total_bb, style.FramePadding.y);
+        if (!ItemAdd(total_bb, 0, &frame_bb))
+            return;
+
+        // Determine scale from values if not specified
+        if (scale_min == FLT_MAX || scale_max == FLT_MAX)
+        {
+            float v_min = FLT_MAX;
+            float v_max = -FLT_MAX;
+            for (const auto& line : lines)
+            {
+                for (const float v : line.Values)
+                {
+                    if (v != v) // Ignore NaN values
+                        continue;
+                    v_min = ImMin(v_min, v);
+                    v_max = ImMax(v_max, v);
+                }
+                if (scale_min == FLT_MAX)
+                    scale_min = v_min;
+                if (scale_max == FLT_MAX)
+                    scale_max = v_max;
+            }
+        }
+
+        RenderFrame(frame_bb.Min, frame_bb.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
+
+        const int values_count_min = 2;
+        for (const auto& line : lines)
+        {
+            if (line.Values.size() >= values_count_min)
+            {
+                int res_w = ImMin((int)frame_size.x, (int)line.Values.size()) - 1;
+                int item_count = line.Values.size() - 1;
+
+                const float t_step = 1.0f / (float)res_w;
+                const float inv_scale = (scale_min == scale_max) ? 0.0f : (1.0f / (scale_max - scale_min));
+
+                float v0 = line.Values[0];
+                float t0 = 0.0f;
+                ImVec2 tp0 = ImVec2(t0, 1.0f - ImSaturate((v0 - scale_min) * inv_scale));                       // Point in the normalized space of our target rectangle
+                float histogram_zero_line_t = (scale_min * scale_max < 0.0f) ? (1 + scale_min * inv_scale) : (scale_min < 0.0f ? 0.0f : 1.0f);   // Where does the zero line stands
+
+                for (int n = 0; n < res_w; n++)
+                {
+                    const float t1 = t0 + t_step;
+                    const int v1_idx = (int)(t0 * item_count + 0.5f);
+                    IM_ASSERT(v1_idx >= 0 && v1_idx < line.Values.size());
+                    const float v1 = line.Values[(v1_idx + 1) % line.Values.size()];
+                    const ImVec2 tp1 = ImVec2(t1, 1.0f - ImSaturate((v1 - scale_min) * inv_scale));
+
+                    // NB: Draw calls are merged together by the DrawList system. Still, we should render our batch are lower level to save a bit of CPU.
+                    ImVec2 pos0 = ImLerp(inner_bb.Min, inner_bb.Max, tp0);
+                    ImVec2 pos1 = ImLerp(inner_bb.Min, inner_bb.Max, tp1);
+                    window->DrawList->AddLine(pos0, pos1, line.Color);
+
+                    t0 = t1;
+                    tp0 = tp1;
+                }
+            }
+        }
+
+        // Text overlay
+        if (overlay_text)
+            RenderTextClipped(ImVec2(frame_bb.Min.x, frame_bb.Min.y + style.FramePadding.y), frame_bb.Max, overlay_text, NULL, NULL, ImVec2(0.5f, 0.0f));
+
+        if (label_size.x > 0.0f)
+            RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, inner_bb.Min.y), label);
+    }
 }

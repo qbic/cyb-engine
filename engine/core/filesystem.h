@@ -3,9 +3,6 @@
 #include <vector>
 #include <functional>
 #include <span>
-#include <memory>
-#include <thread>
-#include "core/platform.h"
 
 namespace cyb::filesystem
 {

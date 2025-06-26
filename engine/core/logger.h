@@ -3,9 +3,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <sstream>
 #include <chrono>
-#include "core/platform.h"
 
 #define CYB_TRACE(...)		cyb::logger::PostTrace(__VA_ARGS__)
 #define CYB_INFO(...)		cyb::logger::PostInfo(__VA_ARGS__)

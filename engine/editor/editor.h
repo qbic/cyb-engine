@@ -7,9 +7,9 @@ namespace cyb::editor
     class ToolWindow
     {
     public:
-        ToolWindow(const std::string& name, int windowFlags = 0) :
+        ToolWindow(const std::string& name, bool defaultVisible = false, int windowFlags = 0) :
             m_windowTitle(name),
-            m_isVisible(false),
+            m_isVisible(defaultVisible),
             m_windowFlags(windowFlags)
         {
             Init();
@@ -23,6 +23,8 @@ namespace cyb::editor
         void Draw();
 
         virtual void Init() {}
+        virtual void PreDraw() {}
+        virtual void PostDraw() {}
         virtual void WindowContent() = 0;
 
     private:

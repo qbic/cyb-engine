@@ -40,7 +40,7 @@ namespace cyb::profiler
     using EntryId = size_t;
 
     constexpr uint32_t AVERAGE_COUNTER_SAMPLES = 20;
-    constexpr uint32_t FRAME_GRAPH_ENTRIES = 144;
+    constexpr uint32_t FRAME_GRAPH_ENTRIES = 600;
 
     struct Entry
     {

@@ -1,3 +1,4 @@
+#include <cassert>
 #include "core/cvar.h"
 #include "core/hash.h"
 #include "core/logger.h"

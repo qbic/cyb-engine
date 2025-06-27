@@ -4,38 +4,109 @@
  */
 #include <memory>
 #define IMGUI_DEFINE_MATH_OPERATORS
+#include "editor/undo_manager.h"
 #include "editor/widgets.h"
 #include "imgui/imgui_internal.h"
 #include "editor/icons_font_awesome6.h"
 
-namespace cyb::ui {
-
-    ScopedStyleColor::ScopedStyleColor(ImGuiCol id, const ImVec4& color) :
-        numColors(1) {
-        ImGui::PushStyleColor(id, color);
+namespace cyb::ui 
+{
+    StyleVarSet::StyleVarSet(std::initializer_list<std::pair<ImGuiStyleVar, VarValue>> list)
+    {
+        for (const auto& [key, val] : list)
+            m_values.emplace(key, val);
     }
 
-    ScopedStyleColor::ScopedStyleColor(ImGuiCol id, ImColor color) :
-        numColors(1) {
-        ImGui::PushStyleColor(id, color.Value);
+    size_t StyleVarSet::GetSize() const
+    {
+        return m_values.size();
     }
 
-    ScopedStyleColor::ScopedStyleColor(const std::initializer_list<std::pair<ImGuiCol, ImVec4>> colors) :
-        numColors(static_cast<uint32_t>(colors.size())) {
-        for (const auto& [id, color] : colors) {
-            ImGui::PushStyleColor(id, color);
+    void StyleVarSet::PushStyleVars() const
+    {
+        for (const auto& [styleVar, val] : m_values)
+        {
+            std::visit([&] (const auto& v) {
+                ImGui::PushStyleVar(styleVar, v);
+            }, val);
         }
     }
 
-    ScopedStyleColor::ScopedStyleColor(const std::initializer_list<std::pair<ImGuiCol, ImU32>> colors) :
-        numColors(static_cast<uint32_t>(colors.size())) {
-        for (const auto& [id, color] : colors) {
-            ImGui::PushStyleColor(id, color);
+    void StyleVarSet::PopStyleVars() const
+    {
+        ImGui::PopStyleVar(GetSize());
+    }
+
+    StyleColorSet::StyleColorSet(std::initializer_list<std::pair<ImGuiCol, ColorValue>> list)
+    {
+        for (const auto& [key, val] : list)
+            m_values.emplace(key, val);
+    }
+
+    size_t StyleColorSet::GetSize() const
+    {
+        return m_values.size();
+    }
+
+    void StyleColorSet::PushStyleColors() const
+    {
+        for (const auto& [styleColor, val] : m_values)
+        {
+            std::visit([&] (const auto& v) {
+                ImGui::PushStyleColor(styleColor, v);
+            }, val);
         }
     }
 
-    ScopedStyleColor::~ScopedStyleColor() {
-        ImGui::PopStyleColor(numColors);
+    void StyleColorSet::PopStyleColors() const
+    {
+        ImGui::PopStyleColor(GetSize());
+    }
+
+    ScopedStyleColor::ScopedStyleColor(ImGuiCol id, const ColorValue& color) :
+        m_colorCount(1)
+    {
+        std::visit([&] (const auto& v) {
+            ImGui::PushStyleColor(id, v);
+        }, color);
+    }
+
+    ScopedStyleColor::ScopedStyleColor(const StyleColorSet& colorSet) :
+        m_colorCount(colorSet.GetSize())
+    {
+        colorSet.PushStyleColors();
+    }
+
+    ScopedStyleColor::~ScopedStyleColor()
+    {
+        ImGui::PopStyleColor(m_colorCount);
+    }
+
+    ScopedStyleVar::ScopedStyleVar(const StyleVarSet& varSet) :
+        m_varCount(varSet.GetSize())
+    {
+        varSet.PushStyleVars();
+    }
+
+    ScopedStyleVar::~ScopedStyleVar()
+    {
+        ImGui::PopStyleVar(m_varCount);
+    }
+
+    ScopedID::ScopedID(const Value id)
+    {
+        std::visit([&] (const auto& v) {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, std::string_view>)
+                ImGui::PushID(v.data());
+            else
+                ImGui::PushID(v);
+        }, id);
+    }
+
+    ScopedID::~ScopedID()
+    {
+        ImGui::PopID();
     }
 
     // draw a left-aligned item label
@@ -108,27 +179,24 @@ namespace cyb::ui {
     void Checkbox(const char* label, bool* v, const std::function<void()> onChange)
     {
         COMMON_WIDGET_CODE(label);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
         ImGui::Checkbox("", v);
-        ImGui::PopStyleVar();
         SaveChangeToUndoManager<ui::ModifyValue<bool, 1>>(v, onChange);
     }
 
     void CheckboxFlags(const char* label, uint32_t* flags, uint32_t flagsValue, const std::function<void()> onChange)
     {
         COMMON_WIDGET_CODE(label);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
         ImGui::CheckboxFlags("", (unsigned int*)flags, (unsigned int)flagsValue);
-        ImGui::PopStyleVar();
         SaveChangeToUndoManager<ui::ModifyValue<uint32_t, 1>>(flags, onChange);
     }
 
     bool DragFloat(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
     {
         COMMON_WIDGET_CODE(label);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
         bool change = ImGui::DragFloat("", v, v_speed, v_min, v_max, format, flags);
-        ImGui::PopStyleVar();
         SaveChangeToUndoManager<ui::ModifyValue<float, 1>>(v);
         return change;
     }
@@ -136,9 +204,8 @@ namespace cyb::ui {
     bool DragFloat3(const char* label, float v[3], float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
     {
         COMMON_WIDGET_CODE(label);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
         bool change = ImGui::DragFloat3("", v, v_speed, v_min, v_max, format, flags);
-        ImGui::PopStyleColor();
         SaveChangeToUndoManager<ui::ModifyValue<float, 3>>(v);
         return change;
     }
@@ -155,9 +222,8 @@ namespace cyb::ui {
     {
         COMMON_WIDGET_CODE(label);
         float temp = *v;
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
         ImGui::SliderFloat("", &temp, minValue, maxValue);
-        ImGui::PopStyleVar();
         SaveChangeToUndoManager<ui::ModifyValue<float, 1>>(v, onChange);
         *v = temp;
     }
@@ -166,9 +232,8 @@ namespace cyb::ui {
     {
         COMMON_WIDGET_CODE(label);
         int temp = *v;
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
         ImGui::SliderInt("", &temp, minValue, maxValue, format, flags);
-        ImGui::PopStyleVar();
         SaveChangeToUndoManager<ui::ModifyValue<int, 1>>(v, onChange);
         *v = temp;
     }
@@ -176,10 +241,8 @@ namespace cyb::ui {
     bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags)
     {
         COMMON_WIDGET_CODE(label);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
         bool change = ImGui::ColorEdit3("", col, flags);
-        ImGui::PopStyleVar();
-
         SaveChangeToUndoManager<ui::ModifyValue<float, 3>>(col);
         return change;
     }
@@ -187,10 +250,8 @@ namespace cyb::ui {
     bool ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flags)
     {
         COMMON_WIDGET_CODE(label);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
         bool change = ImGui::ColorEdit4("", col, flags);
-        ImGui::PopStyleVar();
-
         SaveChangeToUndoManager<ui::ModifyValue<float, 4>>(col);
         return change;
     }
@@ -205,9 +266,9 @@ namespace cyb::ui {
         bool change = ImGui::DragFloat3("", component, 0.1f, 0.0f, 0.0f, "%.1f");
         ImGui::PopStyleVar();
 
-        if (change) {
+        if (change)
             transform->SetDirty();
-        }
+        
         SaveChangeToUndoManager<ui::ModifyTransform>(transform);
 
         return change;
@@ -220,7 +281,7 @@ namespace cyb::ui {
         const auto& selected = combo.find(value);
         const std::string& name = selected != combo.end() ? selected->second : "";
 
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
         if (ImGui::BeginCombo("", name.c_str()))
         {
             for (const auto& [key, name] : combo)
@@ -241,12 +302,10 @@ namespace cyb::ui {
 
             ImGui::EndCombo();
         }
-        ImGui::PopStyleVar();
 
         if (valueChange && onChange)
             onChange();
     }
-
 
     bool ListBox(const char* label, int* selectedIndex, std::vector<std::string_view>& values)
     {
@@ -263,9 +322,8 @@ namespace cyb::ui {
         bool change = false;
         if (!values.empty())
         {
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+            ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
             change = ImGui::ListBox("", selectedIndex, getter, static_cast<void*>(&values), (int)values.size());
-            ImGui::PopStyleVar();
         }
 
         return change;
@@ -345,10 +403,9 @@ namespace cyb::ui {
 
     void Gradient::SortMarks()
     {
-        markList.sort([](const GradientMark* a, const GradientMark* b)
-            {
-                return a->position < b->position;
-            });
+        markList.sort([](const GradientMark* a, const GradientMark* b) {
+            return a->position < b->position;
+        });
     }
 
     Gradient& Gradient::operator=(const Gradient& a)
@@ -681,7 +738,7 @@ namespace cyb::ui {
         const ImRect inner_bb(frame_bb.Min + style.FramePadding, frame_bb.Max - style.FramePadding);
         const ImRect total_bb(frame_bb.Min, frame_bb.Max + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0));
         ItemSize(total_bb, style.FramePadding.y);
-        if (!ItemAdd(total_bb, 0, &frame_bb))
+        if (!ItemAdd(total_bb, 0, &frame_bb, ImGuiItemFlags_NoNav))
             return;
 
         // Determine scale from values if not specified

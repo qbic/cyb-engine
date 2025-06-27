@@ -680,7 +680,7 @@ namespace cyb::editor
 
     void ToolWindow::Draw()
     {
-        if (IsHidden())
+        if (!IsVisible())
             return;
 
         PreDraw();
@@ -713,7 +713,7 @@ namespace cyb::editor
 
             ImGui::BeginTable("CPU/GPU Profiling", 2, ImGuiTableFlags_Borders);
             ImGui::TableNextColumn();
-            ui::ScopedStyleColor cpuFrameLineColor(ImGuiCol_PlotLines, ImColor(255, 0, 0));
+            ui::ScopedStyleColor cpuFrameLineColor(ImGuiCol_PlotLines, 0xff0000ff);
             const std::string cpuOverlayText = std::format("CPU Frame: {:.1f}ms", cpuFrame->second.time);
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##CPUFrame", profilerContext.cpuFrameGraph.data(), profiler::FRAME_GRAPH_ENTRIES, 0, cpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
@@ -728,7 +728,7 @@ namespace cyb::editor
             ImGui::PopStyleVar();
 
             ImGui::TableNextColumn();
-            ui::ScopedStyleColor gpuFrameLineColor(ImGuiCol_PlotLines, ImColor(0, 0, 255));
+            ui::ScopedStyleColor gpuFrameLineColor(ImGuiCol_PlotLines, 0xffff0000);
             const std::string gpuOverlayText = std::format("GPU Frame: {:.1f}ms", gpuFrame->second.time);
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##GPUFrame", profilerContext.gpuFrameGraph.data(), profiler::FRAME_GRAPH_ENTRIES, 0, gpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
@@ -967,7 +967,7 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    static constexpr int WidgetWindowFlags = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
+    static constexpr int WidgetWindowFlags = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground |ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
 
     class ActionButtonMenu : public ToolWindow, private NonCopyable
     {
@@ -975,7 +975,16 @@ namespace cyb::editor
         const ImVec2 buttonSize = ImVec2(48, 42);
 
         ActionButtonMenu() :
-            ToolWindow("ActionButtonMenu", true, WidgetWindowFlags)
+            ToolWindow("ActionButtonMenu", true, WidgetWindowFlags),
+            m_windowStyleVars({
+                { ImGuiStyleVar_FrameRounding,      4.0f },
+                { ImGuiStyleVar_FrameBorderSize,    0.0f },
+                { ImGuiStyleVar_WindowBorderSize,   0.0f },
+                { ImGuiStyleVar_ItemSpacing,        ImVec2(0.0f, 12.0f) }
+            }),
+            m_windowStyleColors({
+                { ImGuiCol_WindowBg,                0xff000000 }
+            })
         {
         }
 
@@ -983,7 +992,7 @@ namespace cyb::editor
         {
             if (isSelected)
             {
-                ImVec4 color = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+                const ImU32 color = ImGui::GetColorU32(ImGuiCol_ButtonActive);
                 ImGui::PushStyleColor(ImGuiCol_Button, color);
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color);
                 ImGui::PushStyleColor(ImGuiCol_Border, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
@@ -1004,25 +1013,22 @@ namespace cyb::editor
 
         void PreDraw() override
         {
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3);
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 12.0f));
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+            m_windowStyleVars.PushStyleVars();
+            m_windowStyleColors.PushStyleColors();
 
             const ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
             ImGui::SetNextWindowPos(ImVec2(16.0f, (viewportSize.y * 0.5f) - 260.0f));
-            ImGui::SetNextFrameWantCaptureMouse(false);
         }
 
         void PostDraw()
         {
-            ImGui::PopStyleVar(4);
-            ImGui::PopStyleColor(1);
+            m_windowStyleVars.PopStyleVars();
+            m_windowStyleColors.PopStyleColors();
         }
 
         void WindowContent() override
         {
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3);
             if (Button(ICON_FA_ARROW_POINTER, "Select item", m_gizmoOp == 0))
                 m_gizmoOp = (ImGuizmo::OPERATION)0;
             if (Button(ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT, "Move selected item", m_gizmoOp & ImGuizmo::TRANSLATE))
@@ -1031,12 +1037,15 @@ namespace cyb::editor
                 m_gizmoOp = ImGuizmo::ROTATE;
             if (Button(ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE, "Scale selected item", m_gizmoOp & ImGuizmo::SCALEU))
                 m_gizmoOp = ImGuizmo::SCALEU;
+            ImGui::PopStyleVar();
         }
 
         ImGuizmo::OPERATION GetSelectedGizmoOp() const { return m_gizmoOp; }
 
     private:
         ImGuizmo::OPERATION m_gizmoOp = ImGuizmo::TRANSLATE;
+        ui::StyleVarSet m_windowStyleVars;
+        ui::StyleColorSet m_windowStyleColors;
     };
 
     class PerformanceVisualizer : public ToolWindow, private NonCopyable
@@ -1047,7 +1056,7 @@ namespace cyb::editor
         const ImU32 plotGpuColor = 0xff0000ff;
 
         PerformanceVisualizer() :
-            ToolWindow("PerfVis", true, WidgetWindowFlags)
+            ToolWindow("PerfVis", true, WidgetWindowFlags | ImGuiWindowFlags_NoInputs)
         {
         }
 
@@ -1058,7 +1067,6 @@ namespace cyb::editor
 
             const ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
             ImGui::SetNextWindowPos(ImVec2(40.0f, viewportSize.y - 200.0f));
-            ImGui::SetNextFrameWantCaptureMouse(false);
         }
 
         void PostDraw() override
@@ -1089,7 +1097,6 @@ namespace cyb::editor
             ui::SolidRect(plotGpuColor, ImVec2(12, 12), ImVec2(0, 8));
             ImGui::SameLine();
             ImGui::Text("GPU %.1fms", gpuFrame->second.time);
-
         }
     };
 
@@ -1368,9 +1375,25 @@ namespace cyb::editor
         initialized = true;
     }
 
-    void Update()
+    static void UpdateFPSCounter(double dt)
+    {
+        deltatimes[fpsAgvCounter++ % deltatimes.size()] = dt;
+        if (fpsAgvCounter > deltatimes.size())
+        {
+            double avgTime = std::accumulate(deltatimes.begin(), deltatimes.end(), 0.0) / deltatimes.size();
+            avgFps = (uint32_t)std::round(1.0 / avgTime);
+        }
+    }
+
+    void Update(bool showGui, double dt)
     {
         if (!initialized)
+            return;
+
+        UpdateFPSCounter(dt);
+
+        // if we won't show the gui, don't bother processing it
+        if (!showGui)
             return;
 
         ImGuizmo::BeginFrame();
@@ -1441,18 +1464,7 @@ namespace cyb::editor
                 scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);
         }
 
-
         DrawTools();
-    }
-
-    void UpdateFPSCounter(double dt)
-    {
-        deltatimes[fpsAgvCounter++ % deltatimes.size()] = dt;
-        if (fpsAgvCounter > deltatimes.size())
-        {
-            double avgTime = std::accumulate(deltatimes.begin(), deltatimes.end(), 0.0) / deltatimes.size();
-            avgFps = (uint32_t)std::round(1.0 / avgTime);
-        }
     }
 
     bool WantInput()

@@ -2,41 +2,77 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
+#include <variant>
 #include "imgui/imgui.h"
-#include "editor/undo_manager.h"
 
 namespace cyb::ui
 {
-    // Set a color or colorscheme for imgui that will be reset when out of scope
-    class ScopedStyleColor final
+    //------------------------------------------------------------------------------
+    // Style / Color / ID helpers
+    //------------------------------------------------------------------------------
+
+    class StyleVarSet
     {
     public:
-        ScopedStyleColor(ImGuiCol id, const ImVec4& color);
-        ScopedStyleColor(ImGuiCol id, ImColor color);
-        explicit ScopedStyleColor(const std::initializer_list<std::pair<ImGuiCol, ImVec4>> colors);
-        explicit ScopedStyleColor(const std::initializer_list<std::pair<ImGuiCol, ImU32>> colors);
+        using VarValue = std::variant<int, float, ImVec2>;
+        StyleVarSet() = default;
+        StyleVarSet(std::initializer_list<std::pair<ImGuiStyleVar, VarValue>> list);
+        [[nodiscard]] size_t GetSize() const;
+        void PushStyleVars() const;
+        void PopStyleVars() const;
+
+    private:
+        std::unordered_map<ImGuiStyleVar, VarValue> m_values;
+    };
+
+    class StyleColorSet
+    {
+    public:
+        using ColorValue = std::variant<ImVec4, ImU32, int>;
+        StyleColorSet() = default;
+        StyleColorSet(std::initializer_list<std::pair<ImGuiCol, ColorValue>> list);
+        [[nodiscard]] size_t GetSize() const;
+        void PushStyleColors() const;
+        void PopStyleColors() const;
+
+    private:
+        std::unordered_map<ImGuiCol, ColorValue> m_values;
+    };
+
+    class ScopedStyleVar : private NonCopyable
+    {
+    public:
+        using VarValue = StyleVarSet::VarValue;
+        ScopedStyleVar(const StyleVarSet& varSet);
+        ~ScopedStyleVar();
+
+    private:
+        uint32_t m_varCount;
+    };
+
+    // Set a color or colorscheme for imgui that will be reset when out of scope
+    class ScopedStyleColor : private NonCopyable
+    {
+    public:
+        using ColorValue = StyleColorSet::ColorValue;
+        [[deprecated]] ScopedStyleColor(ImGuiCol id, const ColorValue& color);
+        ScopedStyleColor(const StyleColorSet& colorSet);
         ~ScopedStyleColor();
 
     private:
-        uint32_t numColors;
+        uint32_t m_colorCount;
     };
 
     // Push an imgui id that will be popped when of scope
-    class ScopedID {
+    class ScopedID : private NonCopyable
+    {
     public:
-        template <class T>
-        ScopedID(const T& label) {
-            ImGui::PushID(label);
-        }
-
-        ScopedID(const std::string& label) {
-            ImGui::PushID(label.c_str());
-        }
-
-        ~ScopedID() {
-            ImGui::PopID();
-        }
+        using Value = std::variant<ImGuiID, void*, const char*, std::string_view>;
+        ScopedID(const Value id);
+        ~ScopedID();
     };
+
+    //------------------------------------------------------------------------------
 
     // Draw an info icon with mouse over text
     void InfoIcon(const char* fmt, ...);

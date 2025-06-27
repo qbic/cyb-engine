@@ -19,7 +19,6 @@ namespace cyb::editor
         const char* GetWindowTitle() const { return m_windowTitle.c_str(); }
         void SetVisible(bool visible) { m_isVisible = visible; }
         bool IsVisible() const { return m_isVisible; }
-        bool IsHidden() const { return !m_isVisible; }
         void Draw();
 
         virtual void Init() {}
@@ -65,12 +64,7 @@ namespace cyb::editor
     };
 
     void Initialize();
-    void Update();
-
-    // NOTE: need to be called from RenderPath3D
-    void Render(const rhi::Texture* rtDepthStencil, rhi::CommandList cmd);
-
-    void UpdateFPSCounter(double dt);
+    void Update(bool showGui, double dt);
 
     // Check whether the editor wants the input (key or mouse)
     bool WantInput();

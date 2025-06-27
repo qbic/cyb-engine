@@ -70,7 +70,7 @@ void main()
     // add a slight sky color tint to the object, giving it the apperance 
     // of some object to sky reflectance (maybe add-in material property)
     const vec3 avg_sky_color = (cbFrame.horizon + cbFrame.zenith) * 0.75;
-    const vec3 sky_reflectance = mix(saturate(avg_sky_color), vec3(1.0), 0.75);
+    const vec3 sky_reflectance = mix(saturate(avg_sky_color), vec3(1.0), 0.85);
 
     // calculate average color of the triangle
     #ifdef ONE_VERTEX_LIGHTING

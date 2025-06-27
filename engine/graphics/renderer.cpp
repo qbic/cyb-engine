@@ -410,6 +410,7 @@ namespace cyb::renderer
 
     void Initialize()
     {
+        Timer timer;
         GetCamera().CreatePerspective(1.78f, 0.1f, 1000.0f, 70.0f);
 
         jobsystem::Context ctx;
@@ -422,6 +423,7 @@ namespace cyb::renderer
         jobsystem::Wait(ctx);
 
         static eventsystem::Handle handle = eventsystem::Subscribe(eventsystem::Event_ReloadShaders, [] (uint64_t userdata) { LoadShaders(); });
+        CYB_INFO("Renderer initialized in {:.2f}ms", timer.ElapsedMilliseconds());
     }
 
     void SceneView::Reset(const scene::Scene* scene, const scene::CameraComponent* camera)

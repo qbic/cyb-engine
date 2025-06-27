@@ -20,7 +20,6 @@ namespace cyb::hli
 
     void RenderPath2D::PreUpdate()
     {
-
     }
 
     void RenderPath2D::Update(double dt)
@@ -38,10 +37,8 @@ namespace cyb::hli
 
         {
             CYB_PROFILE_CPU_SCOPE("GUI Render");
-            editor::UpdateFPSCounter(dt);
             ImGui_Impl_CybEngine_Update();
-            if (showEditor)
-                editor::Update();
+            editor::Update(showEditor, dt);
         }
 #endif
     }

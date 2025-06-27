@@ -39,6 +39,7 @@ namespace cyb::ui
         std::unordered_map<ImGuiCol, ColorValue> m_values;
     };
 
+    // Set a stylevar or stylevarscheme for imgui that will be reset when out of scope
     class ScopedStyleVar : private NonCopyable
     {
     public:
@@ -50,12 +51,11 @@ namespace cyb::ui
         uint32_t m_varCount;
     };
 
-    // Set a color or colorscheme for imgui that will be reset when out of scope
+    // Set a stylecolor or stylecolorscheme for imgui that will be reset when out of scope
     class ScopedStyleColor : private NonCopyable
     {
     public:
         using ColorValue = StyleColorSet::ColorValue;
-        [[deprecated]] ScopedStyleColor(ImGuiCol id, const ColorValue& color);
         ScopedStyleColor(const StyleColorSet& colorSet);
         ~ScopedStyleColor();
 

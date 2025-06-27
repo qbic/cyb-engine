@@ -63,14 +63,6 @@ namespace cyb::ui
         ImGui::PopStyleColor(GetSize());
     }
 
-    ScopedStyleColor::ScopedStyleColor(ImGuiCol id, const ColorValue& color) :
-        m_colorCount(1)
-    {
-        std::visit([&] (const auto& v) {
-            ImGui::PushStyleColor(id, v);
-        }, color);
-    }
-
     ScopedStyleColor::ScopedStyleColor(const StyleColorSet& colorSet) :
         m_colorCount(colorSet.GetSize())
     {

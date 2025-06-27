@@ -483,7 +483,7 @@ namespace cyb::editor
 
     void SceneGraphView::WindowContent()
     {
-        ui::ScopedStyleColor colorGuard(ImGuiCol_Header, ImGui::GetStyle().Colors[ImGuiCol_CheckMark]);
+        ui::ScopedStyleColor styleColor({ { ImGuiCol_Header, ImGui::GetColorU32(ImGuiCol_CheckMark) } });
 
         for (const auto& x : m_root.children)
             DrawNode(&x);
@@ -713,7 +713,7 @@ namespace cyb::editor
 
             ImGui::BeginTable("CPU/GPU Profiling", 2, ImGuiTableFlags_Borders);
             ImGui::TableNextColumn();
-            ui::ScopedStyleColor cpuFrameLineColor(ImGuiCol_PlotLines, 0xff0000ff);
+            ui::ScopedStyleColor cpuFrameLineColor({ { ImGuiCol_PlotLines, 0xff0000ff } });
             const std::string cpuOverlayText = std::format("CPU Frame: {:.1f}ms", cpuFrame->second.time);
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##CPUFrame", profilerContext.cpuFrameGraph.data(), profiler::FRAME_GRAPH_ENTRIES, 0, cpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
@@ -728,7 +728,7 @@ namespace cyb::editor
             ImGui::PopStyleVar();
 
             ImGui::TableNextColumn();
-            ui::ScopedStyleColor gpuFrameLineColor(ImGuiCol_PlotLines, 0xffff0000);
+            ui::ScopedStyleColor gpuFrameLineColor({ { ImGuiCol_PlotLines, 0xffff0000 } });
             const std::string gpuOverlayText = std::format("GPU Frame: {:.1f}ms", gpuFrame->second.time);
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##GPUFrame", profilerContext.gpuFrameGraph.data(), profiler::FRAME_GRAPH_ENTRIES, 0, gpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));

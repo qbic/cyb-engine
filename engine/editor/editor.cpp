@@ -549,7 +549,6 @@ namespace cyb::editor
                 ImGui::Unindent();
             }
 
-
             uint32_t meshIndex = object->meshIndex;
             if (ImGui::CollapsingHeader(ICON_FA_DICE_D6 " Mesh *"))
             {
@@ -1426,7 +1425,7 @@ namespace cyb::editor
 
         // clear selection with escape
         ImGuiIO& io = ImGui::GetIO();
-        bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver();
+        const bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver(guizmo_operation);
 
         if (isMouseIn3DView && ImGui::IsKeyPressed(ImGuiKey_Escape))
             scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);

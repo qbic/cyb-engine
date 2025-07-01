@@ -463,7 +463,7 @@ namespace cyb::editor
             scene::ObjectComponent* object = chunkScene.objects.GetComponent(chunkData.entity);
 
             scene::TransformComponent* transform = chunkScene.transforms.GetComponent(chunkData.entity);
-            transform->Translate(XMFLOAT3((float)(xOffset * m_meshDesc.size), 0, (float)(zOffset * m_meshDesc.size)));
+            transform->Translate(XMFLOAT3((float)(xOffset * m_meshDesc.size), 0, static_cast<float>(zOffset * m_meshDesc.size)));
             transform->UpdateTransform();
 
             scene::MeshComponent* mesh = &chunkScene.meshes.Create(chunkData.entity);

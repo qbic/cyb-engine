@@ -34,15 +34,16 @@ namespace cyb::cvar
         void SetValue(const T v)
         {
             std::visit([&]<typename U>(U& current) {
-                if constexpr (std::is_constructible_v<std::decay_t<U>, T>)
+                if constexpr (!std::is_constructible_v<std::decay_t<U>, T>)
                 {
-                    SetValueImpl(Value(static_cast<std::decay_t<U>>(v)));
-                    return;
+                    // T is non-constuctable type of U and
+                    // this call will bail out, generating a warning
+                    SetValueImpl(Value(v));
+                } 
+                else
+                {
+                    SetValueImpl(Value(static_cast<const std::decay_t<U>>(v)));
                 }
-
-                // T is non-constuctable type of U and
-                // this call will bail out, generating a warning
-                SetValueImpl(Value(v));
             }, m_value);
         }
 

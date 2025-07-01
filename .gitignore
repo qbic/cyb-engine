@@ -38,3 +38,6 @@
 *.vcxproj.filters
 *.sln
 /game/textlog.txt
+/.idea
+/.gitignore
+/.gitignore

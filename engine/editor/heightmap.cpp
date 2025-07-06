@@ -3,24 +3,23 @@
 
 namespace cyb::editor
 {
-    static float StrataValue(float value, StrataOp op, float strength)
+    static float StrataValue(float value, HeightmapStrataOp op, float strength)
     {
         switch (op)
         {
-        case StrataOp::SharpSub: {
+        case HeightmapStrataOp::SharpSub: {
             const float steps = -std::abs(std::sin(value * strength * math::PI) * (0.1f / strength * math::PI));
             value = (value + steps) * 0.5f;
         } break;
-        case StrataOp::SharpAdd: {
+        case HeightmapStrataOp::SharpAdd: {
             const float steps = std::abs(std::sin(value * strength * math::PI) * (0.1f / strength * math::PI));
             value = (value + steps) * 0.5f;
-
         } break;
-        case StrataOp::Quantize: {
+        case HeightmapStrataOp::Quantize: {
             const float strata = strength * 2.0f;
             value = int(value * strata) * 1.0f / strata;
         } break;
-        case StrataOp::Smooth: {
+        case HeightmapStrataOp::Smooth: {
             const float strata = strength * 2.0f;
             const float steps = std::sin(value * strata * math::PI) * (0.1f / strata * math::PI);
             value = (value + steps) * 0.5f;
@@ -32,14 +31,14 @@ namespace cyb::editor
         return value;
     }
 
-    static float CombineValues(float valueA, float valueB, CombineOp op, float strength)
+    static float CombineValues(float valueA, float valueB, HeightmapCombineOp op, float strength)
     {
         switch (op)
         {
-        case CombineOp::Add:    return valueA + valueB;
-        case CombineOp::Sub:    return valueA - valueB;
-        case CombineOp::Mul:    return valueA * valueB;
-        case CombineOp::Lerp:   return math::Lerp(valueA, valueB, strength);
+        case HeightmapCombineOp::Add:    return valueA + valueB;
+        case HeightmapCombineOp::Sub:    return valueA - valueB;
+        case HeightmapCombineOp::Mul:    return valueA * valueB;
+        case HeightmapCombineOp::Lerp:   return math::Lerp(valueA, valueB, strength);
         }
 
         assert(0);
@@ -48,18 +47,18 @@ namespace cyb::editor
 
     void HeightmapGenerator::UnlockMinMax()
     {
-        minHeight = std::numeric_limits<float>::max();
-        maxHeight = std::numeric_limits<float>::min();
-        lockedMinMax = false;
+        m_minHeight = 0.0f;
+        m_maxHeight = 0.1f;
+        m_lockedMinMax = false;
     }
 
     void HeightmapGenerator::LockMinMax()
     {
-        lockedMinMax = true;
+        m_lockedMinMax = true;
 
         // calculate a scale value that will try to put values
         // in a [0..1] range
-        const float scale = 1.0f / (maxHeight - minHeight);
+        const float scale = 1.0f / (m_maxHeight - m_minHeight);
     }
 
     float HeightmapGenerator::GetValue(float x, float y) const
@@ -90,13 +89,13 @@ namespace cyb::editor
 
         // if minmax is locked, that means we're returning raw values and we just update
         // the minmax, else we try to scale values to [0..1] range
-        if (!lockedMinMax)
+        if (!m_lockedMinMax)
         {
-            minHeight = math::Min(minHeight, valueA);
-            maxHeight = math::Max(maxHeight, valueA);
+            m_minHeight = math::Min(m_minHeight, valueA);
+            m_maxHeight = math::Max(m_maxHeight, valueA);
         }
 
-        return (valueA - minHeight) * scale;
+        return (valueA - GetMinHeight()) * m_scale;
     }
 
     float HeightmapGenerator::GetHeightAt(const XMINT2& p) const
@@ -113,7 +112,7 @@ namespace cyb::editor
         desc.noise.seed = 0;
         desc.noise.frequency = 0.989f;
         desc.noise.octaves = 3;
-        desc.strataOp = StrataOp::Smooth;
+        desc.strataOp = HeightmapStrataOp::Smooth;
         desc.strata = 5.0f;
         desc.exponent = 1.8f;
         desc.mixing = 0.4f;
@@ -122,7 +121,7 @@ namespace cyb::editor
         desc.noise.type = noise::Type::Cellular;
         desc.noise.frequency = 0.56f;
         desc.noise.octaves = 4;
-        desc.strataOp = StrataOp::None;
+        desc.strataOp = HeightmapStrataOp::None;
         desc.strata = 12.0f;
         desc.exponent = 1.8f;
         inputs.push_back(desc);
@@ -223,10 +222,10 @@ namespace cyb::editor
         return std::make_pair(maxPoint, maxError);
     }
 
-    void CreateHeightmapImage(std::vector<float>& heightmap, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale)
+    void CreateHeightmapImage(std::vector<float>& output, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale)
     {
-        heightmap.clear();
-        heightmap.resize(width * height);
+        output.clear();
+        output.resize(width * height);
         for (int32_t y = 0; y < height; y++)
         {
             for (int32_t x = 0; x < width; x++)
@@ -234,11 +233,10 @@ namespace cyb::editor
                 const float scale = (1.0f / (float)width) * freqScale;
                 const XMINT2 p = XMINT2((int)std::round((float)(x + offsetX) * scale),
                                         (int)std::round((float)(y + offsetY) * scale));
-                heightmap[y * width + x] = generator.GetHeightAt(p);
+                output[y * width + x] = generator.GetHeightAt(p);
             }
         }
     }
-
 
     void HeightmapTriangulator::Run(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints)
     {

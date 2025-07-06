@@ -17,12 +17,12 @@
 
 namespace cyb::editor
 {
-    static const std::unordered_map<StrataOp, std::string> g_strataFuncCombo = {
-        { StrataOp::None,                       "None"          },
-        { StrataOp::SharpSub,                   "SharpSub"      },
-        { StrataOp::SharpAdd,                   "SharpAdd"      },
-        { StrataOp::Quantize,                   "Quantize"      },
-        { StrataOp::Smooth,                     "Smooth"        }
+    static const std::unordered_map<HeightmapStrataOp, std::string> g_strataFuncCombo = {
+        { HeightmapStrataOp::None,              "None"          },
+        { HeightmapStrataOp::SharpSub,          "SharpSub"      },
+        { HeightmapStrataOp::SharpAdd,          "SharpAdd"      },
+        { HeightmapStrataOp::Quantize,          "Quantize"      },
+        { HeightmapStrataOp::Smooth,            "Smooth"        }
     };
 
     static const std::unordered_map<noise::Type, std::string> g_noiseTypeCombo = {
@@ -30,11 +30,11 @@ namespace cyb::editor
         { noise::Type::Cellular,                "Cellular"      }
     };
 
-    static const std::unordered_map<CombineOp, std::string> g_mixOpCombo = {
-        { CombineOp::Add,                           "Add"           },
-        { CombineOp::Sub,                           "Sub"           },
-        { CombineOp::Mul,                           "Mul"           },
-        { CombineOp::Lerp,                          "Lerp"          }
+    static const std::unordered_map<HeightmapCombineOp, std::string> g_mixOpCombo = {
+        { HeightmapCombineOp::Add,              "Add"           },
+        { HeightmapCombineOp::Sub,              "Sub"           },
+        { HeightmapCombineOp::Mul,              "Mul"           },
+        { HeightmapCombineOp::Lerp,             "Lerp"          }
     };
 
     static const std::unordered_map<noise::CellularReturn, std::string> g_cellularReturnTypeCombo = {
@@ -220,17 +220,13 @@ namespace cyb::editor
                     const ui::ScopedID idGuard((void*)&input);
                     ui::ComboBox("NoiseType", input.noise.type, g_noiseTypeCombo, updatePreviewCb);
                     if (input.noise.type == noise::Type::Cellular)
-                    {
                         ui::ComboBox("CelReturn", input.noise.cellularReturnType, g_cellularReturnTypeCombo, updatePreviewCb);
-                    }
 
                     ui::SliderInt("Seed", (int*)&input.noise.seed, updatePreviewCb, 0, std::numeric_limits<int>::max() / 2);
                     ui::SliderFloat("Frequency", &input.noise.frequency, updatePreviewCb, 0.0f, 10.0f);
-                    ui::ComboBox("StrataOp", input.strataOp, g_strataFuncCombo, updatePreviewCb);
-                    if (input.strataOp != StrataOp::None)
-                    {
+                    ui::ComboBox("HeightmapStrataOp", input.strataOp, g_strataFuncCombo, updatePreviewCb);
+                    if (input.strataOp != HeightmapStrataOp::None)
                         ui::SliderFloat("Strata", &input.strata, updatePreviewCb, 1.0f, 15.0f);
-                    }
                     ui::SliderFloat("Exponent", &input.exponent, updatePreviewCb, 0.0f, 4.0f);
 
                     if (ImGui::TreeNode("FBM"))
@@ -241,13 +237,12 @@ namespace cyb::editor
                         ImGui::TreePop();
                     }
 
+                    // only show combine options if there is an additional input after
                     if (i + 1 < heightmap.inputList.size())
                     {
-                        ui::ComboBox("CombineOp", input.combineOp, g_mixOpCombo, updatePreviewCb);
-                        if (input.combineOp == CombineOp::Lerp)
-                        {
+                        ui::ComboBox("HeightmapCombineOp", input.combineOp, g_mixOpCombo, updatePreviewCb);
+                        if (input.combineOp == HeightmapCombineOp::Lerp)
                             ui::SliderFloat("Mix", &input.mixing, updatePreviewCb, 0.0f, 1.0f);
-                        }
                     }
 
                     ImGui::Separator();
@@ -256,9 +251,7 @@ namespace cyb::editor
 
             ImGui::Spacing();
             if (ui::GradientButton("ColorBand", &m_biomeColorBand))
-            {
                 UpdatePreview();
-            }
 
             ImGui::EndChild();
             ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 130), ImGuiChildFlags_Border);
@@ -272,9 +265,7 @@ namespace cyb::editor
             if (ImGui::Button("Random seed", ImVec2(-1, 0)))
             {
                 for (auto& input : heightmap.inputList)
-                {
                     input.noise.seed = random::GetNumber<uint32_t>(0, std::numeric_limits<int>::max());
-                }
 
                 UpdatePreview();
             }
@@ -338,9 +329,9 @@ namespace cyb::editor
             //CYB_TRACE("MIN={} MAX={}", heightmap.minHeight, heightmap.maxHeight);
 
             // normalize preview image values to 0.0f - 1.0f range
-            const float invHeight = 1.0f / (heightmap.maxHeight - heightmap.minHeight);
+            const float invHeight = 1.0f / (heightmap.GetMaxHeight() - heightmap.GetMinHeight());
             for (uint32_t i = 0; i < PREVIEW_RESOLUTION * PREVIEW_RESOLUTION; ++i) {
-                image[i] = (image[i] - heightmap.minHeight) * invHeight;
+                image[i] = (image[i] - heightmap.GetMinHeight()) * invHeight;
             }
 
             // create a one channel float texture with all components

@@ -4,7 +4,7 @@
 
 namespace cyb::editor
 {
-    enum class StrataOp
+    enum class HeightmapStrataOp
     {
         None,
         SharpSub,
@@ -13,7 +13,7 @@ namespace cyb::editor
         Smooth
     };
 
-    enum class CombineOp
+    enum class HeightmapCombineOp
     {
         Add,
         Sub,
@@ -21,39 +21,46 @@ namespace cyb::editor
         Lerp
     };
 
-    struct HeightmapGenerator
+    class HeightmapGenerator
     {
+    public:
         struct Input
         {
             cyb::noise::Parameters noise;
-            StrataOp strataOp = StrataOp::Smooth;
+            HeightmapStrataOp strataOp = HeightmapStrataOp::Smooth;
             float strata = 5.0f;
             float exponent = 1.0;
 
             // mixing is done between current, and next
             // input (if any) in the input list
-            CombineOp combineOp = CombineOp::Lerp;
-            float mixing = 0;               // t value for when combineOp == CombineOp::Lerp
+            HeightmapCombineOp combineOp = HeightmapCombineOp::Lerp;
+            float mixing = 0;               // t value for when combineOp == HeightmapCombineOp::Lerp
         };
 
         std::vector<Input> inputList;
 
-        bool lockedMinMax = true;
-        mutable float minHeight = 0.0f;
-        mutable float maxHeight = 1.0f;
-        float scale = 1.0f;
-
+        //! @brief Reset min/maxheight and allow GetValue() to update them
         void UnlockMinMax();
+
+        //! @brief Set scale value based on min/maxheight and stop GetValue() from updating
         void LockMinMax();
-        [[nodiscard]] bool IsMinMaxLocked() const { return lockedMinMax; }
+
+        float GetMinHeight() const { return m_minHeight; }
+        float GetMaxHeight() const { return m_maxHeight; }
         [[nodiscard]] float GetValue(float x, float y) const;
         [[nodiscard]] float GetHeightAt(const XMINT2& p) const;
         [[nodiscard]] std::pair<XMINT2, float> FindCandidate(uint32_t width, uint32_t height, const XMINT2& offset, const XMINT2& p0, const XMINT2& p1, const XMINT2& p2) const;
+
+    private:
+        bool m_lockedMinMax = true;
+        mutable float m_minHeight = 0.0f; // may be changed by GetValue()
+        mutable float m_maxHeight = 0.1f; // may be changed by GetValue()
+        float m_scale = 1.0f;
     };
 
     [[nodiscard]] std::vector<HeightmapGenerator::Input> GetDefaultInputs();
 
-    void CreateHeightmapImage(std::vector<float>& heightmap, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale = 1.0f);
+    void CreateHeightmapImage(std::vector<float>& output, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale = 1.0f);
 
     class HeightmapTriangulator
     {

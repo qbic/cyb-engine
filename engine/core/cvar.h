@@ -64,8 +64,7 @@ namespace cyb::cvar
         [[nodiscard]] const std::string& GetDescription() const;
         [[nodiscard]] const uint64_t GetHash() const;
         [[nodiscard]] bool IsModified() const;
-        void SetModified();
-        void ClearModified();
+        void SetModified(bool value);
         void SetOnChangeCallback(const Callback& callback);
 
         // this need's to be called once on initialization to register

@@ -1,8 +1,8 @@
 #include <thread>
 #include <semaphore>
-#if defined(_WIN32)
+#ifdef _WIN32
 #include <Windows.h>
-#endif // _WIN32
+#endif
 #include "core/atomic_queue.h"
 #include "core/platform.h"
 #include "core/logger.h"

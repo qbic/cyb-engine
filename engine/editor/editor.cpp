@@ -40,8 +40,7 @@ namespace cyb::editor
     cvar::CVar* r_debugObjectAABB = nullptr;
     cvar::CVar* r_debugLightSources = nullptr;
 
-    ImGuizmo::OPERATION guizmo_operation = ImGuizmo::TRANSLATE;
-    bool guizmo_world_mode = true;
+    ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
     SceneGraphView scenegraphView;
     std::vector<VideoModeInfo> videoModeList;
 
@@ -1266,12 +1265,11 @@ namespace cyb::editor
         const bool isEnabled = transform != nullptr;
         ImGuizmo::Enable(isEnabled);
         ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-        ImGuizmo::MODE mode = guizmo_world_mode ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
         ImGuizmo::Manipulate(
             &camera.view._11,
             &camera.projection._11,
-            guizmo_operation,
-            mode,
+            gizmoOperation,
+            ImGuizmo::WORLD,
             &world._11);
 
         if (displayCubeView)
@@ -1280,8 +1278,8 @@ namespace cyb::editor
             ImGuizmo::ViewManipulate(
                 &camera.view._11,
                 &camera.projection._11,
-                guizmo_operation,
-                mode,
+                gizmoOperation,
+                ImGuizmo::WORLD,
                 &world._11,
                 1.0f,
                 ImVec2(viewportSize.x - 110.0f, 30.0f),
@@ -1292,9 +1290,7 @@ namespace cyb::editor
         if (ImGuizmo::IsUsing() && isEnabled)
         {
             if (!isUsingGizmo)
-            {
                 ui::GetUndoManager().EmplaceAction<ui::ModifyValue<scene::TransformComponent>>(windowID, transform);
-            }
 
             transform->world = world;
             transform->ApplyTransform();
@@ -1400,7 +1396,7 @@ namespace cyb::editor
         DrawMenuBar();
         actionButtonMenu.Draw();
         performanceVisualizer.Draw();
-        guizmo_operation = actionButtonMenu.GetSelectedGizmoOp();
+        gizmoOperation = actionButtonMenu.GetSelectedGizmoOp();
 
         // create an invisible dummy window for recording actions for the
         // undo manager for the 3d viewport
@@ -1423,10 +1419,11 @@ namespace cyb::editor
         if (scene::GetScene().transforms.GetComponent(scenegraphView.GetSelectedEntity()))
             DrawGizmo(gizmoWindowID);
 
-        // clear selection with escape
+        // check if mouse is in 3d view (not over any capturing gui frame)
         ImGuiIO& io = ImGui::GetIO();
-        const bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver(guizmo_operation);
+        const bool isMouseIn3DView = !io.WantCaptureMouse && !ImGuizmo::IsOver(gizmoOperation);
 
+        // clear selection with escape
         if (isMouseIn3DView && ImGui::IsKeyPressed(ImGuiKey_Escape))
             scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);
 
@@ -1442,17 +1439,14 @@ namespace cyb::editor
             {
                 for (size_t i = 0; i < scene.lights.Size(); ++i)
                 {
-                    ecs::Entity entity = scene.lights.GetEntity(i);
-                    const scene::TransformComponent& transform = *scene.transforms.GetComponent(entity);
-
-                    XMVECTOR disV = XMVector3LinePointDistance(pick_ray.GetOrigin(), pick_ray.GetOrigin() + pick_ray.GetDirection(), transform.GetPositionV());
-                    float dis = XMVectorGetX(disV);
-                    const XMFLOAT3& pos = transform.GetPosition();
-                    if (dis > 0.01f && dis < math::Distance(XMLoadFloat3(&pos), pick_ray.GetOrigin()) * 0.05f && dis < pick_result.distance)
+                    const auto& light = scene.lights[i];
+                    const XMVECTOR lightPos = XMLoadFloat3(&light.position);
+                    const float dist = XMVectorGetX(XMVector3LinePointDistance(pick_ray.GetOrigin(), pick_ray.GetOrigin() + pick_ray.GetDirection(), lightPos));
+                    if (dist > 0.01f && dist < math::Distance(lightPos, pick_ray.GetOrigin()) * 0.05f && dist < pick_result.distance)
                     {
                         pick_result = scene::PickResult();
-                        pick_result.entity = entity;
-                        pick_result.distance = dis;
+                        pick_result.entity = scene.lights.GetEntity(i);
+                        pick_result.distance = dist;
                     }
                 }
             }

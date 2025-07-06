@@ -676,15 +676,10 @@ namespace cyb::scene
 
             for (auto& subset : mesh.subsets)
             {
-                const MaterialComponent* material = materials.GetComponent(subset.materialID);
-                if (material != nullptr)
-                {
+                if (subset.materialID != ecs::INVALID_ENTITY && materials.Contains(subset.materialID))
                     subset.materialIndex = (uint32_t)materials.GetIndex(subset.materialID);
-                }
                 else
-                {
                     subset.materialIndex = 0;
-                }
             }
         });
     }

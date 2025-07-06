@@ -741,7 +741,7 @@ namespace cyb::rhi
         VkSemaphoreSubmitInfo copyQueueSignalInfo = {};
         copyQueueSignalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
 
-        ScopedLock lock(locker);
+        ScopedMutex lock(locker);
 
         {
             auto& queue = device->GetQueue(QueueType::Copy);
@@ -2787,7 +2787,7 @@ namespace cyb::rhi
 
     uint64_t GraphicsDevice_Vulkan::CommandQueue::Submit(GraphicsDevice_Vulkan* device, VkFence fence)
     {
-        ScopedLock lock(*locker);
+        ScopedMutex lock(*locker);
 
         // signal the tracking semaphore with the last submitted ID to mark 
         // the end of the frame
@@ -3008,7 +3008,7 @@ namespace cyb::rhi
                 // https://github.com/KhronosGroup/Vulkan-Docs/issues/152
                 // https://www.khronos.org/blog/resolving-longstanding-issues-with-wsi
                 {
-                    ScopedLock lock(m_allocationHandler->destroylocker);
+                    ScopedMutex lock(m_allocationHandler->destroylocker);
                     for (auto& x : internal_state->swapchainAcquireSemaphores)
                     {
                         m_allocationHandler->destroyer_semaphores.emplace_back(x, m_allocationHandler->framecount);

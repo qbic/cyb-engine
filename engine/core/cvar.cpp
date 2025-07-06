@@ -19,6 +19,8 @@ namespace cyb::cvar
         return registered;
     }
 
+    //------------------------------------------------------------------------------
+
     CVar::CVar(const std::string_view& name, const Value& value, Flag flags, const std::string_view& description) :
         m_name(name),
         m_value(value),
@@ -27,6 +29,7 @@ namespace cyb::cvar
         m_description(description)
     {
         Update();
+        SetModified(false);
 
         if (!IsStaticCVarsRegistered())
             StaticRegistry().push_back(this);
@@ -53,7 +56,7 @@ namespace cyb::cvar
 
         m_value = value;
         Update();
-        SetFlag(m_flags, Flag::ModifiedBit, true);
+        SetModified(true);
 
         if (m_onChangeCallback)
             m_onChangeCallback(this);
@@ -125,12 +128,7 @@ namespace cyb::cvar
         return HasFlag(m_flags, Flag::ModifiedBit);
     }
 
-    void CVar::SetModified()
-    {
-        SetFlag(m_flags, Flag::ModifiedBit, true);
-    }
-    
-    void CVar::ClearModified()
+    void CVar::SetModified(bool value)
     {
         SetFlag(m_flags, Flag::ModifiedBit, false);
     }

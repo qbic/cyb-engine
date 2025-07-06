@@ -173,7 +173,7 @@ namespace cyb::rhi
 
         std::vector<std::unique_ptr<CommandList_Vulkan>> m_commandlists;
         uint32_t m_cmdCount = 0;
-        SpinLockMutex m_cmdLocker;
+        SpinLock m_cmdLocker;
 
         constexpr CommandList_Vulkan& GetCommandList(CommandList cmd) const
         {
@@ -302,7 +302,7 @@ namespace cyb::rhi
                     }
                 };
 
-                ScopedLock lck(destroylocker);
+                ScopedMutex lck(destroylocker);
                 framecount = frameCount;
 
                 destroy(destroyer_images, [&](auto& item) {

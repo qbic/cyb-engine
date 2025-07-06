@@ -30,11 +30,11 @@ namespace cyb::editor
         { noise::Type::Cellular,                "Cellular"      }
     };
 
-    static const std::unordered_map<MixOp, std::string> g_mixOpCombo = {
-        { MixOp::Add,                           "Add"           },
-        { MixOp::Sub,                           "Sub"           },
-        { MixOp::Mul,                           "Mul"           },
-        { MixOp::Lerp,                          "Lerp"          }
+    static const std::unordered_map<CombineOp, std::string> g_mixOpCombo = {
+        { CombineOp::Add,                           "Add"           },
+        { CombineOp::Sub,                           "Sub"           },
+        { CombineOp::Mul,                           "Mul"           },
+        { CombineOp::Lerp,                          "Lerp"          }
     };
 
     static const std::unordered_map<noise::CellularReturn, std::string> g_cellularReturnTypeCombo = {
@@ -67,8 +67,6 @@ namespace cyb::editor
     void TerrainGenerator::SetDefaultHeightmapValues()
     {
         heightmap.inputList = GetDefaultInputs();
-        heightmap.UnlockMinMax();
-        heightmap.LockMinMax();
     }
 
     void TerrainGenerator::DrawGui(ecs::Entity selectedEntity)
@@ -245,8 +243,8 @@ namespace cyb::editor
 
                     if (i + 1 < heightmap.inputList.size())
                     {
-                        ui::ComboBox("MixOp", input.mixOp, g_mixOpCombo, updatePreviewCb);
-                        if (input.mixOp == MixOp::Lerp)
+                        ui::ComboBox("CombineOp", input.combineOp, g_mixOpCombo, updatePreviewCb);
+                        if (input.combineOp == CombineOp::Lerp)
                         {
                             ui::SliderFloat("Mix", &input.mixing, updatePreviewCb, 0.0f, 1.0f);
                         }

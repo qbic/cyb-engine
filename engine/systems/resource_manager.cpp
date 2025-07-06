@@ -105,7 +105,7 @@ namespace cyb::resourcemanager
 
     void AddSearchPath(const std::string& path)
     {
-        ScopedLock lck(locker);
+        ScopedMutex lck(locker);
         const std::string slash = (path[path.length() - 1] != '/') ? "/" : "";
         searchPaths.push_back(path + slash);
 
@@ -253,7 +253,7 @@ namespace cyb::resourcemanager
 
     void Clear()
     {
-        ScopedLock lck(locker);
+        ScopedMutex lck(locker);
         resourceCache.clear();
     }
 };

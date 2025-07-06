@@ -3,7 +3,7 @@
 
 namespace cyb::editor
 {
-    float ApplyStrata(float value, StrataOp op, float strength)
+    static float StrataValue(float value, StrataOp op, float strength)
     {
         switch (op)
         {
@@ -32,26 +32,18 @@ namespace cyb::editor
         return value;
     }
 
-    float ApplyMix(float valueA, float valueB, MixOp op, float strength)
+    static float CombineValues(float valueA, float valueB, CombineOp op, float strength)
     {
-        float value = 0.0f;
         switch (op)
         {
-        case MixOp::Add:
-            value = valueA + valueB;
-            break;
-        case MixOp::Sub:
-            value = valueA - valueB;
-            break;
-        case MixOp::Mul:
-            value = valueA * valueB;
-            break;
-        case MixOp::Lerp:
-            value = math::Lerp(valueA, valueB, strength);
-            break;
+        case CombineOp::Add:    return valueA + valueB;
+        case CombineOp::Sub:    return valueA - valueB;
+        case CombineOp::Mul:    return valueA * valueB;
+        case CombineOp::Lerp:   return math::Lerp(valueA, valueB, strength);
         }
 
-        return value;
+        assert(0);
+        return 0.0f;
     }
 
     void HeightmapGenerator::UnlockMinMax()
@@ -64,19 +56,22 @@ namespace cyb::editor
     void HeightmapGenerator::LockMinMax()
     {
         lockedMinMax = true;
+
+        // calculate a scale value that will try to put values
+        // in a [0..1] range
+        const float scale = 1.0f / (maxHeight - minHeight);
     }
 
     float HeightmapGenerator::GetValue(float x, float y) const
     {
+        // zero input gets zero output
         if (inputList.empty())
-        {
-            return 0;
-        }
+            return 0.0f;
 
         auto calcValue = [x, y] (const Input& input) {
             cyb::noise::Generator noise(input.noise);
             float value = noise.GetValue(x, y);
-            value = ApplyStrata(value, input.strataOp, input.strata);
+            value = StrataValue(value, input.strataOp, input.strata);
             value = std::pow(math::Max(0.0f, value), input.exponent);
             return value;
         };
@@ -89,22 +84,19 @@ namespace cyb::editor
             if (hasValueB)
             {
                 valueB = calcValue(inputList[i + 1]);
-                valueA = ApplyMix(valueA, valueB, inputList[i].mixOp, inputList[i].mixing);
+                valueA = CombineValues(valueA, valueB, inputList[i].combineOp, inputList[i].mixing);
             }
         }
 
+        // if minmax is locked, that means we're returning raw values and we just update
+        // the minmax, else we try to scale values to [0..1] range
         if (!lockedMinMax)
         {
             minHeight = math::Min(minHeight, valueA);
             maxHeight = math::Max(maxHeight, valueA);
         }
-        else
-        {
-            const float scale = 1.0f / (maxHeight - minHeight);
-            valueA = (valueA - minHeight) * scale;
-        }
 
-        return valueA;
+        return (valueA - minHeight) * scale;
     }
 
     float HeightmapGenerator::GetHeightAt(const XMINT2& p) const
@@ -230,6 +222,23 @@ namespace cyb::editor
 
         return std::make_pair(maxPoint, maxError);
     }
+
+    void CreateHeightmapImage(std::vector<float>& heightmap, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale)
+    {
+        heightmap.clear();
+        heightmap.resize(width * height);
+        for (int32_t y = 0; y < height; y++)
+        {
+            for (int32_t x = 0; x < width; x++)
+            {
+                const float scale = (1.0f / (float)width) * freqScale;
+                const XMINT2 p = XMINT2((int)std::round((float)(x + offsetX) * scale),
+                                        (int)std::round((float)(y + offsetY) * scale));
+                heightmap[y * width + x] = generator.GetHeightAt(p);
+            }
+        }
+    }
+
 
     void HeightmapTriangulator::Run(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints)
     {

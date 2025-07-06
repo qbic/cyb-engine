@@ -22,7 +22,7 @@ namespace cyb::profiler
 
         // if one entry name is hit multiple times, differentiate between them!
         size_t differentiator = 0;
-        ScopedLock lck(lock);
+        ScopedMutex lck(lock);
         while (context.entries[id].inUse)
             hash::Combine(id, differentiator++);
 

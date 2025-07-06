@@ -23,7 +23,7 @@ namespace cyb::eventsystem
 
 		~EventInternal()
 		{
-			ScopedLock lock(manager->locker);
+			ScopedMutex lock(manager->locker);
 			auto it = manager->subscribers.find(id);
 			if (it != manager->subscribers.end())
 				it->second.remove(&callback);

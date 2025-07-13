@@ -5,7 +5,7 @@
 
 namespace cyb
 {
-    RegistryMapType cvarRegistry;
+    CVarRegistryMapType cvarRegistry;
 
     static std::vector<detail::CVarBase*>& StaticRegistry()
     {
@@ -51,10 +51,9 @@ namespace cyb
         CVarBase::CVarBase(const std::string& name, CVarFlag flags, const std::string& description) :
             m_name(name),
             m_flags(flags),
-            m_description(description)
+            m_description(description),
+            m_hash(hash::String(name))
         {
-            m_hash = hash::String(GetName());
-
             if (!IsStaticCVarsRegistered())
                 StaticRegistry().push_back(this);
             else
@@ -92,7 +91,7 @@ namespace cyb
         }
     }
 
-    const RegistryMapType& GetCVarRegistry()
+    const CVarRegistryMapType& GetCVarRegistry()
     {
         return cvarRegistry;
     }

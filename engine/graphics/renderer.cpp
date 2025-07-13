@@ -16,8 +16,8 @@ namespace cyb::renderer
 {
     GraphicsDevice*& device = GetDevice();
 
-    CVar<bool> r_debugObjectAABB("r_debugObjectAABB", false, CVarFlag::RendererBit, "Render AABB of all objects in the scene");
-    CVar<bool> r_debugLightSources("r_debugLightSources", false, CVarFlag::RendererBit, "Render icon and AABB of all light sources");
+    CVar<bool> r_debugObjectAABB{ "r_debugObjectAABB", false, CVarFlag::RendererBit, "Render AABB of all objects in the scene" };
+    CVar<bool> r_debugLightSources{ "r_debugLightSources", false, CVarFlag::RendererBit, "Render icon and AABB of all light sources" };
     
     Shader shaders[SHADERTYPE_COUNT];
     GPUBuffer constantbuffers[CBTYPE_COUNT];

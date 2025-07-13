@@ -11,21 +11,27 @@ namespace cyb
 {
     enum class CVarFlag : uint32_t
     {
-        SystemBit = BIT(0),
-        RendererBit = BIT(1),
-        GuiBit = BIT(2),
-        GameBit = BIT(3),
-        RomBit = BIT(10),           // read only access, cannot be changed by user
-        NoSaveBit = BIT(11),        // cvar wont be written during serialization
-        ModifiedBit = BIT(12)
+        SystemBit   = BIT(0),       //!< CVar belongs to core system.
+        RendererBit = BIT(1),       //!< CVar belongs to renderer.
+        GuiBit      = BIT(2),       //!< CVar belongs to GUI.
+        GameBit     = BIT(3),       //!< CVar belongs to game.
+        RomBit      = BIT(10),      //!< Read only access, cannot be changed by user.
+        NoSaveBit   = BIT(11),      //!< Cvar wont be written during serialization.
+        ModifiedBit = BIT(12)       //!< Flags that CVar has been modified sence init.
     };
     CYB_ENABLE_BITMASK_OPERATORS(CVarFlag);
 
+    /**
+     * @brief Undefined to that only defined types of CVar is allowed.
+     */
     template <typename T>
     class CVar;
 
     namespace detail
     {
+        /**
+         * @brief CVar base functionality that doesen't requite value type.
+         */
         class CVarBase : private NonCopyable
         {
         public:
@@ -45,15 +51,18 @@ namespace cyb
         private:
             const std::string m_name;
             const std::string m_description;
-            uint64_t m_hash;                // computed from name
+            const uint64_t m_hash;              // computed from name
             CVarFlag m_flags;
         };
 
+        /**
+         * @brief CVar common functionality that is general for all value types.
+         */
         template<typename T>
         class CVarCommon : public CVarBase
         {
         public:
-            using ValueType = T;
+            using ValueType    = T;
             using CallbackType = std::function<void(const CVar<T>&)>;
 
             explicit CVarCommon(const std::string& name, ValueType value, CVarFlag flags, const std::string& description) :
@@ -100,7 +109,6 @@ namespace cyb
             }
 
             ValueType m_value;
-            std::string m_valueString;
             std::vector<CallbackType> m_callbacks;
         };
     }
@@ -110,6 +118,9 @@ namespace cyb
                              std::same_as<T, uint32_t> ||
                              std::same_as<T, float>;
 
+    /**
+     * @brief CVar of number family type implementation.
+     */
     template<IsNumberFamily T>
     class CVar<T> : public detail::CVarCommon<T>
     {
@@ -155,6 +166,9 @@ namespace cyb
         std::string m_valueString;
     };
 
+    /**
+     * @brief CVar of boolean type implementation.
+     */
     template<>
     class CVar<bool> : public detail::CVarCommon<bool>
     {
@@ -177,6 +191,9 @@ namespace cyb
         }
     };
 
+    /**
+     * @brief CVar of string type implementation.
+     */
     template<>
     class CVar<std::string> : public detail::CVarCommon<std::string>
     {
@@ -198,7 +215,7 @@ namespace cyb
         }
     };
 
-    using RegistryMapType = std::unordered_map<uint64_t, detail::CVarBase*>;
+    using CVarRegistryMapType = std::unordered_map<uint64_t, detail::CVarBase*>;
 
     /**
      * @brief Register all globally defined cvars to the registry. 
@@ -209,7 +226,7 @@ namespace cyb
     /**
      * @brief Get a const map of the registry containing all registrated cvars.
      */
-    [[nodiscard]] const RegistryMapType& GetCVarRegistry();
+    [[nodiscard]] const CVarRegistryMapType& GetCVarRegistry();
 
     /**
      * @brief Try to find a registrated cvar of type T.

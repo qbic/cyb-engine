@@ -4,41 +4,6 @@
 
 namespace cyb::noise
 {
-    namespace detail
-    {
-        class PerlinNoise
-        {
-        public:
-            struct Desc
-            {
-                uint32_t seed = 0;
-                float frequency = 5.5f;
-            };
-
-            PerlinNoise(const Desc& desc);
-
-            float RawNoise(float x, float y);
-        };
-
-        template <class _Device>
-        class NoiseGenerator
-        {
-        public:
-            struct Desc
-            {
-                uint32_t octaves = 4;           // fractal brownian motion (FBM) octaves
-                float lacunarity = 2.0f;        // frequency increase per octave
-                float gain = 0.5f;              // amplification increase per octave
-            };
-
-            float operator()(float x, float y)
-            {
-                return device.RawNoise(x, y);
-            }
-
-            _Device device;
-        };
-    }
     enum class Type
     {
         Perlin,

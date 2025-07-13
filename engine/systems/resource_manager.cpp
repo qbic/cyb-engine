@@ -47,16 +47,16 @@ namespace cyb::resourcemanager
     std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
     DirectoryWatcher directoryWatcher;
-    cvar::CVar assetReloadOnChange("assetReloadOnChange", true, cvar::Flag::SystemBit, "Auto reload loaded asset on filesystem change");
-    cvar::CVar assetFileWatcherStableDelay("assetFileWatcherStableDelay", 200u, cvar::Flag::SystemBit, "Delay in milliseconds from filesystem change to stable file");
+    CVar<bool> assetReloadOnChange("assetReloadOnChange", true, CVarFlag::SystemBit, "Auto reload loaded asset on filesystem change");
+    CVar<uint32_t> assetFileWatcherStableDelay("assetFileWatcherStableDelay", 200, CVarFlag::SystemBit, "Delay in milliseconds from filesystem change to stable file");
 
     static const ska::flat_hash_map<std::string_view, ResourceType> types = {
-        std::make_pair("jpg",  ResourceType::Image),
-        std::make_pair("jpeg", ResourceType::Image),
-        std::make_pair("png",  ResourceType::Image),
-        std::make_pair("dds",  ResourceType::Image),
-        std::make_pair("tga",  ResourceType::Image),
-        std::make_pair("bmp",  ResourceType::Image),
+        std::make_pair("jpg",   ResourceType::Image),
+        std::make_pair("jpeg",  ResourceType::Image),
+        std::make_pair("png",   ResourceType::Image),
+        std::make_pair("dds",   ResourceType::Image),
+        std::make_pair("tga",   ResourceType::Image),
+        std::make_pair("bmp",   ResourceType::Image),
         std::make_pair("frag",  ResourceType::Shader),
         std::make_pair("vert",  ResourceType::Shader),
         std::make_pair("geom",  ResourceType::Shader),
@@ -81,8 +81,8 @@ namespace cyb::resourcemanager
 
     void Initialize()
     {
-        assetReloadOnChange.SetOnChangeCallback([&] (const cvar::CVar* cvar) {
-            if (cvar->GetValue<bool>())
+        assetReloadOnChange.RegisterOnChangeCallback([&] (const CVar<bool>& cvar) {
+            if (cvar.GetValue())
             {
                 // re-add all search paths and start
                 for (const auto& path : searchPaths)
@@ -95,11 +95,11 @@ namespace cyb::resourcemanager
             }
         });
 
-        assetFileWatcherStableDelay.SetOnChangeCallback([&] (const cvar::CVar* cvar) {
-            directoryWatcher.SetEnqueueToStableDelay(cvar->GetValue<uint32_t>());
+        assetFileWatcherStableDelay.RegisterOnChangeCallback([&] (const CVar<uint32_t>& cvar) {
+            directoryWatcher.SetEnqueueToStableDelay(cvar.GetValue());
         });
 
-        if (assetReloadOnChange.GetValue<bool>())
+        if (assetReloadOnChange.GetValue())
             directoryWatcher.Start();
     }
 
@@ -109,7 +109,7 @@ namespace cyb::resourcemanager
         const std::string slash = (path[path.length() - 1] != '/') ? "/" : "";
         searchPaths.push_back(path + slash);
 
-        if (assetReloadOnChange.GetValue<bool>())
+        if (assetReloadOnChange.GetValue())
             directoryWatcher.AddDirectory(path, OnAssetFileChangeEvent, true);
     }
 
@@ -213,14 +213,11 @@ namespace cyb::resourcemanager
         const uint64_t hash = hash::String(fixedName);
         locker.Lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
-        if (internalState != nullptr)
+        if (internalState != nullptr && force == false)
         {
-            if (!force)
-            {
-                locker.Unlock();
-                CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), fixedName, hash);
-                return Resource(internalState);
-            }
+            locker.Unlock();
+            CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), fixedName, hash);
+            return Resource(internalState);
         }
         else
         {

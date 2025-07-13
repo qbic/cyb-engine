@@ -3,13 +3,13 @@
 #include "core/hash.h"
 #include "core/logger.h"
 
-namespace cyb::cvar
+namespace cyb
 {
-    Registry cvarRegistry;
+    RegistryMapType cvarRegistry;
 
-    static std::vector<CVar*>& StaticRegistry()
+    static std::vector<detail::CVarBase*>& StaticRegistry()
     {
-        static std::vector<CVar*> registry;
+        static std::vector<detail::CVarBase*> registry;
         return registry;
     }
 
@@ -19,163 +19,80 @@ namespace cyb::cvar
         return registered;
     }
 
-    //------------------------------------------------------------------------------
-
-    CVar::CVar(const std::string_view& name, const Value& value, Flag flags, const std::string_view& description) :
-        m_name(name),
-        m_value(value),
-        m_typeIndex(value.index()),
-        m_flags(flags),
-        m_description(description)
-    {
-        Update();
-        SetModified(false);
-
-        if (!IsStaticCVarsRegistered())
-            StaticRegistry().push_back(this);
-        else
-            cvar::Register(this);
-    }
-
-    void CVar::SetValueImpl(const Value& value)
-    {
-        if (m_value.index() != value.index())
-        {
-            CYB_WARNING("Type mismatch when setting CVar: {}", GetName());
-            return;
-        }
-
-        if (HasFlag(m_flags, Flag::RomBit))
-        {
-            CYB_WARNING("Cannot change value of read-only CVar: {}", GetName());
-            return;
-        }
-
-        if (m_value == value)
-            return;     // same value
-
-        m_value = value;
-        Update();
-        SetModified(true);
-
-        if (m_onChangeCallback)
-            m_onChangeCallback(this);
-    }
-
-    void CVar::Update()
-    {
-        // string type cvars will use value stored in variant to get
-        // the string value
-        m_valueAsString = std::visit([] (auto&& v) -> std::string {
-            using T = std::decay_t<decltype(v)>;
-            if constexpr (std::is_same_v<T, std::string>)
-                return "";
-            else if constexpr (std::is_same_v<T, bool>)
-                return v ? "true" : "false";
-            else if constexpr (std::is_same_v<T, float>)
-                return std::format("{:.2f}", v);
-            else
-                return std::to_string(v);
-        }, m_value);
-
-        m_hash = hash::String(GetName());
-    }
-
-    const CVar::Value& CVar::GetVariant() const
-    {
-        return m_value;
-    }
-
-    const std::string& CVar::GetValueAsString() const
-    {
-        return std::visit([&] (auto&& v) -> const std::string& {
-            if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::string>)
-                return v;
-            return m_valueAsString;
-        }, m_value);
-    }
-
-    const std::string CVar::GetTypeAsString() const
-    {
-        return std::visit([] (auto&& val) -> std::string {
-            using T = std::decay_t<decltype(val)>;
-            if constexpr (std::is_same_v<T, int32_t>) return "int";
-            if constexpr (std::is_same_v<T, uint32_t>) return "uint";
-            if constexpr (std::is_same_v<T, float>) return "float";
-            if constexpr (std::is_same_v<T, bool>) return "bool";
-            if constexpr (std::is_same_v<T, std::string>) return "string";
-            return "unknown";
-        }, m_value);
-    }
-
-    const std::string& CVar::GetName() const 
-    {
-        return m_name;
-    }
-
-    const std::string& CVar::GetDescription() const
-    {
-        return m_description;
-    }
-
-    const uint64_t CVar::GetHash() const
-    {
-        return m_hash;
-    }
-
-    bool CVar::IsModified() const
-    {
-        return HasFlag(m_flags, Flag::ModifiedBit);
-    }
-
-    void CVar::SetModified(bool value)
-    {
-        SetFlag(m_flags, Flag::ModifiedBit, false);
-    }
-    
-    void CVar::SetOnChangeCallback(const Callback& callback)
-    {
-        m_onChangeCallback = callback;
-    }
-
-    void CVar::RegisterStaticCVars()
-    {
-        if (IsStaticCVarsRegistered())
-            return;
-
-        for (CVar* cvar : StaticRegistry())
-            cvar::Register(cvar);
-
-        IsStaticCVarsRegistered() = true;
-        StaticRegistry().clear();
-    }
-
-    void Register(CVar* cvar)
+    static void RegisterCVar(detail::CVarBase* cvar)
     {
         assert(cvar != nullptr);
         const auto& [_, inserted] = cvarRegistry.insert({ cvar->GetHash(), cvar });
         if (!inserted)
         {
-            CYB_WARNING("cvar::Register(): '{}' allready exist", cvar->GetName());
+            CYB_WARNING("RegisterCVar(): '{}' allready exist", cvar->GetName());
             return;
         }
 
         CYB_TRACE("Registered CVar '{}' [Type: {}] with value '{}'", cvar->GetName(), cvar->GetTypeAsString(), cvar->GetValueAsString());
     }
 
-    CVar* Find(uint64_t hash)
+    void RegisterStaticCVars()
     {
-        auto it = cvarRegistry.find(hash);
-        return (it != cvarRegistry.end()) ? it->second : nullptr;
+        if (IsStaticCVarsRegistered())
+            return;
+
+        for (auto cvar : StaticRegistry())
+            RegisterCVar(cvar);
+
+        IsStaticCVarsRegistered() = true;
+        StaticRegistry().clear();
     }
 
-    CVar* Find(const std::string_view& name)
+    //------------------------------------------------------------------------------
+
+    namespace detail
     {
-        uint64_t hash = hash::String(name);
-        return Find(hash);
+        CVarBase::CVarBase(const std::string& name, CVarFlag flags, const std::string& description) :
+            m_name(name),
+            m_flags(flags),
+            m_description(description)
+        {
+            m_hash = hash::String(GetName());
+
+            if (!IsStaticCVarsRegistered())
+                StaticRegistry().push_back(this);
+            else
+                RegisterCVar(this);
+        }
+
+        uint64_t CVarBase::GetHash() const
+        {
+            return m_hash;
+        }
+
+        const std::string& CVarBase::GetName() const
+        {
+            return m_name;
+        }
+
+        const std::string& CVarBase::GetDescription() const
+        {
+            return m_description;
+        }
+
+        bool CVarBase::IsModified() const
+        {
+            return HasFlag(m_flags, CVarFlag::ModifiedBit);
+        }
+
+        void CVarBase::SetModified(bool value)
+        {
+            SetFlag(m_flags, CVarFlag::ModifiedBit, value);
+        }
+
+        bool CVarBase::IsReadOnly() const
+        {
+            return HasFlag(m_flags, CVarFlag::RomBit);
+        }
     }
 
-    const Registry& GetRegistry()
+    const RegistryMapType& GetCVarRegistry()
     {
         return cvarRegistry;
     }

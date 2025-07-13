@@ -50,24 +50,45 @@ namespace cyb::resourcemanager
     void Initialize();
     void AddSearchPath(const std::string& path);
 
-    // return true if asset type could be resolved
-    // `type` can be nullptr if only filename validation is required
+    /**
+     * @brief Try to resolve asset type though parsing the filename.
+     * 
+     * @param type Pointer to where to store resource type. Can be nullptr.
+     * @param filename Filename of the asset to resolve.
+     * 
+     * @return True if successfully parsed asset type, else false.
+     */
     [[nodiscard]] bool GetAssetTypeFromFilename(ResourceType* type, const std::string& filename);
 
-    // try to locate `filename` in any of the added search paths and return
-    // it's full filepath if found, or just `filename` it was not found in any 
-    // of the search paths
+    /**
+     * @brief Try to locate a file in any of the added search paths.
+     * @return Full path to file if found, else just filename.
+     */
     [[nodiscard]] std::string FindFile(const std::string& filename);
 
-    // translate `type` enum to string
+    /**
+     * @brief Get resource type as string.
+     */
     [[nodiscard]] const char* GetTypeAsString(ResourceType type);
 
-    // Load a resource file:
-    //  name : Filename of a resource
-    //  flags : Specify flags that modify behaviour (optional)
+    /**
+     * @brief Load a resource from file.
+     * 
+     * Internally searched for file though \see FindFile.
+     * Type will automaticly by deduced by extension.
+     * 
+     * @param name Relative path to file.
+     * @param flags (optional) Specify flags that modify behaviour.
+     * @param force (optional) Forces loading even if file is allready in cache.
+     * @return A reference counted Resource object. May be invalid if loading failed.
+     */
     [[nodiscard]] Resource LoadFile(const std::string& name, AssetFlags flags = AssetFlags::None, bool force = false);
 
-    // Note that even if resource manager is cleared, the resource might still
-    // be loaded if anything hold a reference to it.
+    /**
+     * @brief Clear resource manager from all loaded assets.
+     * 
+     * Note that even though resource manager is cleared, resources may
+     * still be valid as long as anything holds a refence to it.
+     */
     void Clear();
 };

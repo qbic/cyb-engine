@@ -143,7 +143,7 @@ namespace cyb::ecs
 
             if (index < m_components.size() - 1)
             {
-                std::exchange(m_components[index], m_components.back());
+                std::swap(m_components[index], m_components.back());
                 m_entities[index] = m_entities.back();
                 m_lookup[m_entities[index]] = index;
             }

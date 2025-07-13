@@ -16,8 +16,8 @@ namespace cyb::renderer
 {
     GraphicsDevice*& device = GetDevice();
 
-    cvar::CVar r_debugObjectAABB("r_debugObjectAABB", false, cvar::Flag::RendererBit, "Render AABB of all objects in the scene");
-    cvar::CVar r_debugLightSources("r_debugLightSources", false, cvar::Flag::RendererBit, "Render icon and AABB of all light sources");
+    CVar<bool> r_debugObjectAABB("r_debugObjectAABB", false, CVarFlag::RendererBit, "Render AABB of all objects in the scene");
+    CVar<bool> r_debugLightSources("r_debugLightSources", false, CVarFlag::RendererBit, "Render icon and AABB of all light sources");
     
     Shader shaders[SHADERTYPE_COUNT];
     GPUBuffer constantbuffers[CBTYPE_COUNT];
@@ -667,7 +667,7 @@ namespace cyb::renderer
         }
 
         // Draw bounding boxes for all visible objects
-        if (r_debugObjectAABB.GetValue<bool>())
+        if (r_debugObjectAABB.GetValue())
         {
             device->BeginEvent("DebugObjectAABB", cmd);
             device->BindPipelineState(&pso_debug[DEBUGRENDERING_CUBE], cmd);
@@ -697,7 +697,7 @@ namespace cyb::renderer
             device->EndEvent(cmd);
         }
 
-        if (r_debugLightSources.GetValue<bool>())
+        if (r_debugLightSources.GetValue())
         {
             device->BeginEvent("DebugLightsources", cmd);
 

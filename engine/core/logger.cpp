@@ -8,8 +8,8 @@ namespace cyb::logger
 {
     // logHistorySize only used to append logs to newly registrated output
     // modules and should't need to be very big
-    cvar::CVar logHistorySize("logHistorySize", 40u, cvar::Flag::SystemBit, "Maximum numbers of log lines to save");
-    cvar::CVar logSeverityThreshold("logSeverityThreshold", 0u, cvar::Flag::SystemBit, "0=Trace, 1=Info, 2=Warning, 3=Error");
+    CVar<uint32_t> logHistorySize("logHistorySize", 40, CVarFlag::SystemBit, "Maximum numbers of log lines to save");
+    CVar<uint32_t> logSeverityThreshold("logSeverityThreshold", 0, CVarFlag::SystemBit, "0=Trace, 1=Info, 2=Warning, 3=Error");
 
     std::vector<std::unique_ptr<OutputModule>> outputModules;
     std::deque<Message> logHistory;
@@ -80,7 +80,7 @@ namespace cyb::logger
 
         void Post(Level severity, const std::string& text)
         {
-            if ((uint32_t)severity < logSeverityThreshold.GetValue<uint32_t>())
+            if ((uint32_t)severity < logSeverityThreshold.GetValue())
                 return;
 
             Message log;
@@ -90,7 +90,7 @@ namespace cyb::logger
 
             ScopedMutex lock(locker);
             logHistory.push_back(log);
-            while (logHistory.size() > logHistorySize.GetValue<uint32_t>())
+            while (logHistory.size() > logHistorySize.GetValue())
                 logHistory.pop_front();
 
             for (auto& output : outputModules)

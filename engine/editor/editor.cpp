@@ -36,9 +36,9 @@ namespace cyb::editor
     bool initialized = false;
     bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
     bool displayCubeView = false;
-    cvar::CVar* r_vsync = nullptr;
-    cvar::CVar* r_debugObjectAABB = nullptr;
-    cvar::CVar* r_debugLightSources = nullptr;
+    CVar<bool>* r_vsync = nullptr;
+    CVar<bool>* r_debugObjectAABB = nullptr;
+    CVar<bool>* r_debugLightSources = nullptr;
 
     ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
     SceneGraphView scenegraphView;
@@ -817,6 +817,33 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
+    enum class EntityType
+    {
+        Names,
+        Transforms,
+        Groups,
+        Hierarchies,
+        Materials,
+        Meshes,
+        Objects,
+        Lights,
+        Cameras,
+        Animations
+    };
+
+    static const std::unordered_map<EntityType, std::string> typeSelectCombo = {
+            { EntityType::Names,        "Names"         },
+            { EntityType::Transforms,   "Transforms"    },
+            { EntityType::Groups,       "Groups"        },
+            { EntityType::Hierarchies,  "Hierarchies"   },
+            { EntityType::Materials,    "Materials"     },
+            { EntityType::Meshes,       "Meshes"        },
+            { EntityType::Objects,      "Objects"       },
+            { EntityType::Lights,       "Lights"        },
+            { EntityType::Cameras,      "Cameras"       },
+            { EntityType::Animations,   "Animations"    }
+    };
+
     class Tool_ContentBrowser : public ToolWindow, private NonCopyable
     {
     public:
@@ -825,30 +852,81 @@ namespace cyb::editor
         {
         }
 
+        template <class T>
+        void ShowEntities(const ecs::ComponentManager<T>& components)
+        {
+            const scene::Scene& scene = scene::GetScene();
+
+            if (ImGui::BeginTable("components", 3, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
+            {
+                ImGui::TableSetupColumn("ID");
+                ImGui::TableSetupColumn("Name");
+                ImGui::TableSetupColumn("Usages");
+                ImGui::TableHeadersRow();
+
+                for (size_t i = 0; i < components.Size(); ++i)
+                {
+                    const ecs::Entity ID = components.GetEntity(i);
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%u", ID);
+
+                    ImGui::TableNextColumn();
+                    const scene::NameComponent* name = scene.names.GetComponent(ID);
+                    ImGui::Text(name ? name->name.c_str() : "(none)");
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("(unknown)");
+                }
+
+                ImGui::EndTable();
+            }
+        }
+
         void WindowContent() override
         {
             const scene::Scene& scene = scene::GetScene();
 
-            ImGui::Text("Meshes:");
-            for (size_t i = 0; i < scene.meshes.Size(); ++i)
-            {
-                const ecs::Entity entityID = scene.meshes.GetEntity(i);
-                const std::string& name = scene.names.GetComponent(entityID)->name;
-
-                ImGui::Text("%s\n", name.c_str());
-            }
-
+            ui::ComboBox("Entity Type", m_selectedEntityType, typeSelectCombo);
             ImGui::Separator();
 
-            ImGui::Text("Materials:");
-            for (size_t i = 0; i < scene.materials.Size(); ++i)
+            switch (m_selectedEntityType)
             {
-                const ecs::Entity entityID = scene.materials.GetEntity(i);
-                const std::string& name = scene.names.GetComponent(entityID)->name;
-
-                ImGui::Text("%s [%u]\n", name.c_str(), entityID);
+            case EntityType::Names:
+                ShowEntities(scene.names);
+                break;
+            case EntityType::Transforms:
+                ShowEntities(scene.transforms);
+                break;
+            case EntityType::Groups:
+                ShowEntities(scene.groups);
+                break;
+            case EntityType::Hierarchies:
+                ShowEntities(scene.hierarchy);
+                break;
+            case EntityType::Materials:
+                ShowEntities(scene.materials);
+                break;
+            case EntityType::Meshes:
+                ShowEntities(scene.meshes);
+                break;
+            case EntityType::Objects:
+                ShowEntities(scene.objects);
+                break;
+            case EntityType::Lights:
+                ShowEntities(scene.lights);
+                break;
+            case EntityType::Cameras:
+                ShowEntities(scene.cameras);
+                break;
+            case EntityType::Animations:
+                ShowEntities(scene.animations);
+                break;
             }
         }
+
+    private:
+        EntityType m_selectedEntityType = EntityType::Names;
     };
 
     //------------------------------------------------------------------------------
@@ -871,7 +949,7 @@ namespace cyb::editor
                 ImGui::TableSetupColumn("Description");
                 ImGui::TableHeadersRow();
 
-                const auto& registry = cvar::GetRegistry();
+                const auto& registry = GetCVarRegistry();
 
                 for (const auto& [_, cvar] : registry)
                 {
@@ -1197,10 +1275,10 @@ namespace cyb::editor
             {
                 if (ImGui::BeginMenu("Debug"))
                 {
-                    bool temp = r_debugObjectAABB->GetValue<bool>();
+                    bool temp = r_debugObjectAABB->GetValue();
                     if (ImGui::Checkbox("Draw Object AABB", &temp))
                         r_debugObjectAABB->SetValue(temp);
-                    temp = r_debugLightSources->GetValue<bool>();
+                    temp = r_debugLightSources->GetValue();
                     if (ImGui::Checkbox("Draw Lightsources", &temp))
                         r_debugLightSources->SetValue(temp);
                     ImGui::EndMenu();
@@ -1224,7 +1302,7 @@ namespace cyb::editor
                 {
                 }
 
-                bool vsyncEnabled = r_vsync->GetValue<bool>();
+                bool vsyncEnabled = r_vsync->GetValue();
                 if (ImGui::Checkbox("VSync", &vsyncEnabled))
                     r_vsync->SetValue(vsyncEnabled);
 
@@ -1347,10 +1425,9 @@ namespace cyb::editor
         AttachToolToMenu(std::make_unique<Tool_CVarViewer>("CVar viewer"));
         AttachToolToMenu(std::make_unique<Tool_LogDisplay>("Backlog"));
 
-        r_vsync = cvar::Find(hash::String("r_vsync"));
-        r_debugObjectAABB = cvar::Find(hash::String("r_debugObjectAABB"));
-        r_debugLightSources = cvar::Find(hash::String("r_debugLightSources"));
-
+        r_vsync = FindCVar<bool>(hash::String("r_vsync"));
+        r_debugObjectAABB = FindCVar<bool>(hash::String("r_debugObjectAABB"));
+        r_debugLightSources = FindCVar<bool>(hash::String("r_debugLightSources"));
 #if 1
         // ImGuizmo style
         ImGuizmo::Style& style = ImGuizmo::GetStyle();
@@ -1435,7 +1512,7 @@ namespace cyb::editor
             scene::PickResult pick_result = scene::Pick(scene, pick_ray);
 
             // Enable mouse picking on lightsources only if they are being drawn
-            if (r_debugLightSources->GetValue<bool>())
+            if (r_debugLightSources->GetValue())
             {
                 for (size_t i = 0; i < scene.lights.Size(); ++i)
                 {

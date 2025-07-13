@@ -9,7 +9,7 @@
 
 namespace cyb::input::rawinput
 {
-    cvar::CVar inputArenaSize("inputArenaSize", 16u * 1024u, cvar::Flag::SystemBit, "Memory arena size (64bit aligned) for the raw input system (restart requierd)");
+    CVar<uint32_t> inputArenaSize("inputArenaSize", 16 * 1024, CVarFlag::SystemBit, "Memory arena size (64bit aligned) for the raw input system (restart requierd)");
     Arena inputArena;
     std::vector<RAWINPUT*> inputMessages;
 
@@ -39,7 +39,7 @@ namespace cyb::input::rawinput
             assert(0);
         }
 
-        inputArena.SetBlockSizeAndAlignment(inputArenaSize.GetValue<uint32_t>(), 64); // 16k block size, 8byte alignment
+        inputArena.SetBlockSizeAndAlignment(inputArenaSize.GetValue(), 64); // 16k block size, 8byte alignment
         inputMessages.reserve(64);
         initialized.store(true);
     }

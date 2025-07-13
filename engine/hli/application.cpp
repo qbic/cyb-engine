@@ -14,7 +14,7 @@ using namespace cyb::rhi;
 
 namespace cyb::hli
 {
-    cvar::CVar r_vsync("r_vsync", true, cvar::Flag::RendererBit, "Enable/Disable framebuffer swap on vertical refresh");
+    CVar<bool> r_vsync("r_vsync", true, CVarFlag::RendererBit, "Enable/Disable framebuffer swap on vertical refresh");
 
     void Application::ActivePath(RenderPath* component)
     {
@@ -79,8 +79,8 @@ namespace cyb::hli
         CYB_INFO_HR();
         CYB_INFO("Initializing cyb-engine (asynchronous), please wait...");
 
+        RegisterStaticCVars();
         jobsystem::Initialize();
-        cvar::CVar::RegisterStaticCVars();
 
         jobsystem::Context ctx;
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { resourcemanager::Initialize(); });
@@ -147,8 +147,8 @@ namespace cyb::hli
             assert(success);
         });
 
-        r_vsync.SetOnChangeCallback([] (const cvar::CVar* cvar) {
-            eventsystem::FireEvent(eventsystem::Event_SetVSync, cvar->GetValue<bool>() ? 1ull : 0ull);
+        r_vsync.RegisterOnChangeCallback([] (const CVar<bool>& cvar) {
+            eventsystem::FireEvent(eventsystem::Event_SetVSync, cvar.GetValue() ? 1ull : 0ull);
         });
     }
 }

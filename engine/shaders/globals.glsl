@@ -24,11 +24,16 @@ vec2 CreateFullscreenTriangleUV(in uint vertexID) {
     return vec2(u, v);
 }
 
-vec3 DecodeNormal(const in uint packedBits) {
-	vec3 result;
-	result.x = float((packedBits >> 0u) & 0xFF) / 255.0 * 2.0 - 1.0;
-	result.y = float((packedBits >> 8u) & 0xFF) / 255.0 * 2.0 - 1.0;
-	result.z = float((packedBits >> 16u) & 0xFF) / 255.0 * 2.0 - 1.0;
+//-----------------------------------------------------------------------------
+// Decodes a 32bit (.w ignored) packed vector into a normalized vec3.
+//-----------------------------------------------------------------------------
+vec3 FloatBitsToNormalizedVec3(const in float bits)
+{
+    const uint intBits = floatBitsToUint(bits);
+    const vec3 result = vec3(
+        float((intBits >>  0u) & 0xFF) / 255.0 * 2.0 - 1.0,
+        float((intBits >>  8u) & 0xFF) / 255.0 * 2.0 - 1.0,
+        float((intBits >> 16u) & 0xFF) / 255.0 * 2.0 - 1.0);
 	return result;
 }
 

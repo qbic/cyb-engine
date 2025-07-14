@@ -1,21 +1,21 @@
 #version 450
 #include "globals.glsl"
 
-layout(location = 0) in vec4 in_position;
-layout(location = 1) in vec4 in_color;
+layout(location = 0) in vec4 inPosition;
+layout(location = 1) in vec4 inColor;
 
-layout(location = 0) out VS_OUT_DATA
+layout(location = 0) out GsInput
 {
-    vec3 pos;
-    flat vec4 col;
+    vec3 position;
+    flat vec4 color;
     vec3 normal;
-} vs_out;
+} vsOut;
 
 void main() 
 {
-    vec4 pos = vec4(in_position.xyz, 1.0);
+    vec4 pos = vec4(inPosition.xyz, 1.0);
+    vsOut.position = (pos * g_xModelMatrix).xyz;
+    vsOut.color = inColor;
+    vsOut.normal = FloatBitsToNormalizedVec3(inPosition.w) * mat3(g_xModelMatrix);
     gl_Position = pos * g_xTransform;
-    vs_out.pos = (pos * g_xModelMatrix).xyz;
-    vs_out.col = in_color;
-    vs_out.normal = normalize(DecodeNormal(floatBitsToUint(in_position.w)) * mat3(g_xModelMatrix));
 }

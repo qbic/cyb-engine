@@ -7,35 +7,35 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices=3) out;
 
-layout(location = 0) in GS_IN_DATA
+layout(location = 0) in GsInput
 {
-    vec3 pos;
-    vec4 col;
+    vec3 position;
+    vec4 color;
     vec3 normal;
-} gs_in[];
+} gsIn[];
 
-layout(location = 0) out GS_OUT_DATA
+layout(location = 0) out PsInput
 {
-    vec3 pos;
+    vec3 position;
     flat vec4 color;
-} gs_out;
+} gsOut;
 
 void main() 
 {
 #ifndef NO_LIGHTING
 #ifdef COMPUTE_HARD_NORMALS
-    const vec3 normal = FaceNormal(gs_in[0].pos, gs_in[1].pos, gs_in[2].pos);
+    const vec3 normal = FaceNormal(gsIn[0].position, gsIn[1].position, gsIn[2].position);
 #else
-    const vec3 normal = AverageValue(gs_in[0].normal, gs_in[1].normal, gs_in[2].normal);
+    const vec3 normal = AverageValue(gsIn[0].normal, gsIn[1].normal, gsIn[2].normal);
 #endif // COMPUTE_HARD_NORMALS
 #endif // NO_LIGHTING
 
-    const vec4 faceColor = mix(gs_in[0].col, gs_in[1].col, float(gs_in[1].col == gs_in[2].col));
+    const vec4 faceColor = mix(gsIn[0].color, gsIn[1].color, float(gsIn[1].color == gsIn[2].color));
 
     #ifdef ONE_VERTEX_LIGHTING
     vec3 vertex_colors[1];
     const int vertex_index = 0;
-    const vec3 vertex_pos = AverageValue(gs_in[0].pos, gs_in[1].pos, gs_in[2].pos);
+    const vec3 vertex_pos = AverageValue(gsIn[0].position, gsIn[1].position, gsIn[2].position);
     #else
     vec3 vertex_colors[3];
     for (int vertex_index = 0; vertex_index < 3; vertex_index++)
@@ -43,7 +43,7 @@ void main()
     {
 #ifndef NO_LIGHTING
 #ifndef ONE_VERTEX_LIGHTING
-        const vec3 vertex_pos = gs_in[vertex_index].pos;
+        const vec3 vertex_pos = gsIn[vertex_index].position;
 #endif // ONE_VERTEX_LIGHTING
         const Surface surface = CreateSurface(normal, vertex_pos, faceColor.rgb);
         LightingPart lighting = LightingPart(vec3(0.0), vec3(0.0));
@@ -77,16 +77,15 @@ void main()
     const vec3 final_rgb = vertex_colors[0] * sky_reflectance;
     const vec4 final_color = vec4(final_rgb, faceColor.a);
     #else
-    const float alpha = AverageValue(gs_in[0].col.a, gs_in[1].col.a, gs_in[2].col.a);
+    const float alpha = AverageValue(gsIn[0].color.a, gsIn[1].color.a, gsIn[2].color.a);
     const vec4 final_color = vec4(AverageValue(vertex_colors), alpha);
     #endif // ONE_VERTEX_LIGHTING
 
     for (int i = 0; i < gl_in.length(); i++)
     {
         gl_Position = gl_in[i].gl_Position;
-        gs_out.pos = gs_in[i].pos;
-        //gs_out.viewDir = normalize(cbCamera.pos.xyz - gs_in[i].pos);
-        gs_out.color = final_color;
+        gsOut.position = gsIn[i].position;
+        gsOut.color = final_color;
         EmitVertex();
     }
     

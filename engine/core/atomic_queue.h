@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <optional>
 
 namespace cyb
 {
@@ -55,7 +56,7 @@ namespace cyb
             }
         }
 
-        bool Pop(T& result)
+        std::optional<T> PopFront()
         {
             size_t pos = dequeuePos.load(std::memory_order_relaxed);
             for (;;)
@@ -68,15 +69,15 @@ namespace cyb
                 {
                     if (dequeuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
                     {
-                        result = std::move(slot.data);
+                        std::optional<T> result = std::move(slot.data);
                         slot.sequence.store(pos + Capacity, std::memory_order_release);
-                        return true;
+                        return result;
                     }
                 }
                 else if (diff < 0)
                 {
                     // Queue empty
-                    return false;
+                    return std::nullopt;
                 }
                 else
                 {

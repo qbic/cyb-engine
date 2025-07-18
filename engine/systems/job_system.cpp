@@ -1,5 +1,7 @@
 #include <thread>
 #include <semaphore>
+#include <mutex>
+#include <condition_variable>
 #ifdef _WIN32
 #include <Windows.h>
 #endif
@@ -15,34 +17,22 @@ namespace cyb::jobsystem
     {
         std::function<void(JobArgs)> task;
         Context* ctx = nullptr;
-        uint32_t groupID = 0;
         uint32_t groupJobOffset = 0;
         uint32_t groupJobEnd = 0;
-        uint32_t sharedMemorySize = 0;
 
-        void Execute()
+        uint32_t Execute()
         {
-            JobArgs args = {};
-            args.groupID = groupID;
-            args.sharedMemory = nullptr;
-
-            if (sharedMemorySize > 0)
-                args.sharedMemory = _malloca(sharedMemorySize);
-
             for (uint32_t i = groupJobOffset; i < groupJobEnd; ++i)
             {
+                JobArgs args{};
                 args.jobIndex = i;
                 args.groupIndex = i - groupJobOffset;
                 args.isFirstJobInGroup = (i == groupJobOffset);
                 args.isLastJobInGroup = (i == groupJobEnd - 1);
-                task(args);
+                task(std::move(args));
             }
 
-            // if the allocation was made on the heap we need to free it
-            if (args.sharedMemory != nullptr)
-                _freea(args.sharedMemory);
-
-            ctx->counter.fetch_sub(1, std::memory_order_acq_rel);
+            return ctx->counter.fetch_sub(1, std::memory_order_acq_rel);
         }
     };
 
@@ -56,87 +46,51 @@ namespace cyb::jobsystem
         uint32_t numThreads = 0;
         std::thread::id mainThreadId;
         std::unique_ptr<AtomicJobQueue[]> jobQueuePerThread;
-        std::atomic_bool alive{ true };
         std::counting_semaphore<> wakeSemaphore{ 0 };
         std::atomic<uint32_t> nextQueue{ 0 };
-        std::vector<std::thread> threads;
+        std::vector<std::jthread> threads;
+        std::mutex waitMutex;
+        std::condition_variable waitCondition;
 
         void Submit(Job&& job)
         {
             auto& queue = jobQueuePerThread[nextQueue.fetch_add(1) % numThreads];
             queue.Push(std::move(job));
-            wakeSemaphore.release(1);
+            wakeSemaphore.release();
         }
 
         ~InternalState()
         {
-            // indicate that new jobs cannot be started from this point
-            alive.store(false);
+            for (auto& thread : threads)
+                thread.request_stop();
 
-            bool wake_loop = true;
-            std::thread waker([&] {
-                // wake up sleeping worker threads
-                while (wake_loop)
-                    wakeSemaphore.release(numThreads);
-            });
+            wakeSemaphore.release(wakeSemaphore.max());
 
             for (auto& thread : threads)
                 thread.join();
-
-            wake_loop = false;
-            waker.join();
         }
     };
 
-    static InternalState internal_state;
-    thread_local uint32_t localQueueIndex = 0;
+    static InternalState internal_state{};
 
     // Start working on a job queue.
     // After the job queue is finished, it can switch to an other queue
     // and steal jobs from there.
-    static void Work()
+    static void Work(uint32_t startingQueue)
     {
-        Job job;
-        AtomicJobQueue& jobQueue = internal_state.jobQueuePerThread[localQueueIndex];
-        while (true)
+        for (uint32_t i = 0; i < internal_state.numThreads; ++i)
         {
-            // try to pop from local queue
-            if (jobQueue.Pop(job))
+            AtomicJobQueue& queue = internal_state.jobQueuePerThread[(startingQueue + i) % internal_state.numThreads];
+            while (auto job = queue.PopFront())
             {
-                bool isWorkerThread = (std::this_thread::get_id() != internal_state.mainThreadId);
-                if (job.ctx->allowWorkOnMainThread || isWorkerThread)
+                uint32_t progressBefore = job->Execute();
+                if (progressBefore == 1)
                 {
-                    job.Execute();
+                    std::unique_lock<std::mutex> lock(internal_state.waitMutex);
+                    internal_state.waitCondition.notify_all();
                 }
-                else
-                {
-                    // skip executing this job and push it back to the queue
-                    jobQueue.Push(std::move(job));
-                    break;
-                }
-            }
-            else
-            {
-                // try to steal from other queues
-                // start from the next queue, to avoid contention with the current queue
-                bool stolen = false;
-                uint32_t start = (localQueueIndex + 1) % internal_state.numThreads;
-                for (uint32_t offset = 0; offset < internal_state.numThreads - 1; ++offset)
-                {
-                    uint32_t i = (start + offset) % internal_state.numThreads;
-                    if (internal_state.jobQueuePerThread[i].Pop(job))
-                    {
-                        job.Execute();
-                        stolen = true;
-                        break;
-                    }
-                }
-                if (!stolen)
-                    break; // no work found, exit
             }
         }
-
-        localQueueIndex = (localQueueIndex + 1) % internal_state.numThreads;
     }
 
     void Initialize()
@@ -149,27 +103,22 @@ namespace cyb::jobsystem
         // calculate the actual number of worker threads we want
         internal_state.numThreads = std::max(1u, internal_state.numCores - 1);
         internal_state.jobQueuePerThread = std::make_unique<AtomicJobQueue[]>(internal_state.numThreads);
-        internal_state.threads.reserve(internal_state.numThreads);
         internal_state.mainThreadId = std::this_thread::get_id();
 
-        // explicitly set localQueueIndex for the main thread, this isn't an issue sence
-        // no jobs are pushed to the main thread queue and is only used for stealing jobs
-        localQueueIndex = 0;
-
+        internal_state.threads.reserve(internal_state.numThreads);
         for (uint32_t threadID = 0; threadID < internal_state.numThreads; ++threadID)
         {
-            std::thread& worker = internal_state.threads.emplace_back([threadID] {
-                localQueueIndex = threadID;
-                while (internal_state.alive.load())
+            std::jthread& worker = internal_state.threads.emplace_back([threadID](const std::stop_token stopToken) {
+                while (!stopToken.stop_requested())
                 {
-                    Work();
+                    Work(threadID);
                     internal_state.wakeSemaphore.acquire();
                 }
             });
 
 #if defined(_WIN32)
             HANDLE handle = (HANDLE)worker.native_handle();
-            std::wstring wthreadname = L"cyb::thread_" + std::to_wstring(threadID);
+            std::wstring wthreadname = std::format(L"cyb::thread_{}", threadID);
             HRESULT hr = SetThreadDescription(handle, wthreadname.c_str());
             assert(SUCCEEDED(hr));
 
@@ -197,10 +146,8 @@ namespace cyb::jobsystem
         Job job;
         job.ctx = &ctx;
         job.task = task;
-        job.groupID = 0;
         job.groupJobOffset = 0;
         job.groupJobEnd = 1;
-        job.sharedMemorySize = 0;
 
         internal_state.Submit(std::move(job));
     }
@@ -227,7 +174,6 @@ namespace cyb::jobsystem
             Job job;
             job.ctx = &ctx;
             job.task = task;
-            job.groupID = groupID;
             job.groupJobOffset = groupID * groupSize;
             job.groupJobEnd = std::min(job.groupJobOffset + groupSize, jobCount);
 
@@ -244,19 +190,18 @@ namespace cyb::jobsystem
 
     void Wait(const Context& ctx)
     {
-        int spin = 0;
-        while (IsBusy(ctx))
+        if (IsBusy(ctx))
         {
-            Work();
+            const bool isWorkerThread = (std::this_thread::get_id() != internal_state.mainThreadId);
+            if (ctx.allowWorkOnMainThread || isWorkerThread)
+                Work(internal_state.nextQueue.fetch_add(1) % internal_state.numThreads);
 
-            // If we are here, then there are still remaining jobs that work() couldn't pick up.
-            //	In this case those jobs are not standing by on a queue but currently executing
-            //	on other threads, so they cannot be picked up by this thread.
-            //	Allow to swap out this thread by OS to not spin endlessly for nothing
-            if (++spin < 200)
-                _mm_pause();
-            else
-                std::this_thread::yield();
+            while (IsBusy(ctx))
+            {
+                // put thread to sleep until waitCondition is signaled
+                std::unique_lock<std::mutex> lock(internal_state.waitMutex);
+                internal_state.waitCondition.wait(lock, [&ctx] { return !IsBusy(ctx); });
+            }
         }
     }
 }

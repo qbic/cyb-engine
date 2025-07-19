@@ -517,14 +517,14 @@ namespace cyb::scene
         RunAnimationUpdateSystem(ctx);      // waits on ctx before returning
         RunTransformUpdateSystem(ctx);
         RunWeatherUpdateSystem(ctx);
+        jobsystem::Wait(ctx);
 
         // update systems that only depends on local transform
-        jobsystem::Wait(ctx);
         RunHierarchyUpdateSystem(ctx);
         RunMeshUpdateSystem(ctx);
+        jobsystem::Wait(ctx);
 
         // update systems that is dependent on world transform
-        jobsystem::Wait(ctx);
         RunObjectUpdateSystem(ctx);
         RunLightUpdateSystem(ctx);
         RunCameraUpdateSystem(ctx);

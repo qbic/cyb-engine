@@ -42,7 +42,7 @@ namespace cyb
             std::vector<FileChangeEvent> ready;
             auto now = Clock::now();
 
-            ScopedMutex lock(m_mutex);
+            ScopedMutex loc(m_mutex);
             for (auto it = m_files.begin(); it != m_files.end(); )
             {
                 auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.time).count();

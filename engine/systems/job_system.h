@@ -17,7 +17,7 @@ namespace cyb::jobsystem
      */
     struct Context
     {
-        std::atomic<uint32_t> counter{ 0 };
+        std::atomic<uint32_t> remainingJobCount{ 0 };
         bool allowWorkOnMainThread{ true };
     };
 
@@ -36,11 +36,13 @@ namespace cyb::jobsystem
 
     /**
      * @brief Execute a task async, the context can be waited on.
+     *        If jobsystem hasn't been initialized this will be immidietly executed.
      */
     void Execute(Context& ctx, const std::function<void(JobArgs)>& task);
 
     /**
      * @brief Create a set of jobs and distribute work among the available threads.
+     *        If jobsystem hasn't been initialized all jobs will be immidietly executed.
      * 
      * Example usage to distribute workload of a vector with 6 elements into 3 groups:
      * std::vector<int> test = {{ 1, 2, 3, 4, 5, 6 }};
@@ -50,8 +52,9 @@ namespace cyb::jobsystem
      * 
      * @param jobCount Total number of jobs to dispatch.
      * @param groupSize Number of jobs to pass as a group to each thread.
+     * @return The number of actual jobs (groups) created.
      */
-    void Dispatch(Context& ctx, uint32_t jobCount, uint32_t groupSize, const std::function<void(JobArgs)>& task);
+    uint32_t Dispatch(Context& ctx, uint32_t jobCount, uint32_t groupSize, const std::function<void(JobArgs)>& task);
     
     /**
      * @brief @brief Check if context is busy with jobs.

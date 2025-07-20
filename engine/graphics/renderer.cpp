@@ -519,6 +519,17 @@ namespace cyb::renderer
             lightConstants.energy = light.energy;
             lightConstants.range = light.range;
         }
+
+        // sort the lights by type, first directional, then point
+        frameCB.pointLightsOffset = frameCB.numLights - 1;
+        for (uint32_t i = 0; i < frameCB.numLights; ++i)
+        {
+            if (frameCB.lights[i].type == LIGHTSOURCE_TYPE_POINT)
+            {
+                std::exchange(frameCB.lights[i], frameCB.lights[frameCB.pointLightsOffset]);
+                frameCB.pointLightsOffset--;
+            }
+        }
     }
 
     void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, rhi::CommandList cmd)

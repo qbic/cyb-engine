@@ -98,6 +98,9 @@ namespace cyb::jobsystem
             while (auto job = queue.PopFront())
             {
                 const uint32_t progressBefore = job->Execute();
+
+                // If progressBefore is 1, previous job was the last one and we
+                // can wake up the waiting threads.
                 if (progressBefore == 1)
                 {
                     std::unique_lock<std::mutex> lock(internal_state.waitMutex);

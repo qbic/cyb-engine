@@ -70,9 +70,9 @@ CONSTANTBUFFER(FrameConstants, CBSLOT_FRAME)
     float windSpeed;
 
     int numLights;
+    int pointLightsOffset;      // where point lights begin in the lights array
     int mostImportantLightIndex;
     int drawSun;
-    PADDING(1)
 
     LightSource lights[SHADER_MAX_LIGHTSOURCES];
 } CONSTANTBUFFER_NAME(cbFrame);

@@ -1251,11 +1251,6 @@ namespace cyb::editor
                     DeleteSelectedEntity();
                 ImGui::MenuItem("Duplicate (!!)", "CTRL+D");
 
-                ImGui::Separator();
-
-                if (ImGui::MenuItem("Reload Shaders"))
-                    renderer::ReloadShaders();
-
                 ImGui::EndMenu();
             }
 
@@ -1305,6 +1300,11 @@ namespace cyb::editor
                 bool vsyncEnabled = r_vsync->GetValue();
                 if (ImGui::Checkbox("VSync", &vsyncEnabled))
                     r_vsync->SetValue(vsyncEnabled);
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Reload Shaders"))
+                    renderer::ReloadShaders();
 
                 ImGui::EndMenu();
             }

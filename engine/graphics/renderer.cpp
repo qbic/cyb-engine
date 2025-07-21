@@ -521,12 +521,15 @@ namespace cyb::renderer
         }
 
         // sort the lights by type, first directional, then point
-        frameCB.pointLightsOffset = frameCB.numLights - 1;
+        frameCB.pointLightsOffset = frameCB.numLights;
         for (uint32_t i = 0; i < frameCB.numLights; ++i)
         {
+            if (i >= frameCB.pointLightsOffset)
+                break;
+
             if (frameCB.lights[i].type == LIGHTSOURCE_TYPE_POINT)
             {
-                std::exchange(frameCB.lights[i], frameCB.lights[frameCB.pointLightsOffset]);
+                std::exchange(frameCB.lights[i], frameCB.lights[frameCB.pointLightsOffset - 1]);
                 frameCB.pointLightsOffset--;
             }
         }

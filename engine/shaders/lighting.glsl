@@ -64,7 +64,7 @@ float OrenNayarFastDiffuse(const Surface surface, const SurfaceToLight surfaceTo
     
     float LdotV = max(dot(surfaceToLight.L, surface.V), 0.0);
     float sigma2 = surface.roughness * surface.roughness;
-    float A = 1.0 + sigma2 * (-0.2 / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
+    float A = 1.0 + sigma2 * (-0.25 / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
     float B = 0.45 * sigma2 / (sigma2 + 0.09);
     float s = LdotV - surfaceToLight.NdotL * surface.NdotV;
     float t = (s <= 0.0) ? 1.0 : max(surfaceToLight.NdotL, surface.NdotV);

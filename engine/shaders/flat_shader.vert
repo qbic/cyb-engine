@@ -16,6 +16,6 @@ void main()
     vec4 pos = vec4(inPosition.xyz, 1.0);
     vsOut.position = (pos * g_xModelMatrix).xyz;
     vsOut.color = inColor;
-    vsOut.normal = FloatBitsToNormalizedVec3(inPosition.w) * mat3(g_xModelMatrix);
+    vsOut.normal = DecodePackedNormal(inPosition.w) * mat3(g_xModelMatrix);
     gl_Position = pos * g_xTransform;
 }

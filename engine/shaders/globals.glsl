@@ -8,26 +8,36 @@
 #define GAMMA(x)		(ApplySRGBCurve_Fast(x))
 #define DEGAMMA(x)		(RemoveSRGBCurve_Fast(x))
 
+/**
+ * @brief Clamps the value to a [0..1] range.
+ */
 #define saturate(x)     (clamp(x, 0.0, 1.0))
 
-// Create vertex position for a full screen triangle from 3 vertices
-vec4 CreateFullscreenTriangle(in uint vertexID) {
-    const float x = (vertexID / 2) * 4.0 - 1.0;
-    const float y = (vertexID % 2) * 4.0 - 1.0;
-    return vec4(x, y, 0.0, 1.0);
+/**
+ * @brief Get vertex position for a full screen triangle from 3 indices.
+ * @param vertexIndex Vertex index (gl_VertexIndex).
+ * @return Vertex position in screenspace.
+ */
+vec4 GetFullscreenTriangle(const uint vertexIndex)
+{
+    return vec4((vertexIndex / 2) * 4.0 - 1.0,
+                (vertexIndex % 2) * 4.0 - 1.0, 0.0, 1.0);
 }
 
-// Create vertex uv for a full screen triangle from 3 vertices
-vec2 CreateFullscreenTriangleUV(in uint vertexID) {
-	const float u = (vertexID / 2) * 2.0;
-    const float v = 1 - (vertexID % 2) * 2.0;	// flip y axis
-    return vec2(u, v);
+/**
+ * @brief Get uv for a full screen triangle from 3 indices.
+ * @param vertexIndex Vertex index (gl_VertexIndex).
+ * @return Texture coord for the triangle.
+ */
+vec2 GetFullscreenTriangleUV(const uint vertexIndex)
+{
+    return vec2((vertexIndex / 2) * 2.0, 1 - (vertexIndex % 2) * 2.0);
 }
 
-//-----------------------------------------------------------------------------
-// Decodes a 32bit (.w ignored) packed vector into a normalized vec3.
-//-----------------------------------------------------------------------------
-vec3 FloatBitsToNormalizedVec3(const in float bits)
+/**
+ * @brief Decode a float packed normal into a normalized vec3.
+ */
+vec3 DecodePackedNormal(const float bits)
 {
     const uint intBits = floatBitsToUint(bits);
     const vec3 result = vec3(
@@ -37,8 +47,11 @@ vec3 FloatBitsToNormalizedVec3(const in float bits)
 	return result;
 }
 
-// Compact, self-contained version of IQ's 3D value noise function.
-float Noise_3D(in vec3 p) {
+/**
+ * @brief Compact, self-contained version of IQ's 3D value noise function.
+ */
+float Noise_3D(vec3 p)
+{
 	const vec3 s = vec3(7, 157, 113);
 	const vec3 i = floor(p);
     vec4 h = vec4(0.0, s.yz, s.y + s.z) + dot(i, s);
@@ -49,11 +62,23 @@ float Noise_3D(in vec3 p) {
     return mix(h.x, h.y, p.z); // Range: [0, 1].
 }
 
-vec3 GetDynamicSkyColor(in vec3 V, bool drawSun) {
+/**
+ * @brief Get the sky color (with sun) at vertex position.
+ * 
+ * The sun will be drawn at the location of the scene's most
+ * dominant directional lightsource.
+ * 
+ * @param V Normalized worldpos to camera vector.
+ * @param drawSun Whether or not to draw the sun.
+ * @return RGB color of the sky.
+ */
+vec3 GetDynamicSkyColor(const vec3 V, bool drawSun)
+{
     float a = V.y * 0.5 + 0.5;
     vec3 color = mix(cbFrame.horizon, cbFrame.zenith, a);
 
-    if (drawSun) {
+    if (drawSun)
+    {
 		vec3 sunDir = normalize(cbFrame.lights[cbFrame.mostImportantLightIndex].position.xyz);
         float sundot = saturate(dot(V, sunDir));
         color += 0.18 * vec3(1.0, 0.7, 0.4) * pow(sundot, 12.0);
@@ -62,7 +87,8 @@ vec3 GetDynamicSkyColor(in vec3 V, bool drawSun) {
     }
 
     float t = (cbFrame.cloudHeight - camera.pos.y - 0.15)/(V.y + 0.15);
-    if (t > 0.0) {
+    if (t > 0.0)
+    {
         vec3 uv = (camera.pos.xyz + t*V) + vec3(vec2(cbFrame.windSpeed * cbFrame.time), 0);
         uv = cbFrame.cloudTurbulence * uv / cbFrame.cloudHeight;
         const float fbm_noise = Noise_3D(uv * 1.0) * 0.73 + 
@@ -75,25 +101,41 @@ vec3 GetDynamicSkyColor(in vec3 V, bool drawSun) {
     return color;
 }
 
-float GetFogAmount(float dist) {
+float GetFogAmount(float dist)
+{
 	return saturate((dist - cbFrame.fog.x) * cbFrame.fog.w);
 }
 
-vec3 FaceNormal(in vec3 a, in vec3 b, in vec3 c) {
-    const vec3 ab = a - b;
-    const vec3 cb = c - b;
-    return normalize(cross(ab, cb));
+/**
+ * @brief Calculate the normal of 3 vectors.
+ * @return The normalized cross product of a, b & c.
+ */
+vec3 CalcNormal(const vec3 a, const vec3 b, const vec3 c)
+{
+    return normalize(cross(a - b, c - b));
 }
 
-float AverageValue(in float a, in float b, in float c) {
+/**
+ * @brief Calculate the average value of 3 float.
+ */
+float CalcAverage(const float a, const float b, const float c)
+{
     return (a + b + c) * (1.0 / 3.0);
 }
 
-vec3 AverageValue(in vec3 a, in vec3 b, in vec3 c) {
+/**
+ * @brief Calculate the average value of 3 vec3.
+ */
+vec3 CalcAverage(const vec3 a, const vec3 b, const vec3 c)
+{
     return (a + b + c) * (1.0 / 3.0);
 }
 
-vec3 AverageValue(in vec3 v[3]) {
+/**
+ * @brief Calculate the average value of 3 floats in an array.
+ */
+vec3 CalcAverage(const vec3 v[3])
+{
     return (v[0] + v[1] + v[2]) * (1.0 / 3.0);
 }
 

@@ -24,9 +24,9 @@ void main()
 {
 #ifndef NO_LIGHTING
 #ifdef COMPUTE_HARD_NORMALS
-    const vec3 normal = FaceNormal(gsIn[0].position, gsIn[1].position, gsIn[2].position);
+    const vec3 normal = CalcNormal(gsIn[0].position, gsIn[1].position, gsIn[2].position);
 #else
-    const vec3 normal = AverageValue(gsIn[0].normal, gsIn[1].normal, gsIn[2].normal);
+    const vec3 normal = CalcAverage(gsIn[0].normal, gsIn[1].normal, gsIn[2].normal);
 #endif // COMPUTE_HARD_NORMALS
 #endif // NO_LIGHTING
 
@@ -35,7 +35,7 @@ void main()
     #ifdef ONE_VERTEX_LIGHTING
     vec3 vertex_colors[1];
     const int vertex_index = 0;
-    const vec3 vertex_pos = AverageValue(gsIn[0].position, gsIn[1].position, gsIn[2].position);
+    const vec3 vertex_pos = CalcAverage(gsIn[0].position, gsIn[1].position, gsIn[2].position);
     #else
     vec3 vertex_colors[3];
     for (int vertex_index = 0; vertex_index < 3; vertex_index++)
@@ -80,8 +80,8 @@ void main()
     const vec3 final_rgb = vertex_colors[0] * sky_reflectance;
     const vec4 final_color = vec4(final_rgb, faceColor.a);
     #else
-    const float alpha = AverageValue(gsIn[0].color.a, gsIn[1].color.a, gsIn[2].color.a);
-    const vec4 final_color = vec4(AverageValue(vertex_colors), alpha);
+    const float alpha = CalcAverage(gsIn[0].color.a, gsIn[1].color.a, gsIn[2].color.a);
+    const vec4 final_color = vec4(CalcAverage(vertex_colors), alpha);
     #endif // ONE_VERTEX_LIGHTING
 
     for (int i = 0; i < gl_in.length(); i++)

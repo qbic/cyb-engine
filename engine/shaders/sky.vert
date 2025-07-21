@@ -11,7 +11,7 @@ layout(location=0) out VS_OUT_DATA
 
 void main()
 {
-    vs_out.position = CreateFullscreenTriangle(gl_VertexIndex);
+    vs_out.position = GetFullscreenTriangle(gl_VertexIndex);
     vs_out.clipspace = vs_out.position.xy;
     gl_Position = vs_out.position;
 }

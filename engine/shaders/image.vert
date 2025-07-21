@@ -7,8 +7,8 @@ void main()
 {
     if ((image.flags & IMAGE_FULLSCREEN_BIT) == IMAGE_FULLSCREEN_BIT)
 	{
-		gl_Position = CreateFullscreenTriangle(gl_VertexIndex);
-		frag_uv = CreateFullscreenTriangleUV(gl_VertexIndex);
+		gl_Position = GetFullscreenTriangle(gl_VertexIndex);
+		frag_uv = GetFullscreenTriangleUV(gl_VertexIndex);
     }
 	else
 	{

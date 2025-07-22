@@ -104,13 +104,13 @@ namespace cyb::rhi
             options.SetGenerateDebugInfo();
 
         // Setup the shaderc compiler.
-        shaderc::Compiler compiler{};
+        shaderc::Compiler compiler;
         const shaderc_shader_kind kind = ConvertShaderKind(input.stage);
-        const std::string shadersource = std::string((const char*)input.source.data(), input.source.size());
         
         // Run the preprocessor.
         const auto preprocessResult = compiler.PreprocessGlsl(
-            shadersource,
+            (const char*)input.source.data(),
+            input.source.size(),
             kind,
             input.name.c_str(),
             options);

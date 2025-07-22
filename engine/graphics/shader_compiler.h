@@ -20,14 +20,14 @@ namespace cyb::rhi
         ShaderCompilerFlags flags{ ShaderCompilerFlags::None };
         ShaderFormat format{ ShaderFormat::None };
         ShaderStage stage{ ShaderStage::Count };
-        std::string name{};
-        std::span<uint8_t> source{};
+        std::string name{};             //!< Should be the filename if the source is a file.
+        std::span<uint8_t> source{};    //!< Shader sourcecode data.
     };
 
     struct ShaderCompilerOutput
     {
-        std::vector<uint8_t> shader{};
-        uint64_t hash{ 0 };
+        std::vector<uint8_t> shader{};  //!< Compiled SPIR-V shader data.
+        uint64_t hash{ 0 };             //!< Hash computed from preprocessed shader.
     };
 
     /**

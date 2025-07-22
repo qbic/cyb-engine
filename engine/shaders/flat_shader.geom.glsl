@@ -48,7 +48,7 @@ void main()
         const Surface surface = CreateSurface(normal, vertex_pos, faceColor.rgb);
         LightingPart lighting = LightingPart(vec3(0.0), vec3(0.0));
 
-        // Light [0..pointLightsOffset] are directional lights.
+        // Lights [0..pointLightsOffset] are directional lights.
         for (int lightIndex = 0; lightIndex < cbFrame.pointLightsOffset; lightIndex++)
         {
             LightingPart contribution = Light_Directional(cbFrame.lights[lightIndex], surface);
@@ -56,7 +56,7 @@ void main()
             lighting.specular += contribution.specular;
         }
 
-        // Light [pointLightsOffset..numLights] are point lights.
+        // Lights [pointLightsOffset..numLights] are point lights.
         for (int lightIndex = cbFrame.pointLightsOffset; lightIndex < cbFrame.numLights; lightIndex++)
         {
             LightingPart contribution = Light_Point(cbFrame.lights[lightIndex], surface);
@@ -64,7 +64,7 @@ void main()
             lighting.specular += contribution.specular;
         }
 
-        vertex_colors[vertex_index] = lighting.diffuse * surface.baseColor + lighting.specular;
+        vertex_colors[vertex_index] = (lighting.diffuse * surface.baseColor) + lighting.specular;
 #else
         vertex_colors[vertex_index] = faceColor.rgb * cbMaterial.baseColor.rgb;
 #endif  // NO_LIGHTING

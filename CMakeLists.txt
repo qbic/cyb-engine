@@ -9,7 +9,7 @@ set(CYB_VERSION_MINOR "${CMAKE_MATCH_2}")
 set(CYB_VERSION_PATCH "${CMAKE_MATCH_3}")
 
 # Configure CMake global variables
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Find required packages

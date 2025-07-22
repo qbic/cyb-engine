@@ -558,7 +558,7 @@ namespace cyb::editor
                 ImGui::Unindent();
             }
 
-            if (ImGui::CollapsingHeader(ICON_FA_PALETTE " Materials *"))
+            if (ImGui::CollapsingHeader(ICON_FA_PALETTE " Materials *", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::Indent();
                 const uint32_t materialIndex = SelectAndGetMaterialIndexForMesh(scene.meshes[meshIndex]);
@@ -569,7 +569,7 @@ namespace cyb::editor
         }
 
         InspectComponent<scene::MeshComponent>(ICON_FA_DICE_D6" Mesh", scene.meshes, InspectMeshComponent, entityID, false);
-        InspectComponent<scene::MaterialComponent>(ICON_FA_PALETTE " Material", scene.materials, InspectMaterialComponent, entityID, false);
+        InspectComponent<scene::MaterialComponent>(ICON_FA_PALETTE " Material", scene.materials, InspectMaterialComponent, entityID, true);
         InspectComponent<scene::LightComponent>(ICON_FA_LIGHTBULB " Light", scene.lights, InspectLightComponent, entityID, true);
         InspectComponent<scene::TransformComponent>(ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT " Transform", scene.transforms, InspectTransformComponent, entityID, false);
         InspectComponent<scene::HierarchyComponent>(ICON_FA_CODE_FORK " Hierarchy", scene.hierarchy, InspectHierarchyComponent, entityID, false);

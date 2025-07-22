@@ -10,7 +10,7 @@
 
 namespace cyb::rhi
 {
-    static shaderc_shader_kind _ConvertShaderKind(ShaderStage stage)
+    static shaderc_shader_kind ConvertShaderKind(ShaderStage stage)
     {
         switch (stage)
         {
@@ -26,27 +26,17 @@ namespace cyb::rhi
 
     // TODO: Vulkan SDK probably supplies a better version of this...
     // Perform some minor SPIR-V shader validation
-    ShaderValidationResult ValidateShaderSPIRV(const uint32_t* data, size_t size)
+    std::optional<std::string> ValidateShaderSPIRV(std::span<uint32_t> shader)
     {
-        constexpr uint32_t SpvMagicNumber = 0x07230203;
-        ShaderValidationResult result = {};
-
-        if ((size % 4) != 0)
-        {
-            result.code = ShaderValidationErrorCode::NotMultipleOf4;
-            result.error_message = "SPIR - V shader size not multiple of 4!";
-            return result;
-        }
-
-        const uint32_t magic = data[0];
+        static constexpr uint32_t SpvMagicNumber = 0x07230203;
+        const uint32_t magic = shader.data()[0];
         if (magic != SpvMagicNumber)
-        {
-            result.code = ShaderValidationErrorCode::InvalidMagic;
-            result.error_message = "Shader has invalid magic number!";
-            return result;
-        }
+            return std::string("Shader has invalid magic number!");
 
-        return result;
+        if ((shader.size() % 4) != 0)
+            return std::string("SPIR - V shader size not multiple of 4!");
+
+        return std::nullopt;
     }
 
     class CompileShaderIncluder : public shaderc::CompileOptions::IncluderInterface
@@ -61,7 +51,7 @@ namespace cyb::rhi
             const char* requested_source,
             shaderc_include_type type,
             const char* requesting_source,
-            size_t include_depth)
+            size_t include_depth) override
         {
             auto userdata = new ReadFileResult;
             const std::string fullpath = std::filesystem::path(requesting_source).parent_path().string() + "/" + requested_source;
@@ -87,56 +77,62 @@ namespace cyb::rhi
         }
 
         // Handles shaderc_include_result_release_fn callbacks.
-        void ReleaseInclude(shaderc_include_result* data)
+        void ReleaseInclude(shaderc_include_result* data) override
         {
             delete static_cast<ReadFileResult*>(data->user_data);
             delete data;
         }
     };
 
-    bool CompileShader(const ShaderCompilerInput* input, ShaderCompilerOutput* output)
+    std::expected<ShaderCompilerOutput, std::string> CompileShader(const CompileShaderDesc& input)
     {
-        assert(input != nullptr);
-        assert(input->format != ShaderFormat::None);
-        assert(input->stage != ShaderStage::Count);
-        assert(output != nullptr);
+        assert(input.format != ShaderFormat::None);
+        assert(input.stage != ShaderStage::Count);
+        assert(input.source.empty() == false);
 
         Timer timer;
-        *output = ShaderCompilerOutput();
+        ShaderCompilerOutput output{};
 
-        shaderc::CompileOptions options;
+        // Setup shaderc compile options.
+        shaderc::CompileOptions options{};
         options.SetIncluder(std::make_unique<CompileShaderIncluder>());
-        if (HasFlag(input->flags, ShaderCompilerFlags::GenerateDebugInfoBit))
-            options.SetGenerateDebugInfo();
-        if (!HasFlag(input->flags, ShaderCompilerFlags::NoOptimizationBit))
+        if (HasFlag(input.flags, ShaderCompilerFlags::OptimizeForSpeedBit))
+            options.SetOptimizationLevel(shaderc_optimization_level_performance);
+        if (HasFlag(input.flags, ShaderCompilerFlags::OptimizeForSizeBit))
             options.SetOptimizationLevel(shaderc_optimization_level_size);
+        if (HasFlag(input.flags, ShaderCompilerFlags::GenerateDebugInfoBit))
+            options.SetGenerateDebugInfo();
 
-        shaderc::Compiler compiler;
-        const shaderc_shader_kind kind = _ConvertShaderKind(input->stage);
-        const std::string shadersource = std::string((const char*)input->shadersource, input->shadersize);
-        shaderc::PreprocessedSourceCompilationResult pre_result = compiler.PreprocessGlsl(
-            shadersource, kind, input->name.c_str(), options);
-        if (pre_result.GetCompilationStatus() != shaderc_compilation_status_success)
-        {
-            output->error_message = pre_result.GetErrorMessage();
-            return false;
-        }
-        const std::string preprocessed_source(pre_result.begin());
+        // Setup the shaderc compiler.
+        shaderc::Compiler compiler{};
+        const shaderc_shader_kind kind = ConvertShaderKind(input.stage);
+        const std::string shadersource = std::string((const char*)input.source.data(), input.source.size());
         
-        shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(preprocessed_source.c_str(), kind, input->name.c_str(), options);
-        if (module.GetCompilationStatus() != shaderc_compilation_status_success)
-        {
-            output->error_message = module.GetErrorMessage();
-            return false;
-        }
+        // Run the preprocessor.
+        const auto preprocessResult = compiler.PreprocessGlsl(
+            shadersource,
+            kind,
+            input.name.c_str(),
+            options);
+        if (preprocessResult.GetCompilationStatus() != shaderc_compilation_status_success)
+            return std::unexpected(preprocessResult.GetErrorMessage());
+        
+        // Compile the preprocessed shader source
+        const auto compileResult = compiler.CompileGlslToSpv(
+            preprocessResult.begin(),
+            kind,
+            input.name.c_str(),
+            options);
+        if (compileResult.GetCompilationStatus() != shaderc_compilation_status_success)
+            return std::unexpected(compileResult.GetErrorMessage());
 
-        auto internal_state = std::make_shared<std::vector<uint32_t>>(module.cbegin(), module.cend());
-        output->internal_state = internal_state;
-        output->shaderdata = (uint8_t*)internal_state.get()->data();
-        output->shadersize = sizeof(uint32_t) * internal_state.get()->size();
-        output->shaderhash = hash::String(preprocessed_source.c_str());
+        // Copy data to compuler output.
+        const size_t shaderSize = sizeof(uint32_t) * (compileResult.end() - compileResult.begin());
+        output.shader.resize(shaderSize);
+        memcpy(output.shader.data(), compileResult.begin(), shaderSize);
+        output.hash = hash::String(preprocessResult.begin());
 
-        CYB_TRACE("Compiled GLSL -> SPIR-V (filename={0}) in {1:.2f}ms", input->name, timer.ElapsedMilliseconds());
-        return true;
+        CYB_TRACE("Compiled GLSL -> SPIR-V (filename={0}) in {1:.2f}ms", input.name, timer.ElapsedMilliseconds());
+        return output;
     }
 }

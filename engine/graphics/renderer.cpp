@@ -134,24 +134,24 @@ namespace cyb::renderer
 
         if (!filesystem::HasExtension(filename, "spv"))
         {
-            ShaderCompilerInput input = {};
+            CompileShaderDesc input{};
             input.format = ShaderFormat::GLSL;
-            input.name = fullPath;
-            input.shadersource = (uint8_t*)fileData.data();
-            input.shadersize = fileData.size();
-            input.stage = stage;
+            input.name   = fullPath;
+            input.source = fileData;
+            input.stage  = stage;
+            input.flags  = ShaderCompilerFlags::OptimizeForSpeedBit;
             //#ifdef CYB_DEBUG_BUILD
             input.flags |= ShaderCompilerFlags::GenerateDebugInfoBit;
             //#endif
 
-            ShaderCompilerOutput output;
-            if (!CompileShader(&input, &output))
+            auto output = CompileShader(input);
+            if (!output.has_value())
             {
-                CYB_ERROR("Failed to compile shader (filename={0}):\n{1}", filename, output.error_message);
+                CYB_ERROR("Failed to compile shader (filename={0}):\n{1}", filename, output.error());
                 return false;
             }
 
-            bool success = device->CreateShader(stage, output.shaderdata, output.shadersize, &shader);
+            bool success = device->CreateShader(stage, output->shader.data(), output->shader.size(), &shader);
             if (success)
                 device->SetName(&shader, filename.c_str());
 

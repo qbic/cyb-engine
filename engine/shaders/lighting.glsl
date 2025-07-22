@@ -32,7 +32,7 @@ Surface CreateSurface(const vec3 N, const vec3 P, const vec3 C)
 struct SurfaceToLight
 {
     vec3 L;             // surface to light vector
-    vec3 H;		        // half-vector between view vector and light vector
+    vec3 H;             // half-vector between view vector and light vector
     float NdotL;        // cos angle between normal and light direction
     float NdotH;        // cos angle between normal and half vector
     float LdotH;        // cos angle between light and half vector

@@ -5,8 +5,8 @@
 
 #define PI 3.14159265359
 
-#define GAMMA(x)		(ApplySRGBCurve_Fast(x))
-#define DEGAMMA(x)		(RemoveSRGBCurve_Fast(x))
+#define GAMMA(x)        (ApplySRGBCurve_Fast(x))
+#define DEGAMMA(x)      (RemoveSRGBCurve_Fast(x))
 
 /**
  * @brief Clamps the value to a [0..1] range.
@@ -79,7 +79,7 @@ vec3 GetDynamicSkyColor(const vec3 V, bool drawSun)
 
     if (drawSun)
     {
-		vec3 sunDir = normalize(cbFrame.lights[cbFrame.mostImportantLightIndex].position.xyz);
+           vec3 sunDir = normalize(cbFrame.lights[cbFrame.mostImportantLightIndex].position.xyz);
         float sundot = saturate(dot(V, sunDir));
         color += 0.18 * vec3(1.0, 0.7, 0.4) * pow(sundot, 12.0);
         color += 0.18 * vec3(1.0, 0.7, 0.4) * pow(sundot, 32.0);
@@ -103,7 +103,7 @@ vec3 GetDynamicSkyColor(const vec3 V, bool drawSun)
 
 float GetFogAmount(float dist)
 {
-	return saturate((dist - cbFrame.fog.x) * cbFrame.fog.w);
+    return saturate((dist - cbFrame.fog.x) * cbFrame.fog.w);
 }
 
 /**
@@ -132,7 +132,7 @@ vec3 CalcAverage(const vec3 a, const vec3 b, const vec3 c)
 }
 
 /**
- * @brief Calculate the average value of 3 floats in an array.
+ * @brief Calculate the average value of 3 vec3 in an array.
  */
 vec3 CalcAverage(const vec3 v[3])
 {

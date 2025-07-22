@@ -1,4 +1,6 @@
 #pragma once
+#include <expected>
+#include <span>
 #include "core/enum_flags.h"
 #include "graphics/device.h"
 
@@ -7,45 +9,37 @@ namespace cyb::rhi
     enum class ShaderCompilerFlags
     {
         None                    = 0,
-        NoOptimizationBit       = (1 << 0),
-        GenerateDebugInfoBit    = (1 << 1)
+        OptimizeForSpeedBit     = BIT(1),
+        OptimizeForSizeBit      = BIT(2),
+        GenerateDebugInfoBit    = BIT(3)
     };
     CYB_ENABLE_BITMASK_OPERATORS(ShaderCompilerFlags);
 
-    enum class ShaderValidationErrorCode
+    struct CompileShaderDesc
     {
-        NoError,
-        NotMultipleOf4,
-        InvalidMagic
-    };
-
-    struct ShaderValidationResult
-    {
-        ShaderValidationErrorCode code = ShaderValidationErrorCode::NoError;
-        std::string error_message;
-    };
-
-    struct ShaderCompilerInput
-    {
-        ShaderCompilerFlags flags = ShaderCompilerFlags::None;
-        ShaderFormat format = ShaderFormat::None;
-        ShaderStage stage = ShaderStage::Count;
-        std::string name = "shader_src";
-        const uint8_t* shadersource = nullptr;
-        size_t shadersize = 0;
+        ShaderCompilerFlags flags{ ShaderCompilerFlags::None };
+        ShaderFormat format{ ShaderFormat::None };
+        ShaderStage stage{ ShaderStage::Count };
+        std::string name{};
+        std::span<uint8_t> source{};
     };
 
     struct ShaderCompilerOutput
     {
-        std::shared_ptr<void> internal_state;
-        inline bool IsValid() const { return internal_state.get() != nullptr; }
-
-        const uint8_t* shaderdata = nullptr;
-        size_t shadersize = 0;
-        size_t shaderhash = 0;
-        std::string error_message;
+        std::vector<uint8_t> shader{};
+        uint64_t hash{ 0 };
     };
 
-    ShaderValidationResult ValidateShaderSPIRV(const uint32_t* shaderdata, size_t shadersize);
-    bool CompileShader(const ShaderCompilerInput* input, ShaderCompilerOutput* output);
+    /**
+     * @brief Do some quick validation checks on a SPIR-V shader.
+     * @return nullopt if shader passed validation, otherwise a
+     *         string describing the validation error.
+     */
+    std::optional<std::string> ValidateShaderSPIRV(std::span<uint32_t> shader);
+
+    /**
+     * @brief Compile a GLSL shader into SPIR-V.
+     * @return A valid ShaderCompilerOutput if successful, otherwise a string containing error message.
+     */
+    std::expected<ShaderCompilerOutput, std::string> CompileShader(const CompileShaderDesc& input);
 }

@@ -14,9 +14,10 @@ namespace cyb
 
     enum class AssetFlags
     {
-        None = 0,
-        RetainFiledataBit = BIT(0),     // file data will be kept for later reuse.
-        ImageFipBit = BIT(1),           // flip image vertically on load
+        None                   = 0,
+        RetainFiledataBit      = BIT(0),    //!< Asset data will won't be removed after asset load.
+        IgnoreFilesystemChange = BIT(1),    //!< Don't automatically reload when file is changed on the filsystem.
+        ImageFipBit            = BIT(2),    //!< Vertically flip image asset on load.
     };
     CYB_ENABLE_BITMASK_OPERATORS(AssetFlags);
 
@@ -26,9 +27,9 @@ namespace cyb
         struct InternalBaseData
         {
             std::string name;
-            uint64_t hash = 0;
-            ResourceType type = ResourceType::None;
-            AssetFlags flags = AssetFlags::None;
+            uint64_t hash{ 0 };
+            ResourceType type{ ResourceType::None };
+            AssetFlags flags{ AssetFlags::None };
         };
 
         Resource() = default;

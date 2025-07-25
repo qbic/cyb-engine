@@ -74,7 +74,12 @@ namespace cyb::resourcemanager
         locker.Unlock();
         if (internalState != nullptr)
         {
+            if (HasFlag(internalState->flags, AssetFlags::IgnoreFilesystemChange))
+                return;
+
             CYB_TRACE("Detected change in loaded asset ({}), reloading...", event.filename);
+
+            // Return value is ignored here sence LoadFile() will update the inrernal_state in cache.
             auto _ = LoadFile(event.filename, internalState->flags, true);
         }
     }
@@ -181,7 +186,7 @@ namespace cyb::resourcemanager
         return true;
     }
 
-    [[nodiscard]] static Resource Load(std::shared_ptr<ResourceInternal> internalState)
+    [[nodiscard]] static Resource LoadInternalState(std::shared_ptr<ResourceInternal> internalState)
     {
         switch (internalState->type)
         {
@@ -237,12 +242,15 @@ namespace cyb::resourcemanager
         resourceCache[hash] = internalState;
         locker.Unlock();
 
-        // NOTE: Move the lock bellow ReadFile() so that we don't start to many asynchonous
-        //       file reads wich might hurt perfomance on mechanical hard drives?
+        /*
+         * NOTE: If we could check if ReadFile is being run on a machanical hard drive we 
+         * could make a special case where the mutex unlocks after file read sence starting
+         * alot of file reads on mechanical drive async will hurt it's performance.
+         */
         if (!filesystem::ReadFile(FindFile(name), internalState->data))
             return Resource();
 
-        Resource loadedAsset = Load(internalState);
+        Resource loadedAsset = LoadInternalState(internalState);
         CYB_TRACE("Loaded {} asset name={} hash=0x{:x} in {:.2f}ms", GetTypeAsString(internalState->type), fixedName, hash, timer.ElapsedMilliseconds());
 
         return loadedAsset;

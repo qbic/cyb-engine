@@ -126,7 +126,7 @@ namespace cyb::rhi
         if (compileResult.GetCompilationStatus() != shaderc_compilation_status_success)
             return std::unexpected(compileResult.GetErrorMessage());
 
-        // Copy data to compuler output.
+        // Copy data to compiler output.
         const size_t shaderSize = sizeof(uint32_t) * (compileResult.end() - compileResult.begin());
         output.shader.resize(shaderSize);
         memcpy(output.shader.data(), compileResult.begin(), shaderSize);

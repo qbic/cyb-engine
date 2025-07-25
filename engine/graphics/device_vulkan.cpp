@@ -349,28 +349,28 @@ namespace cyb::rhi::vulkan_internal
 
     struct PipelineState_Vulkan
     {
-        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;               // no lifetime management here
-        VkDescriptorSetLayout descriptorset_layout = VK_NULL_HANDLE;    // no lifetime management here
+        VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };              // no lifetime management here
+        VkDescriptorSetLayout descriptorset_layout{ VK_NULL_HANDLE };   // no lifetime management here
 
         std::vector<VkDescriptorSetLayoutBinding> layout_bindings;
         std::vector<VkImageViewType> imageViewTypes;
 
-        VkPushConstantRange pushconstants = {};
+        VkPushConstantRange pushconstants{};
 
-        VkDeviceSize uniform_buffer_sizes[DESCRIPTORBINDER_CBV_COUNT] = {};
+        VkDeviceSize uniform_buffer_sizes[DESCRIPTORBINDER_CBV_COUNT]{};
         std::vector<uint32_t> uniform_buffer_dynamic_slots;
 
-        size_t binding_hash = 0;
+        size_t binding_hash{ 0 };
 
-        VkGraphicsPipelineCreateInfo pipelineInfo = {};
-        VkPipelineShaderStageCreateInfo shaderStages[static_cast<size_t>(ShaderStage::Count)] = {};
-        VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
-        VkPipelineRasterizationStateCreateInfo rasterizer = {};
-        VkPipelineRasterizationDepthClipStateCreateInfoEXT depthclip = {};
-        VkViewport viewport = {};
-        VkRect2D scissor = {};
-        VkPipelineViewportStateCreateInfo viewportState = {};
-        VkPipelineDepthStencilStateCreateInfo depthstencil = {};
+        VkGraphicsPipelineCreateInfo pipelineInfo{};
+        VkPipelineShaderStageCreateInfo shaderStages[Numerical(ShaderStage::Count)]{};
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+        VkPipelineRasterizationStateCreateInfo rasterizer{};
+        VkPipelineRasterizationDepthClipStateCreateInfoEXT depthclip{};
+        VkViewport viewport{};
+        VkRect2D scissor{};
+        VkPipelineViewportStateCreateInfo viewportState{};
+        VkPipelineDepthStencilStateCreateInfo depthstencil{};
     };
 
     struct Swapchain_Vulkan
@@ -2893,6 +2893,26 @@ namespace cyb::rhi
 
             for (auto& queue : queues)
                 queue.Submit(this, nullptr);
+        }
+
+        // Sync up every queue to every other queue at the end of the frame.
+        // NOTES: 
+        //  - it disables overlapping queues into the next frame
+        //  - it's not submitted immediately here, but the waits are recorded before next frame submits
+        for (int queue1 = 0; queue1 < Numerical(QueueType::Count); ++queue1)
+        {
+            if (queues[queue1].queue == nullptr)
+                continue;
+            for (int queue2 = 0; queue2 < Numerical(QueueType::Count); ++queue2)
+            {
+                if (queue1 == queue2)
+                    continue;
+                VkSemaphoreSubmitInfo& waitSemaphore = queues[queue1].submit_waitSemaphoreInfos.emplace_back();
+                waitSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+                waitSemaphore.semaphore = queues[queue2].trackingSemaphore;
+                waitSemaphore.value = queues[queue2].lastSubmittedID;
+                waitSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+            }
         }
 
         frameCount++;

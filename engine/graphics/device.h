@@ -352,13 +352,13 @@ namespace cyb::rhi
 
     struct PipelineStateDesc
     {
-        const Shader* vs = nullptr;
-        const Shader* gs = nullptr;
-        const Shader* fs = nullptr;
-        const RasterizerState* rs = nullptr;
-        const DepthStencilState* dss = nullptr;
-        const VertexInputLayout* il = nullptr;
-        PrimitiveTopology pt = PrimitiveTopology::TriangleList;
+        const Shader* vs{ nullptr };
+        const Shader* gs{ nullptr };
+        const Shader* fs{ nullptr };
+        const RasterizerState* rs{ nullptr };
+        const DepthStencilState* dss{ nullptr };
+        const VertexInputLayout* il{ nullptr };
+        PrimitiveTopology pt{ PrimitiveTopology::TriangleList };
     };
 
     struct SubresourceData
@@ -395,9 +395,9 @@ namespace cyb::rhi
             Texture
         };
 
-        Type type = Type::Unknown;
-        void* mappedData = nullptr;
-        uint32_t mappedSize = 0;
+        Type type{ Type::Unknown };
+        void* mappedData{ nullptr };
+        uint32_t mappedSize{ 0 };
 
         constexpr bool IsTexture() const { return type == Type::Texture; }
         constexpr bool IsBuffer() const { return type == Type::Buffer; }
@@ -405,18 +405,18 @@ namespace cyb::rhi
 
     struct GPUBuffer : public GPUResource
     {
-        GPUBufferDesc desc;
+        GPUBufferDesc desc{};
         const GPUBufferDesc& GetDesc() const { return desc; }
     };
 
     struct GPUQuery : public GPUResource
     {
-        GPUQueryDesc desc;
+        GPUQueryDesc desc{};
     };
 
     struct Texture final : public GPUResource
     {
-        TextureDesc desc;
+        TextureDesc desc{};
         const TextureDesc& GetDesc() const { return desc; }
     };
 
@@ -576,8 +576,8 @@ namespace cyb::rhi
 
     struct PipelineState final : public RenderDeviceChild
     {
-        size_t hash = 0;
-        PipelineStateDesc desc;
+        size_t hash{ 0 };
+        PipelineStateDesc desc{};
         const PipelineStateDesc& GetDesc() const { return desc; }
     };
 
@@ -653,8 +653,8 @@ namespace cyb::rhi
 
         struct MemoryUsage
         {
-            uint64_t budget = 0ull;		// Total video memory available for use by the current application (in bytes)
-            uint64_t usage = 0ull;		// Used video memory by the current application (in bytes)
+            uint64_t budget{ 0ull };    //!< Total video memory available for use by the current application (in bytes).
+            uint64_t usage{ 0ull };     //!< Used video memory by the current application (in bytes).
         };
 
         // Returns video memory statistics for the current application

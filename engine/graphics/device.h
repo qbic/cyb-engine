@@ -555,7 +555,7 @@ namespace cyb::rhi
 
         static RenderPassInfo GetFrom(const SwapchainDesc& swapchainDesc)
         {
-            RenderPassInfo info = {};
+            RenderPassInfo info{};
             info.rtCount = 1;
             info.rtFormats[0] = swapchainDesc.format;
             return info;
@@ -604,11 +604,11 @@ namespace cyb::rhi
 
     struct DescriptorBindingTable
     {
-        std::array<GPUBuffer, DESCRIPTORBINDER_CBV_COUNT> CBV = {};
-        std::array<uint64_t, DESCRIPTORBINDER_CBV_COUNT> CBV_offset = {};
-        std::array<GPUResource, DESCRIPTORBINDER_SRV_COUNT> SRV = {};
-        std::array<int, DESCRIPTORBINDER_SRV_COUNT> SRV_index = {};
-        std::array<Sampler, DESCRIPTORBINDER_SAMPLER_COUNT> SAM = {};
+        std::array<GPUBuffer, DESCRIPTORBINDER_CBV_COUNT>   CBV{};
+        std::array<uint64_t, DESCRIPTORBINDER_CBV_COUNT>    CBV_offset{};
+        std::array<GPUResource, DESCRIPTORBINDER_SRV_COUNT> SRV{};
+        std::array<int, DESCRIPTORBINDER_SRV_COUNT>         SRV_index{};
+        std::array<Sampler, DESCRIPTORBINDER_SAMPLER_COUNT> SAM{};
     };
 
     template <typename T>

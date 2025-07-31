@@ -1019,7 +1019,7 @@ namespace cyb::editor
             ImGui::EndChild();
 
             ImGui::Text("Components:");
-            const float componentChildHeight = math::Max(300.0f, ImGui::GetContentRegionAvail().y);
+            const float componentChildHeight = Max(300.0f, ImGui::GetContentRegionAvail().y);
             ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), ImGuiChildFlags_Border);
             EditEntityComponents(scenegraphView.GetSelectedEntity());
             ImGui::EndChild();
@@ -1519,7 +1519,7 @@ namespace cyb::editor
                     const auto& light = scene.lights[i];
                     const XMVECTOR lightPos = XMLoadFloat3(&light.position);
                     const float dist = XMVectorGetX(XMVector3LinePointDistance(pick_ray.GetOrigin(), pick_ray.GetOrigin() + pick_ray.GetDirection(), lightPos));
-                    if (dist > 0.01f && dist < math::Distance(lightPos, pick_ray.GetOrigin()) * 0.05f && dist < pick_result.distance)
+                    if (dist > 0.01f && dist < Distance(lightPos, pick_ray.GetOrigin()) * 0.05f && dist < pick_result.distance)
                     {
                         pick_result = scene::PickResult();
                         pick_result.entity = scene.lights.GetEntity(i);

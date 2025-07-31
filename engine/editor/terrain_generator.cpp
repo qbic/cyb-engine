@@ -292,7 +292,7 @@ namespace cyb::editor
             {
                 ImGui::PushItemWidth(300);
                 const ImVec2 available = ImGui::GetContentRegionAvail();
-                const float size = math::Max(200.0f, math::Min(available.x - 4, available.y - 4));
+                const float size = Max(200.0f, Min(available.x - 4, available.y - 4));
                 const ImVec2 p0 = ImGui::GetCursorScreenPos();
                 const ImVec2 p1 = ImVec2(p0.x + size, p0.y + size);
 
@@ -358,7 +358,7 @@ namespace cyb::editor
     // Returns the number of ground indices (offset for rock indices)
     uint32_t ColorizeMountains(scene::MeshComponent* mesh)
     {
-        const uint32_t rockColor = math::StoreColor_RGBA(XMFLOAT4(0.6, 0.6, 0.6, 1));
+        const uint32_t rockColor = StoreColor_RGBA(XMFLOAT4{ 0.6, 0.6, 0.6, 1 });
 
         for (size_t i = 0; i < mesh->indices.size(); i += 3)
         {
@@ -485,7 +485,7 @@ namespace cyb::editor
                 const uint32_t index = args.jobIndex;
                 mesh->vertex_positions[index] = XMFLOAT3(
                     offsetToCenter.x + points[index].x * m_meshDesc.size,
-                    offsetToCenter.y + math::Lerp(m_meshDesc.minAltitude, m_meshDesc.maxAltitude, points[index].y),
+                    offsetToCenter.y + Lerp(m_meshDesc.minAltitude, m_meshDesc.maxAltitude, points[index].y),
                     offsetToCenter.z + points[index].z * m_meshDesc.size);
                 mesh->vertex_colors[index] = m_biomeColorBand.GetColorAt(points[index].y);
             });

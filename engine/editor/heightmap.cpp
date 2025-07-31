@@ -8,11 +8,11 @@ namespace cyb::editor
         switch (op)
         {
         case HeightmapStrataOp::SharpSub: {
-            const float steps = -std::abs(std::sin(value * strength * math::PI) * (0.1f / strength * math::PI));
+            const float steps = -std::abs(std::sin(value * strength * PI) * (0.1f / strength * PI));
             value = (value + steps) * 0.5f;
         } break;
         case HeightmapStrataOp::SharpAdd: {
-            const float steps = std::abs(std::sin(value * strength * math::PI) * (0.1f / strength * math::PI));
+            const float steps = std::abs(std::sin(value * strength * PI) * (0.1f / strength * PI));
             value = (value + steps) * 0.5f;
         } break;
         case HeightmapStrataOp::Quantize: {
@@ -21,7 +21,7 @@ namespace cyb::editor
         } break;
         case HeightmapStrataOp::Smooth: {
             const float strata = strength * 2.0f;
-            const float steps = std::sin(value * strata * math::PI) * (0.1f / strata * math::PI);
+            const float steps = std::sin(value * strata * PI) * (0.1f / strata * PI);
             value = (value + steps) * 0.5f;
         } break;
         default:
@@ -38,7 +38,7 @@ namespace cyb::editor
         case HeightmapCombineOp::Add:    return valueA + valueB;
         case HeightmapCombineOp::Sub:    return valueA - valueB;
         case HeightmapCombineOp::Mul:    return valueA * valueB;
-        case HeightmapCombineOp::Lerp:   return math::Lerp(valueA, valueB, strength);
+        case HeightmapCombineOp::Lerp:   return Lerp(valueA, valueB, strength);
         }
 
         assert(0);
@@ -71,7 +71,7 @@ namespace cyb::editor
             cyb::noise::Generator noise(input.noise);
             float value = noise.GetValue(x, y);
             value = StrataValue(value, input.strataOp, input.strata);
-            value = std::pow(math::Max(0.0f, value), input.exponent);
+            value = std::pow(Max(0.0f, value), input.exponent);
             return value;
         };
 
@@ -91,8 +91,8 @@ namespace cyb::editor
         // the minmax, else we try to scale values to [0..1] range
         if (!m_lockedMinMax)
         {
-            m_minHeight = math::Min(m_minHeight, valueA);
-            m_maxHeight = math::Max(m_maxHeight, valueA);
+            m_minHeight = Min(m_minHeight, valueA);
+            m_maxHeight = Max(m_maxHeight, valueA);
         }
 
         return (valueA - GetMinHeight()) * m_scale;
@@ -141,12 +141,12 @@ namespace cyb::editor
         };
 
         auto computeStartingOffset = [] (int32_t w, const int32_t edgeValue, const int32_t delta) -> int32_t {
-            return (edgeValue < 0 && delta != 0) ? std::max(0, -edgeValue / delta) : 0;
+            return (edgeValue < 0 && delta != 0) ? Max(0, -edgeValue / delta) : 0;
         };
 
         // triangle bounding box
-        const XMINT2 bbMin = math::Min(math::Min(p0, p1), p2);
-        const XMINT2 bbMax = math::Max(math::Max(p0, p1), p2);
+        const XMINT2 bbMin = Min(Min(p0, p1), p2);
+        const XMINT2 bbMax = Max(Max(p0, p1), p2);
 
         // forward differencing variables
         int32_t w00 = edge(p1, p2, bbMin);

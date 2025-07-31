@@ -12,16 +12,35 @@ using namespace DirectX::PackedVector;
     return XMINT2(a.x + b.x, a.y + b.y);
 }
 
-namespace cyb::math
+namespace cyb
 {
     constexpr float PI = 3.14159265358979323846264338327950288f;
-    constexpr XMFLOAT4X4 MATRIX_IDENTITY = XMFLOAT4X4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
-    constexpr XMFLOAT3 VECTOR_ZERO = XMFLOAT3(0, 0, 0);
-    constexpr XMFLOAT3 VECTOR_IDENTITY = XMFLOAT3(1, 1, 1);
-    constexpr XMFLOAT3 VECTOR_UP = XMFLOAT3(0, 1, 0);
-    constexpr XMFLOAT3 VECTOR_FORWARD = XMFLOAT3(0, 0, 1);
-    constexpr XMFLOAT3 VECTOR_RIGHT = XMFLOAT3(1, 0, 0);
-    constexpr XMFLOAT4 QUATERNION_IDENTITY = XMFLOAT4(0, 0, 0, 1);
+    constexpr XMFLOAT3 VECTOR_ZERO    { 0, 0, 0 };
+    constexpr XMFLOAT3 VECTOR_IDENTITY{ 1, 1, 1 };
+    constexpr XMFLOAT3 VECTOR_UP      { 0, 1, 0 };
+    constexpr XMFLOAT3 VECTOR_FORWARD { 0, 0, 1 };
+    constexpr XMFLOAT3 VECTOR_RIGHT   { 1, 0, 0 };
+    constexpr XMFLOAT4X4 MATRIX_IDENTITY{ 1, 0, 0, 0,
+                                          0, 1, 0, 0,
+                                          0, 0, 1, 0,
+                                          0, 0, 0, 1 };
+    constexpr XMFLOAT4 QUATERNION_IDENTITY{ 0, 0, 0, 1 };
+
+    template <typename T>
+    concept ArithmeticType = std::is_arithmetic_v<T>;
+
+    template <typename T>
+    concept FloatType = std::same_as<T, float> ||
+                        std::same_as<T, double>;
+
+    template <typename T>
+    concept IntegerType = std::is_integral_v<T>;
+
+    template<typename T>
+    concept Vec2Type = requires(T t) {
+        { t.x } -> std::convertible_to<int>;
+        { t.y } -> std::convertible_to<int>;
+    };
 
     template <typename T>
     [[nodiscard]] constexpr T ToRadians(const T degrees) noexcept
@@ -35,58 +54,79 @@ namespace cyb::math
         return (radians * T(180)) / PI;
     }
 
-    // Returns highest of 2 values
-    template<class T>
-    [[nodiscard]] constexpr T Max(const T a, const T b) noexcept
-    {
-        return a > b ? a : b;
-    }
-
-    // Returns lowest of 2 values
-    template<class T>
+    /**
+     * @brief Get the lowest value of two numbers.
+     */
+    template<ArithmeticType T>
     [[nodiscard]] constexpr T Min(const T a, const T b) noexcept
     {
         return a < b ? a : b;
     }
 
-    template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-    [[nodiscard]] constexpr int Floor(T f) noexcept
+    /**
+     * @brief Get the highest value of two numbers.
+     */
+    template<ArithmeticType T>
+    [[nodiscard]] constexpr T Max(const T a, const T b) noexcept
     {
-        return f >= 0 ? (int)f : (int)f - 1;
+        return a > b ? a : b;
     }
 
-    template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-    [[nodiscard]] constexpr int Round(T f) noexcept
+    /**
+     * @brief Get the lowest [x, y] values of two 2d vectors.
+     */
+    template<Vec2Type T>
+    [[nodiscard]] constexpr T Min(const T& a, const T& b) noexcept
     {
-        return f >= 0 ? (int)(f + 0.5f) : (int)(f - 0.5f);
+        return T(Min(a.x, b.x), Min(a.y, b.y));
     }
 
-    [[nodiscard]] constexpr XMINT2 Min(const XMINT2& a, const XMINT2& b) noexcept
+    /**
+     * @brief Get the highest [x, y] values of two 2d vectors.
+     */
+    template<Vec2Type T>
+    [[nodiscard]] constexpr T Max(const T& a, const T& b) noexcept
     {
-        return XMINT2(Min(a.x, b.x), Min(a.y, b.y));
+        return T(Max(a.x, b.x), Max(a.y, b.y));
     }
 
-    [[nodiscard]] constexpr XMINT2 Max(const XMINT2& a, const XMINT2& b) noexcept
+    /**
+     * @brief Get the largest integer number not larger than num.
+     */
+    template <FloatType T>
+    [[nodiscard]] constexpr int Floor(T num) noexcept
     {
-        return XMINT2(Max(a.x, b.x), Max(a.y, b.y));
+        return num >= 0 ? (int)num : (int)num - 1;
     }
 
-    [[nodiscard]] constexpr XMUINT2 Min(const XMUINT2& a, const XMUINT2& b) noexcept
+    /**
+     * @brief Get the nearest integer value for num.
+     */
+    template <FloatType T>
+    [[nodiscard]] constexpr int Round(T num) noexcept
     {
-        return XMUINT2(Min(a.x, b.x), Min(a.y, b.y));
+        return num >= 0 ? (int)(num + 0.5f) : (int)(num - 0.5f);
     }
 
-    [[nodiscard]] constexpr XMUINT2 Max(const XMUINT2& a, const XMUINT2& b) noexcept
+    /**
+     * @brief Get the num ensuring it's within the low and high boundaries.
+     */
+    template <ArithmeticType T>
+    [[nodiscard]] constexpr T Clamp(T num, T low, T high)
     {
-        return XMUINT2(Max(a.x, b.x), Max(a.y, b.y));
+        return Min(Max(num, low), high);
     }
 
-    [[nodiscard]] constexpr float Saturate(float x) noexcept
+    /**
+     * @brief Clamp num to min 0, max 1.
+     */
+    template <FloatType T>
+    [[nodiscard]] constexpr T Saturate(T x) noexcept
     {
-        return Min(Max(x, 0.0f), 1.0f);
+        return Clamp(x, T(0), T(1));
     }
 
-    template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+    template <IntegerType T>
     [[nodiscard]] constexpr T GetNextPowerOfTwo(T x) noexcept
     {
         --x;
@@ -109,7 +149,7 @@ namespace cyb::math
         return num + (divisor - bits);
     }
 
-    template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+    template <FloatType T>
     [[nodiscard]] constexpr T Lerp(const T a, const T b, const T t) noexcept
     {
         return a + (b - a) * t;
@@ -133,25 +173,19 @@ namespace cyb::math
 
     [[nodiscard]] inline float XM_CALLCONV Distance(const XMVECTOR& v1, const XMVECTOR& v2) noexcept
     {
-        return XMVectorGetX(XMVector3Length(v1 - v2));
+        return XMVectorGetX(XMVector3Length(XMVectorSubtract(v1, v2)));
     }
 
     [[nodiscard]] inline float XM_CALLCONV Distance(const XMFLOAT3& v1, const XMFLOAT3& v2) noexcept
     {
-        XMVECTOR vector1 = XMLoadFloat3(&v1);
-        XMVECTOR vector2 = XMLoadFloat3(&v2);
-        return Distance(vector1, vector2);
+        return Distance(XMLoadFloat3(&v1), XMLoadFloat3(&v2));
     }
 
     [[nodiscard]] inline uint32_t StoreColor_RGB(const XMFLOAT3& color) noexcept
     {
-        uint32_t retval = 0;
-
-        retval |= (uint32_t)((uint8_t)(Saturate(color.x) * 255.0f) << 0);
-        retval |= (uint32_t)((uint8_t)(Saturate(color.y) * 255.0f) << 8);
-        retval |= (uint32_t)((uint8_t)(Saturate(color.z) * 255.0f) << 16);
-
-        return retval;
+        return (uint32_t)((uint8_t)(Saturate(color.x) * 255.0f) << 0) |
+               (uint32_t)((uint8_t)(Saturate(color.y) * 255.0f) << 8) |
+               (uint32_t)((uint8_t)(Saturate(color.z) * 255.0f) << 16);
     }
 
     [[nodiscard]] inline uint32_t StoreColor_RGBA(const XMFLOAT4& color) noexcept

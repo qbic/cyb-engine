@@ -86,7 +86,6 @@ namespace cyb::rhi
 
     std::expected<ShaderCompilerOutput, std::string> CompileShader(const CompileShaderDesc& input)
     {
-        assert(input.format != ShaderFormat::None);
         assert(input.stage != ShaderStage::Count);
         assert(input.source.empty() == false);
 

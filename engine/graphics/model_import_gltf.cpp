@@ -219,7 +219,7 @@ namespace cyb::renderer
                         for (size_t i = 0; i < vertexCount; ++i)
                         {
                             const XMFLOAT4& color = ((XMFLOAT4*)vertexData)[i];
-                            uint32_t rgba = math::StoreColor_RGBA(color);
+                            uint32_t rgba = StoreColor_RGBA(color);
 
                             mesh->vertex_colors[vertexOffset + i] = rgba;
                         }
@@ -232,7 +232,7 @@ namespace cyb::renderer
             {
                 mesh->vertex_colors.resize(mesh->vertex_positions.size());
                 for (auto& color : mesh->vertex_colors)
-                    color = math::StoreColor_RGBA(XMFLOAT4(1, 1, 1, 1));
+                    color = StoreColor_RGBA(XMFLOAT4(1, 1, 1, 1));
             }
 
             mesh->CreateRenderData();

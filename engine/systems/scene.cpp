@@ -353,7 +353,7 @@ namespace cyb::scene
     void CameraComponent::UpdateCamera()
     {
         // using reverse z-buffer: zNear > zFar
-        const XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(math::ToRadians(fov), aspect, zFarPlane, zNearPlane);
+        const XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(ToRadians(fov), aspect, zFarPlane, zNearPlane);
 
         const XMVECTOR cameraEye = XMLoadFloat3(&pos);
         const XMVECTOR cameraDirection = XMLoadFloat3(&target);
@@ -989,10 +989,10 @@ namespace cyb::scene
 
                     float distance;
                     XMFLOAT2 bary;
-                    if (math::RayTriangleIntersects(ray_origin_local, ray_direction_local, p0, p1, p2, distance, bary))
+                    if (RayTriangleIntersects(ray_origin_local, ray_direction_local, p0, p1, p2, distance, bary))
                     {
                         const XMVECTOR pos = XMVector3Transform(XMVectorAdd(ray_origin_local, ray_direction_local * distance), object_matrix);
-                        distance = math::Distance(pos, ray_origin);
+                        distance = Distance(pos, ray_origin);
 
                         if (distance < result.distance)
                         {

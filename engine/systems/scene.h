@@ -21,16 +21,16 @@ namespace cyb::scene
         enum class Flags
         {
             None = 0,
-            DirtyBit = (1 << 0),
+            DirtyBit = BIT(0),
         };
 
-        Flags flags = Flags::DirtyBit;
-        XMFLOAT3 scale_local = math::VECTOR_IDENTITY;
-        XMFLOAT4 rotation_local = math::QUATERNION_IDENTITY;  // quaternion rotation
-        XMFLOAT3 translation_local = math::VECTOR_ZERO;
+        Flags flags{ Flags::DirtyBit };
+        XMFLOAT3 scale_local{ VECTOR_IDENTITY };
+        XMFLOAT4 rotation_local{ QUATERNION_IDENTITY };  // quaternion rotation
+        XMFLOAT3 translation_local{ VECTOR_ZERO };
 
         // non-serialized data
-        XMFLOAT4X4 world = math::MATRIX_IDENTITY;
+        XMFLOAT4X4 world{ MATRIX_IDENTITY };
 
         void SetDirty(bool value = true);
         [[nodiscard]] bool IsDirty() const;
@@ -130,9 +130,9 @@ namespace cyb::scene
         //      12: normal (normalized & encoded)
         struct Vertex_Pos
         {
-            static constexpr rhi::Format FORMAT = rhi::Format::R32G32B32A32_Float;
-            XMFLOAT3 pos = math::VECTOR_ZERO;
-            uint32_t normal = 0;
+            static constexpr rhi::Format FORMAT{ rhi::Format::R32G32B32A32_Float };
+            XMFLOAT3 pos{ VECTOR_ZERO };
+            uint32_t normal{ 0 };
 
             void Set(const XMFLOAT3& pos, const XMFLOAT3& norm);
             [[nodiscard]] uint32_t EncodeNormal(const XMFLOAT3& norm) const;
@@ -153,21 +153,21 @@ namespace cyb::scene
         enum class Flags : uint32_t
         {
             None = 0,
-            RenderableBit = (1 << 0),
-            CastShadowBit = (1 << 1),
+            RenderableBit = BIT(0),
+            CastShadowBit = BIT(1),
             DefaultFlags = RenderableBit | CastShadowBit
         };
 
-        Flags flags = Flags::DefaultFlags;
-        ecs::Entity meshID = ecs::INVALID_ENTITY;
-        uint8_t userStencilRef = 0;
+        Flags flags{ Flags::DefaultFlags };
+        ecs::Entity meshID{ ecs::INVALID_ENTITY };
+        uint8_t userStencilRef{ 0 };
 
         // user stencil value can be in range [0, 15]
         void SetUserStencilRef(uint8_t value);
 
         // non-serialized data
-        uint32_t meshIndex = ~0u;
-        int32_t transformIndex = -1;        // only valid for a single frame
+        uint32_t meshIndex{ ~0u };
+        int32_t transformIndex{ -1 };        // only valid for a single frame
     };
     CYB_ENABLE_BITMASK_OPERATORS(ObjectComponent::Flags);
 
@@ -182,19 +182,19 @@ namespace cyb::scene
     {
         enum class Flags : uint32_t
         {
-            CastShadowsBit = (1 << 0),
-            AffectsSceneBit = (1 << 1),
-            DefaultFlags = AffectsSceneBit
+            CastShadowsBit  = BIT(0),
+            AffectsSceneBit = BIT(1),
+            DefaultFlags    = AffectsSceneBit
         };
 
-        Flags flags = Flags::DefaultFlags;
-        XMFLOAT3 color = XMFLOAT3(1.0f, 1.0f, 1.0f);
-        LightType type = LightType::Point;
-        float energy = 1.0f;
-        float range = 10.0f;
+        Flags flags{ Flags::DefaultFlags };
+        XMFLOAT3 color{ 1.0f, 1.0f, 1.0f };
+        LightType type{ LightType::Point };
+        float energy{ 1.0f };
+        float range{ 10.0f };
 
         // non-serialized data
-        XMFLOAT3 position = {};
+        XMFLOAT3 position{};
 
         void SetAffectingScene(bool value);
         bool IsAffectingScene() const;
@@ -205,20 +205,20 @@ namespace cyb::scene
 
     struct WeatherComponent
     {
-        XMFLOAT3 horizon = XMFLOAT3(1, 1, 1);
-        XMFLOAT3 zenith = XMFLOAT3(0, 0, 0);
-        bool drawSun = true;
-        float fogStart = 650.0f;
-        float fogEnd = 1000.0f;
-        float fogHeight = 0.0f;
+        XMFLOAT3 horizon{ 1, 1, 1 };
+        XMFLOAT3 zenith{ 0, 0, 0 };
+        bool drawSun{ true };
+        float fogStart{ 650.0f };
+        float fogEnd{ 1000.0f };
+        float fogHeight{ 0.0f };
 
-        float cloudiness = 0.6f;
-        float cloudTurbulence = 0.9f;
-        float cloudHeight = 500.0f;
-        float windSpeed = 10.0f;
+        float cloudiness{ 0.6f };
+        float cloudTurbulence{ 0.9f };
+        float cloudHeight{ 500.0f };
+        float windSpeed{ 10.0f };
 
         // non-serialized attributes:
-        uint32_t mostImportantLightIndex = 0;
+        uint32_t mostImportantLightIndex{ 0 };
     };
 
     struct alignas(16) CameraComponent
@@ -228,14 +228,14 @@ namespace cyb::scene
         float zFarPlane = 800.0f;
         float fov = 90.0f;      // field of view in degrees
 
-        XMFLOAT3 pos = math::VECTOR_ZERO;
-        XMFLOAT3 target = math::VECTOR_FORWARD;
-        XMFLOAT3 up = math::VECTOR_UP;
+        XMFLOAT3 pos{ VECTOR_ZERO };
+        XMFLOAT3 target{ VECTOR_FORWARD };
+        XMFLOAT3 up{ VECTOR_UP };
 
         // non-serialized data
-        XMFLOAT3X3 rotation = {};
-        XMFLOAT4X4 view = {}, projection = {}, VP = {};
-        XMFLOAT4X4 inv_view = {}, inv_projection = {}, inv_VP = {};
+        XMFLOAT3X3 rotation{};
+        XMFLOAT4X4 view{}, projection{}, VP{};
+        XMFLOAT4X4 inv_view{}, inv_projection{}, inv_VP{};
         Frustum frustum;
 
         CameraComponent() = default;
@@ -251,9 +251,9 @@ namespace cyb::scene
         enum class Flag : uint32_t
         {
             Empty = 0,
-            Playing = BIT(1),
-            Looped = BIT(2),
-            PingPong = BIT(3)
+            Playing  = BIT(0),
+            Looped   = BIT(1),
+            PingPong = BIT(2)
         };
 
         struct Channel
@@ -403,7 +403,7 @@ namespace cyb::scene
     struct PickResult
     {
         ecs::Entity entity = ecs::INVALID_ENTITY;
-        XMFLOAT3 position = math::VECTOR_ZERO;
+        XMFLOAT3 position = VECTOR_ZERO;
         float distance = FLT_MAX;
     };
 

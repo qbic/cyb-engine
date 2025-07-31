@@ -1,6 +1,7 @@
 #include "editor/editor.h"
 #include "game.h"
 
+#include "core/logger.h"
 using namespace cyb;
 
 void Game::Load()

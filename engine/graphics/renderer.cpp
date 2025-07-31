@@ -117,7 +117,7 @@ namespace cyb::renderer
 
     bool LoadShader(ShaderStage stage, Shader& shader, const std::string& filename)
     {
-        std::string shaderpath = "INVALID/";
+        std::string shaderpath{};
         for (const auto& path : SHADERPATHS)
         {
             if (std::filesystem::exists(path))
@@ -135,7 +135,6 @@ namespace cyb::renderer
         if (!filesystem::HasExtension(filename, "spv"))
         {
             CompileShaderDesc input{};
-            input.format = ShaderFormat::GLSL;
             input.name   = fullPath;
             input.source = fileData;
             input.stage  = stage;
@@ -722,7 +721,7 @@ namespace cyb::renderer
                 const scene::LightComponent& light = view.scene->lights[lightIndex];
                 const scene::TransformComponent* transform = view.scene->transforms.GetComponent(lightID);
 
-                float dist = math::Distance(transform->translation_local, view.camera->pos) * 0.05f;
+                float dist = Distance(transform->translation_local, view.camera->pos) * 0.05f;
                 renderer::ImageParams params;
                 params.EnableDepthTest();
                 params.position = transform->translation_local;

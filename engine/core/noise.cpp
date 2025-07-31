@@ -162,25 +162,25 @@ namespace cyb::noise
         const float xd1 = xd0 - 1.0f;
         const float yd1 = yd0 - 1.0f;
 
-        const float xs = math::InterpQuinticFunc(xd0);
-        const float ys = math::InterpQuinticFunc(yd0);
+        const float xs = InterpQuinticFunc(xd0);
+        const float ys = InterpQuinticFunc(yd0);
 
         const int x0 = static_cast<int>(fx) * primeX;
         const int y0 = static_cast<int>(fy) * primeY;
         const int x1 = x0 + primeX;
         const int y1 = y0 + primeY;
 
-        const float xf0 = math::Lerp(GradCoord(seed, x0, y0, xd0, yd0), GradCoord(seed, x1, y0, xd1, yd0), xs);
-        const float xf1 = math::Lerp(GradCoord(seed, x0, y1, xd0, yd1), GradCoord(seed, x1, y1, xd1, yd1), xs);
+        const float xf0 = Lerp(GradCoord(seed, x0, y0, xd0, yd0), GradCoord(seed, x1, y0, xd1, yd0), xs);
+        const float xf1 = Lerp(GradCoord(seed, x0, y1, xd0, yd1), GradCoord(seed, x1, y1, xd1, yd1), xs);
 
         // try to map the output to a [0..1] range
-        return (math::Lerp(xf0, xf1, ys) + 0.28f) * 3.47f;
+        return (Lerp(xf0, xf1, ys) + 0.28f) * 3.47f;
     }
 
     float Generator::SingleCellular(uint32_t seed, float x, float y) const noexcept
     {
-        int xr = math::Round(x);
-        int yr = math::Round(y);
+        int xr = Round(x);
+        int yr = Round(y);
 
         float distance0 = 1e10f;
         float distance1 = 1e10f;
@@ -205,7 +205,7 @@ namespace cyb::noise
 
                 float newDistance = vecX * vecX + vecY * vecY;
 
-                distance1 = math::Max(math::Min(distance1, newDistance), distance0);
+                distance1 = Max(Min(distance1, newDistance), distance0);
                 if (newDistance < distance0)
                 {
                     distance0 = newDistance;

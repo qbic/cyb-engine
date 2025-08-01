@@ -42,13 +42,19 @@ namespace cyb
         { t.y } -> std::convertible_to<int>;
     };
 
-    template <typename T>
+    /**
+     * @brief Convert angle from degrees to radians.
+     */
+    template <FloatType T>
     [[nodiscard]] constexpr T ToRadians(const T degrees) noexcept
     {
         return (degrees * PI) / T(180);
     }
 
-    template <typename T>
+    /**
+     * @brief Convert angle from radians to degrees.
+     */
+    template <FloatType T>
     [[nodiscard]] constexpr T ToDegrees(const T radians) noexcept
     {
         return (radians * T(180)) / PI;

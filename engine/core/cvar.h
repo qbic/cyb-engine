@@ -1,5 +1,4 @@
 #pragma once
-#include <cassert>
 #include <string>
 #include <format>
 #include <functional>
@@ -92,6 +91,12 @@ namespace cyb
                 return m_value;
             }
 
+            [[nodiscard]] const std::string& GetTypeAsString() const override
+            {
+                static const std::string typeStr = typeid(T).name();
+                return typeStr;
+            }
+
             void RunOnChangeCallbacks() const
             {
                 for (auto& callback : m_callbacks)
@@ -136,24 +141,6 @@ namespace cyb
             return m_valueString;
         }
 
-        [[nodiscard]] const std::string& GetTypeAsString() const override
-        {
-            static const std::string signedIntString = "signed int";
-            static const std::string unsignedIntString = "unsigned int";
-            static const std::string floatString = "float";
-            static const std::string emptyString = "";
-
-            if constexpr (std::is_same_v<T, int32_t>)
-                return signedIntString;
-            else if constexpr (std::is_same_v<T, uint32_t>)
-                return unsignedIntString;
-            else if constexpr (std::is_same_v<T, float>)
-                return floatString;
-
-            assert(0);
-            return emptyString;
-        }
-
     private:
         void OnModifyValue() override
         {
@@ -183,12 +170,6 @@ namespace cyb
             static const std::string boolStrings[] = { "false", "true" };
             return GetValue() ? boolStrings[0] : boolStrings[1];
         }
-
-        [[nodiscard]] const std::string& GetTypeAsString() const override
-        {
-            static const std::string typeString = "boolean";
-            return typeString;
-        }
     };
 
     /**
@@ -206,12 +187,6 @@ namespace cyb
         [[nodiscard]] const std::string& GetValueAsString() const
         {
             return GetValue();
-        }
-
-        [[nodiscard]] const std::string& GetTypeAsString() const override
-        {
-            static const std::string typeString = "string";
-            return typeString;
         }
     };
 

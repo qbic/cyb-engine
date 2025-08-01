@@ -432,7 +432,7 @@ namespace cyb::editor
     {
         scene::Scene& scene = scene::GetScene();
         chunks.clear();
-        scene.RemoveEntity(terrainEntity, true);
+        scene.RemoveEntity(terrainEntity, true, true);
     }
 
     void TerrainGenerator::GenerateTerrainMesh()

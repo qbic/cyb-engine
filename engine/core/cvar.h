@@ -29,7 +29,7 @@ namespace cyb
     namespace detail
     {
         /**
-         * @brief CVar base functionality that doesen't requite value type.
+         * @brief CVar base functionality that doesen't require value type.
          */
         class CVarBase : private NonCopyable
         {
@@ -168,7 +168,7 @@ namespace cyb
         [[nodiscard]] const std::string& GetValueAsString() const
         {
             static const std::string boolStrings[] = { "false", "true" };
-            return GetValue() ? boolStrings[0] : boolStrings[1];
+            return GetValue() ? boolStrings[1] : boolStrings[0];
         }
     };
 

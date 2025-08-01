@@ -33,6 +33,9 @@ const auto FILE_FILTER_IMPORT_MODEL = FILE_FILTER_GLTF + FILE_FILTER_SCD + FILE_
 
 namespace cyb::editor
 {
+    CVar<bool> e_autoremoveLinkedEntities("e_autoremoveLinkedEntities", true, CVarFlag::GuiBit, "On entity delete, also delete linked entities that isn't beeing used.");
+    CVar<bool> e_recursiveDelete("e_recursiveDelete", true, CVarFlag::GuiBit, "On entity delete, also delete all of the child entities.");
+    
     bool initialized = false;
     bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
     bool displayCubeView = false;
@@ -669,8 +672,11 @@ namespace cyb::editor
     static void DeleteSelectedEntity()
     {
         eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
-            scene::GetScene().RemoveEntity(scenegraphView.GetSelectedEntity(), true);
-            scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);
+            const bool isRecursiveDelete = true;
+            scene::GetScene().RemoveEntity(
+                scenegraphView.GetSelectedEntity(),
+                e_recursiveDelete.GetValue(),
+                e_autoremoveLinkedEntities.GetValue());
         });
     }
 

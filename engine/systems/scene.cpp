@@ -506,6 +506,39 @@ namespace cyb::scene
         hierarchy.Remove(entity);
     }
 
+    uint32_t Scene::GetMeshUseCount(ecs::Entity meshID) const
+    {
+        if (meshID == ecs::INVALID_ENTITY || !meshes.Contains(meshID))
+            return 0;
+
+        uint32_t useCount{ 0 };
+        for (size_t i = 0; i < objects.Size(); ++i)
+        {
+            if (objects[i].meshID == meshID)
+                useCount++;
+        }
+
+        return useCount;
+    }
+
+    uint32_t Scene::GetMaterialUseCount(ecs::Entity materialID) const
+    {
+        if (materialID == ecs::INVALID_ENTITY || !materials.Contains(materialID))
+            return 0;
+
+        uint32_t useCount{ 0 };
+        for (size_t i = 0; i < meshes.Size(); ++i)
+        {
+            for (auto& subset : meshes[i].subsets)
+            {
+                if (subset.materialID == materialID)
+                    useCount++;
+            }
+        }
+
+        return useCount;
+    }
+
     void Scene::Update([[maybe_unused]] double dt)
     {
         this->dt = dt;
@@ -567,24 +600,50 @@ namespace cyb::scene
         aabb_lights.insert(aabb_lights.end(), other.aabb_lights.begin(), other.aabb_lights.end());
     }
 
-    void Scene::RemoveEntity(ecs::Entity entity, bool recursive)
+    void Scene::RemoveEntity(ecs::Entity entity, bool recursive, bool removeLinkedEntities)
     {
-        if (recursive)
+        // Create a list of all the child entities.
+        std::vector<ecs::Entity> childList;
+        for (size_t i = 0; i < hierarchy.Size(); ++i)
         {
-            std::vector<ecs::Entity> removeList;
-            for (size_t i = 0; i < hierarchy.Size(); ++i)
+            const HierarchyComponent& hier = hierarchy[i];
+            if (hier.parentID == entity)
             {
-                const HierarchyComponent& hier = hierarchy[i];
-                if (hier.parentID == entity)
+                ecs::Entity child = hierarchy.GetEntity(i);
+                childList.push_back(child);
+            }
+        }
+
+        // Remove all linked entities
+        if (removeLinkedEntities)
+        {
+            std::vector<ecs::Entity> deleteList;
+            const scene::ObjectComponent* object = objects.GetComponent(entity);
+            if (object != nullptr && GetMeshUseCount(object->meshID) == 1)
+                deleteList.push_back(object->meshID);
+
+            const scene::MeshComponent* mesh = meshes.GetComponent(entity);
+            if (mesh != nullptr)
+            {
+                for (const auto& subset : mesh->subsets)
                 {
-                    ecs::Entity child = hierarchy.GetEntity(i);
-                    removeList.push_back(child);
+                    if (GetMaterialUseCount(subset.materialID) == 1)
+                        deleteList.push_back(subset.materialID);
                 }
             }
-            for (auto& child : removeList)
-            {
-                RemoveEntity(child, true);
-            }
+
+            for (auto ent : deleteList)
+                RemoveEntity(ent, recursive, removeLinkedEntities);
+        }
+
+        // If we're deleting recursivly, remove all children, else
+        // we just detach them so we don't leave them parentless.
+        for (auto& child : childList)
+        {
+            if (recursive)
+                RemoveEntity(child, true, removeLinkedEntities);
+            else
+                ComponentDetach(child);
         }
 
         names.Remove(entity);

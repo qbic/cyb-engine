@@ -250,7 +250,7 @@ namespace cyb::scene
     {
         enum class Flag : uint32_t
         {
-            Empty = 0,
+            Empty    = 0,
             Playing  = BIT(0),
             Looped   = BIT(1),
             PingPong = BIT(2)
@@ -343,10 +343,13 @@ namespace cyb::scene
         void Clear();
         void Merge(Scene& other);
 
-        // NOTE:
-        // be careful removing non-recursive mode sence it might leave
-        // child entities without parent
-        void RemoveEntity(ecs::Entity entity, bool recursive);
+        /**
+         * @brief Remove an entity and all it's components from the scene.
+         *
+         * @param recursive Set true to remove all child entities. 
+         * @param removeLinkedEntities Set true to remove unused linked entites (object meshes, and mesh materials).
+         */
+        void RemoveEntity(ecs::Entity entity, bool recursive, bool removeLinkedEntities);
 
         ecs::Entity CreateGroup(const std::string& name);
         ecs::Entity CreateMaterial(const std::string& name);
@@ -370,9 +373,19 @@ namespace cyb::scene
         // world position will not be changed
         void ComponentAttach(ecs::Entity entity, ecs::Entity parent);
 
-        // remove the hierarchy compoennt from entity and update transform,
+        // remove the hierarchy component from entity and update transform,
         // world position will not be changed
         void ComponentDetach(ecs::Entity entity);
+
+        /**
+         * @brief Get number of objects currently using a mash in scene.
+         */
+        uint32_t GetMeshUseCount(ecs::Entity meshID) const;
+
+        /**
+         * @brief Get number of sub-meshes currently using a material in scene.
+         */
+        uint32_t GetMaterialUseCount(ecs::Entity materialID) const;
 
         void Serialize(Serializer& ser);
 

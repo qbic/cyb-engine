@@ -18,7 +18,7 @@ namespace cyb::rhi
     struct CompileShaderDesc
     {
         ShaderCompilerFlags flags{ ShaderCompilerFlags::None };
-        ShaderStage stage{ ShaderStage::Count };
+        ShaderType stage{ ShaderType::Count };
         std::string name{};             //!< Should be the filename if the source is a file.
         std::span<uint8_t> source{};    //!< Shader sourcecode data.
     };

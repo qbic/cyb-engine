@@ -10,13 +10,13 @@
 
 namespace cyb::rhi
 {
-    static shaderc_shader_kind ConvertShaderKind(ShaderStage stage)
+    static shaderc_shader_kind ConvertShaderKind(ShaderType stage)
     {
         switch (stage)
         {
-        case ShaderStage::VS: return shaderc_glsl_vertex_shader;
-        case ShaderStage::FS: return shaderc_glsl_fragment_shader;
-        case ShaderStage::GS: return shaderc_glsl_geometry_shader;
+        case ShaderType::Vertex: return shaderc_glsl_vertex_shader;
+        case ShaderType::Pixel: return shaderc_glsl_fragment_shader;
+        case ShaderType::Geometry: return shaderc_glsl_geometry_shader;
         default: break;
         }
 
@@ -86,7 +86,7 @@ namespace cyb::rhi
 
     std::expected<ShaderCompilerOutput, std::string> CompileShader(const CompileShaderDesc& input)
     {
-        assert(input.stage != ShaderStage::Count);
+        assert(input.stage != ShaderType::Count);
         assert(input.source.empty() == false);
 
         Timer timer;

@@ -173,7 +173,7 @@ namespace cyb::resourcemanager
         rhi::TextureDesc desc;
         desc.width = width;
         desc.height = height;
-        desc.format = rhi::Format::R8G8B8A8_Unorm;
+        desc.format = rhi::Format::RGBA8_UNORM;
         desc.bindFlags = rhi::BindFlags::ShaderResourceBit;
         desc.mipLevels = 1;     // generate full mip chain at runtime
 

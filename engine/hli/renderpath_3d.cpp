@@ -22,7 +22,7 @@ namespace cyb::hli
         // Render targets:
         {
             TextureDesc desc;
-            desc.format = Format::R8G8B8A8_Unorm;
+            desc.format = Format::RGBA8_UNORM;
             desc.bindFlags = BindFlags::ShaderResourceBit | BindFlags::RenderTargetBit;
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;
@@ -33,8 +33,8 @@ namespace cyb::hli
         // Depth stencil buffer:
         {
             TextureDesc desc;
-            desc.layout = ResourceState::DepthStencil_ReadOnlyBit;
-            desc.format = Format::D24_Float_S8_Uint;
+            desc.layout = ResourceStates::DepthReadBit;
+            desc.format = Format::D24S8;
             desc.bindFlags = BindFlags::DepthStencilBit | BindFlags::ShaderResourceBit;
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;
@@ -45,7 +45,7 @@ namespace cyb::hli
         // Selection outline
         {
             TextureDesc desc;
-            desc.format = Format::R8_Unorm;
+            desc.format = Format::R8_UNORM;
             desc.bindFlags = BindFlags::RenderTargetBit | BindFlags::ShaderResourceBit;
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;

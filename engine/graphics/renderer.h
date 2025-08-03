@@ -116,7 +116,7 @@ namespace cyb::renderer
 
     void Initialize();
     void ReloadShaders();
-    bool LoadShader(rhi::ShaderStage stage, rhi::Shader& shader, const std::string& filename);
+    bool LoadShader(rhi::ShaderType stage, rhi::Shader& shader, const std::string& filename);
 
     // Prepare view for rendering
     void UpdatePerFrameData(const SceneView& view, float time, FrameConstants& frameCB);

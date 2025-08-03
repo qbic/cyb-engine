@@ -35,36 +35,49 @@ namespace cyb::rhi::vulkan_internal
     {
         switch (value)
         {
-        case Format::Unknown:                   return VK_FORMAT_UNDEFINED;
-        case Format::R32G32B32A32_Float:        return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case Format::R32G32_Float:              return VK_FORMAT_R32G32_SFLOAT;
-        case Format::R8G8B8A8_Unorm:            return VK_FORMAT_R8G8B8A8_UNORM;
-        case Format::R8G8B8A8_Uint:             return VK_FORMAT_R8G8B8A8_UINT;
-        case Format::R16G16_Float:              return VK_FORMAT_R16G16_SFLOAT;
-        case Format::D32_Float:                 return VK_FORMAT_D32_SFLOAT;
-        case Format::D24_Float_S8_Uint:         return VK_FORMAT_D24_UNORM_S8_UINT;
-        case Format::D32_Float_S8_Uint:         return VK_FORMAT_D32_SFLOAT_S8_UINT;
-        case Format::R32_Float:                 return VK_FORMAT_R32_SFLOAT;
-        case Format::R16_Float:                 return VK_FORMAT_R16_SFLOAT;
-        case Format::R8_Unorm:                  return VK_FORMAT_R8_UNORM;
-        case Format::B8G8R8A8_Unorm:            return VK_FORMAT_B8G8R8A8_UNORM;
-        case Format::R32G32B32_Float:           return VK_FORMAT_R32G32B32_SFLOAT;
+        case Format::Unknown:               return VK_FORMAT_UNDEFINED;
+        case Format::RGBA32_FLOAT:          return VK_FORMAT_R32G32B32A32_SFLOAT;
+        case Format::RG32_FLOAT:            return VK_FORMAT_R32G32_SFLOAT;
+        case Format::RGBA8_UNORM:           return VK_FORMAT_R8G8B8A8_UNORM;
+        case Format::RGBA8_UINT:            return VK_FORMAT_R8G8B8A8_UINT;
+        case Format::RG16_FLOAT:            return VK_FORMAT_R16G16_SFLOAT;
+        case Format::D32:                   return VK_FORMAT_D32_SFLOAT;
+        case Format::D24S8:                 return VK_FORMAT_D24_UNORM_S8_UINT;
+        case Format::D32S8:                 return VK_FORMAT_D32_SFLOAT_S8_UINT;
+        case Format::R32_FLOAT:             return VK_FORMAT_R32_SFLOAT;
+        case Format::R16_FLOAT:             return VK_FORMAT_R16_SFLOAT;
+        case Format::R8_UNORM:              return VK_FORMAT_R8_UNORM;
+        case Format::BGRA8_UNORM:           return VK_FORMAT_B8G8R8A8_UNORM;
+        case Format::RGB32_FLOAT:           return VK_FORMAT_R32G32B32_SFLOAT;
         }
 
         assert(0);
         return VK_FORMAT_UNDEFINED;
     }
 
+    static constexpr VkSamplerAddressMode ConvertSamplerAddressMode(SamplerAddressMode mode)
+    {
+        switch (mode)
+        {
+        case SamplerAddressMode::Wrap:      return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        case SamplerAddressMode::Mirror:    return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        case SamplerAddressMode::Clamp:     return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        }
+
+        assert(0);
+        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    };
+
     static constexpr VkComponentSwizzle ConvertComponentSwizzle(ComponentSwizzle swizzle)
     {
         switch (swizzle)
         {
-        case ComponentSwizzle::Zero:            return VK_COMPONENT_SWIZZLE_ZERO;
-        case ComponentSwizzle::One:             return VK_COMPONENT_SWIZZLE_ONE;
-        case ComponentSwizzle::R:               return VK_COMPONENT_SWIZZLE_R;
-        case ComponentSwizzle::G:               return VK_COMPONENT_SWIZZLE_G;
-        case ComponentSwizzle::B:               return VK_COMPONENT_SWIZZLE_B;
-        case ComponentSwizzle::A:               return VK_COMPONENT_SWIZZLE_A;
+        case ComponentSwizzle::Zero:        return VK_COMPONENT_SWIZZLE_ZERO;
+        case ComponentSwizzle::One:         return VK_COMPONENT_SWIZZLE_ONE;
+        case ComponentSwizzle::R:           return VK_COMPONENT_SWIZZLE_R;
+        case ComponentSwizzle::G:           return VK_COMPONENT_SWIZZLE_G;
+        case ComponentSwizzle::B:           return VK_COMPONENT_SWIZZLE_B;
+        case ComponentSwizzle::A:           return VK_COMPONENT_SWIZZLE_A;
         }
 
         assert(0);
@@ -75,14 +88,14 @@ namespace cyb::rhi::vulkan_internal
     {
         switch (value)
         {
-        case ComparisonFunc::Never:             return VK_COMPARE_OP_NEVER;
-        case ComparisonFunc::Less:              return VK_COMPARE_OP_LESS;
-        case ComparisonFunc::Equal:             return VK_COMPARE_OP_EQUAL;
-        case ComparisonFunc::LessEqual:         return VK_COMPARE_OP_LESS_OR_EQUAL;
-        case ComparisonFunc::Greater:           return VK_COMPARE_OP_GREATER;
-        case ComparisonFunc::NotEqual:          return VK_COMPARE_OP_NOT_EQUAL;
-        case ComparisonFunc::GreaterEqual:      return VK_COMPARE_OP_GREATER_OR_EQUAL;
-        case ComparisonFunc::Allways:           return VK_COMPARE_OP_ALWAYS;
+        case ComparisonFunc::Never:         return VK_COMPARE_OP_NEVER;
+        case ComparisonFunc::Less:          return VK_COMPARE_OP_LESS;
+        case ComparisonFunc::Equal:         return VK_COMPARE_OP_EQUAL;
+        case ComparisonFunc::LessOrEqual:   return VK_COMPARE_OP_LESS_OR_EQUAL;
+        case ComparisonFunc::Greater:       return VK_COMPARE_OP_GREATER;
+        case ComparisonFunc::NotEqual:      return VK_COMPARE_OP_NOT_EQUAL;
+        case ComparisonFunc::GreaterOrEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+        case ComparisonFunc::Allways:       return VK_COMPARE_OP_ALWAYS;
         }
 
         assert(0);
@@ -93,14 +106,14 @@ namespace cyb::rhi::vulkan_internal
     {
         switch (value)
         {
-        case StencilOp::Keep:                   return VK_STENCIL_OP_KEEP;
-        case StencilOp::Zero:                   return VK_STENCIL_OP_ZERO;
-        case StencilOp::Replace:                return VK_STENCIL_OP_REPLACE;
-        case StencilOp::IncrementClamp:         return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
-        case StencilOp::DecrementClamp:         return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
-        case StencilOp::Invert:                 return VK_STENCIL_OP_INVERT;
-        case StencilOp::Increment:              return VK_STENCIL_OP_INCREMENT_AND_WRAP;
-        case StencilOp::Decrement:              return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+        case StencilOp::Keep:               return VK_STENCIL_OP_KEEP;
+        case StencilOp::Zero:               return VK_STENCIL_OP_ZERO;
+        case StencilOp::Replace:            return VK_STENCIL_OP_REPLACE;
+        case StencilOp::IncrementClamp:     return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+        case StencilOp::DecrementClamp:     return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+        case StencilOp::Invert:             return VK_STENCIL_OP_INVERT;
+        case StencilOp::Increment:          return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+        case StencilOp::Decrement:          return VK_STENCIL_OP_DECREMENT_AND_WRAP;
         }
 
         assert(0);
@@ -111,8 +124,8 @@ namespace cyb::rhi::vulkan_internal
     {
         switch (loadOp)
         {
-        case RenderPassImage::LoadOp::Load:     return VK_ATTACHMENT_LOAD_OP_LOAD;
-        case RenderPassImage::LoadOp::Clear:    return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case RenderPassImage::LoadOp::Load: return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case RenderPassImage::LoadOp::Clear: return VK_ATTACHMENT_LOAD_OP_CLEAR;
         case RenderPassImage::LoadOp::DontCare: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         }
 
@@ -124,7 +137,7 @@ namespace cyb::rhi::vulkan_internal
     {
         switch (storeOp)
         {
-        case RenderPassImage::StoreOp::Store:   return VK_ATTACHMENT_STORE_OP_STORE;
+        case RenderPassImage::StoreOp::Store: return VK_ATTACHMENT_STORE_OP_STORE;
         case RenderPassImage::StoreOp::DontCare: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
         }
 
@@ -134,7 +147,7 @@ namespace cyb::rhi::vulkan_internal
 
     struct ResourceStateMapping
     {
-        ResourceState state;
+        ResourceStates state;
         VkPipelineStageFlags2 stageFlags;
         VkAccessFlags2 accessFlags;
         VkImageLayout imageLayout;
@@ -142,86 +155,74 @@ namespace cyb::rhi::vulkan_internal
 
     static constexpr ResourceStateMapping resourceStateMap[] = {
         {
-            ResourceState::ConstantBufferBit,
+            ResourceStates::ConstantBufferBit,
             VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             VK_ACCESS_2_UNIFORM_READ_BIT,
             VK_IMAGE_LAYOUT_UNDEFINED
         },
         {
-            ResourceState::VertexBufferBit,
+            ResourceStates::VertexBufferBit,
             VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT,
             VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT,
             VK_IMAGE_LAYOUT_UNDEFINED
         },
         {
-            ResourceState::IndexBufferBit,
+            ResourceStates::IndexBufferBit,
             VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT,
             VK_ACCESS_2_INDEX_READ_BIT,
             VK_IMAGE_LAYOUT_UNDEFINED
         },
         {
-            ResourceState::IndirectArgumentBit,
+            ResourceStates::IndirectArgumentBit,
             VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
             VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT,
             VK_IMAGE_LAYOUT_UNDEFINED
         },
         {
-            ResourceState::ShaderResourceBit,
+            ResourceStates::ShaderResourceBit,
             VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             VK_ACCESS_2_SHADER_READ_BIT,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         },
         {
-            ResourceState::UnorderedAccessBit,
+            ResourceStates::UnorderedAccessBit,
             VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
             VK_IMAGE_LAYOUT_GENERAL
         },
         {
-            ResourceState::RenderTargetBit,
+            ResourceStates::RenderTargetBit,
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
             VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         },
         {
-            ResourceState::DepthStencilBit,
+            ResourceStates::DepthWriteBit,
             VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
             VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
         },
         {
-            ResourceState::DepthStencil_ReadOnlyBit,
+            ResourceStates::DepthReadBit,
             VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
             VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
             VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
         },
         {
-            ResourceState::CopySrcBit,
+            ResourceStates::CopySourceBit,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
             VK_ACCESS_2_TRANSFER_READ_BIT,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
         },
         {
-            ResourceState::CopyDstBit,
+            ResourceStates::CopyDestBit,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
             VK_ACCESS_2_TRANSFER_WRITE_BIT,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-        },
-        {
-            ResourceState::RaytracingAccelerationStructureBit,
-            VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
-            VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
-            VK_IMAGE_LAYOUT_UNDEFINED
-        },
-        {
-            ResourceState::PredictionBit,
-            VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT,
-            VK_ACCESS_2_CONDITIONAL_RENDERING_READ_BIT_EXT,
-            VK_IMAGE_LAYOUT_UNDEFINED
-        },
+        }
     };
 
-    static ResourceStateMapping ConvertResourceState(ResourceState value)
+    static ResourceStateMapping ConvertResourceState(ResourceStates value)
     {
         ResourceStateMapping result = {};
         result.state = value;
@@ -363,7 +364,7 @@ namespace cyb::rhi::vulkan_internal
         size_t binding_hash{ 0 };
 
         VkGraphicsPipelineCreateInfo pipelineInfo{};
-        VkPipelineShaderStageCreateInfo shaderStages[Numerical(ShaderStage::Count)]{};
+        VkPipelineShaderStageCreateInfo shaderStages[Numerical(ShaderType::Count)]{};
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         VkPipelineRasterizationStateCreateInfo rasterizer{};
         VkPipelineRasterizationDepthClipStateCreateInfoEXT depthclip{};
@@ -1612,10 +1613,6 @@ namespace cyb::rhi
             bufferInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         if (HasFlag(buffer->desc.bindFlags, BindFlags::ConstantBufferBit))
             bufferInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-        if (HasFlag(buffer->desc.miscFlags, ResourceMiscFlag::BufferRawBit))
-            bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        if (HasFlag(buffer->desc.miscFlags, ResourceMiscFlag::BufferStructuredBit))
-            bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
         bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -2117,7 +2114,7 @@ namespace cyb::rhi
         return alignment;
     }
 
-    bool GraphicsDevice_Vulkan::CreateShader(ShaderStage stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const
+    bool GraphicsDevice_Vulkan::CreateShader(ShaderType stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const
     {
         assert(shader != nullptr);
         assert(shaderBytecode != nullptr);
@@ -2139,13 +2136,13 @@ namespace cyb::rhi
         internal_state->stageInfo.pName = "main";
         switch (stage)
         {
-        case ShaderStage::VS:
+        case ShaderType::Vertex:
             internal_state->stageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
             break;
-        case ShaderStage::GS:
+        case ShaderType::Geometry:
             internal_state->stageInfo.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
             break;
-        case ShaderStage::FS:
+        case ShaderType::Pixel:
             internal_state->stageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
             break;
         default:
@@ -2273,65 +2270,27 @@ namespace cyb::rhi
         sampler->internal_state = internal_state;
         sampler->desc = *desc;
 
-        VkSamplerCreateInfo sampler_info = {};
-        sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        sampler_info.flags = 0;
-        sampler_info.pNext = nullptr;
+        const bool anisotropyEnable = desc->maxAnisotropy > 1.0f;
 
-        switch (desc->filter)
-        {
-        case TextureFilter::Point:
-            sampler_info.minFilter = VK_FILTER_NEAREST;
-            sampler_info.magFilter = VK_FILTER_NEAREST;
-            sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            sampler_info.anisotropyEnable = VK_FALSE;
-            sampler_info.compareEnable = VK_FALSE;
-            break;
-        case TextureFilter::Bilinear:
-            sampler_info.minFilter = VK_FILTER_LINEAR;
-            sampler_info.magFilter = VK_FILTER_LINEAR;
-            sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-            sampler_info.anisotropyEnable = VK_FALSE;
-            sampler_info.compareEnable = VK_FALSE;
-            break;
-        case TextureFilter::Trilinear:
-            sampler_info.minFilter = VK_FILTER_LINEAR;
-            sampler_info.magFilter = VK_FILTER_LINEAR;
-            sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            sampler_info.anisotropyEnable = VK_FALSE;
-            sampler_info.compareEnable = VK_FALSE;
-            break;
-        case TextureFilter::Anisotropic:
-            sampler_info.minFilter = VK_FILTER_LINEAR;
-            sampler_info.magFilter = VK_FILTER_LINEAR;
-            sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            sampler_info.anisotropyEnable = VK_TRUE;
-            sampler_info.compareEnable = VK_FALSE;
-            break;
-        }
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.flags = 0;
+        samplerInfo.pNext = nullptr;
+        samplerInfo.minFilter = desc->minFilter ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+        samplerInfo.magFilter = desc->magFilter ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+        samplerInfo.mipmapMode = desc->minFilter ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerInfo.anisotropyEnable = anisotropyEnable;
+        samplerInfo.maxAnisotropy = anisotropyEnable ? desc->maxAnisotropy : 1.0f;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.addressModeU = ConvertSamplerAddressMode(desc->addressU);
+        samplerInfo.addressModeV = ConvertSamplerAddressMode(desc->addressV);
+        samplerInfo.addressModeW = ConvertSamplerAddressMode(desc->addressW);
+        samplerInfo.mipLodBias = desc->lodBias;
+        samplerInfo.minLod = desc->minLOD;
+        samplerInfo.maxLod = desc->maxLOD;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
 
-        auto addressMode = [] (TextureAddressMode mode) -> VkSamplerAddressMode {
-            switch (mode)
-            {
-            case TextureAddressMode::Wrap: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            case TextureAddressMode::Mirror: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-            case TextureAddressMode::Clamp: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            }
-
-            assert(0);
-            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        };
-
-        sampler_info.addressModeU = addressMode(desc->addressU);
-        sampler_info.addressModeV = addressMode(desc->addressV);
-        sampler_info.addressModeW = addressMode(desc->addressW);
-        sampler_info.maxAnisotropy = desc->maxAnisotropy;
-        sampler_info.mipLodBias = desc->lodBias;
-        sampler_info.minLod = desc->minLOD;
-        sampler_info.maxLod = desc->maxLOD;
-        sampler_info.unnormalizedCoordinates = VK_FALSE;
-
-        VK_CHECK(vkCreateSampler(device, &sampler_info, nullptr, &internal_state->resource));
+        VK_CHECK(vkCreateSampler(device, &samplerInfo, nullptr, &internal_state->resource));
         return true;
     }
 
@@ -2344,7 +2303,7 @@ namespace cyb::rhi
         pso->hash = 0;
         hash::Combine(pso->hash, desc->vs);
         hash::Combine(pso->hash, desc->gs);
-        hash::Combine(pso->hash, desc->fs);
+        hash::Combine(pso->hash, desc->ps);
         hash::Combine(pso->hash, desc->rs);
         hash::Combine(pso->hash, desc->dss);
         hash::Combine(pso->hash, desc->il);
@@ -2409,7 +2368,7 @@ namespace cyb::rhi
 
             insert_shader(desc->vs);
             insert_shader(desc->gs);
-            insert_shader(desc->fs);
+            insert_shader(desc->ps);
 
             // sort because dynamic offsets array is tightly packed to match slot numbers:
             std::sort(internal_state->uniform_buffer_dynamic_slots.begin(), internal_state->uniform_buffer_dynamic_slots.end());
@@ -2601,7 +2560,7 @@ namespace cyb::rhi
 
         validate_and_add_shadder(pso->desc.vs);
         validate_and_add_shadder(pso->desc.gs);
-        validate_and_add_shadder(pso->desc.fs);
+        validate_and_add_shadder(pso->desc.ps);
         if (shaderStageCount == 0)
         {
             CYB_ERROR("Pipeline has no valid shader attached!");
@@ -3152,7 +3111,7 @@ namespace cyb::rhi
             case RenderPassImage::Type::DepthStencil: {
                 depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
                 depthAttachment.imageView = textureInternal->dsv.imageView;
-                if (HasFlag(image.layout, ResourceState::DepthStencil_ReadOnlyBit))
+                if (HasFlag(image.layout, ResourceStates::DepthReadBit))
                     depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
                 else
                     depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
@@ -3165,7 +3124,7 @@ namespace cyb::rhi
                 {
                     stencilAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
                     stencilAttachment.imageView = textureInternal->dsv.imageView;
-                    if (HasFlag(image.layout, ResourceState::DepthStencil_ReadOnlyBit))
+                    if (HasFlag(image.layout, ResourceStates::DepthReadBit))
                         stencilAttachment.imageLayout = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;
                     else
                         stencilAttachment.imageLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;

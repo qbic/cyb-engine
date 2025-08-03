@@ -33,8 +33,8 @@ const auto FILE_FILTER_IMPORT_MODEL = FILE_FILTER_GLTF + FILE_FILTER_SCD + FILE_
 
 namespace cyb::editor
 {
-    CVar<bool> e_autoremoveLinkedEntities("e_autoremoveLinkedEntities", true, CVarFlag::GuiBit, "On entity delete, also delete linked entities that isn't beeing used.");
-    CVar<bool> e_recursiveDelete("e_recursiveDelete", true, CVarFlag::GuiBit, "On entity delete, also delete all of the child entities.");
+    CVar<bool> e_autoremoveLinkedEntities{ "e_autoremoveLinkedEntities", true, CVarFlag::GuiBit, "On entity delete, also delete linked entities that isn't beeing used." };
+    CVar<bool> e_recursiveDelete{ "e_recursiveDelete", true, CVarFlag::GuiBit, "On entity delete, also delete all of the child entities." };
     
     bool initialized = false;
     bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
@@ -48,7 +48,7 @@ namespace cyb::editor
     std::vector<VideoModeInfo> videoModeList;
 
     // fps counter data
-    std::array<double, 100> deltatimes = {};
+    std::array<double, 100> deltatimes{};
     uint32_t fpsAgvCounter = 0;
     uint32_t avgFps = 0;
     
@@ -672,7 +672,6 @@ namespace cyb::editor
     static void DeleteSelectedEntity()
     {
         eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
-            const bool isRecursiveDelete = true;
             scene::GetScene().RemoveEntity(
                 scenegraphView.GetSelectedEntity(),
                 e_recursiveDelete.GetValue(),
@@ -837,7 +836,7 @@ namespace cyb::editor
         Animations
     };
 
-    static const std::unordered_map<EntityType, std::string> typeSelectCombo = {
+    static const std::unordered_map<EntityType, std::string> typeSelectCombo{
             { EntityType::Names,        "Names"         },
             { EntityType::Transforms,   "Transforms"    },
             { EntityType::Groups,       "Groups"        },
@@ -1237,6 +1236,10 @@ namespace cyb::editor
                 ImGui::Separator();
                 if (ImGui::MenuItem("Clear Selection", nullptr, false, scenegraphView.GetSelectedEntity() != ecs::INVALID_ENTITY))
                     scenegraphView.SetSelectedEntity(ecs::INVALID_ENTITY);
+                
+                ImGui::Separator();
+                if (ImGui::MenuItem("Delete Unused Entities", nullptr, false))
+                    scene::GetScene().RemoveUnusedEntities();
 
                 ImGui::Separator();
 
@@ -1251,7 +1254,7 @@ namespace cyb::editor
 
                 ImGui::Separator();
 
-                if (ImGui::MenuItem("Detach from parent"))
+                if (ImGui::MenuItem("Detach From Parent"))
                     scene::GetScene().ComponentDetach(scenegraphView.GetSelectedEntity());
                 if (ImGui::MenuItem("Delete", "Del"))
                     DeleteSelectedEntity();
@@ -1342,11 +1345,11 @@ namespace cyb::editor
         const ecs::Entity entity = scenegraphView.GetSelectedEntity();
         scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
 
-        XMFLOAT4X4 world = {};
+        XMFLOAT4X4 world{};
         if (transform)
             world = transform->world;
 
-        const bool isEnabled = transform != nullptr;
+        const bool isEnabled = (transform != nullptr);
         ImGuizmo::Enable(isEnabled);
         ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
         ImGuizmo::Manipulate(
@@ -1481,7 +1484,7 @@ namespace cyb::editor
         performanceVisualizer.Draw();
         gizmoOperation = actionButtonMenu.GetSelectedGizmoOp();
 
-        // create an invisible dummy window for recording actions for the
+        // Create an invisible dummy window for recording actions for the
         // undo manager for the 3d viewport
         ImGuiID gizmoWindowID = 0;
         if (ImGui::Begin("##viewportDummy", 0, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings))

@@ -636,6 +636,7 @@ namespace cyb::scene
                 RemoveEntity(ent, recursive, removeLinkedEntities);
         }
 
+
         // If we're deleting recursivly, remove all children, else
         // we just detach them so we don't leave them parentless.
         for (auto& child : childList)
@@ -657,6 +658,25 @@ namespace cyb::scene
         cameras.Remove(entity);
         animations.Remove(entity);
         weathers.Remove(entity);
+    }
+
+    void Scene::RemoveUnusedEntities()
+    {
+        // Remove unused meshes.
+        for (size_t i = 0; i < meshes.Size(); ++i)
+        {
+            ecs::Entity meshID = meshes.GetEntity(i);
+            if (GetMeshUseCount(meshID) == 0)
+                RemoveEntity(meshID, false, false);
+        }
+
+        // Remove unused materials.
+        for (size_t i = 0; i < materials.Size(); ++i)
+        {
+            ecs::Entity materialID = materials.GetEntity(i);
+            if (GetMaterialUseCount(materialID) == 0)
+                RemoveEntity(materialID, false, false);
+        }
     }
 
     void Scene::Serialize(Serializer& ser)

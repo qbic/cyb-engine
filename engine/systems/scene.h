@@ -130,7 +130,7 @@ namespace cyb::scene
         //      12: normal (normalized & encoded)
         struct Vertex_Pos
         {
-            static constexpr rhi::Format FORMAT{ rhi::Format::R32G32B32A32_Float };
+            static constexpr rhi::Format FORMAT{ rhi::Format::RGBA32_FLOAT };
             XMFLOAT3 pos{ VECTOR_ZERO };
             uint32_t normal{ 0 };
 
@@ -143,7 +143,7 @@ namespace cyb::scene
         // internal format for vertex_buffer_col
         struct Vertex_Col
         {
-            static constexpr rhi::Format FORMAT = rhi::Format::R8G8B8A8_Unorm;
+            static constexpr rhi::Format FORMAT = rhi::Format::RGBA8_UNORM;
             uint32_t color = 0;
         };
     };
@@ -350,6 +350,8 @@ namespace cyb::scene
          * @param removeLinkedEntities Set true to remove unused linked entites (object meshes, and mesh materials).
          */
         void RemoveEntity(ecs::Entity entity, bool recursive, bool removeLinkedEntities);
+
+        void RemoveUnusedEntities();
 
         ecs::Entity CreateGroup(const std::string& name);
         ecs::Entity CreateMaterial(const std::string& name);

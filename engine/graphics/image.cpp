@@ -63,12 +63,12 @@ namespace cyb::renderer
     {
         GraphicsDevice* device = rhi::GetDevice();
 
-        renderer::LoadShader(ShaderStage::VS, vertShader, "image.vert");
-        renderer::LoadShader(ShaderStage::FS, fragShader, "image.frag");
+        renderer::LoadShader(ShaderType::Vertex, vertShader, "image.vert");
+        renderer::LoadShader(ShaderType::Pixel, fragShader, "image.frag");
 
         PipelineStateDesc desc;
         desc.vs = &vertShader;
-        desc.fs = &fragShader;
+        desc.ps = &fragShader;
         desc.rs = &rasterizerState;
         desc.pt = PrimitiveTopology::TriangleStrip;
 
@@ -90,7 +90,7 @@ namespace cyb::renderer
             TextureDesc desc;
             desc.width = 4;
             desc.height = 4;
-            desc.format = rhi::Format::R8G8B8A8_Unorm;
+            desc.format = rhi::Format::RGBA8_UNORM;
             desc.bindFlags = rhi::BindFlags::ShaderResourceBit;
             desc.mipLevels = 1;
 
@@ -122,7 +122,7 @@ namespace cyb::renderer
                 break;
             case DEPTH_TEST_ON:
                 dsd.depthEnable = true;
-                dsd.depthFunc = ComparisonFunc::GreaterEqual;
+                dsd.depthFunc = ComparisonFunc::GreaterOrEqual;
             }
 
             dsd.stencilEnable = false;
@@ -147,16 +147,16 @@ namespace cyb::renderer
             dsd.backFace.stencilFunc = ComparisonFunc::Less;
             depthStencilState[STENCILMODE_LESS][d] = dsd;
 
-            dsd.frontFace.stencilFunc = ComparisonFunc::LessEqual;
-            dsd.backFace.stencilFunc = ComparisonFunc::LessEqual;
+            dsd.frontFace.stencilFunc = ComparisonFunc::LessOrEqual;
+            dsd.backFace.stencilFunc = ComparisonFunc::LessOrEqual;
             depthStencilState[STENCILMODE_LESSEQUAL][d] = dsd;
 
             dsd.frontFace.stencilFunc = ComparisonFunc::Greater;
             dsd.backFace.stencilFunc = ComparisonFunc::Greater;
             depthStencilState[STENCILMODE_GREATER][d] = dsd;
 
-            dsd.frontFace.stencilFunc = ComparisonFunc::GreaterEqual;
-            dsd.backFace.stencilFunc = ComparisonFunc::GreaterEqual;
+            dsd.frontFace.stencilFunc = ComparisonFunc::GreaterOrEqual;
+            dsd.backFace.stencilFunc = ComparisonFunc::GreaterOrEqual;
             depthStencilState[STENCILMODE_GREATEREQUAL][d] = dsd;
 
             dsd.frontFace.stencilFunc = ComparisonFunc::NotEqual;

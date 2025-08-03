@@ -85,7 +85,7 @@ namespace cyb::renderer
             //
             // DEFAULT usage buffers (long lifetime, slow update, fast read)
             //
-            desc.usage = MemoryAccess::Default;
+            desc.usage = MemoryAccess::DeviceLocal;
             desc.size = sizeof(FrameConstants);
             desc.stride = 0;
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_FRAME]);
@@ -99,7 +99,7 @@ namespace cyb::renderer
             //
             // DYNAMIC usage buffers (short lifetime, fast update, slow read)
             //
-            desc.usage = MemoryAccess::Default;
+            desc.usage = MemoryAccess::DeviceLocal;
             desc.size = sizeof(MaterialCB);
             desc.stride = 0;
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_MATERIAL]);
@@ -115,7 +115,7 @@ namespace cyb::renderer
         });
     }
 
-    bool LoadShader(ShaderStage stage, Shader& shader, const std::string& filename)
+    bool LoadShader(ShaderType stage, Shader& shader, const std::string& filename)
     {
         std::string shaderpath{};
         for (const auto& path : SHADERPATHS)
@@ -163,55 +163,67 @@ namespace cyb::renderer
     static void LoadSamplerStates()
     {
         SamplerDesc desc;
-        desc.maxAnisotropy = 1;
+        desc.maxAnisotropy = 1.0f;
         desc.borderColor = XMFLOAT4(0, 0, 0, 0);
         desc.lodBias = 0.0f;
         desc.minLOD = 0.0f;
         desc.maxLOD = FLT_MAX;
 
         // Point filtering states
-        desc.filter = TextureFilter::Point;
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Wrap;
+        desc.minFilter = false;
+        desc.magFilter = false;
+        desc.mipFilter = false;
+
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_WRAP]);
 
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Mirror;
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Mirror;
         device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_MIRROR]);
 
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Clamp;
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Clamp;
         device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_CLAMP]);
 
         // BiLinear filtering states
-        desc.filter = TextureFilter::Bilinear;
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Wrap;
+        desc.minFilter = true;
+        desc.magFilter = true;
+        desc.mipFilter = false;
+
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_WRAP]);
 
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Mirror;
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Mirror;
         device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_MIRROR]);
 
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Clamp;
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Clamp;
         device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_CLAMP]);
 
         // TriLinearfiltering states
-        desc.filter = TextureFilter::Trilinear;
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Wrap;
+        desc.minFilter = true;
+        desc.magFilter = true;
+        desc.mipFilter = true;
+
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_WRAP]);
 
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Mirror;
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Mirror;
         device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_MIRROR]);
 
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Clamp;
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Clamp;
         device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_CLAMP]);
 
         // Anisotropic filtering states
-        desc.filter = TextureFilter::Anisotropic;
-        desc.maxAnisotropy = 16;
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Wrap;
+        desc.minFilter = true;
+        desc.magFilter = true;
+        desc.mipFilter = true;
+        desc.maxAnisotropy = 16.0f;
+
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_WRAP]);
 
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Mirror;
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Mirror;
         device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_MIRROR]);
 
-        desc.addressU = desc.addressV = desc.addressW = TextureAddressMode::Clamp;
+        desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Clamp;
         device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_CLAMP]);
     }
 
@@ -231,34 +243,34 @@ namespace cyb::renderer
                 { "in_position", 0, scene::MeshComponent::Vertex_Pos::FORMAT },
                 { "in_color",    1, scene::MeshComponent::Vertex_Col::FORMAT }
             };
-            LoadShader(ShaderStage::VS, shaders[VSTYPE_FLAT_SHADING], "flat_shader.vert");
+            LoadShader(ShaderType::Vertex, shaders[VSTYPE_FLAT_SHADING], "flat_shader.vert");
         });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_SKY] =
             {
                 { "in_pos",   0, scene::MeshComponent::Vertex_Pos::FORMAT }
             };
-            LoadShader(ShaderStage::VS, shaders[VSTYPE_SKY], "sky.vert");
+            LoadShader(ShaderType::Vertex, shaders[VSTYPE_SKY], "sky.vert");
         });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_DEBUG_LINE] =
             {
-                { "in_position", 0, Format::R32G32B32A32_Float },
-                { "in_color",    0, Format::R32G32B32A32_Float }
+                { "in_position", 0, Format::RGBA32_FLOAT },
+                { "in_color",    0, Format::RGBA32_FLOAT }
             };
-            LoadShader(ShaderStage::VS, shaders[VSTYPE_DEBUG_LINE], "debug_line.vert");
+            LoadShader(ShaderType::Vertex, shaders[VSTYPE_DEBUG_LINE], "debug_line.vert");
         });
 
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderStage::VS, shaders[VSTYPE_POSTPROCESS], "postprocess.vert"); });
+        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderType::Vertex, shaders[VSTYPE_POSTPROCESS], "postprocess.vert"); });
 
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_DISNEY_SHADING], "flat_shader_disney.geom"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::GS, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Geometry, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Geometry, shaders[GSTYPE_FLAT_DISNEY_SHADING], "flat_shader_disney.geom"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Geometry, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
 
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_SKY], "sky.frag"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_POSTPROCESS_OUTLINE], "outline.frag"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderStage::FS, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Pixel, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Pixel, shaders[FSTYPE_SKY], "sky.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Pixel, shaders[FSTYPE_POSTPROCESS_OUTLINE], "outline.frag"); });
+        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Pixel, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
 
         jobsystem::Wait(ctx);
 
@@ -288,13 +300,13 @@ namespace cyb::renderer
             dsd.depthEnable = true;
             dsd.stencilEnable = false;
             dsd.depthWriteMask = DepthWriteMask::Zero;
-            dsd.depthFunc = ComparisonFunc::GreaterEqual;
+            dsd.depthFunc = ComparisonFunc::GreaterOrEqual;
             depth_stencils[DSSTYPE_DEPTH_READ] = dsd;
 
             dsd.depthEnable = true;
             dsd.stencilEnable = true;
             dsd.depthWriteMask = DepthWriteMask::All;
-            dsd.depthFunc = ComparisonFunc::GreaterEqual;
+            dsd.depthFunc = ComparisonFunc::GreaterOrEqual;
             depth_stencils[DSSTYPE_SKY] = dsd;
         }
         {
@@ -335,7 +347,7 @@ namespace cyb::renderer
             PipelineStateDesc desc;
             desc.vs = GetShader(VSTYPE_FLAT_SHADING);
             desc.gs = GetShader(GSTYPE_FLAT_SHADING);
-            desc.fs = GetShader(FSTYPE_FLAT_SHADING);
+            desc.ps = GetShader(FSTYPE_FLAT_SHADING);
             desc.rs = &rasterizers[RSTYPE_FRONT];
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
@@ -347,7 +359,7 @@ namespace cyb::renderer
             PipelineStateDesc desc;
             desc.vs = GetShader(VSTYPE_FLAT_SHADING);
             desc.gs = GetShader(GSTYPE_FLAT_DISNEY_SHADING);
-            desc.fs = GetShader(FSTYPE_FLAT_SHADING);
+            desc.ps = GetShader(FSTYPE_FLAT_SHADING);
             desc.rs = &rasterizers[RSTYPE_FRONT];
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
@@ -359,7 +371,7 @@ namespace cyb::renderer
             PipelineStateDesc desc;
             desc.vs = GetShader(VSTYPE_FLAT_SHADING);
             desc.gs = GetShader(GSTYPE_FLAT_UNLIT);
-            desc.fs = GetShader(FSTYPE_FLAT_SHADING);
+            desc.ps = GetShader(FSTYPE_FLAT_SHADING);
             desc.rs = &rasterizers[RSTYPE_FRONT];
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
@@ -370,7 +382,7 @@ namespace cyb::renderer
             // PSO_OUTLINE
             PipelineStateDesc desc;
             desc.vs = GetShader(VSTYPE_POSTPROCESS);
-            desc.fs = GetShader(FSTYPE_POSTPROCESS_OUTLINE);
+            desc.ps = GetShader(FSTYPE_POSTPROCESS_OUTLINE);
             desc.rs = &rasterizers[RSTYPE_DOUBLESIDED];
             desc.dss = &depth_stencils[DSSTYPE_DEPTH_DISABLED];
             desc.pt = PrimitiveTopology::TriangleStrip;
@@ -380,7 +392,7 @@ namespace cyb::renderer
             // PSO_SKY
             PipelineStateDesc desc;
             desc.vs = GetShader(VSTYPE_SKY);
-            desc.fs = GetShader(FSTYPE_SKY);
+            desc.ps = GetShader(FSTYPE_SKY);
             desc.rs = &rasterizers[RSTYPE_SKY];
             desc.dss = &depth_stencils[DSSTYPE_SKY];
             desc.pt = PrimitiveTopology::TriangleStrip;
@@ -390,7 +402,7 @@ namespace cyb::renderer
             // DEBUGRENDERING_CUBE
             PipelineStateDesc desc;
             desc.vs = GetShader(VSTYPE_DEBUG_LINE);
-            desc.fs = GetShader(FSTYPE_DEBUG_LINE);
+            desc.ps = GetShader(FSTYPE_DEBUG_LINE);
             desc.rs = &rasterizers[RSTYPE_WIRE_DOUBLESIDED];
             desc.dss = &depth_stencils[DSSTYPE_DEPTH_READ];
             desc.il = &input_layouts[VLTYPE_DEBUG_LINE];
@@ -662,7 +674,7 @@ namespace cyb::renderer
             };
 
             GPUBufferDesc vertexbuffer_desc;
-            vertexbuffer_desc.usage = MemoryAccess::Default;
+            vertexbuffer_desc.usage = MemoryAccess::DeviceLocal;
             vertexbuffer_desc.size = sizeof(verts);
             vertexbuffer_desc.bindFlags = BindFlags::VertexBufferBit;
             device->CreateBuffer(&vertexbuffer_desc, &verts, &wirecube_vb);
@@ -673,7 +685,7 @@ namespace cyb::renderer
             };
 
             GPUBufferDesc indexbuffer_desc;
-            indexbuffer_desc.usage = MemoryAccess::Default;
+            indexbuffer_desc.usage = MemoryAccess::DeviceLocal;
             indexbuffer_desc.size = sizeof(indices);
             indexbuffer_desc.bindFlags = BindFlags::IndexBufferBit;
             device->CreateBuffer(&indexbuffer_desc, &indices, &wirecube_ib);

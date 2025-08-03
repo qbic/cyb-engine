@@ -10,42 +10,26 @@ namespace cyb::rhi
     struct Texture;
     struct Shader;
 
-    enum class BindFlags
+    enum class BindFlags : uint8_t
     {
-        None = 0,
-        VertexBufferBit = BIT(0),
-        IndexBufferBit = BIT(1),
-        ConstantBufferBit = BIT(2),
-        RenderTargetBit = BIT(3),
-        DepthStencilBit = BIT(4),
-        ShaderResourceBit = BIT(5)
+        None                = 0,
+        VertexBufferBit     = BIT(0),
+        IndexBufferBit      = BIT(1),
+        ConstantBufferBit   = BIT(2),
+        RenderTargetBit     = BIT(3),
+        DepthStencilBit     = BIT(4),
+        ShaderResourceBit   = BIT(5)
     };
     CYB_ENABLE_BITMASK_OPERATORS(BindFlags);
 
-    enum class ResourceMiscFlag
+    enum class MemoryAccess : uint8_t
     {
-        None = 0,
-        BufferRawBit = BIT(0),
-        BufferStructuredBit = BIT(1),
-    };
-    CYB_ENABLE_BITMASK_OPERATORS(ResourceMiscFlag);
-
-    enum class MemoryAccess
-    {
-        Default,                            // CPU no access, GPU read/write
+        DeviceLocal,                        // CPU no access, GPU read/write
         Upload,                             // CPU write, GPU read
         Readback                            // CPU read, GPU write
     };
 
-    enum class TextureFilter
-    {
-        Point,
-        Bilinear,
-        Trilinear,
-        Anisotropic
-    };
-
-    enum class TextureAddressMode
+    enum class SamplerAddressMode : uint8_t
     {
         Clamp,
         Wrap,
@@ -53,7 +37,7 @@ namespace cyb::rhi
         Border
     };
 
-    enum class ComponentSwizzle
+    enum class ComponentSwizzle : uint8_t
     {
         Zero,
         One,
@@ -63,58 +47,60 @@ namespace cyb::rhi
         A
     };
 
-    enum class Format
+    enum class Format : uint8_t
     {
         Unknown,
-        R32G32B32A32_Float,                 // Four-component, 128-bit floating-point format with 32-bit channels
-        R8G8B8A8_Uint,                      // Four-component, 32-bit unsigned-integer format with 8-bit channels
-        R8G8B8A8_Unorm,                     // Four-component, 32-bit unsigned-normalized integer format with 8-bit channels
-        R16G16_Float,                       // Two-component, 32-bit floating-point format with 16-bit channels 
-        R32G32_Float,                       // Two-component, 64-bit floating-point format with 32-bit channels
-        R8_Unorm,                           // Single-component, 8-bit unsigned-normalized integer swizzeled to { r, r, r, 1 }
-        R32_Float,                          // Single-component, 32-bit floating-point format swizzeled to { r, r, r, 1 }
-        R16_Float,                          // Single-component, 16-bit floating-point format swizzeled to { r, r, r, 1 }
-        D32_Float,                          // Single-component, 32-bit floating-point format for depth
-        D24_Float_S8_Uint,                  // Two-component, Depth (24-bit) + stencil (8-bit)
-        D32_Float_S8_Uint,                  // Two-component, Depth (32-bit) + stencil (8-bit) (24-bits unused)
-        B8G8R8A8_Unorm,
-        R32G32B32_Float
+
+        R8_UNORM,                       //!< Single-component, 8-bit unsigned-normalized integer swizzeled to { r, r, r, 1 }
+        RGBA8_UINT,                     //!< Four-component, 32-bit unsigned-integer format with 8-bit channels
+        RGBA8_UNORM,                    //!< Four-component, 32-bit unsigned-normalized integer format with 8-bit channels
+        BGRA8_UNORM,
+        R16_FLOAT,                      //!< Single-component, 16-bit floating-point format swizzeled to { r, r, r, 1 }
+        RG16_FLOAT,                     //!< Two-component, 32-bit floating-point format with 16-bit channels 
+        R32_FLOAT,                      //!< Single-component, 32-bit floating-point format swizzeled to { r, r, r, 1 }
+        RG32_FLOAT,                     //!< Two-component, 64-bit floating-point format with 32-bit channels
+        RGB32_FLOAT,
+        RGBA32_FLOAT,                   //!< Four-component, 128-bit floating-point format with 32-bit channels
+        
+        D24S8,                          //!< Two-component, Depth (24-bit) + stencil (8-bit)
+        D32,                            //!< Single-component, 32-bit floating-point format for depth
+        D32S8                           //!< Two-component, Depth (32-bit) + stencil (8-bit) (24-bits unused)
     };
 
-    enum class IndexBufferFormat
+    enum class IndexBufferFormat : uint8_t
     {
         Uint16,
         Uint32
     };
 
-    enum class SubresourceType
+    enum class SubresourceType : uint8_t
     {
-        SRV,                                // Shader resource view
-        RTV,                                // Render target view
-        DSV                                 // Depth stencil view
+        SRV,                            // Shader resource view
+        RTV,                            // Render target view
+        DSV                             // Depth stencil view
     };
 
-    enum class PolygonMode
+    enum class PolygonMode : uint8_t
     {
         Fill,
         Line,
         Point
     };
 
-    enum class CullMode
+    enum class CullMode : uint8_t
     {
         None,
         Front,
         Back
     };
 
-    enum class FrontFace
+    enum class FrontFace : uint8_t
     {
-        CCW,                                // Counterclockwise
-        CW                                  // Clockwise
+        CCW,                            // Counterclockwise
+        CW                              // Clockwise
     };
 
-    enum class PrimitiveTopology
+    enum class PrimitiveTopology : uint8_t
     {
         TriangleList,
         TriangleStrip,
@@ -123,25 +109,25 @@ namespace cyb::rhi
         LineStrip
     };
 
-    enum class ComparisonFunc
+    enum class ComparisonFunc : uint8_t
     {
         Never,
         Equal,
         NotEqual,
         Less,
-        LessEqual,
+        LessOrEqual,
         Greater,
-        GreaterEqual,
+        GreaterOrEqual,
         Allways
     };
 
-    enum class DepthWriteMask
+    enum class DepthWriteMask : uint8_t
     {
-        Zero,	                            // Disables depth write
-        All,	                            // Enables depth write
+        Zero,                           // Disables depth write
+        All,                            // Enables depth write
     };
 
-    enum class StencilOp
+    enum class StencilOp : uint8_t
     {
         Keep,
         Zero,
@@ -153,22 +139,22 @@ namespace cyb::rhi
         Decrement,
     };
 
-    enum class ShaderStage
+    enum class ShaderType : uint8_t
     {
-        VS,                                 // Vertex shader
-        FS,                                 // Fragment shader
-        GS,                                 // Geometry shader
+        Vertex,
+        Pixel,
+        Geometry,
         Count
     };
 
-    enum class ShaderFormat
+    enum class ShaderFormat : uint8_t
     {
         None,
         SpirV,
         GLSL
     };
 
-    enum class QueueType
+    enum class QueueType : uint8_t
     {
         Graphics,
         Compute,
@@ -176,45 +162,42 @@ namespace cyb::rhi
         Count
     };
 
-    enum class ResourceState
+    enum class ResourceStates : uint32_t
     {
         // Common resource states:
-        Undefined = 0,                      // Invalid state (doesen't preserve contents)
-        ShaderResourceBit = BIT(0),         // Shader resource, read only
-        ShaderResourceComputeBit = BIT(1),  // Shader resource, read only, non-pixel shader
-        UnorderedAccessBit = BIT(2),        // Shader resource, write enabled
-        CopySrcBit = BIT(3),                // Copy from
-        CopyDstBit = BIT(4),                // Copy to
+        Unknown             = 0,        // Invalid state (doesen't preserve contents)
+        ShaderResourceBit   = BIT(0),   // Shader resource, read only
+        UnorderedAccessBit  = BIT(1),   // Shader resource, write enabled
+        CopySourceBit       = BIT(2),   // Copy from
+        CopyDestBit         = BIT(3),   // Copy to
 
         // Texture specific resource states:
-        RenderTargetBit = BIT(10),	        // Render target, write enabled
-        DepthStencilBit = BIT(11),	        // Depth stencil, write enabled
-        DepthStencil_ReadOnlyBit = BIT(12), // Depth stencil, read only
+        RenderTargetBit     = BIT(10),  // Render target, write enabled
+        DepthWriteBit       = BIT(11),  // Depth stencil, write enabled
+        DepthReadBit        = BIT(12),  // Depth stencil, read only
 
         // GPUBuffer specific resource states:
-        VertexBufferBit = BIT(20),          // Vertex buffer, read only
-        IndexBufferBit = BIT(21),           // Index buffer, read only
-        ConstantBufferBit = BIT(22),        // Constant buffer, read only
-        IndirectArgumentBit = BIT(23),      // Argument buffer to DrawIndirect() or DispatchIndirect()
-        RaytracingAccelerationStructureBit = BIT(24), // Acceleration structure storage or scratch
-        PredictionBit = BIT(25)             // Storage for predication comparison value
+        VertexBufferBit     = BIT(20),  // Vertex buffer, read only
+        IndexBufferBit      = BIT(21),  // Index buffer, read only
+        ConstantBufferBit   = BIT(22),  // Constant buffer, read only
+        IndirectArgumentBit = BIT(23),  // Argument buffer to DrawIndirect() or DispatchIndirect()
+        AccelStructBit      = BIT(24),  // Acceleration structure storage or scratch
     };
-    CYB_ENABLE_BITMASK_OPERATORS(ResourceState);
+    CYB_ENABLE_BITMASK_OPERATORS(ResourceStates);
 
-    enum class GPUQueryType
+    enum class GPUQueryType : uint8_t
     {
-        Timestamp,			                // Retrieve time point of gpu execution
-        Occlusion,			                // How many samples passed depth test?
-        OcclusionBinary 	                // Depth test passed or not?
+        Timestamp,                      // Retrieve time point of gpu execution
+        Occlusion,                      // How many samples passed depth test?
+        OcclusionBinary                 // Depth test passed or not?
     };
 
     struct GPUBufferDesc
     {
         uint64_t size = 0;
-        MemoryAccess usage = MemoryAccess::Default;
+        MemoryAccess usage = MemoryAccess::DeviceLocal;
         BindFlags bindFlags = BindFlags::None;
-        ResourceMiscFlag miscFlags = ResourceMiscFlag::None;
-        uint32_t stride = 0;                // Needed for struct buffer types
+        uint32_t stride = 0;            // Needed for struct buffer types
     };
 
     struct GPUQueryDesc
@@ -225,8 +208,8 @@ namespace cyb::rhi
 
     struct Viewport
     {
-        float x = 0;                        // Top-Left
-        float y = 0;                        // Top-Left
+        float x = 0;                    // Top-Left
+        float y = 0;                    // Top-Left
         float width = 0;
         float height = 0;
         float minDepth = 0;
@@ -258,12 +241,14 @@ namespace cyb::rhi
 
     struct SamplerDesc
     {
-        TextureFilter filter = TextureFilter::Point;
-        TextureAddressMode addressU = TextureAddressMode::Wrap;
-        TextureAddressMode addressV = TextureAddressMode::Wrap;
-        TextureAddressMode addressW = TextureAddressMode::Wrap;
+        bool minFilter = true;
+        bool magFilter = true;
+        bool mipFilter = true;
+        SamplerAddressMode addressU = SamplerAddressMode::Wrap;
+        SamplerAddressMode addressV = SamplerAddressMode::Wrap;
+        SamplerAddressMode addressW = SamplerAddressMode::Wrap;
         float lodBias = 0.0f;
-        float maxAnisotropy = 16.0f;
+        float maxAnisotropy = 1.0f;
         XMFLOAT4 borderColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
         float minLOD = 0.0f;
         float maxLOD = FLT_MAX;
@@ -307,7 +292,7 @@ namespace cyb::rhi
         uint32_t mipLevels = 1;
         BindFlags bindFlags = BindFlags::None;
         ClearValue clear = {};
-        ResourceState layout = ResourceState::ShaderResourceBit;
+        ResourceStates layout = ResourceStates::ShaderResourceBit;
     };
 
     struct RasterizerState
@@ -344,7 +329,7 @@ namespace cyb::rhi
         uint32_t width = 0;
         uint32_t height = 0;
         uint32_t bufferCount = 2;
-        Format format = Format::B8G8R8A8_Unorm;
+        Format format = Format::BGRA8_UNORM;
         bool fullscreen = false;
         bool vsync = true;
         float clearColor[4] = { .4f, .4f, .4f, 1.0f };
@@ -354,7 +339,7 @@ namespace cyb::rhi
     {
         const Shader* vs{ nullptr };
         const Shader* gs{ nullptr };
-        const Shader* fs{ nullptr };
+        const Shader* ps{ nullptr };
         const RasterizerState* rs{ nullptr };
         const DepthStencilState* dss{ nullptr };
         const VertexInputLayout* il{ nullptr };
@@ -451,17 +436,17 @@ namespace cyb::rhi
         LoadOp loadOp = LoadOp::Load;
         StoreOp storeOp = StoreOp::Store;
         const Texture* texture = nullptr;
-        ResourceState prePassLayout = ResourceState::Undefined;	    // layout before the render pass
-        ResourceState layout = ResourceState::Undefined;	        // layout within the render pass
-        ResourceState postPassLayout = ResourceState::Undefined;	// layout after the render pass
+        ResourceStates prePassLayout = ResourceStates::Unknown;       // layout before the render pass
+        ResourceStates layout = ResourceStates::Unknown;	            // layout within the render pass
+        ResourceStates postPassLayout = ResourceStates::Unknown;	    // layout after the render pass
         DepthResolveMode depthDesolveMode = DepthResolveMode::Min;
 
         static RenderPassImage RenderTarget(
             const Texture* resource,
             LoadOp loadOp = LoadOp::Load,
             StoreOp storeOp = StoreOp::Store,
-            ResourceState prePassLayout = ResourceState::ShaderResourceBit,
-            ResourceState postPassLayout = ResourceState::ShaderResourceBit)
+            ResourceStates prePassLayout = ResourceStates::ShaderResourceBit,
+            ResourceStates postPassLayout = ResourceStates::ShaderResourceBit)
         {
             RenderPassImage image;
             image.type = Type::RenderTarget;
@@ -469,7 +454,7 @@ namespace cyb::rhi
             image.loadOp = loadOp;
             image.storeOp = storeOp;
             image.prePassLayout = prePassLayout;
-            image.layout = ResourceState::RenderTargetBit;
+            image.layout = ResourceStates::RenderTargetBit;
             image.postPassLayout = postPassLayout;
             return image;
         }
@@ -478,9 +463,9 @@ namespace cyb::rhi
             const Texture* resource,
             LoadOp loadOp = LoadOp::Load,
             StoreOp storeOp = StoreOp::Store,
-            ResourceState prePassLayout = ResourceState::DepthStencilBit,
-            ResourceState layout = ResourceState::DepthStencilBit,
-            ResourceState postPassLayout = ResourceState::DepthStencilBit)
+            ResourceStates prePassLayout = ResourceStates::DepthWriteBit,
+            ResourceStates layout = ResourceStates::DepthWriteBit,
+            ResourceStates postPassLayout = ResourceStates::DepthWriteBit)
         {
             RenderPassImage image;
             image.type = Type::DepthStencil;
@@ -564,7 +549,7 @@ namespace cyb::rhi
 
     struct Shader final : public RenderDeviceChild
     {
-        ShaderStage stage = ShaderStage::VS;
+        ShaderType stage = ShaderType::Vertex;
         std::string code;
     };
 
@@ -620,8 +605,8 @@ namespace cyb::rhi
     class GraphicsDevice
     {
     protected:
-        static const uint32_t BUFFERCOUNT = 2;
-        const bool VALIDATION_MODE_ENABLED = false;
+        static constexpr uint32_t BUFFERCOUNT = 2;
+        static constexpr bool VALIDATION_MODE_ENABLED = false;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 
@@ -632,7 +617,7 @@ namespace cyb::rhi
         virtual bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const = 0;
         virtual bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const = 0;
         virtual bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const = 0;
-        virtual bool CreateShader(ShaderStage stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const = 0;
+        virtual bool CreateShader(ShaderType stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const = 0;
         virtual bool CreateSampler(const SamplerDesc* desc, Sampler* sampler) const = 0;
         virtual bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const = 0;
 
@@ -734,7 +719,6 @@ namespace cyb::rhi
                 GPUBufferDesc desc;
                 desc.usage = MemoryAccess::Upload;
                 desc.bindFlags = BindFlags::ConstantBufferBit | BindFlags::VertexBufferBit | BindFlags::IndexBufferBit | BindFlags::ShaderResourceBit;
-                desc.miscFlags = ResourceMiscFlag::BufferRawBit;
                 allocator.alignment = GetMinOffsetAlignment(&desc);
                 desc.size = AlignTo((allocator.buffer.desc.size + dataSize) * 2, allocator.alignment);
                 CreateBuffer(&desc, nullptr, &allocator.buffer);
@@ -786,22 +770,22 @@ namespace cyb::rhi
     {
         switch (format)
         {
-        case Format::D32_Float:
-        case Format::D24_Float_S8_Uint:
-        case Format::D32_Float_S8_Uint:
+        case Format::D32:
+        case Format::D24S8:
+        case Format::D32S8:
             return true;
 
         case Format::Unknown:
-        case Format::R32G32B32A32_Float:
-        case Format::R8G8B8A8_Uint:
-        case Format::R8G8B8A8_Unorm:
-        case Format::R16G16_Float:
-        case Format::R32G32_Float:
-        case Format::R8_Unorm:
-        case Format::R32_Float:
-        case Format::R16_Float:
-        case Format::B8G8R8A8_Unorm:
-        case Format::R32G32B32_Float:
+        case Format::RGBA32_FLOAT:
+        case Format::RGBA8_UINT:
+        case Format::RGBA8_UNORM:
+        case Format::RG16_FLOAT:
+        case Format::RG32_FLOAT:
+        case Format::R8_UNORM:
+        case Format::R32_FLOAT:
+        case Format::R16_FLOAT:
+        case Format::BGRA8_UNORM:
+        case Format::RGB32_FLOAT:
             return false;
         }
 
@@ -813,22 +797,22 @@ namespace cyb::rhi
     {
         switch (format)
         {
-        case Format::D24_Float_S8_Uint:
-        case Format::D32_Float_S8_Uint:
+        case Format::D24S8:
+        case Format::D32S8:
             return true;
 
         case Format::Unknown:
-        case Format::D32_Float:
-        case Format::R32G32B32A32_Float:
-        case Format::R8G8B8A8_Uint:
-        case Format::R8G8B8A8_Unorm:
-        case Format::R16G16_Float:
-        case Format::R32G32_Float:
-        case Format::R8_Unorm:
-        case Format::R32_Float:
-        case Format::R16_Float:
-        case Format::B8G8R8A8_Unorm:
-        case Format::R32G32B32_Float:
+        case Format::D32:
+        case Format::RGBA32_FLOAT:
+        case Format::RGBA8_UINT:
+        case Format::RGBA8_UNORM:
+        case Format::RG16_FLOAT:
+        case Format::RG32_FLOAT:
+        case Format::R8_UNORM:
+        case Format::R32_FLOAT:
+        case Format::R16_FLOAT:
+        case Format::BGRA8_UNORM:
+        case Format::RGB32_FLOAT:
             return false;
         }
 
@@ -840,29 +824,29 @@ namespace cyb::rhi
     {
         switch (format)
         {
-        case Format::R32G32B32A32_Float:
+        case Format::RGBA32_FLOAT:
             return 16u;
 
-        case Format::R32G32B32_Float:
+        case Format::RGB32_FLOAT:
             return 12u;
 
-        case Format::R32G32_Float:
-        case Format::D32_Float_S8_Uint:
+        case Format::RG32_FLOAT:
+        case Format::D32S8:
             return 8u;
 
-        case Format::R8G8B8A8_Uint:
-        case Format::R8G8B8A8_Unorm:
-        case Format::R16G16_Float:
-        case Format::R32_Float:
-        case Format::D32_Float:
-        case Format::D24_Float_S8_Uint:
-        case Format::B8G8R8A8_Unorm:
+        case Format::RGBA8_UINT:
+        case Format::RGBA8_UNORM:
+        case Format::RG16_FLOAT:
+        case Format::R32_FLOAT:
+        case Format::D32:
+        case Format::D24S8:
+        case Format::BGRA8_UNORM:
             return 4u;
 
-        case Format::R16_Float:
+        case Format::R16_FLOAT:
             return 2u;
 
-        case Format::R8_Unorm:
+        case Format::R8_UNORM:
             return 1u;
 
         case Format::Unknown:

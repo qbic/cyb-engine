@@ -206,7 +206,7 @@ namespace cyb::rhi
         bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const override;
         bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const override;
         bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const override;
-        bool CreateShader(ShaderStage stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const override;
+        bool CreateShader(ShaderType stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const override;
         bool CreateSampler(const SamplerDesc* desc, Sampler* sampler) const override;
         bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const override;
         void CreateSubresource(Texture* texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const;

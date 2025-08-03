@@ -207,7 +207,7 @@ namespace cyb
      * @brief Try to find a registrated cvar of type T.
      * 
      * Example usage:
-     *  auto* cvar = Find(hash::String("cvarName"));
+     *  auto* cvar = Find<bool>(hash::String("cvarName"));
      * 
      * @param hash Hashed value of the cvar's name.
      * @return A pointer to the cvar if it was found and types are matching, nullptr otherwise.

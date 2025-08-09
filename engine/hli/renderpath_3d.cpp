@@ -22,10 +22,10 @@ namespace cyb::hli
         // Render targets:
         {
             TextureDesc desc;
-            desc.format = Format::RGBA8_UNORM;
-            desc.bindFlags = BindFlags::ShaderResourceBit | BindFlags::RenderTargetBit;
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;
+            desc.format = Format::RGBA8_UNORM;
+            desc.initialState = ResourceStates::ShaderResourceBit | ResourceStates::RenderTargetBit;
             device->CreateTexture(&desc, nullptr, &renderTarget_Main);
             device->SetName(&renderTarget_Main, "renderTarget_Main");
         }
@@ -33,11 +33,10 @@ namespace cyb::hli
         // Depth stencil buffer:
         {
             TextureDesc desc;
-            desc.layout = ResourceStates::DepthReadBit;
-            desc.format = Format::D24S8;
-            desc.bindFlags = BindFlags::DepthStencilBit | BindFlags::ShaderResourceBit;
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;
+            desc.format = Format::D24S8;
+            desc.initialState = ResourceStates::DepthReadBit | ResourceStates::DepthWriteBit;
             device->CreateTexture(&desc, nullptr, &depthBuffer_Main);
             device->SetName(&depthBuffer_Main, "depthBuffer_Main");
         }
@@ -45,10 +44,10 @@ namespace cyb::hli
         // Selection outline
         {
             TextureDesc desc;
-            desc.format = Format::R8_UNORM;
-            desc.bindFlags = BindFlags::RenderTargetBit | BindFlags::ShaderResourceBit;
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;
+            desc.format = Format::R8_UNORM;
+            desc.initialState = ResourceStates::ShaderResourceBit | ResourceStates::RenderTargetBit;
             device->CreateTexture(&desc, nullptr, &rtSelectionOutline);
             device->SetName(&rtSelectionOutline, "rtSelectionOutline");
         }

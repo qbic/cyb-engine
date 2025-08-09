@@ -55,6 +55,19 @@ namespace cyb::rhi::vulkan_internal
         return VK_FORMAT_UNDEFINED;
     }
 
+    static constexpr VkImageType ConvertTextureType(TextureType dimension)
+    {
+        switch (dimension)
+        {
+        case TextureType::Texture1D:   return VK_IMAGE_TYPE_1D;
+        case TextureType::Texture2D:   return VK_IMAGE_TYPE_2D;
+        case TextureType::Texture3D:   return VK_IMAGE_TYPE_3D;
+        }
+
+        assert(0);
+        return VK_IMAGE_TYPE_MAX_ENUM;
+    }
+
     static constexpr VkSamplerAddressMode ConvertSamplerAddressMode(SamplerAddressMode mode)
     {
         switch (mode)
@@ -145,103 +158,66 @@ namespace cyb::rhi::vulkan_internal
         return VK_ATTACHMENT_STORE_OP_STORE;
     }
 
-    struct ResourceStateMapping
+    static VkImageLayout ConvertImageLayout(ResourceStates state)
     {
-        ResourceStates state;
-        VkPipelineStageFlags2 stageFlags;
-        VkAccessFlags2 accessFlags;
-        VkImageLayout imageLayout;
-    };
+        if (state == ResourceStates::Unknown)
+            return VK_IMAGE_LAYOUT_UNDEFINED;
 
-    static constexpr ResourceStateMapping resourceStateMap[] = {
-        {
-            ResourceStates::ConstantBufferBit,
-            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-            VK_ACCESS_2_UNIFORM_READ_BIT,
-            VK_IMAGE_LAYOUT_UNDEFINED
-        },
-        {
-            ResourceStates::VertexBufferBit,
-            VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT,
-            VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT,
-            VK_IMAGE_LAYOUT_UNDEFINED
-        },
-        {
-            ResourceStates::IndexBufferBit,
-            VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT,
-            VK_ACCESS_2_INDEX_READ_BIT,
-            VK_IMAGE_LAYOUT_UNDEFINED
-        },
-        {
-            ResourceStates::IndirectArgumentBit,
-            VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
-            VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT,
-            VK_IMAGE_LAYOUT_UNDEFINED
-        },
-        {
-            ResourceStates::ShaderResourceBit,
-            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-            VK_ACCESS_2_SHADER_READ_BIT,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        },
-        {
-            ResourceStates::UnorderedAccessBit,
-            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-            VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
-            VK_IMAGE_LAYOUT_GENERAL
-        },
-        {
-            ResourceStates::RenderTargetBit,
-            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        },
-        {
-            ResourceStates::DepthWriteBit,
-            VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        },
-        {
-            ResourceStates::DepthReadBit,
-            VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
-            VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-        },
-        {
-            ResourceStates::CopySourceBit,
-            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-            VK_ACCESS_2_TRANSFER_READ_BIT,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-        },
-        {
-            ResourceStates::CopyDestBit,
-            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-            VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-        }
-    };
+        // Prioritize depth write (depth-stencil write)
+        if (HasFlag(state, ResourceStates::DepthWriteBit))
+            return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-    static ResourceStateMapping ConvertResourceState(ResourceStates value)
+        // Depth read-only (depth-stencil read)
+        if (HasFlag(state, ResourceStates::DepthReadBit))
+            return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
+        if (HasFlag(state, ResourceStates::RenderTargetBit))
+            return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        if (HasFlag(state, ResourceStates::UnorderedAccessBit))
+            return VK_IMAGE_LAYOUT_GENERAL;
+
+        if (HasFlag(state, ResourceStates::ShaderResourceBit))
+            return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        if (HasFlag(state, ResourceStates::CopySourceBit))
+            return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+        if (HasFlag(state, ResourceStates::CopyDestBit))
+            return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+        // fallback to GENERAL if unknown or multiple conflicting bits
+        return VK_IMAGE_LAYOUT_GENERAL;
+    }
+
+    VkPipelineStageFlags ConvertStageMask(ResourceStates state)
     {
-        ResourceStateMapping result = {};
-        result.state = value;
+        VkPipelineStageFlags stages = 0;
 
-        for (const auto& mapping : resourceStateMap)
-        {
-            if (HasFlag(value, mapping.state))
-            {
-                assert(result.imageLayout == VK_IMAGE_LAYOUT_UNDEFINED || mapping.imageLayout == VK_IMAGE_LAYOUT_UNDEFINED || result.imageLayout == mapping.imageLayout);
+        if (HasFlag(state, ResourceStates::VertexBufferBit) ||
+            HasFlag(state, ResourceStates::IndexBufferBit))
+            stages |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 
-                result.stageFlags |= mapping.stageFlags;
-                result.accessFlags |= mapping.accessFlags;
+        if (HasFlag(state, ResourceStates::ConstantBufferBit) ||
+            HasFlag(state, ResourceStates::ShaderResourceBit) ||
+            HasFlag(state, ResourceStates::UnorderedAccessBit))
+            stages |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
-                if (mapping.imageLayout != VK_IMAGE_LAYOUT_UNDEFINED)
-                    result.imageLayout = mapping.imageLayout;
-            }
-        }
-    
-        return result;
+        if (HasFlag(state, ResourceStates::RenderTargetBit))
+            stages |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+        if (HasFlag(state, ResourceStates::DepthReadBit) ||
+            HasFlag(state, ResourceStates::DepthWriteBit))
+            stages |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+
+        if (HasFlag(state, ResourceStates::CopySourceBit) ||
+            HasFlag(state, ResourceStates::CopyDestBit))
+            stages |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+        return stages;
     }
 
     struct Buffer_Vulkan
@@ -707,9 +683,8 @@ namespace cyb::rhi
             device->SetFenceName(cmd.fence, "CopyAllocator::fence");
 
             GPUBufferDesc uploaddesc;
-            uploaddesc.size = GetNextPowerOfTwo(staging_size);
-            uploaddesc.size = Max(uploaddesc.size, uint64_t(65536));
-            uploaddesc.usage = MemoryAccess::Upload;
+            uploaddesc.size = Max(GetNextPowerOfTwo(staging_size), uint64_t(65536));
+            uploaddesc.memoryAccess = MemoryAccess::Upload;
             bool uploadSuccess = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadBuffer);
             assert(uploadSuccess);
             device->SetName(&cmd.uploadBuffer, "CopyAllocator::uploadBuffer");
@@ -1080,8 +1055,9 @@ namespace cyb::rhi
                         if (attr.offset == VertexInputLayout::APPEND_ALIGNMENT_ELEMENT)
                         {
                             // need to manually resolve this from the format spec.
+                            const FormatInfo& formatInfo = GetFormatInfo(x.format);
                             attr.offset = offset;
-                            offset += GetFormatStride(x.format);
+                            offset += formatInfo.bytesPerBlock;
                         }
 
                         attributes.push_back(attr);
@@ -1114,10 +1090,9 @@ namespace cyb::rhi
                 }
                 renderingInfo.pColorAttachmentFormats = formats;
                 renderingInfo.depthAttachmentFormat = ConvertFormat(commandlist.renderpassInfo.dsFormat);
-                if (IsFormatStencilSupport(commandlist.renderpassInfo.dsFormat))
-                {
+                const FormatInfo& dsFormatInfo = GetFormatInfo(commandlist.renderpassInfo.dsFormat);
+                if (dsFormatInfo.hasStencil)
                     renderingInfo.stencilAttachmentFormat = renderingInfo.depthAttachmentFormat;
-                }
                 pipelineInfo.pNext = &renderingInfo;
 
                 VK_CHECK(vkCreateGraphicsPipelines(device, m_pipelineCache, 1, &pipelineInfo, nullptr, &pipeline));
@@ -1602,28 +1577,26 @@ namespace cyb::rhi
         buffer->mappedSize = 0;
         buffer->desc = *desc;
 
-        VkBufferCreateInfo bufferInfo = {};
+        VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         bufferInfo.size = buffer->desc.size;
-        bufferInfo.usage = 0;
+        bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-        if (HasFlag(buffer->desc.bindFlags, BindFlags::VertexBufferBit))
+        if (HasFlag(buffer->desc.usage, BufferUsage::VertexBufferBit))
             bufferInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        if (HasFlag(buffer->desc.bindFlags, BindFlags::IndexBufferBit))
+        if (HasFlag(buffer->desc.usage, BufferUsage::IndexBufferBit))
             bufferInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        if (HasFlag(buffer->desc.bindFlags, BindFlags::ConstantBufferBit))
+        if (HasFlag(buffer->desc.usage, BufferUsage::ConstantBufferBit))
             bufferInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         bufferInfo.flags = 0;
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        VmaAllocationCreateInfo allocInfo = {};
+        VmaAllocationCreateInfo allocInfo{};
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        if (desc->usage == MemoryAccess::Readback)
+        if (desc->memoryAccess == MemoryAccess::Readback)
             allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-        else if (desc->usage == MemoryAccess::Upload)
+        else if (desc->memoryAccess == MemoryAccess::Upload)
             allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
         VK_CHECK(vmaCreateBuffer(
@@ -1635,7 +1608,7 @@ namespace cyb::rhi
             nullptr
         ));
 
-        if (desc->usage == MemoryAccess::Readback || desc->usage == MemoryAccess::Upload)
+        if (desc->memoryAccess == MemoryAccess::Readback || desc->memoryAccess == MemoryAccess::Upload)
         {
             buffer->mappedData = internal_state->allocation->GetMappedData();
             buffer->mappedSize = internal_state->allocation->GetSize();
@@ -1836,7 +1809,8 @@ namespace cyb::rhi
             viewInfo.components.b = ConvertComponentSwizzle(swizzle.b);
             viewInfo.components.a = ConvertComponentSwizzle(swizzle.a);
 
-            if (IsFormatDepthSupport(format))
+            const FormatInfo& formatInfo = GetFormatInfo(format);
+            if (formatInfo.hasDepth)
                 viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
             VK_CHECK(vkCreateImageView(device, &viewInfo, nullptr, &subresource.imageView));
@@ -1863,6 +1837,71 @@ namespace cyb::rhi
         }
     }
 
+    static VkImageUsageFlags ConvertImageUsage(ResourceStates states)
+    {
+        VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        if (HasFlag(states, ResourceStates::ShaderResourceBit))
+            usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+
+        if (HasFlag(states, ResourceStates::UnorderedAccessBit))
+            usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+
+        if (HasFlag(states, ResourceStates::RenderTargetBit))
+            usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+        if (HasFlag(states, ResourceStates::DepthWriteBit) ||
+            HasFlag(states, ResourceStates::DepthReadBit))
+            usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+        return usage;
+    }
+
+    static VkAccessFlags ConvertAccessMask(ResourceStates state)
+    {
+        switch (state)
+        {
+        case ResourceStates::ShaderResourceBit:
+            return VK_ACCESS_SHADER_READ_BIT;
+
+        case ResourceStates::UnorderedAccessBit:
+            return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+
+        case ResourceStates::CopySourceBit:
+            return VK_ACCESS_TRANSFER_READ_BIT;
+
+        case ResourceStates::CopyDestBit:
+            return VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        case ResourceStates::RenderTargetBit:
+            return VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        case ResourceStates::DepthWriteBit:
+            return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        case ResourceStates::DepthReadBit:
+            return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+
+        case ResourceStates::VertexBufferBit:
+            return VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+
+        case ResourceStates::IndexBufferBit:
+            return VK_ACCESS_INDEX_READ_BIT;
+
+        case ResourceStates::ConstantBufferBit:
+            return VK_ACCESS_UNIFORM_READ_BIT;
+
+        case ResourceStates::IndirectArgumentBit:
+            return VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+
+        case ResourceStates::AccelStructBit:
+            return VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR |
+                VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+
+        default:
+            return 0;
+        }
+    }
+
     bool GraphicsDevice_Vulkan::CreateTexture(const TextureDesc* desc, const SubresourceData* initData, Texture* texture) const
     {
         assert(texture != nullptr);
@@ -1873,7 +1912,7 @@ namespace cyb::rhi
         texture->type = GPUResource::Type::Texture;
         texture->desc = *desc;
 
-        VkImageCreateInfo imageInfo = {};
+        VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageInfo.format = ConvertFormat(texture->desc.format);
         imageInfo.extent.width = texture->desc.width;
@@ -1885,35 +1924,10 @@ namespace cyb::rhi
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        imageInfo.usage = 0;
+        imageInfo.imageType = ConvertTextureType(desc->type);
+        imageInfo.usage = ConvertImageUsage(desc->initialState);
 
-        if (HasFlag(texture->desc.bindFlags, BindFlags::ShaderResourceBit))
-            imageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
-        if (HasFlag(texture->desc.bindFlags, BindFlags::RenderTargetBit))
-            imageInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        if (HasFlag(texture->desc.bindFlags, BindFlags::DepthStencilBit))
-            imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-
-        imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-        imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-
-        switch (texture->desc.type)
-        {
-        case TextureDesc::Type::Texture1D:
-            imageInfo.imageType = VK_IMAGE_TYPE_1D;
-            break;
-        case TextureDesc::Type::Texture2D:
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            break;
-        case TextureDesc::Type::Texture3D:
-            imageInfo.imageType = VK_IMAGE_TYPE_3D;
-            break;
-        default:
-            assert(0);
-            break;
-        }
-
-        VmaAllocationCreateInfo allocInfo = {};
+        VmaAllocationCreateInfo allocInfo{};
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
         VK_CHECK(vmaCreateImage(
@@ -1924,7 +1938,7 @@ namespace cyb::rhi
             &textureInternal->allocation,
             nullptr));
 
-        const ResourceStateMapping after = ConvertResourceState(texture->desc.layout);
+        const FormatInfo& formatInfo = GetFormatInfo(desc->format);
 
         if (initData != nullptr)
         {
@@ -1943,10 +1957,9 @@ namespace cyb::rhi
                 {
                     const SubresourceData& subresourceData = initData[initDataIndex++];
                     assert(subresourceData.mem != nullptr);
-                    const uint32_t blockSize = 1; // GetFormatBlockSize(desc->format);
-                    const uint32_t numBlocksX = width / blockSize;
-                    const uint32_t numBlocksY = height / blockSize;
-                    const uint32_t dstRowPitch = numBlocksX * GetFormatStride(desc->format);
+                    const uint32_t numBlocksX = width / formatInfo.blockSize;
+                    const uint32_t numBlocksY = height / formatInfo.blockSize;
+                    const uint32_t dstRowPitch = numBlocksX * formatInfo.bytesPerBlock;
                     const uint32_t dstSlicePitch = dstRowPitch * numBlocksY;
                     const uint32_t srcRowPitch = subresourceData.rowPitch;
                     const uint32_t srcSlicePitch = subresourceData.slicePitch;
@@ -2028,11 +2041,10 @@ namespace cyb::rhi
                     (uint32_t)copyRegions.size(),
                     copyRegions.data());
 
-
                 barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-                barrier.newLayout = after.imageLayout;
+                barrier.newLayout = ConvertImageLayout(desc->initialState);
                 barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-                barrier.dstAccessMask = after.accessFlags;
+                barrier.dstAccessMask = ConvertAccessMask(desc->initialState);
                 std::swap(barrier.srcStageMask, barrier.dstStageMask);
                 
                 vkCmdPipelineBarrier2(cmd.transitionCommandBuffer, &dependencyInfo);
@@ -2045,15 +2057,15 @@ namespace cyb::rhi
             barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
             barrier.image = textureInternal->resource;
             barrier.oldLayout = imageInfo.initialLayout;
-            barrier.newLayout = after.imageLayout;
+            barrier.newLayout = ConvertImageLayout(desc->initialState);
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             barrier.srcAccessMask = 0;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-            barrier.dstAccessMask = after.accessFlags;
-            if (IsFormatDepthSupport(texture->desc.format))
+            barrier.dstAccessMask = ConvertAccessMask(desc->initialState);
+            if (formatInfo.hasDepth)
             {
                 barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-                if (IsFormatStencilSupport(texture->desc.format))
+                if (formatInfo.hasStencil)
                     barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
             }
             else
@@ -2078,11 +2090,12 @@ namespace cyb::rhi
             m_copyAllocator.Submit(cmd);
         }
 
-        if (HasFlag(texture->desc.bindFlags, BindFlags::ShaderResourceBit))
+        if (HasFlag(desc->initialState, ResourceStates::ShaderResourceBit))
             CreateSubresource(texture, SubresourceType::SRV, 0, 1, 0, 1);
-        if (HasFlag(texture->desc.bindFlags, BindFlags::RenderTargetBit))
+        if (HasFlag(desc->initialState, ResourceStates::RenderTargetBit))
             CreateSubresource(texture, SubresourceType::RTV, 0, 1, 0, 1);
-        if (HasFlag(texture->desc.bindFlags, BindFlags::DepthStencilBit))
+        if (HasFlag(desc->initialState, ResourceStates::DepthReadBit) ||
+            HasFlag(desc->initialState, ResourceStates::DepthWriteBit))
             CreateSubresource(texture, SubresourceType::DSV, 0, 1, 0, 1);
 
         return true;
@@ -2107,7 +2120,7 @@ namespace cyb::rhi
     uint64_t GraphicsDevice_Vulkan::GetMinOffsetAlignment(const GPUBufferDesc* desc) const
     {
         uint64_t alignment = 1u;
-        if (HasFlag(desc->bindFlags, BindFlags::ConstantBufferBit))
+        if (HasFlag(desc->usage, BufferUsage::ConstantBufferBit))
             alignment = std::max(alignment, properties2.properties.limits.minUniformBufferOffsetAlignment);
         else
             alignment = std::max(alignment, properties2.properties.limits.minTexelBufferOffsetAlignment);
@@ -3093,6 +3106,8 @@ namespace cyb::rhi
             VkAttachmentLoadOp loadOp = ConvertLoadOp(image.loadOp);
             VkAttachmentStoreOp storeOp = ConvertStoreOp(image.storeOp);
 
+            const FormatInfo& formatInfo = GetFormatInfo(texture->desc.format);
+
             switch (image.type)
             {
             case RenderPassImage::Type::RenderTarget: {
@@ -3120,7 +3135,7 @@ namespace cyb::rhi
                 depthAttachment.clearValue.depthStencil.depth = texture->desc.clear.depthStencil.depth;
                 hasDepth = true;
 
-                if (IsFormatStencilSupport(texture->desc.format))
+                if (formatInfo.hasStencil)
                 {
                     stencilAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
                     stencilAttachment.imageView = textureInternal->dsv.imageView;
@@ -3139,23 +3154,20 @@ namespace cyb::rhi
 
             if (image.prePassLayout != image.layout)
             {
-                const ResourceStateMapping before = ConvertResourceState(image.prePassLayout);
-                const ResourceStateMapping after = ConvertResourceState(image.layout);
-
                 VkImageMemoryBarrier2& barrier = commandlist.renderpassBarriersBegin.emplace_back();
                 barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
                 barrier.image = textureInternal->resource;
-                barrier.oldLayout = before.imageLayout;
-                barrier.srcStageMask = before.stageFlags;
-                barrier.srcAccessMask = before.accessFlags;
-                barrier.newLayout = after.imageLayout;
-                barrier.dstStageMask = after.stageFlags;
-                barrier.dstAccessMask = after.accessFlags;
+                barrier.oldLayout = ConvertImageLayout(image.prePassLayout);
+                barrier.srcStageMask = ConvertStageMask(image.prePassLayout);
+                barrier.srcAccessMask = ConvertAccessMask(image.prePassLayout);
+                barrier.newLayout = ConvertImageLayout(image.layout);
+                barrier.dstStageMask = ConvertStageMask(image.layout);
+                barrier.dstAccessMask = ConvertAccessMask(image.layout);
 
-                if (IsFormatDepthSupport(texture->desc.format))
+                if (formatInfo.hasDepth)
                 {
                     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-                    if (IsFormatStencilSupport(texture->desc.format))
+                    if (formatInfo.hasStencil)
                         barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
                 }
                 else
@@ -3172,23 +3184,20 @@ namespace cyb::rhi
 
             if (image.layout != image.postPassLayout)
             {
-                const ResourceStateMapping before = ConvertResourceState(image.layout);
-                const ResourceStateMapping after = ConvertResourceState(image.postPassLayout);
-
                 VkImageMemoryBarrier2& barrier = commandlist.renderpassBarriersEnd.emplace_back();
                 barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
                 barrier.image = textureInternal->resource;
-                barrier.oldLayout = before.imageLayout;
-                barrier.srcStageMask = before.stageFlags;
-                barrier.srcAccessMask = before.accessFlags;
-                barrier.newLayout = after.imageLayout;
-                barrier.dstStageMask = after.stageFlags;
-                barrier.dstAccessMask = after.accessFlags;
+                barrier.oldLayout = ConvertImageLayout(image.layout);
+                barrier.srcStageMask = ConvertStageMask(image.layout);
+                barrier.srcAccessMask = ConvertAccessMask(image.layout);
+                barrier.newLayout = ConvertImageLayout(image.postPassLayout);
+                barrier.dstStageMask = ConvertStageMask(image.postPassLayout);
+                barrier.dstAccessMask = ConvertAccessMask(image.postPassLayout);
 
-                if (IsFormatDepthSupport(texture->desc.format))
+                if (formatInfo.hasDepth)
                 {
                     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-                    if (IsFormatStencilSupport(texture->desc.format))
+                    if (formatInfo.hasStencil)
                         barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
                 }
                 else

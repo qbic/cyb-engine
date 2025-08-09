@@ -162,7 +162,7 @@ namespace cyb::scene
         {
             rhi::GPUBufferDesc desc;
             desc.size = uint32_t(sizeof(uint32_t) * indices.size());
-            desc.bindFlags = rhi::BindFlags::IndexBufferBit;
+            desc.usage = rhi::BufferUsage::IndexBufferBit;
 
             bool result = device->CreateBuffer(&desc, indices.data(), &index_buffer);
             assert(result == true);
@@ -184,8 +184,8 @@ namespace cyb::scene
             }
 
             rhi::GPUBufferDesc desc;
-            desc.size = uint32_t(sizeof(Vertex_Pos) * vertices.size());
-            desc.bindFlags = rhi::BindFlags::VertexBufferBit;
+            desc.size   = uint32_t(sizeof(Vertex_Pos) * vertices.size());
+            desc.usage  = rhi::BufferUsage::VertexBufferBit;
             bool result = device->CreateBuffer(&desc, vertices.data(), &vertex_buffer_pos);
             assert(result == true);
         }
@@ -195,7 +195,7 @@ namespace cyb::scene
         {
             rhi::GPUBufferDesc desc;
             desc.size = uint32_t(sizeof(uint32_t) * vertex_colors.size());
-            desc.bindFlags = rhi::BindFlags::VertexBufferBit;
+            desc.usage = rhi::BufferUsage::VertexBufferBit;
             bool result = device->CreateBuffer(&desc, vertex_colors.data(), &vertex_buffer_col);
             assert(result == true);
         }

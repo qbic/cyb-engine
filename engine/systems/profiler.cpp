@@ -43,7 +43,7 @@ namespace cyb::profiler
             assert(success);
 
             rhi::GPUBufferDesc bd;
-            bd.usage = rhi::MemoryAccess::Readback;
+            bd.memoryAccess = rhi::MemoryAccess::Readback;
             bd.size = desc.queryCount * sizeof(uint64_t);
 
             for (auto& buffer : queryResultBuffer)

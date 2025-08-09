@@ -68,28 +68,22 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
     // Upload texture to graphics system:
-    TextureDesc texture_desc;
-    texture_desc.width      = width;
-    texture_desc.height     = height;
-    texture_desc.mipLevels  = 1;
-    texture_desc.arraySize  = 1;
-    texture_desc.format     = Format::RGBA8_UNORM;
-    texture_desc.bindFlags  = BindFlags::ShaderResourceBit;
+    TextureDesc textureDesc{};
+    textureDesc.width       = width;
+    textureDesc.height      = height;
+    textureDesc.format      = Format::RGBA8_UNORM;
 
-    SubresourceData texture_data;
-    texture_data.mem        = pixels;
-    texture_data.rowPitch   = width * GetFormatStride(texture_desc.format);
-    texture_data.slicePitch = texture_data.rowPitch * height;
-    GetDevice()->CreateTexture(&texture_desc, &texture_data, &bd->fontTexture);
+    SubresourceData textureData = SubresourceData::FromDesc(pixels, textureDesc);
+    GetDevice()->CreateTexture(&textureDesc, &textureData, &bd->fontTexture);
 
-    SamplerDesc sampler_desc;
-    sampler_desc.minFilter  = false;
-    sampler_desc.magFilter  = false;
-    sampler_desc.mipFilter  = false;
-    sampler_desc.addressU   = SamplerAddressMode::Wrap;
-    sampler_desc.addressV   = SamplerAddressMode::Wrap;
-    sampler_desc.addressW   = SamplerAddressMode::Wrap;
-    GetDevice()->CreateSampler(&sampler_desc, &bd->sampler);
+    SamplerDesc samplerDesc;
+    samplerDesc.minFilter   = false;
+    samplerDesc.magFilter   = false;
+    samplerDesc.mipFilter   = false;
+    samplerDesc.addressU    = SamplerAddressMode::Wrap;
+    samplerDesc.addressV    = SamplerAddressMode::Wrap;
+    samplerDesc.addressW    = SamplerAddressMode::Wrap;
+    GetDevice()->CreateSampler(&samplerDesc, &bd->sampler);
 
     // Store our identifier:
     io.Fonts->SetTexID((ImTextureID)&bd->fontTexture);

@@ -10,17 +10,14 @@ namespace cyb::rhi
     struct Texture;
     struct Shader;
 
-    enum class BindFlags : uint8_t
+    enum class BufferUsage : uint8_t
     {
         None                = 0,
         VertexBufferBit     = BIT(0),
         IndexBufferBit      = BIT(1),
         ConstantBufferBit   = BIT(2),
-        RenderTargetBit     = BIT(3),
-        DepthStencilBit     = BIT(4),
-        ShaderResourceBit   = BIT(5)
     };
-    CYB_ENABLE_BITMASK_OPERATORS(BindFlags);
+    CYB_ENABLE_BITMASK_OPERATORS(BufferUsage);
 
     enum class MemoryAccess : uint8_t
     {
@@ -64,8 +61,20 @@ namespace cyb::rhi
         
         D24S8,                          //!< Two-component, Depth (24-bit) + stencil (8-bit)
         D32,                            //!< Single-component, 32-bit floating-point format for depth
-        D32S8                           //!< Two-component, Depth (32-bit) + stencil (8-bit) (24-bits unused)
+        D32S8,                          //!< Two-component, Depth (32-bit) + stencil (8-bit) (24-bits unused)
+        COUNT
     };
+
+    struct FormatInfo
+    {
+        Format format;
+        const char* name;
+        uint8_t bytesPerBlock;
+        uint8_t blockSize;
+        bool hasDepth;
+        bool hasStencil;
+    };
+    const FormatInfo& GetFormatInfo(Format format);
 
     enum class IndexBufferFormat : uint8_t
     {
@@ -75,9 +84,9 @@ namespace cyb::rhi
 
     enum class SubresourceType : uint8_t
     {
-        SRV,                            // Shader resource view
-        RTV,                            // Render target view
-        DSV                             // Depth stencil view
+        SRV,                            //!< Shader resource view
+        RTV,                            //!< Render target view
+        DSV                             //!< Depth stencil view
     };
 
     enum class PolygonMode : uint8_t
@@ -165,38 +174,38 @@ namespace cyb::rhi
     enum class ResourceStates : uint32_t
     {
         // Common resource states:
-        Unknown             = 0,        // Invalid state (doesen't preserve contents)
-        ShaderResourceBit   = BIT(0),   // Shader resource, read only
-        UnorderedAccessBit  = BIT(1),   // Shader resource, write enabled
-        CopySourceBit       = BIT(2),   // Copy from
-        CopyDestBit         = BIT(3),   // Copy to
+        Unknown             = 0,        //!< Dont preserve contents
+        ShaderResourceBit   = BIT(0),   //!< Shader resource, read only
+        UnorderedAccessBit  = BIT(1),   //!< Shader resource, write enabled
+        CopySourceBit       = BIT(2),   //!< Copy from
+        CopyDestBit         = BIT(3),   //!< Copy to
 
         // Texture specific resource states:
-        RenderTargetBit     = BIT(10),  // Render target, write enabled
-        DepthWriteBit       = BIT(11),  // Depth stencil, write enabled
-        DepthReadBit        = BIT(12),  // Depth stencil, read only
+        RenderTargetBit     = BIT(10),  //!< Render target, write enabled
+        DepthWriteBit       = BIT(11),  //!< Depth stencil, write enabled
+        DepthReadBit        = BIT(12),  //!< Depth stencil, read only
 
         // GPUBuffer specific resource states:
-        VertexBufferBit     = BIT(20),  // Vertex buffer, read only
-        IndexBufferBit      = BIT(21),  // Index buffer, read only
-        ConstantBufferBit   = BIT(22),  // Constant buffer, read only
-        IndirectArgumentBit = BIT(23),  // Argument buffer to DrawIndirect() or DispatchIndirect()
-        AccelStructBit      = BIT(24),  // Acceleration structure storage or scratch
+        VertexBufferBit     = BIT(20),  //!< Vertex buffer, read only
+        IndexBufferBit      = BIT(21),  //!< Index buffer, read only
+        ConstantBufferBit   = BIT(22),  //!< Constant buffer, read only
+        IndirectArgumentBit = BIT(23),  //!< Argument buffer to DrawIndirect() or DispatchIndirect()
+        AccelStructBit      = BIT(24),  //!< Acceleration structure storage or scratch
     };
     CYB_ENABLE_BITMASK_OPERATORS(ResourceStates);
 
     enum class GPUQueryType : uint8_t
     {
-        Timestamp,                      // Retrieve time point of gpu execution
-        Occlusion,                      // How many samples passed depth test?
-        OcclusionBinary                 // Depth test passed or not?
+        Timestamp,                      //!< Retrieve time point of gpu execution
+        Occlusion,                      //!< How many samples passed depth test?
+        OcclusionBinary                 //!< Depth test passed or not?
     };
 
     struct GPUBufferDesc
     {
         uint64_t size = 0;
-        MemoryAccess usage = MemoryAccess::DeviceLocal;
-        BindFlags bindFlags = BindFlags::None;
+        MemoryAccess memoryAccess = MemoryAccess::DeviceLocal;
+        BufferUsage usage = BufferUsage::None;
         uint32_t stride = 0;            // Needed for struct buffer types
     };
 
@@ -274,25 +283,25 @@ namespace cyb::rhi
         ClearDepthStencil depthStencil;
     };
 
+    enum class TextureType : uint8_t
+    {
+        Unknown,
+        Texture1D,          // UNTESTED
+        Texture2D,
+        Texture3D           // NOT IMPLEMENTED
+    };
+
     struct TextureDesc
     {
-        enum class Type
-        {
-            Texture1D,          // UNTESTED
-            Texture2D,
-            Texture3D           // NOT IMPLEMENTED
-        };
-
-        Type type = Type::Texture2D;
-        uint32_t width = 0;
-        uint32_t height = 0;
+        TextureType type = TextureType::Texture2D;
+        uint32_t width = 1;
+        uint32_t height = 1;
         uint32_t arraySize = 1;
         Format format = Format::Unknown;
         Swizzle swizzle;
         uint32_t mipLevels = 1;
-        BindFlags bindFlags = BindFlags::None;
         ClearValue clear = {};
-        ResourceStates layout = ResourceStates::ShaderResourceBit;
+        ResourceStates initialState = ResourceStates::ShaderResourceBit;
     };
 
     struct RasterizerState
@@ -337,20 +346,30 @@ namespace cyb::rhi
 
     struct PipelineStateDesc
     {
-        const Shader* vs{ nullptr };
-        const Shader* gs{ nullptr };
-        const Shader* ps{ nullptr };
-        const RasterizerState* rs{ nullptr };
-        const DepthStencilState* dss{ nullptr };
-        const VertexInputLayout* il{ nullptr };
-        PrimitiveTopology pt{ PrimitiveTopology::TriangleList };
+        const Shader* vs = nullptr;
+        const Shader* gs = nullptr;
+        const Shader* ps = nullptr;
+        const RasterizerState* rs = nullptr;
+        const DepthStencilState* dss = nullptr;
+        const VertexInputLayout* il = nullptr;
+        PrimitiveTopology pt = PrimitiveTopology::TriangleList;
     };
 
     struct SubresourceData
     {
-        const void* mem = nullptr;	        // Pointer to the beginning of the subresource data (pointer to beginning of resource + subresource offset)
-        uint32_t rowPitch = 0;			    // Bytes between two rows of a texture (2D and 3D textures)
-        uint32_t slicePitch = 0;		    // Bytes between two depth slices of a texture (3D textures only)
+        const void* mem = nullptr;      //!< Pointer to the beginning of the subresource data (pointer to beginning of resource + subresource offset).
+        uint32_t rowPitch = 0;          //!< Bytes between two rows of a texture (2D and 3D textures).
+        uint32_t slicePitch = 0;        //!< Bytes between two depth slices of a texture (3D textures only).
+
+        static SubresourceData FromDesc(const void* data, const TextureDesc& desc)
+        {
+            const FormatInfo& formatInfo = GetFormatInfo(desc.format);
+            SubresourceData subresource;
+            subresource.mem = data;
+            subresource.rowPitch = desc.width * formatInfo.bytesPerBlock;
+            subresource.slicePitch = subresource.rowPitch * desc.height;
+            return subresource;
+        }
     };
 
     struct Rect
@@ -380,9 +399,9 @@ namespace cyb::rhi
             Texture
         };
 
-        Type type{ Type::Unknown };
-        void* mappedData{ nullptr };
-        uint32_t mappedSize{ 0 };
+        Type type = Type::Unknown;
+        void* mappedData = nullptr;
+        uint32_t mappedSize = 0;
 
         constexpr bool IsTexture() const { return type == Type::Texture; }
         constexpr bool IsBuffer() const { return type == Type::Buffer; }
@@ -436,16 +455,16 @@ namespace cyb::rhi
         LoadOp loadOp = LoadOp::Load;
         StoreOp storeOp = StoreOp::Store;
         const Texture* texture = nullptr;
-        ResourceStates prePassLayout = ResourceStates::Unknown;       // layout before the render pass
-        ResourceStates layout = ResourceStates::Unknown;	            // layout within the render pass
-        ResourceStates postPassLayout = ResourceStates::Unknown;	    // layout after the render pass
+        ResourceStates prePassLayout = ResourceStates::Unknown;     // layout before the render pass
+        ResourceStates layout = ResourceStates::Unknown;	        // layout within the render pass
+        ResourceStates postPassLayout = ResourceStates::Unknown;	// layout after the render pass
         DepthResolveMode depthDesolveMode = DepthResolveMode::Min;
 
         static RenderPassImage RenderTarget(
             const Texture* resource,
             LoadOp loadOp = LoadOp::Load,
             StoreOp storeOp = StoreOp::Store,
-            ResourceStates prePassLayout = ResourceStates::ShaderResourceBit,
+            ResourceStates prePassLayout =  ResourceStates::Unknown,
             ResourceStates postPassLayout = ResourceStates::ShaderResourceBit)
         {
             RenderPassImage image;
@@ -717,8 +736,8 @@ namespace cyb::rhi
             if (dataSize > free_space)
             {
                 GPUBufferDesc desc;
-                desc.usage = MemoryAccess::Upload;
-                desc.bindFlags = BindFlags::ConstantBufferBit | BindFlags::VertexBufferBit | BindFlags::IndexBufferBit | BindFlags::ShaderResourceBit;
+                desc.memoryAccess = MemoryAccess::Upload;
+                desc.usage = BufferUsage::ConstantBufferBit | BufferUsage::VertexBufferBit | BufferUsage::IndexBufferBit;
                 allocator.alignment = GetMinOffsetAlignment(&desc);
                 desc.size = AlignTo((allocator.buffer.desc.size + dataSize) * 2, allocator.alignment);
                 CreateBuffer(&desc, nullptr, &allocator.buffer);
@@ -746,7 +765,7 @@ namespace cyb::rhi
             if (buffer == nullptr || data == nullptr)
                 return;
 
-            size = std::min(buffer->desc.size, size);
+            size = Min(buffer->desc.size, size);
             if (size == 0)
                 return;
             GPUAllocation allocation = AllocateGPU(size, cmd);
@@ -766,96 +785,33 @@ namespace cyb::rhi
         }
     };
 
-    constexpr bool IsFormatDepthSupport(Format format)
+    inline const FormatInfo& GetFormatInfo(Format format)
     {
-        switch (format)
-        {
-        case Format::D32:
-        case Format::D24S8:
-        case Format::D32S8:
-            return true;
+        static constexpr FormatInfo s_formatInfo[] = {
+            { Format::Unknown,      "UNKNOWN",      0,  0,  false,  false   },
+            { Format::R8_UNORM,     "R8_UNORM",     1,  1,  false,  false   },
+            { Format::RGBA8_UINT,   "RGBA8_UINT",   4,  1,  false,  false   },
+            { Format::RGBA8_UNORM,  "RGBA8_UNORM",  4,  1,  false,  false   },
+            { Format::BGRA8_UNORM,  "BGRA8_UNORM",  4,  1,  false,  false   },
+            { Format::R16_FLOAT,    "R16_FLOAT",    2,  1,  false,  false   },
+            { Format::RG16_FLOAT,   "RG16_FLOAT",   4,  1,  false,  false   },
+            { Format::R32_FLOAT,    "R32_FLOAT",    4,  1,  false,  false   },
+            { Format::RG32_FLOAT,   "RG32_FLOAT",   8,  1,  false,  false   },
+            { Format::RGB32_FLOAT,  "RGB32_FLOAT",  12, 1,  false,  false   },
+            { Format::RGBA32_FLOAT, "RGBA32_FLOAT", 16, 1,  false,  false   },
+            { Format::D24S8,        "D24S8",        4,  1,  true,   true    },
+            { Format::D32,          "D32",          4,  1,  true,   false   },
+            { Format::D32S8,        "D32S8",        8,  1,  true,   true    }
+        };
 
-        case Format::Unknown:
-        case Format::RGBA32_FLOAT:
-        case Format::RGBA8_UINT:
-        case Format::RGBA8_UNORM:
-        case Format::RG16_FLOAT:
-        case Format::RG32_FLOAT:
-        case Format::R8_UNORM:
-        case Format::R32_FLOAT:
-        case Format::R16_FLOAT:
-        case Format::BGRA8_UNORM:
-        case Format::RGB32_FLOAT:
-            return false;
-        }
+        static_assert(sizeof(s_formatInfo) / sizeof(FormatInfo) == (size_t)Format::COUNT);
 
-        assert(0);
-        return false;
-    }
+        if ((uint32_t)format >= (uint32_t)Format::COUNT)
+            return s_formatInfo[0]; // UNKNOWN
 
-    constexpr bool IsFormatStencilSupport(Format format)
-    {
-        switch (format)
-        {
-        case Format::D24S8:
-        case Format::D32S8:
-            return true;
-
-        case Format::Unknown:
-        case Format::D32:
-        case Format::RGBA32_FLOAT:
-        case Format::RGBA8_UINT:
-        case Format::RGBA8_UNORM:
-        case Format::RG16_FLOAT:
-        case Format::RG32_FLOAT:
-        case Format::R8_UNORM:
-        case Format::R32_FLOAT:
-        case Format::R16_FLOAT:
-        case Format::BGRA8_UNORM:
-        case Format::RGB32_FLOAT:
-            return false;
-        }
-
-        assert(0);
-        return false;
-    }
-
-    constexpr uint32_t GetFormatStride(Format format)
-    {
-        switch (format)
-        {
-        case Format::RGBA32_FLOAT:
-            return 16u;
-
-        case Format::RGB32_FLOAT:
-            return 12u;
-
-        case Format::RG32_FLOAT:
-        case Format::D32S8:
-            return 8u;
-
-        case Format::RGBA8_UINT:
-        case Format::RGBA8_UNORM:
-        case Format::RG16_FLOAT:
-        case Format::R32_FLOAT:
-        case Format::D32:
-        case Format::D24S8:
-        case Format::BGRA8_UNORM:
-            return 4u;
-
-        case Format::R16_FLOAT:
-            return 2u;
-
-        case Format::R8_UNORM:
-            return 1u;
-
-        case Format::Unknown:
-        default:
-            break;
-        }
-
-        assert(0);
-        return 16u;
+        const FormatInfo& info = s_formatInfo[(uint32_t)format];
+        assert(info.format == format);
+        return info;
     }
 
     inline GraphicsDevice*& GetDevice()

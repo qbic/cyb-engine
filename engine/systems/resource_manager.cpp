@@ -170,18 +170,14 @@ namespace cyb::resourcemanager
             return false;
         }
 
-        rhi::TextureDesc desc;
+        rhi::TextureDesc desc{};
         desc.width = width;
         desc.height = height;
         desc.format = rhi::Format::RGBA8_UNORM;
-        desc.bindFlags = rhi::BindFlags::ShaderResourceBit;
-        desc.mipLevels = 1;     // generate full mip chain at runtime
 
-        rhi::SubresourceData subresourceData;
-        subresourceData.mem = rawImage;
-        subresourceData.rowPitch = width * channels;
+        rhi::SubresourceData data = rhi::SubresourceData::FromDesc(rawImage, desc);
+        rhi::GetDevice()->CreateTexture(&desc, &data, &resource->texture);
 
-        rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &resource->texture);
         stbi_image_free(rawImage);
         return true;
     }

@@ -336,18 +336,18 @@ namespace cyb::editor
 
             // create a one channel float texture with all components
             // swizzled for easy grayscale viewing
-            rhi::TextureDesc desc;
+            rhi::TextureDesc desc{};
+            desc.width = PREVIEW_RESOLUTION;
+            desc.height = PREVIEW_RESOLUTION;
             desc.format = rhi::Format::R32_FLOAT;
             desc.swizzle.r = rhi::ComponentSwizzle::R;
             desc.swizzle.g = rhi::ComponentSwizzle::R;
             desc.swizzle.b = rhi::ComponentSwizzle::R;
-            desc.width = PREVIEW_RESOLUTION;
-            desc.height = PREVIEW_RESOLUTION;
-            desc.bindFlags = rhi::BindFlags::ShaderResourceBit;
 
+            const rhi::FormatInfo& formatInfo = rhi::GetFormatInfo(desc.format);
             rhi::SubresourceData subresourceData;
-            subresourceData.mem = image.data();
-            subresourceData.rowPitch = desc.width * rhi::GetFormatStride(rhi::Format::R32_FLOAT);
+            subresourceData.mem      = image.data();
+            subresourceData.rowPitch = desc.width * formatInfo.bytesPerBlock;
 
             rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &m_preview);
         });

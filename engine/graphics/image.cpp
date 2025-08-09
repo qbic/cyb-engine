@@ -91,8 +91,6 @@ namespace cyb::renderer
             desc.width = 4;
             desc.height = 4;
             desc.format = rhi::Format::RGBA8_UNORM;
-            desc.bindFlags = rhi::BindFlags::ShaderResourceBit;
-            desc.mipLevels = 1;
 
             uint32_t textureData[4 * 4] = {};
             for (int i = 0; i < (4 * 4); ++i)

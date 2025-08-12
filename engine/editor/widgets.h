@@ -14,7 +14,7 @@ namespace cyb::ui
     class StyleVarSet
     {
     public:
-        using VarValue = std::variant<int, float, ImVec2>;
+        using VarValue = std::variant<float, ImVec2>;
         StyleVarSet() = default;
         StyleVarSet(std::initializer_list<std::pair<ImGuiStyleVar, VarValue>> list);
         [[nodiscard]] size_t GetSize() const;

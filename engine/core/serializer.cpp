@@ -1,8 +1,11 @@
+#include "core/cvar.h"
 #include "core/serializer.h"
 #include "lz4/lz4hc.h"
 
 namespace cyb
 {
+    CVar<uint32_t> cl_archiveCompressionLevel("cl_archiveCompressionLevel", 9, 0, 12, CVarFlag::SystemBit, "Compression level for saved files [0..12]");
+    
     Archive::Archive(const std::span<uint8_t> data)
     {
         if (!data.empty())
@@ -244,14 +247,15 @@ namespace cyb
 
     void Compress(std::span<const uint8_t> source, std::vector<uint8_t>& dest)
     {
-        constexpr int compressionLevel = 9; // 0..12
-        dest.resize(LZ4_compressBound(source.size()));
+        assert(source.size() < LZ4_MAX_INPUT_SIZE);
+
+        dest.resize(LZ4_compressBound((int)source.size()));
         int res = LZ4_compress_HC(
             (const char*)source.data(),
             (char*)dest.data(),
-            source.size(),
-            dest.capacity(),
-            compressionLevel
+            (int)source.size(),
+            (int)dest.capacity(),
+            (int)cl_archiveCompressionLevel.GetValue()
         );
 
         if (res <= 0)
@@ -265,12 +269,13 @@ namespace cyb
 
     void Decompress(std::span<const uint8_t> source, std::vector<uint8_t>& dest, uint64_t decompressedSize)
     {
+        assert(decompressedSize < LZ4_MAX_INPUT_SIZE);
         dest.resize(decompressedSize);
         int res = LZ4_decompress_safe(
             (const char*)source.data(),
             (char*)dest.data(),
-            source.size(),
-            decompressedSize
+            (int)source.size(),
+            (int)decompressedSize
         );
 
         assert(res == decompressedSize);

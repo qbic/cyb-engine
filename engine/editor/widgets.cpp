@@ -171,7 +171,7 @@ namespace cyb::ui
     void Checkbox(const char* label, bool* v, const std::function<void()> onChange)
     {
         COMMON_WIDGET_CODE(label);
-        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
         ImGui::Checkbox("", v);
         SaveChangeToUndoManager<ui::ModifyValue<bool, 1>>(v, onChange);
     }
@@ -179,7 +179,7 @@ namespace cyb::ui
     void CheckboxFlags(const char* label, uint32_t* flags, uint32_t flagsValue, const std::function<void()> onChange)
     {
         COMMON_WIDGET_CODE(label);
-        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
         ImGui::CheckboxFlags("", (unsigned int*)flags, (unsigned int)flagsValue);
         SaveChangeToUndoManager<ui::ModifyValue<uint32_t, 1>>(flags, onChange);
     }
@@ -187,7 +187,7 @@ namespace cyb::ui
     bool DragFloat(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
     {
         COMMON_WIDGET_CODE(label);
-        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
         bool change = ImGui::DragFloat("", v, v_speed, v_min, v_max, format, flags);
         SaveChangeToUndoManager<ui::ModifyValue<float, 1>>(v);
         return change;
@@ -196,7 +196,7 @@ namespace cyb::ui
     bool DragFloat3(const char* label, float v[3], float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
     {
         COMMON_WIDGET_CODE(label);
-        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
         bool change = ImGui::DragFloat3("", v, v_speed, v_min, v_max, format, flags);
         SaveChangeToUndoManager<ui::ModifyValue<float, 3>>(v);
         return change;
@@ -214,7 +214,7 @@ namespace cyb::ui
     {
         COMMON_WIDGET_CODE(label);
         float temp = *v;
-        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
         ImGui::SliderFloat("", &temp, minValue, maxValue);
         SaveChangeToUndoManager<ui::ModifyValue<float, 1>>(v, onChange);
         *v = temp;
@@ -224,7 +224,7 @@ namespace cyb::ui
     {
         COMMON_WIDGET_CODE(label);
         int temp = *v;
-        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
         ImGui::SliderInt("", &temp, minValue, maxValue, format, flags);
         SaveChangeToUndoManager<ui::ModifyValue<int, 1>>(v, onChange);
         *v = temp;
@@ -233,7 +233,7 @@ namespace cyb::ui
     bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags)
     {
         COMMON_WIDGET_CODE(label);
-        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
         bool change = ImGui::ColorEdit3("", col, flags);
         SaveChangeToUndoManager<ui::ModifyValue<float, 3>>(col);
         return change;
@@ -242,7 +242,7 @@ namespace cyb::ui
     bool ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flags)
     {
         COMMON_WIDGET_CODE(label);
-        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
         bool change = ImGui::ColorEdit4("", col, flags);
         SaveChangeToUndoManager<ui::ModifyValue<float, 4>>(col);
         return change;
@@ -254,7 +254,7 @@ namespace cyb::ui
         assert((uint8_t*)component >= (uint8_t*)transform && (uint8_t*)component < ((uint8_t*)transform + sizeof(*transform)));
         COMMON_WIDGET_CODE(label);
 
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
         bool change = ImGui::DragFloat3("", component, 0.1f, 0.0f, 0.0f, "%.1f");
         ImGui::PopStyleVar();
 
@@ -273,7 +273,7 @@ namespace cyb::ui
         const auto& selected = combo.find(value);
         const std::string& name = selected != combo.end() ? selected->second : "";
 
-        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
+        ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
         if (ImGui::BeginCombo("", name.c_str()))
         {
             for (const auto& [key, name] : combo)
@@ -314,7 +314,7 @@ namespace cyb::ui
         bool change = false;
         if (!values.empty())
         {
-            ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1 } });
+            ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
             change = ImGui::ListBox("", selectedIndex, getter, static_cast<void*>(&values), (int)values.size());
         }
 
@@ -789,6 +789,22 @@ namespace cyb::ui
                     tp0 = tp1;
                 }
             }
+        }
+
+        // Labels
+        float y_offset = 0.0f;
+        for (const auto& line : lines)
+        {
+            ImVec2 pos = ImVec2(frame_bb.Min.x, frame_bb.Min.y + y_offset) + style.FramePadding;
+            ImVec2 rect_size = ImVec2(12, 12);
+
+            int HACK_RECT_ALIGN = 4;
+            RenderFrame(ImVec2(pos.x, pos.y + HACK_RECT_ALIGN), ImVec2(pos.x + rect_size.x, pos.y + rect_size.y + HACK_RECT_ALIGN), line.Color, false);
+            
+            ImVec2 text_pos = ImVec2(pos.x + rect_size.x + style.FramePadding.x, pos.y );
+            RenderTextClipped(text_pos, frame_bb.Max, line.Label.data(), NULL, NULL);
+
+            y_offset += rect_size.y + style.FramePadding.y;
         }
 
         // Text overlay

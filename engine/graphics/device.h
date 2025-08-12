@@ -19,11 +19,11 @@ namespace cyb::rhi
     };
     CYB_ENABLE_BITMASK_OPERATORS(BufferUsage);
 
-    enum class MemoryAccess : uint8_t
+    enum class CpuAccessMode : uint8_t
     {
-        DeviceLocal,                        // CPU no access, GPU read/write
-        Upload,                             // CPU write, GPU read
-        Readback                            // CPU read, GPU write
+        None,                           //!< CPU no access, GPU read/write
+        Read,                           //!< CPU write, GPU read
+        Write                           //!< CPU, GPU write
     };
 
     enum class SamplerAddressMode : uint8_t
@@ -204,7 +204,7 @@ namespace cyb::rhi
     struct GPUBufferDesc
     {
         uint64_t size = 0;
-        MemoryAccess memoryAccess = MemoryAccess::DeviceLocal;
+        CpuAccessMode cpuAccess = CpuAccessMode::None;
         BufferUsage usage = BufferUsage::None;
         uint32_t stride = 0;            // Needed for struct buffer types
     };
@@ -736,7 +736,7 @@ namespace cyb::rhi
             if (dataSize > free_space)
             {
                 GPUBufferDesc desc;
-                desc.memoryAccess = MemoryAccess::Upload;
+                desc.cpuAccess = CpuAccessMode::Read;
                 desc.usage = BufferUsage::ConstantBufferBit | BufferUsage::VertexBufferBit | BufferUsage::IndexBufferBit;
                 allocator.alignment = GetMinOffsetAlignment(&desc);
                 desc.size = AlignTo((allocator.buffer.desc.size + dataSize) * 2, allocator.alignment);
@@ -757,7 +757,7 @@ namespace cyb::rhi
             return allocation;
         }
 
-        // Update a MemoryAccess::Default buffer data
+        // Update a CpuAccessMode::Default buffer data
         // Since it uses a GPU Copy operation, appropriate synchronization is expected
         // And it cannot be used inside a RenderPass
         void UpdateBuffer(const GPUBuffer* buffer, const void* data, CommandList cmd, uint64_t size = ~0, uint64_t offset = 0)

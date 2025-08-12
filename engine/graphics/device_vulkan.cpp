@@ -190,7 +190,7 @@ namespace cyb::rhi::vulkan_internal
         return VK_IMAGE_LAYOUT_GENERAL;
     }
 
-    VkPipelineStageFlags ConvertStageMask(ResourceStates state)
+    static VkPipelineStageFlags ConvertStageMask(ResourceStates state)
     {
         VkPipelineStageFlags stages = 0;
 
@@ -684,7 +684,7 @@ namespace cyb::rhi
 
             GPUBufferDesc uploaddesc;
             uploaddesc.size = Max(GetNextPowerOfTwo(staging_size), uint64_t(65536));
-            uploaddesc.memoryAccess = MemoryAccess::Upload;
+            uploaddesc.cpuAccess = CpuAccessMode::Read;
             bool uploadSuccess = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadBuffer);
             assert(uploadSuccess);
             device->SetName(&cmd.uploadBuffer, "CopyAllocator::uploadBuffer");
@@ -1593,11 +1593,14 @@ namespace cyb::rhi
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         VmaAllocationCreateInfo allocInfo{};
-        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        if (desc->memoryAccess == MemoryAccess::Readback)
+        allocInfo.usage = (desc->cpuAccess != CpuAccessMode::None) ?
+            VMA_MEMORY_USAGE_AUTO_PREFER_HOST :
+            VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+        if (desc->cpuAccess == CpuAccessMode::Write)
             allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-        else if (desc->memoryAccess == MemoryAccess::Upload)
-            allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        else if (desc->cpuAccess == CpuAccessMode::Read)
+            allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
         VK_CHECK(vmaCreateBuffer(
             m_allocationHandler->allocator,
@@ -1608,10 +1611,12 @@ namespace cyb::rhi
             nullptr
         ));
 
-        if (desc->memoryAccess == MemoryAccess::Readback || desc->memoryAccess == MemoryAccess::Upload)
+        if (desc->cpuAccess != CpuAccessMode::None)
         {
-            buffer->mappedData = internal_state->allocation->GetMappedData();
-            buffer->mappedSize = internal_state->allocation->GetSize();
+            VmaAllocationInfo vmaInfo{};
+            vmaGetAllocationInfo(m_allocationHandler->allocator, internal_state->allocation, &vmaInfo);
+            buffer->mappedData = vmaInfo.pMappedData;
+            buffer->mappedSize = vmaInfo.size;
         }
 
         // Issue data copy on request:
@@ -1928,7 +1933,7 @@ namespace cyb::rhi
         imageInfo.usage = ConvertImageUsage(desc->initialState);
 
         VmaAllocationCreateInfo allocInfo{};
-        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 
         VK_CHECK(vmaCreateImage(
             m_allocationHandler->allocator,

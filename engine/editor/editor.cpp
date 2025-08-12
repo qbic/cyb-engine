@@ -705,6 +705,8 @@ namespace cyb::editor
 
         void WindowContent() override
         {
+            const ImU32 plotCpuColor = 0xff00ffff;
+            const ImU32 plotGpuColor = 0xff0000ff;
             const auto& profilerContext = profiler::GetContext();
             const auto& cpuFrame = profilerContext.entries.find(profilerContext.cpuFrame);
             const auto& gpuFrame = profilerContext.entries.find(profilerContext.gpuFrame);
@@ -716,7 +718,7 @@ namespace cyb::editor
 
             ImGui::BeginTable("CPU/GPU Profiling", 2, ImGuiTableFlags_Borders);
             ImGui::TableNextColumn();
-            ui::ScopedStyleColor cpuFrameLineColor({ { ImGuiCol_PlotLines, 0xff0000ff } });
+            ui::ScopedStyleColor cpuFrameLineColor({ { ImGuiCol_PlotLines, plotCpuColor } });
             const std::string cpuOverlayText = std::format("CPU Frame: {:.1f}ms", cpuFrame->second.time);
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##CPUFrame", profilerContext.cpuFrameGraph.data(), profiler::FRAME_GRAPH_ENTRIES, 0, cpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
@@ -731,7 +733,7 @@ namespace cyb::editor
             ImGui::PopStyleVar();
 
             ImGui::TableNextColumn();
-            ui::ScopedStyleColor gpuFrameLineColor({ { ImGuiCol_PlotLines, 0xffff0000 } });
+            ui::ScopedStyleColor gpuFrameLineColor({ { ImGuiCol_PlotLines, plotGpuColor } });
             const std::string gpuOverlayText = std::format("GPU Frame: {:.1f}ms", gpuFrame->second.time);
             ImGui::SetNextItemWidth(-1);
             ImGui::PlotLines("##GPUFrame", profilerContext.gpuFrameGraph.data(), profiler::FRAME_GRAPH_ENTRIES, 0, gpuOverlayText.c_str(), 0.0f, 16.0f, ImVec2(0, 100));
@@ -1162,22 +1164,15 @@ namespace cyb::editor
             const auto& cpuFrame = profilerContext.entries.find(profilerContext.cpuFrame);
             const auto& gpuFrame = profilerContext.entries.find(profilerContext.gpuFrame);
 
+            std::string cpuLabel = std::format("CPU {:.1f}ms", cpuFrame->second.time);
+            std::string gpuLabel = std::format("GPU {:.1f}ms", gpuFrame->second.time);
             std::array<ui::PlotLineDesc, 2> plotDesc = { {
-                { "CPU", plotCpuColor, profilerContext.cpuFrameGraph },
-                { "GPU", plotGpuColor, profilerContext.gpuFrameGraph }
+                { cpuLabel, plotCpuColor, profilerContext.cpuFrameGraph },
+                { gpuLabel, plotGpuColor, profilerContext.gpuFrameGraph }
             } };
 
             ImGui::SetNextItemWidth(-1);
             PlotMultiLines("##PerfVis", plotDesc, nullptr, 0.0f, 10.0f, plotSize);
-            ui::SolidRect(plotCpuColor, ImVec2(12, 12), ImVec2(0, 8));
-            ImGui::SameLine();
-            ImGui::Text("CPU %.1fms", cpuFrame->second.time);
-            ImGui::SameLine();
-            ImGui::Spacing();
-            ImGui::SameLine();
-            ui::SolidRect(plotGpuColor, ImVec2(12, 12), ImVec2(0, 8));
-            ImGui::SameLine();
-            ImGui::Text("GPU %.1fms", gpuFrame->second.time);
         }
     };
 

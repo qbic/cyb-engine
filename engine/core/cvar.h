@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <string>
 #include <format>
 #include <functional>
@@ -125,15 +126,24 @@ namespace cyb
 
     /**
      * @brief CVar of number family type implementation.
+     * 
+     * Numerical cvars may use optional min and max values.
      */
     template<IsNumberFamily T>
     class CVar<T> : public detail::CVarCommon<T>
     {
     public:
-        explicit CVar(const std::string& name, const T value, CVarFlag flags, const std::string& description) :
-            detail::CVarCommon<T>(name, value, flags, description)
+        explicit CVar(const std::string& name, const T value, const T minValue, const T maxValue, CVarFlag flags, const std::string& description) :
+            detail::CVarCommon<T>(name, value, flags, description),
+            m_minValue(minValue),
+            m_maxValue(maxValue)
         {
             OnModifyValue();
+        }
+
+        explicit CVar(const std::string& name, const T value, CVarFlag flags, const std::string& description) :
+            CVar(name, value, std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), flags, description)
+        {
         }
 
         [[nodiscard]] const std::string& GetValueAsString() const
@@ -144,12 +154,24 @@ namespace cyb
     private:
         void OnModifyValue() override
         {
+            const T clampedValue = std::clamp(this->GetValue(), m_minValue, m_maxValue);
+            if (clampedValue != this->GetValue())
+            {
+                this->SetValue(clampedValue);
+
+                // We can return early here sence SetValue() will call this function again.
+                return;
+            }
+
             if constexpr (std::is_same_v<T, float>)
                 m_valueString = std::format("{:.2f}", this->GetValue());
             else
                 m_valueString = std::to_string(this->GetValue());
         }
 
+    private:
+        T m_minValue;
+        T m_maxValue;
         std::string m_valueString;
     };
 

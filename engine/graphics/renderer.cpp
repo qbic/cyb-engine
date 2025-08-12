@@ -85,7 +85,7 @@ namespace cyb::renderer
             //
             // DEFAULT usage buffers (long lifetime, slow update, fast read)
             //
-            desc.memoryAccess = MemoryAccess::DeviceLocal;
+            desc.cpuAccess = CpuAccessMode::None;
             desc.size = sizeof(FrameConstants);
             desc.stride = 0;
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_FRAME]);
@@ -99,7 +99,7 @@ namespace cyb::renderer
             //
             // DYNAMIC usage buffers (short lifetime, fast update, slow read)
             //
-            desc.memoryAccess = MemoryAccess::DeviceLocal;
+            desc.cpuAccess = CpuAccessMode::None;
             desc.size = sizeof(MaterialCB);
             desc.stride = 0;
             device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_MATERIAL]);
@@ -674,7 +674,7 @@ namespace cyb::renderer
             };
 
             GPUBufferDesc vertexbuffer_desc;
-            vertexbuffer_desc.memoryAccess = MemoryAccess::DeviceLocal;
+            vertexbuffer_desc.cpuAccess = CpuAccessMode::None;
             vertexbuffer_desc.size = sizeof(verts);
             vertexbuffer_desc.usage = BufferUsage::VertexBufferBit;
             device->CreateBuffer(&vertexbuffer_desc, &verts, &wirecube_vb);
@@ -685,7 +685,7 @@ namespace cyb::renderer
             };
 
             GPUBufferDesc indexbuffer_desc;
-            indexbuffer_desc.memoryAccess = MemoryAccess::DeviceLocal;
+            indexbuffer_desc.cpuAccess = CpuAccessMode::None;
             indexbuffer_desc.size = sizeof(indices);
             indexbuffer_desc.usage = BufferUsage::IndexBufferBit;
             device->CreateBuffer(&indexbuffer_desc, &indices, &wirecube_ib);

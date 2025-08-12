@@ -36,7 +36,7 @@ namespace cyb::hli
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;
             desc.format = Format::D24S8;
-            desc.initialState = ResourceStates::DepthReadBit | ResourceStates::DepthWriteBit;
+            desc.initialState = ResourceStates::DepthWriteBit;
             device->CreateTexture(&desc, nullptr, &depthBuffer_Main);
             device->SetName(&depthBuffer_Main, "depthBuffer_Main");
         }

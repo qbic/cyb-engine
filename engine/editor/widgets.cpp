@@ -6,8 +6,8 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "editor/undo_manager.h"
 #include "editor/widgets.h"
-#include "imgui/imgui_internal.h"
 #include "editor/icons_font_awesome6.h"
+#include "imgui_internal.h"
 
 namespace cyb::ui 
 {
@@ -85,22 +85,6 @@ namespace cyb::ui
         ImGui::PopStyleVar(m_varCount);
     }
 
-    ScopedID::ScopedID(const Value id)
-    {
-        std::visit([&] (const auto& v) {
-            using T = std::decay_t<decltype(v)>;
-            if constexpr (std::is_same_v<T, std::string_view>)
-                ImGui::PushID(v.data());
-            else
-                ImGui::PushID(v);
-        }, id);
-    }
-
-    ScopedID::~ScopedID()
-    {
-        ImGui::PopID();
-    }
-
     // draw a left-aligned item label
     void ItemLabel(const std::string& title) {
         ImGuiWindow& window = *ImGui::GetCurrentWindow();
@@ -164,7 +148,7 @@ namespace cyb::ui
     }
 
 #define COMMON_WIDGET_CODE(label)   \
-    ScopedID m_idGuard(label);      \
+    PushID m_idGuard{ label };      \
     ItemLabel(label);               \
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 

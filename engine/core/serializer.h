@@ -179,7 +179,7 @@ namespace cyb
         header.version = ARCHIVE_VERSION;
         header.magic = CSD_MAGIC;
         header.info.bits.compressed = useCompression ? 1 : 0;
-        header.decompressedSize = useCompression ? ser.GetArchiveSize() : 0;
+        header.decompressedSize = useCompression ? (uint32_t)ser.GetArchiveSize() : 0;
         archive.Write(&header, sizeof(CSD_Header));
         
         if (header.info.bits.compressed)

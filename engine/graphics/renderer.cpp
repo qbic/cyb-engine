@@ -7,7 +7,7 @@
 #include "graphics/renderer.h"
 #include "graphics/image.h"
 #include "graphics/shader_compiler.h"
-#include "../../shaders/shader_interop.h"
+#include "../shaders/shader_interop.h"
 
 using namespace cyb::rhi;
 using namespace cyb::scene;

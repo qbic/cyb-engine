@@ -2931,6 +2931,11 @@ namespace cyb::rhi
         m_allocationHandler->Update(frameCount, BUFFERCOUNT);
     }
 
+    void GraphicsDevice_Vulkan::WaitForGPU() const
+    {
+        VK_CHECK(vkDeviceWaitIdle(device));
+    }
+
     void GraphicsDevice_Vulkan::ClearPipelineStateCache()
     {
         m_allocationHandler->destroylocker.Lock();

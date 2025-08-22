@@ -642,6 +642,12 @@ namespace cyb::rhi
 
         virtual CommandList BeginCommandList(QueueType queue = QueueType::Graphics) = 0;
         virtual void ExecuteCommandLists() {}
+
+        /**
+         * @brief Make the CPU wait until all submitted GPU work is finished execution.
+         */
+        virtual void WaitForGPU() const = 0;
+
         virtual void SetName(GPUResource* resource, const char* name) { (void)resource; (void)name; }
         virtual void SetName(Shader* shader, const char* name) { (void)shader; (void)name; }
 

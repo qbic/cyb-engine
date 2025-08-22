@@ -32,8 +32,8 @@ namespace cyb::hli
 
         renderer::FrameConstants frameCB = {};
 
-        rhi::Texture renderTarget_Main;
-        rhi::Texture depthBuffer_Main;
+        rhi::Texture rtMain;
+        rhi::Texture rtMainDepth;
         rhi::Texture rtSelectionOutline;
 
         double runtime = 0.0;                       // Accumilated delta times

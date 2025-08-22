@@ -1,7 +1,7 @@
 #include "editor/undo_manager.h"
 #include "core/logger.h"
-#include "imgui/imgui.h"
-#include "imgui/imgui_internal.h"
+#include "imgui.h"
+#include "imgui_internal.h"
 
 namespace cyb::ui
 {

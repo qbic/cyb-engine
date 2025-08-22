@@ -1,6 +1,239 @@
 // Noise code is inspired by FastNoiseLight:
 // https://github.com/Auburn/FastNoiseLite#pragma
 #pragma once
+#include <vector>
+
+namespace cyb::noise2
+{
+    class NoiseNodeBase 
+    {
+    public:
+        virtual double GetValue(double x, double y) const = 0;
+    };
+
+    template <typename T>
+    class NoiseNode : public NoiseNodeBase
+    {
+    public:
+        NoiseNode(uint32_t requiredInputCount) :
+            m_inputs(requiredInputCount, nullptr)
+        {
+        }
+        virtual ~NoiseNode() = default;
+
+        constexpr T& SetInput(uint32_t index, const NoiseNodeBase* node)
+        {
+            if (index < m_inputs.size())
+                m_inputs[index] = node;
+            return static_cast<T&>(*this);
+        }
+        const NoiseNodeBase* GetInput(uint32_t index) const
+        {
+            return m_inputs[index];
+        }
+        uint32_t GetRequiredInputCount() const
+        {
+            return static_cast<uint32_t>(m_inputs.size());
+        }
+
+    private:
+        std::vector<const NoiseNodeBase*> m_inputs;
+    };
+
+    class NoiseNode_Perlin : public NoiseNode<NoiseNode_Perlin>
+    {
+    public:
+        static constexpr uint32_t MAX_OCTAVES = 20;
+        
+        NoiseNode_Perlin() : NoiseNode(0) { RecalculateFractalBounding(); }
+        virtual ~NoiseNode_Perlin() = default;
+
+        constexpr NoiseNode_Perlin& SetSeed(uint32_t seed) { m_seed = seed; return *this; }
+        constexpr NoiseNode_Perlin& SetFrequency(double frequency) { m_frequency = frequency; return *this; }
+                  NoiseNode_Perlin& SetOctaves(uint32_t octaves);
+        constexpr NoiseNode_Perlin& SetLacunarity(double lacunarity) { m_lacunarity = lacunarity; return *this; }
+                  NoiseNode_Perlin& SetPersistence(double persistence);
+        
+        [[nodiscard]] uint32_t GetSeed() const;
+        [[nodiscard]] double GetFrequency() const;
+        [[nodiscard]] uint32_t GetOctaves() const;
+        [[nodiscard]] double GetLacunarity() const;
+        [[nodiscard]] double GetPersistance() const;
+        [[nodiscard]] double GetFractalBounding() const;
+
+        [[nodiscard]] virtual double GetValue(double x, double y) const override;
+
+    private:
+        void RecalculateFractalBounding();
+
+        uint32_t m_seed{ 0 };
+        double m_frequency{ 5.0 };
+        uint32_t m_octaves{ 4 };
+        double m_lacunarity{ 2.0 };
+        double m_persistence{ 0.5 };
+        double m_fractalBounding{ 0.0 };
+        double m_varianceCorrection{ 0.0 };
+    };
+
+    class NoiseNode_Cellular : public NoiseNode<NoiseNode_Cellular>
+    {
+    public:
+        static constexpr uint32_t MAX_OCTAVES = 20;
+
+        NoiseNode_Cellular() : NoiseNode(0) {}
+        virtual ~NoiseNode_Cellular() = default;
+
+        void SetSeed(uint32_t seed);
+        void SetFrequency(double frequency);
+        void SetJitterModifier(double jitterModifier);
+        void SetOctaves(uint32_t octaves);
+        void SetLacunarity(double lacunarity);
+        void SetPersistence(double persistence);
+
+        [[nodiscard]] uint32_t GetSeed() const;
+        [[nodiscard]] double GetFrequency() const;
+        [[nodiscard]] double GetJitterModifier() const;
+        [[nodiscard]] uint32_t GetOctaves() const;
+        [[nodiscard]] double GetLacunarity() const;
+        [[nodiscard]] double GetPersistance() const;
+
+        [[nodiscard]] virtual double GetValue(double x, double y) const override;
+
+    private:
+        uint32_t m_seed{ 0 };
+        double m_frequency{ 5.0 };
+        double m_jitterModifier{ 1.0 };
+        uint32_t m_octaves{ 4 };
+        double m_lacunarity{ 2.0 };
+        double m_persistence{ 0.5 };
+    };
+
+    class NoiseNode_Const : public NoiseNode<NoiseNode_Const>
+    {
+    public:
+        NoiseNode_Const() : NoiseNode(0) {}
+        virtual ~NoiseNode_Const() = default;
+        void SetConstValue(double constValue);
+        [[nodiscard]] double GetConstValue() const;
+        [[nodiscard]] virtual double GetValue(double x, double y) const override;
+
+    private:
+        double m_constValue{ 1.0 };
+    };
+
+    /**
+     * @blend Use linear interpolation to blend two inputs.
+     * 
+     * Requires 3 inputs.
+     * Input 0 = Value 0
+     * Input 1 = Value 1
+     * Input 2 = Alpha
+     */
+    class NoiseNode_Blend : public NoiseNode<NoiseNode_Blend>
+    {
+    public:
+        NoiseNode_Blend() : NoiseNode(3) {}
+        virtual ~NoiseNode_Blend() = default;
+        [[nodiscard]] virtual double GetValue(double x, double y) const override;
+    };
+
+    class NoiseNode_ScaleBias : public NoiseNode<NoiseNode_ScaleBias>
+    {
+    public:
+        NoiseNode_ScaleBias() : NoiseNode(1) {}
+        virtual ~NoiseNode_ScaleBias() = default;
+        constexpr NoiseNode_ScaleBias& SetScale(double scale) { m_scale = scale; return *this; }
+        constexpr NoiseNode_ScaleBias& SetBias(double bias) { m_bias = bias; return *this; }
+        [[nodiscard]] double GetScale() const;
+        [[nodiscard]] double GetBias() const;
+        [[nodiscard]] virtual double GetValue(double x, double y) const override;
+
+    private:
+        double m_scale = 1.0;
+        double m_bias = 0.0;
+    };
+
+    class NoiseNode_Strata : public NoiseNode<NoiseNode_Strata>
+    {
+    public:
+        NoiseNode_Strata() : NoiseNode(1) {}
+        virtual ~NoiseNode_Strata() = default;
+        constexpr NoiseNode_Strata& SetStrata(double strata) { m_strata = strata; return *this; }
+        [[nodiscard]] double GetStrata() const;
+        [[nodiscard]] virtual double GetValue(double x, double y) const override;
+
+    private:
+        double m_strata = 5.0;
+    };
+
+    /**
+     * @blend Select value from two inputs using a third input with a threshold.
+     *
+     * Requires 3 inputs.
+     * Input 0 = Value 0
+     * Input 1 = Value 1
+     * Input 2 = Control
+     */
+    class NoiseNode_Select : public NoiseNode<NoiseNode_Select>
+    {
+    public:
+        NoiseNode_Select() : NoiseNode(3) {}
+        virtual ~NoiseNode_Select() = default;
+
+        constexpr NoiseNode_Select& SetThreshold(double threshold) { m_threshold = threshold; return *this; }
+        constexpr NoiseNode_Select& SetEdgeFalloff(double edgeFalloff) { m_edgeFalloff = edgeFalloff; return *this; }
+        [[nodiscard]] double GetThreshold() const;
+        [[nodiscard]] double GetEdgeFalloff() const;
+
+        [[nodiscard]] virtual double GetValue(double x, double y) const override;
+
+    private:
+        double m_threshold = 0.5;
+        double m_edgeFalloff = 0.0;
+    };
+
+    class NoiseImage
+    {
+    public:
+        struct Color
+        {
+            uint8_t r;
+            uint8_t g;
+            uint8_t b;
+            uint8_t a;
+        };
+
+        NoiseImage() = default;
+        NoiseImage(uint32_t width, uint32_t height);
+        
+        void SetSize(uint32_t width, uint32_t height);
+
+        Color* GetPtr(uint32_t row);
+        Color* GetPtr(uint32_t x, uint32_t y);
+        const Color* GetConstPtr(uint32_t row) const;
+        const Color* GetConstPtr(uint32_t x, uint32_t y) const;
+
+        size_t GetMemoryUsage() const;
+
+    private:
+        uint32_t m_width = 0;
+        uint32_t m_height = 0;
+        uint32_t m_stride;
+        std::unique_ptr<Color[]> m_image;
+    };
+
+    struct NoiseImageDesc
+    {
+        noise2::NoiseNodeBase* input = nullptr;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        double xOffset = 0.0;
+        double yOffset = 0.0;
+        double freqScale = 1.0;
+    };
+
+    std::shared_ptr<NoiseImage> RenderNoiseImage(const NoiseImageDesc& desc);
+}
 
 namespace cyb::noise
 {

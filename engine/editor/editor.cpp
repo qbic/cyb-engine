@@ -15,7 +15,7 @@
 #include "editor/undo_manager.h"
 #include "editor/icons_font_awesome6.h"
 #include "imgui_internal.h"
-#include "imgui_stdlib.h"
+#include "misc/cpp/imgui_stdlib.h"
 #include "ImGuizmo.h"
 #include "editor/widgets.h"
 #include "editor/terrain_generator.h"
@@ -171,7 +171,7 @@ namespace cyb::editor
         ImGui::Text(ICON_FA_MAGNIFYING_GLASS "Search:");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(-1);
-        filter.WindowContent("##filter");
+        //filter.WindowContent("##filter");
 
         if (ImGui::BeginListBox("##BeginListBox"))
         {

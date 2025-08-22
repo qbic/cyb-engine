@@ -13,7 +13,7 @@
 #include "json.hpp"
 
 #define PREVIEW_RESOLUTION      128         // increase for higher quality, but slower to update preview
-#define PREVIEW_FREQ_SCALE      1024        // higher value shows more terrain, but might get noisy
+#define PREVIEW_FREQ_SCALE      8.0         // higher value shows more terrain, but might get noisy
 
 namespace cyb::editor
 {
@@ -217,7 +217,7 @@ namespace cyb::editor
                 {
                     HeightmapGenerator::Input& input = heightmap.inputList[i];
 
-                    const ui::ScopedID idGuard((void*)&input);
+                    const ui::PushID idGuard((void*)&input);
                     ui::ComboBox("NoiseType", input.noise.type, g_noiseTypeCombo, updatePreviewCb);
                     if (input.noise.type == noise::Type::Cellular)
                         ui::ComboBox("CelReturn", input.noise.cellularReturnType, g_cellularReturnTypeCombo, updatePreviewCb);
@@ -320,7 +320,8 @@ namespace cyb::editor
     // max values in heightmap generator for psuedo normalization
     void TerrainGenerator::UpdatePreview() {
         jobsystem::Wait(m_updatePreviewCtx);
-        jobsystem::Execute(m_updatePreviewCtx, [&](jobsystem::JobArgs) {
+       // jobsystem::Execute(m_updatePreviewCtx, [&](jobsystem::JobArgs) {
+#if 0
             std::vector<float> image;
 
             heightmap.UnlockMinMax();
@@ -350,7 +351,60 @@ namespace cyb::editor
             subresourceData.rowPitch = desc.width * formatInfo.bytesPerBlock;
 
             rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &m_preview);
-        });
+#else
+            {
+                auto ground = noise2::NoiseNode_Perlin()
+                    .SetSeed(33)
+                    .SetFrequency(0.8)
+                    .SetOctaves(3);
+                auto groundScaled = noise2::NoiseNode_ScaleBias()
+                    .SetInput(0, &ground)
+                    .SetScale(0.225);
+
+                auto mountain = noise2::NoiseNode_Perlin()
+                    .SetSeed(heightmap.inputList[0].noise.seed)
+                    .SetFrequency(heightmap.inputList[0].noise.frequency)
+                    .SetOctaves(heightmap.inputList[0].noise.octaves);
+                auto mountainStrat = noise2::NoiseNode_Strata()
+                    .SetInput(0, &mountain)
+                    .SetStrata(6);
+
+                auto control = noise2::NoiseNode_Perlin()
+                    .SetSeed(553)
+                    .SetFrequency(0.7)
+                    .SetOctaves(4)
+                    .SetPersistence(0.25);
+
+                auto finalTerrain = noise2::NoiseNode_Select()
+                    .SetInput(0, &groundScaled)
+                    .SetInput(1, &mountainStrat)
+                    .SetInput(2, &control)
+                    .SetThreshold(0.65)
+                    .SetEdgeFalloff(0.125);
+
+                noise2::NoiseImageDesc imageDesc{};
+                imageDesc.width = PREVIEW_RESOLUTION;
+                imageDesc.height = PREVIEW_RESOLUTION;
+                imageDesc.freqScale = PREVIEW_FREQ_SCALE;
+                imageDesc.xOffset = m_previewOffset.x;
+                imageDesc.yOffset = m_previewOffset.y;
+                imageDesc.input = &finalTerrain;
+                auto image = noise2::RenderNoiseImage(imageDesc);
+
+                rhi::TextureDesc desc{};
+                desc.width = PREVIEW_RESOLUTION;
+                desc.height = PREVIEW_RESOLUTION;
+                desc.format = rhi::Format::RGBA8_UNORM;
+
+                const rhi::FormatInfo& formatInfo = rhi::GetFormatInfo(desc.format);
+                rhi::SubresourceData subresourceData;
+                subresourceData.mem = image->GetConstPtr(0);
+                subresourceData.rowPitch = desc.width * formatInfo.bytesPerBlock;
+
+                rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &m_preview);
+            }
+#endif
+        //});
     }
 
     // Colorize vertical faces with rock color.

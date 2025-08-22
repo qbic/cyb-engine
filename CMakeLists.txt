@@ -15,6 +15,37 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # Find required packages
 find_package(Vulkan REQUIRED)
 
+# Fetch statically linked dependencies
+set(FETCHCONTENT_QUIET OFF)
+include(FetchContent)
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG v1.90
+)
+FetchContent_MakeAvailable(imgui)
+
+FetchContent_Declare(
+    freetype
+    GIT_REPOSITORY https://gitlab.freedesktop.org/freetype/freetype.git
+    GIT_TAG VER-2-13-2
+)
+FetchContent_MakeAvailable(freetype)
+
+add_library(imgui)
+target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR})
+target_link_libraries(imgui PUBLIC freetype)
+target_sources(
+    imgui
+    PUBLIC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
+    ${imgui_SOURCE_DIR}/misc/freetype/imgui_freetype.cpp
+ )
+
 add_definitions(-DUNICODE -D_UNICODE)
 add_compile_definitions($<$<PLATFORM_ID:Windows>:NOMINMAX>)
 

@@ -26,8 +26,8 @@ namespace cyb::hli
             desc.height = internalResolution.y;
             desc.format = Format::RGBA8_UNORM;
             desc.initialState = ResourceStates::ShaderResourceBit | ResourceStates::RenderTargetBit;
-            device->CreateTexture(&desc, nullptr, &renderTarget_Main);
-            device->SetName(&renderTarget_Main, "renderTarget_Main");
+            device->CreateTexture(&desc, nullptr, &rtMain);
+            device->SetName(&rtMain, "rtMain");
         }
 
         // Depth stencil buffer:
@@ -37,8 +37,8 @@ namespace cyb::hli
             desc.height = internalResolution.y;
             desc.format = Format::D24S8;
             desc.initialState = ResourceStates::DepthWriteBit;
-            device->CreateTexture(&desc, nullptr, &depthBuffer_Main);
-            device->SetName(&depthBuffer_Main, "depthBuffer_Main");
+            device->CreateTexture(&desc, nullptr, &rtMainDepth);
+            device->SetName(&rtMainDepth, "rtMainDepth");
         }
 
         // Selection outline
@@ -83,16 +83,16 @@ namespace cyb::hli
 
         device->BeginEvent("Opaque Scene", cmd);
         Viewport viewport;
-        viewport.width = (float)renderTarget_Main.GetDesc().width;
-        viewport.height = (float)renderTarget_Main.GetDesc().height;
+        viewport.width = (float)rtMain.GetDesc().width;
+        viewport.height = (float)rtMain.GetDesc().height;
         device->BindViewports(&viewport, 1, cmd);
 
         const RenderPassImage renderPassImages[] = {
             RenderPassImage::RenderTarget(
-                &renderTarget_Main,
+                &rtMain,
                 RenderPassImage::LoadOp::DontCare),
             RenderPassImage::DepthStencil(
-                &depthBuffer_Main,
+                &rtMainDepth,
                 RenderPassImage::LoadOp::Clear,
                 RenderPassImage::StoreOp::Store)
         };
@@ -124,7 +124,7 @@ namespace cyb::hli
                     &rtSelectionOutline,
                     RenderPassImage::LoadOp::Clear),
                 RenderPassImage::DepthStencil(
-                    &depthBuffer_Main,
+                    &rtMainDepth,
                     RenderPassImage::LoadOp::Load)
             };
             device->BeginRenderPass(rpStencilFill, _countof(rpStencilFill), cmd);
@@ -140,7 +140,7 @@ namespace cyb::hli
 
             const RenderPassImage rpOutline[] = {
                 RenderPassImage::RenderTarget(
-                    &renderTarget_Main,
+                    &rtMain,
                     RenderPassImage::LoadOp::Load)
             };
             device->BeginRenderPass(rpOutline, _countof(rpOutline), cmd);
@@ -162,7 +162,7 @@ namespace cyb::hli
         device->BeginEvent("Composition", cmd);
         const rhi::Sampler* pointSampler = GetSamplerState(renderer::SSLOT_POINT_CLAMP);
         device->BindSampler(pointSampler, 0, cmd);
-        renderer::DrawImage(&renderTarget_Main, params, cmd);
+        renderer::DrawImage(&rtMain, params, cmd);
         device->EndEvent(cmd);
 
         RenderPath2D::Compose(cmd);

@@ -4,7 +4,7 @@
 
 namespace cyb
 {
-    CVar<uint32_t> cl_archiveCompressionLevel("cl_archiveCompressionLevel", 9, 0, 12, CVarFlag::SystemBit, "Compression level for saved files [0..12]");
+    CVar<uint32_t> cl_archiveCompressionLevel{ "cl_archiveCompressionLevel", 9, 0, 12, CVarFlag::SystemBit, "Compression level for saved files [0..12]" };
     
     Archive::Archive(const std::span<uint8_t> data)
     {

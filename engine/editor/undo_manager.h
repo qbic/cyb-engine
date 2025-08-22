@@ -3,7 +3,7 @@
 #include <stack>
 #include <memory>
 #include <functional>
-#include "imgui/imgui.h"
+#include "imgui.h"
 #include "systems/scene.h"
 
 namespace cyb::ui

@@ -213,6 +213,7 @@ namespace cyb::rhi
 
         CommandList BeginCommandList(QueueType queue) override;
         void ExecuteCommandLists() override;
+        void WaitForGPU() const override;
         void SetName(GPUResource* pResource, const char* name) override;
         void SetName(Shader* shader, const char* name) override;
 

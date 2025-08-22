@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <functional>
 #include <variant>
-#include "imgui/imgui.h"
+#include "imgui.h"
 
 namespace cyb::ui
 {
@@ -64,12 +64,13 @@ namespace cyb::ui
     };
 
     // Push an imgui id that will be popped when of scope
-    class ScopedID : private NonCopyable
+    class PushID : private NonCopyable
     {
     public:
-        using Value = std::variant<ImGuiID, void*, const char*, std::string_view>;
-        ScopedID(const Value id);
-        ~ScopedID();
+        PushID(const void* id)      { ImGui::PushID(id); }
+        PushID(const char* id)      { ImGui::PushID(id); }
+        PushID(int id)              { ImGui::PushID(id); }
+        ~PushID()                   { ImGui::PopID(); }
     };
 
     //------------------------------------------------------------------------------

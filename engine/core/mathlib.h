@@ -167,14 +167,16 @@ namespace cyb
         return t * t * t * p + t * t * ((a - b) - p) + t * (c - a) + b;
     }
 
-    [[nodiscard]] constexpr float InterpHermiteFunc(float t) noexcept
+    template <FloatType T>
+    [[nodiscard]] constexpr T InterpHermiteFunc(T t) noexcept
     {
-        return t * t * (3 - 2 * t);
+        return t * t * (T(3.0) - T(2.0) * t);
     }
 
-    [[nodiscard]] constexpr float InterpQuinticFunc(float t) noexcept
+    template <FloatType T>
+    [[nodiscard]] constexpr T InterpQuinticFunc(T t) noexcept
     {
-        return t * t * t * (t * (t * 6 - 15) + 10);
+        return t * t * t * (t * (t * T(6.0) - T(15.0)) + T(10.0));
     }
 
     [[nodiscard]] inline float XM_CALLCONV Distance(const XMVECTOR& v1, const XMVECTOR& v2) noexcept

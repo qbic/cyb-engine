@@ -201,6 +201,7 @@ namespace cyb::editor
             // begin drawing of the settings panel
             ImGui::TableNextColumn();
             ImGui::BeginChild("Settings panel", ImVec2(settingsPandelWidth, 680), ImGuiChildFlags_Border);
+            ImGui::PushItemWidth(-1);
 
             if (ImGui::CollapsingHeader("Mesh Settings"))
             {
@@ -249,10 +250,11 @@ namespace cyb::editor
                 }
             }
 
-            ImGui::Spacing();
-            if (ui::GradientButton("ColorBand", &m_biomeColorBand))
-                UpdatePreview();
+            //ImGui::Spacing();
+            //if (ui::GradientButton("ColorBand", &m_biomeColorBand))
+            //    UpdatePreview();
 
+            ImGui::PopItemWidth();
             ImGui::EndChild();
             ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 130), ImGuiChildFlags_Border);
 
@@ -352,6 +354,7 @@ namespace cyb::editor
 
             rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &m_preview);
 #else
+        
             {
                 auto ground = noise2::NoiseNode_Perlin()
                     .SetSeed(33)
@@ -379,17 +382,14 @@ namespace cyb::editor
                     .SetInput(0, &groundScaled)
                     .SetInput(1, &mountainStrat)
                     .SetInput(2, &control)
-                    .SetThreshold(0.65)
+                    .SetThreshold(0.72)
                     .SetEdgeFalloff(0.125);
 
-                noise2::NoiseImageDesc imageDesc{};
-                imageDesc.width = PREVIEW_RESOLUTION;
-                imageDesc.height = PREVIEW_RESOLUTION;
-                imageDesc.freqScale = PREVIEW_FREQ_SCALE;
-                imageDesc.xOffset = m_previewOffset.x;
-                imageDesc.yOffset = m_previewOffset.y;
-                imageDesc.input = &finalTerrain;
-                auto image = noise2::RenderNoiseImage(imageDesc);
+                auto image = noise2::RenderNoiseImage(noise2::NoiseImageDesc()
+                    .SetInput(&finalTerrain)
+                    .SetSize(PREVIEW_RESOLUTION, PREVIEW_RESOLUTION)
+                    .SetOffset(m_previewOffset.x, m_previewOffset.y)
+                    .SetFrequencyScale(PREVIEW_FREQ_SCALE));
 
                 rhi::TextureDesc desc{};
                 desc.width = PREVIEW_RESOLUTION;
@@ -519,6 +519,7 @@ namespace cyb::editor
 
             jobsystem::Context ctx;
             ctx.allowWorkOnMainThread = false;
+
             std::vector<XMFLOAT3> points;
             jobsystem::Execute(ctx, [&](jobsystem::JobArgs args) {
                 points = triangulator.GetPoints();

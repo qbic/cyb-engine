@@ -1,8 +1,11 @@
 #include <Windows.h>
+#include <dwmapi.h> // DwmSetWindowAttribute
 #include "cyb-engine.h"
 #include "game.h"
 #include "resource.h"
 #include "../build/config.h"
+
+#pragma comment(lib, "dwmapi.lib")
 
 using namespace cyb;
 
@@ -77,7 +80,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
         return FALSE;
     }
 
-    eventsystem::Subscribe(eventsystem::Event_SetFullScreen, EnterFullscreenMode);
+    static auto fullscreenEvent = eventsystem::Subscribe(eventsystem::Event_SetFullScreen, EnterFullscreenMode);
 
     MSG msg = { 0 };
     while (msg.message != WM_QUIT)
@@ -111,14 +114,15 @@ std::string GetLastErrorMessage()
 
 ATOM RegisterWindowClass(HINSTANCE hInstance)
 {
-    WNDCLASS wc = {};
+    WNDCLASSW wc = {};
     wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInstance;
     wc.hCursor = LoadCursor(0, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wc.lpszClassName = szWindowClass;
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
-    return RegisterClass(&wc);
+    return RegisterClassW(&wc);
 }
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
@@ -136,7 +140,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         title.c_str(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
-        CW_USEDEFAULT,
+        0,
         rc.right - rc.left,
         rc.bottom - rc.top,
         nullptr,
@@ -147,6 +151,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     if (!hWnd)
         return FALSE;
 
+    SendMessage(hWnd, WM_SETTINGCHANGE, 0, 0); // trigger dark mode theme detection
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
 
@@ -184,6 +189,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_INPUT:
         input::rawinput::ParseMessage((HRAWINPUT)lParam);
         break;
+
+    case WM_SETTINGCHANGE:
+    {
+        // Change window theme dark mode based on system setting:
+        HKEY hKey;
+        DWORD value = 1; // Default to light mode (1 = light, 0 = dark)
+        DWORD dataSize = sizeof(value);
+        if (RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+        {
+            RegQueryValueEx(hKey, L"AppsUseLightTheme", NULL, NULL, (LPBYTE)&value, &dataSize);
+            RegCloseKey(hKey);
+        }
+        BOOL darkmode = value == 0;
+        DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &darkmode, sizeof(darkmode));
+    }
+    break;
 
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);

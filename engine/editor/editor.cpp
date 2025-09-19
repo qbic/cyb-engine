@@ -1,6 +1,8 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <numeric>
+#include <limits>
 #include <format>
+#include <functional>
 #include "core/cvar.h"
 #include "core/hash.h"
 #include "core/logger.h"
@@ -1461,6 +1463,287 @@ namespace cyb::editor
         }
     }
 
+    struct PerlinNode : public ui::NG_Node
+    {
+        PerlinNode() :
+            NG_Node("Perlin Noise")
+        {
+            AddOutputPin<noise2::NoiseNode*>("Output", [=] () {return &noise; });
+            Pos = { 100, 500 };             // REMOVE
+        }
+
+        void DisplayContent(float zoom) override
+        {
+            const float childWidth = 240 * zoom;
+            ImGui::PushItemWidth(childWidth);
+
+            auto onChange = [=] () { ModifiedFlag = true; };
+
+            uint32_t iTemp = noise.GetSeed();
+            if (ui::SliderInt("Seed", (int*)&iTemp, onChange, 0, std::numeric_limits<int>::max() / 2))
+                noise.SetSeed(iTemp);
+
+            float fTemp = noise.GetFrequency();
+            if (ui::SliderFloat("Frequency", &fTemp, onChange, 0.1f, 8.0f))
+                noise.SetFrequency(fTemp);
+
+            iTemp = noise.GetOctaves();
+            if (ui::SliderInt("Octaves", (int*)&iTemp, onChange, 1, 6))
+                noise.SetOctaves(iTemp);
+
+            fTemp = noise.GetLacunarity();
+            if (ui::SliderFloat("Lacunarity", &fTemp, onChange, 0.0f, 4.0f))
+                noise.SetLacunarity(fTemp);
+
+            fTemp = noise.GetPersistance();
+            if (ui::SliderFloat("Persistance", &fTemp, onChange, 0.0f, 4.0f))
+                noise.SetPersistence(fTemp);
+
+            ImGui::PopItemWidth();
+        }
+
+        noise2::NoiseNode_Perlin noise;
+    };
+
+    struct CellularNode : public ui::NG_Node
+    {
+        CellularNode() :
+            NG_Node("Cellular Noise")
+        {
+            AddOutputPin<noise2::NoiseNode*>("Output", [=] () {return &noise; });
+        }
+
+        void DisplayContent(float zoom) override
+        {
+            const float childWidth = 240 * zoom;
+            ImGui::PushItemWidth(childWidth);
+
+            auto onChange = [=] () { ModifiedFlag = true; };
+
+            uint32_t iTemp = noise.GetSeed();
+            if (ui::SliderInt("Seed", (int*)&iTemp, onChange, 0, std::numeric_limits<int>::max() / 2))
+                noise.SetSeed(iTemp);
+
+            float fTemp = noise.GetFrequency();
+            if (ui::SliderFloat("Frequency", &fTemp, onChange, 0.1f, 8.0f))
+                noise.SetFrequency(fTemp);
+
+            fTemp = noise.GetJitterModifier();
+            if (ui::SliderFloat("Jitter", &fTemp, onChange, 0.0f, 2.0f))
+                noise.SetJitterModifier(fTemp);
+
+            iTemp = noise.GetOctaves();
+            if (ui::SliderInt("Octaves", (int*)&iTemp, onChange, 1, 6))
+                noise.SetOctaves(iTemp);
+
+            fTemp = noise.GetLacunarity();
+            if (ui::SliderFloat("Lacunarity", &fTemp, onChange, 0.0f, 4.0f))
+                noise.SetLacunarity(fTemp);
+
+            fTemp = noise.GetPersistance();
+            if (ui::SliderFloat("Persistance", &fTemp, onChange, 0.0f, 4.0f))
+                noise.SetPersistence(fTemp);
+
+            ImGui::PopItemWidth();
+        }
+
+        noise2::NoiseNode_Cellular noise;
+    };
+
+    class PreviewNode : public ui::NG_Node
+    {
+    public:
+        PreviewNode() :
+            NG_Node("Preivew")
+        {
+            AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
+                m_input = from.value_or(nullptr);
+                Update();
+            });
+
+            Pos = { 600, 400 };         // REMOVE
+        }
+
+        void UpdatePreview()
+        {
+            if (!m_input || !ValidState)
+                return;
+
+            Timer timer;
+            auto image = noise2::RenderNoiseImage(noise2::NoiseImageDesc()
+                .SetInput(m_input)
+                .SetSize(m_previewSize, m_previewSize)
+                .SetOffset(0, 0)
+                .SetFrequencyScale(m_freqScale));
+
+            rhi::TextureDesc desc{};
+            desc.width = image->GetWidth();
+            desc.height = image->GetHeight();
+            desc.format = rhi::Format::RGBA8_UNORM;
+
+            rhi::SubresourceData subresourceData;
+            subresourceData.mem = image->GetConstPtr(0);
+            subresourceData.rowPitch = image->GetStride();
+
+            rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &m_texture);
+            m_lastPreviewGenerationTime = timer.ElapsedMilliseconds();
+        }
+
+        void Update() override
+        {
+            if (m_autoUpdate)
+                UpdatePreview();
+        }
+
+        void DisplayContent(float zoom) override
+        {
+            const ImGuiStyle& style = ImGui::GetStyle();
+            const float childWidth = std::max(256u, m_previewSize) * zoom;
+            ImGui::PushItemWidth(childWidth);
+
+            if (ui::Checkbox("Auto Update", &m_autoUpdate, nullptr) && m_autoUpdate)
+                UpdatePreview();
+            if (!m_autoUpdate && ImGui::Button("Update", ImVec2(childWidth, 0)))
+                UpdatePreview();
+
+            const float image_width = childWidth;
+            const ImVec2 p0 = ImGui::GetCursorScreenPos();
+            const ImVec2 p1 = p0 + ImVec2(image_width, image_width);
+            if (m_input && ValidState && m_texture.IsValid())
+            {
+                ImGui::Image((ImTextureID)&m_texture, ImVec2(image_width, image_width));
+            }
+            else
+            {
+                ImGui::ItemAdd(ImRect(p0, p1), 12);
+                ImGui::GetWindowDrawList()->AddRectFilled(p0, p1, 0xff222222);
+                ImGui::SetCursorScreenPos(p0 + ImVec2(0, image_width + style.ItemSpacing.y * zoom));
+            }
+
+            ImGui::Text("Updated in %.2fms", m_lastPreviewGenerationTime);
+            if (ui::DragInt("Preview Size", (int*)&m_previewSize, 1, 4, 512))
+                Update();
+            if (ui::SliderFloat("Freq Scale", &m_freqScale, nullptr, 1.0f, 12.0f))
+                Update();
+
+            ImGui::PopItemWidth();
+        }
+
+    private:
+        bool m_autoUpdate = true;
+        uint32_t m_previewSize = 128;   // Square, (width, height) = previewSize
+        float m_lastPreviewGenerationTime = 0.0f;
+        float m_freqScale = 8.0f;
+        rhi::Texture m_texture;
+        noise2::NoiseNode* m_input = nullptr;
+    };
+
+    class ScaleBiasNode : public ui::NG_Node
+    {
+    public:
+        ScaleBiasNode() :
+            NG_Node("ScaleBias")
+        {
+            AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
+                m_scaleBias.SetInput(0, from.value_or(nullptr));
+            });
+            AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_scaleBias; });
+        }
+
+        void DisplayContent(float zoom) override
+        {
+            const float childWidth = 160 * zoom;
+            ImGui::PushItemWidth(childWidth);
+
+            auto onChange = [=] () { ModifiedFlag = true; };
+
+            float fTemp = m_scaleBias.GetScale();
+            if (ui::SliderFloat("Scale", &fTemp, onChange, 0.0f, 2.0f))
+                m_scaleBias.SetScale(fTemp);
+            
+            fTemp = m_scaleBias.GetBias();
+            if (ui::SliderFloat("Bias", &fTemp, onChange, 0.0f, 1.0f))
+                m_scaleBias.SetBias(fTemp);
+
+            ImGui::PopItemWidth();
+        }
+
+    private:
+        noise2::NoiseNode_ScaleBias m_scaleBias;
+    };
+
+    class StrataNode : public ui::NG_Node
+    {
+    public:
+        StrataNode() :
+            NG_Node("Strata")
+        {
+            AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
+                m_strata.SetInput(0, from.value_or(nullptr));
+            });
+            AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_strata; });
+
+            Pos = { 300, 300 };     // REMOVE
+        }
+
+        void DisplayContent(float zoom) override
+        {
+            const float childWidth = 160 * zoom;
+            ImGui::PushItemWidth(childWidth);
+
+            auto onChange = [=]() { ModifiedFlag = true; };
+
+            float fTemp = m_strata.GetStrata();
+            if (ui::SliderFloat("Strata", &fTemp, onChange, 2.0f, 12.0f))
+                m_strata.SetStrata(fTemp);
+         
+            ImGui::PopItemWidth();
+        }
+
+    private:
+        noise2::NoiseNode_Strata m_strata;
+    };
+
+    class SelectNode : public ui::NG_Node
+    {
+    public:
+        SelectNode() :
+            NG_Node("Select")
+        {
+            AddInputPin<noise2::NoiseNode*>("Input A", [&] (std::optional<noise2::NoiseNode*> from) {
+                m_select.SetInput(0, from.value_or(nullptr));
+            });
+            AddInputPin<noise2::NoiseNode*>("Input B", [&] (std::optional<noise2::NoiseNode*> from) {
+                m_select.SetInput(1, from.value_or(nullptr));
+            });
+            AddInputPin<noise2::NoiseNode*>("Control", [&] (std::optional<noise2::NoiseNode*> from) {
+                m_select.SetInput(2, from.value_or(nullptr));
+            });
+            AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_select; });
+        }
+
+        void DisplayContent(float zoom) override
+        {
+            const float childWidth = 160 * zoom;
+            ImGui::PushItemWidth(childWidth);
+
+            auto onChange = [=] () { ModifiedFlag = true; };
+
+            float fTemp = m_select.GetThreshold();
+            if (ui::SliderFloat("Threshold", &fTemp, onChange, 0.0f, 1.0f))
+                m_select.SetThreshold(fTemp);
+
+            fTemp = m_select.GetEdgeFalloff();
+            if (ui::SliderFloat("Edge Falloff", &fTemp, onChange, 0.0f, 1.0f))
+                m_select.SetEdgeFalloff(fTemp);
+
+            ImGui::PopItemWidth();
+        }
+
+    private:
+        noise2::NoiseNode_Select m_select;
+    };
+
     void Update(bool showGui, double dt)
     {
         if (!initialized)
@@ -1495,6 +1778,42 @@ namespace cyb::editor
                 DeleteSelectedEntity();
             ImGui::End();
         }
+
+        ///
+        ///    ============== NG_* TEST CODE ==============
+        ///
+#if 0
+        if (ImGui::Begin("Node Editor DEV", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+        {
+            static ui::NG_Canvas nodeCanvas;
+
+            // if PinCounter == 0 we haven't yet initialized
+            if (nodeCanvas.Nodes.size() == 0)
+            {
+                //nodeCanvas.Flags = ui::NG_CanvasFlags_DisplayState;
+
+                auto test3 = std::make_unique<PerlinNode>();
+                nodeCanvas.Nodes.push_back(std::move(test3));
+                nodeCanvas.Nodes.push_back(std::make_unique<PreviewNode>());
+                nodeCanvas.Nodes.push_back(std::make_unique<StrataNode>());
+
+                nodeCanvas.Factory.Register("Perlin",    [] () { return std::make_unique<PerlinNode>();    });
+                nodeCanvas.Factory.Register("Cellular",  [] () { return std::make_unique<CellularNode>();  });
+                nodeCanvas.Factory.Register("ScaleBias", [] () { return std::make_unique<ScaleBiasNode>(); });
+                nodeCanvas.Factory.Register("Strata",    [] () { return std::make_unique<StrataNode>();    });
+                nodeCanvas.Factory.Register("Select",    [] () { return std::make_unique<SelectNode>();    });
+                nodeCanvas.Factory.Register("Preview",   [] () { return std::make_unique<PreviewNode>();   });
+            }
+
+
+            ui::NodeGraph(nodeCanvas);
+        }
+        ImGui::End();
+#endif
+
+        ///
+        ///
+        ///
        
         // Only draw gizmo with a valid entity containing transform component
         if (scene::GetScene().transforms.GetComponent(scenegraphView.GetSelectedEntity()))

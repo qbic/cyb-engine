@@ -133,7 +133,7 @@ namespace cyb
     }
 
     template <IntegerType T>
-    [[nodiscard]] constexpr T GetNextPowerOfTwo(T x) noexcept
+    [[nodiscard]] constexpr T NextPowerOfTwo(T x) noexcept
     {
         --x;
         x |= x >> 1;
@@ -146,7 +146,7 @@ namespace cyb
         return ++x;
     }
 
-    [[nodiscard]] constexpr uint32_t GetNextDivisible(uint32_t num, uint32_t divisor) noexcept
+    [[nodiscard]] constexpr uint32_t NextDivisible(uint32_t num, uint32_t divisor) noexcept
     {
         int bits = num & (divisor - 1);
         if (bits == 0)
@@ -167,16 +167,40 @@ namespace cyb
         return t * t * t * p + t * t * ((a - b) - p) + t * (c - a) + b;
     }
 
+    /**
+     * @brief 3rd-degree Hermite-style smoothstep
+     *
+     * f(t) = t^2 * (3 - 2 t)
+     */
     template <FloatType T>
-    [[nodiscard]] constexpr T InterpHermiteFunc(T t) noexcept
+    [[nodiscard]] constexpr T CubicSmoothStep(T t) noexcept
     {
         return t * t * (T(3.0) - T(2.0) * t);
     }
 
+    /**
+     * @brief 5th-degree Hermite-style smoothstep
+     *
+     * f(t) = t^3 * (t * (6 t - 15) + 10)
+     */
     template <FloatType T>
-    [[nodiscard]] constexpr T InterpQuinticFunc(T t) noexcept
+    [[nodiscard]] constexpr T QuinticSmoothStep(T t) noexcept
     {
         return t * t * t * (t * (t * T(6.0) - T(15.0)) + T(10.0));
+    }
+
+    /**
+     * @brief 7th-degree Hermite-style smoothstep
+     *
+     * f(t) = t^4 * (35 - 84 t + 70 t^2 - 20 t^3)
+     */
+    template <FloatType T>
+    [[nodiscard]] constexpr T SepticSmoothStep(T t) noexcept
+    {
+        const T t2 = t * t;
+        const T t3 = t2 * t;
+        const T t4 = t2 * t2;
+        return t4 * (T(35.0) - T(84.0) * t + T(70.0) * t2 - T(20.0) * t3);
     }
 
     [[nodiscard]] inline float XM_CALLCONV Distance(const XMVECTOR& v1, const XMVECTOR& v2) noexcept

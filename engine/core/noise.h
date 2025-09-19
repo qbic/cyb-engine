@@ -5,29 +5,34 @@
 
 namespace cyb::noise2
 {
-    class NoiseNodeBase 
+    class NoiseNode
     {
     public:
+        NoiseNode() = default;
+        virtual ~NoiseNode() = default;
         virtual double GetValue(double x, double y) const = 0;
     };
 
+    /**
+     * @brief Base noise ode class to handle inputs.
+     */
     template <typename T>
-    class NoiseNode : public NoiseNodeBase
+    class NoiseNodeInputs : public NoiseNode
     {
     public:
-        NoiseNode(uint32_t requiredInputCount) :
+        NoiseNodeInputs(uint32_t requiredInputCount) :
             m_inputs(requiredInputCount, nullptr)
         {
         }
-        virtual ~NoiseNode() = default;
+        virtual ~NoiseNodeInputs() = default;
 
-        constexpr T& SetInput(uint32_t index, const NoiseNodeBase* node)
+        constexpr T& SetInput(uint32_t index, const NoiseNode* node)
         {
             if (index < m_inputs.size())
                 m_inputs[index] = node;
             return static_cast<T&>(*this);
         }
-        const NoiseNodeBase* GetInput(uint32_t index) const
+        const NoiseNode* GetInput(uint32_t index) const
         {
             return m_inputs[index];
         }
@@ -37,15 +42,15 @@ namespace cyb::noise2
         }
 
     private:
-        std::vector<const NoiseNodeBase*> m_inputs;
+        std::vector<const NoiseNode*> m_inputs;
     };
 
-    class NoiseNode_Perlin : public NoiseNode<NoiseNode_Perlin>
+    class NoiseNode_Perlin : public NoiseNode
     {
     public:
         static constexpr uint32_t MAX_OCTAVES = 20;
         
-        NoiseNode_Perlin() : NoiseNode(0) { RecalculateFractalBounding(); }
+        NoiseNode_Perlin() { RecalculateFractalBounding(); }
         virtual ~NoiseNode_Perlin() = default;
 
         constexpr NoiseNode_Perlin& SetSeed(uint32_t seed) { m_seed = seed; return *this; }
@@ -75,20 +80,20 @@ namespace cyb::noise2
         double m_varianceCorrection{ 0.0 };
     };
 
-    class NoiseNode_Cellular : public NoiseNode<NoiseNode_Cellular>
+    class NoiseNode_Cellular : public NoiseNode
     {
     public:
         static constexpr uint32_t MAX_OCTAVES = 20;
 
-        NoiseNode_Cellular() : NoiseNode(0) {}
+        NoiseNode_Cellular() = default;
         virtual ~NoiseNode_Cellular() = default;
 
-        void SetSeed(uint32_t seed);
-        void SetFrequency(double frequency);
-        void SetJitterModifier(double jitterModifier);
-        void SetOctaves(uint32_t octaves);
-        void SetLacunarity(double lacunarity);
-        void SetPersistence(double persistence);
+        constexpr NoiseNode_Cellular& SetSeed(uint32_t seed) { m_seed = seed; return *this; }
+        constexpr NoiseNode_Cellular& SetFrequency(double frequency) { m_frequency = frequency; return *this; }
+        constexpr NoiseNode_Cellular& SetJitterModifier(double jitterModifier) { m_jitterModifier = jitterModifier; return *this; }
+        constexpr NoiseNode_Cellular& SetOctaves(uint32_t octaves) { m_octaves = octaves; return *this; }
+        constexpr NoiseNode_Cellular& SetLacunarity(double lacunarity) { m_lacunarity = lacunarity; return *this; }
+        constexpr NoiseNode_Cellular& SetPersistence(double persistence) { m_persistence = persistence; return *this; }
 
         [[nodiscard]] uint32_t GetSeed() const;
         [[nodiscard]] double GetFrequency() const;
@@ -108,12 +113,12 @@ namespace cyb::noise2
         double m_persistence{ 0.5 };
     };
 
-    class NoiseNode_Const : public NoiseNode<NoiseNode_Const>
+    class NoiseNode_Const : public NoiseNode
     {
     public:
-        NoiseNode_Const() : NoiseNode(0) {}
+        NoiseNode_Const() = default;
         virtual ~NoiseNode_Const() = default;
-        void SetConstValue(double constValue);
+        constexpr NoiseNode_Const& SetConstValue(double constValue) { m_constValue = constValue; return *this; }
         [[nodiscard]] double GetConstValue() const;
         [[nodiscard]] virtual double GetValue(double x, double y) const override;
 
@@ -129,18 +134,18 @@ namespace cyb::noise2
      * Input 1 = Value 1
      * Input 2 = Alpha
      */
-    class NoiseNode_Blend : public NoiseNode<NoiseNode_Blend>
+    class NoiseNode_Blend : public NoiseNodeInputs<NoiseNode_Blend>
     {
     public:
-        NoiseNode_Blend() : NoiseNode(3) {}
+        NoiseNode_Blend() : NoiseNodeInputs(3) {}
         virtual ~NoiseNode_Blend() = default;
         [[nodiscard]] virtual double GetValue(double x, double y) const override;
     };
 
-    class NoiseNode_ScaleBias : public NoiseNode<NoiseNode_ScaleBias>
+    class NoiseNode_ScaleBias : public NoiseNodeInputs<NoiseNode_ScaleBias>
     {
     public:
-        NoiseNode_ScaleBias() : NoiseNode(1) {}
+        NoiseNode_ScaleBias() : NoiseNodeInputs(1) {}
         virtual ~NoiseNode_ScaleBias() = default;
         constexpr NoiseNode_ScaleBias& SetScale(double scale) { m_scale = scale; return *this; }
         constexpr NoiseNode_ScaleBias& SetBias(double bias) { m_bias = bias; return *this; }
@@ -153,10 +158,10 @@ namespace cyb::noise2
         double m_bias = 0.0;
     };
 
-    class NoiseNode_Strata : public NoiseNode<NoiseNode_Strata>
+    class NoiseNode_Strata : public NoiseNodeInputs<NoiseNode_Strata>
     {
     public:
-        NoiseNode_Strata() : NoiseNode(1) {}
+        NoiseNode_Strata() : NoiseNodeInputs(1) {}
         virtual ~NoiseNode_Strata() = default;
         constexpr NoiseNode_Strata& SetStrata(double strata) { m_strata = strata; return *this; }
         [[nodiscard]] double GetStrata() const;
@@ -174,10 +179,10 @@ namespace cyb::noise2
      * Input 1 = Value 1
      * Input 2 = Control
      */
-    class NoiseNode_Select : public NoiseNode<NoiseNode_Select>
+    class NoiseNode_Select : public NoiseNodeInputs<NoiseNode_Select>
     {
     public:
-        NoiseNode_Select() : NoiseNode(3) {}
+        NoiseNode_Select() : NoiseNodeInputs(3) {}
         virtual ~NoiseNode_Select() = default;
 
         constexpr NoiseNode_Select& SetThreshold(double threshold) { m_threshold = threshold; return *this; }
@@ -208,6 +213,10 @@ namespace cyb::noise2
         
         void SetSize(uint32_t width, uint32_t height);
 
+        uint32_t GetWidth() const { return m_width; }
+        uint32_t GetHeight() const { return m_height; }
+        uint32_t GetStride() const { return m_stride; }
+
         Color* GetPtr(uint32_t row);
         Color* GetPtr(uint32_t x, uint32_t y);
         const Color* GetConstPtr(uint32_t row) const;
@@ -218,18 +227,23 @@ namespace cyb::noise2
     private:
         uint32_t m_width = 0;
         uint32_t m_height = 0;
-        uint32_t m_stride;
+        uint32_t m_stride = 0;
         std::unique_ptr<Color[]> m_image;
     };
 
     struct NoiseImageDesc
     {
-        noise2::NoiseNodeBase* input = nullptr;
+        noise2::NoiseNode* input = nullptr;
         uint32_t width = 0;
         uint32_t height = 0;
         double xOffset = 0.0;
         double yOffset = 0.0;
         double freqScale = 1.0;
+
+        constexpr NoiseImageDesc& SetInput(noise2::NoiseNode* input) { this->input = input; return *this; }
+        constexpr NoiseImageDesc& SetSize(uint32_t width, uint32_t height) { this->width = width; this->height = height; return *this; }
+        constexpr NoiseImageDesc& SetOffset(double x, double y) { this->xOffset = x; this->yOffset = y; return *this; }
+        constexpr NoiseImageDesc& SetFrequencyScale(float scale) { this->freqScale = scale; return *this; }
     };
 
     std::shared_ptr<NoiseImage> RenderNoiseImage(const NoiseImageDesc& desc);

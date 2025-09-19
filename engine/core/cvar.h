@@ -104,9 +104,14 @@ namespace cyb
                     callback(*static_cast<const CVar<T>*>(this));
             }
 
-            void RegisterOnChangeCallback(const CallbackType& callback)
+            void ClearCallbacks()
             {
-                m_callbacks.push_back(callback);
+                m_callbacks.clear();
+            }
+
+            void RegisterOnChangeCallback(const CallbackType callback)
+            {
+                m_callbacks.push_back(std::move(callback));
             }
             
         private:

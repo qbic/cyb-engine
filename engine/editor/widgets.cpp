@@ -3,6 +3,8 @@
  * David Gallardo's https://gist.github.com/galloscript/8a5d179e432e062550972afcd1ecf112
  */
 #include <memory>
+#include <unordered_set>
+#include <cmath>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "editor/undo_manager.h"
 #include "editor/widgets.h"
@@ -86,38 +88,19 @@ namespace cyb::ui
     }
 
     // draw a left-aligned item label
-    void ItemLabel(const std::string& title) {
-        ImGuiWindow& window = *ImGui::GetCurrentWindow();
+    float ItemLabel(const char* label)
+    {
         const ImGuiStyle& style = ImGui::GetStyle();
+        const float avail = ImGui::CalcItemWidth();
+        const float label_w = avail * 0.5f;
 
-        const ImVec2 lineStart = ImGui::GetCursorScreenPos();
-        const float fullWidth = ImGui::GetContentRegionAvail().x;
-        const float itemWidth = ImGui::CalcItemWidth() + style.ItemSpacing.x;
-        const ImVec2 textSize = ImGui::CalcTextSize(title.c_str());
-
-        ImRect textRect;
-        textRect.Min = ImGui::GetCursorScreenPos();
-        textRect.Max = textRect.Min;
-        //textRect.Max.x += fullWidth - itemWidth;
-        textRect.Max.x += itemWidth * 0.5f;
-        textRect.Max.y += textSize.y;
-
-        ImGui::SetCursorScreenPos(textRect.Min);
+        ImGui::SetNextItemWidth(label_w);
         ImGui::AlignTextToFramePadding();
-        textRect.Min.y += window.DC.CurrLineTextBaseOffset;
-        textRect.Max.y += window.DC.CurrLineTextBaseOffset;
+        ImGui::TextUnformatted(label);
 
-        ImGui::ItemSize(textRect);
-        if (ImGui::ItemAdd(textRect, window.GetID(title.data(), title.data() + title.size()))) {
-            ImGui::RenderTextEllipsis(ImGui::GetWindowDrawList(), textRect.Min, textRect.Max, textRect.Max.x,
-                textRect.Max.x, title.data(), title.data() + title.size(), &textSize);
-            if (textRect.GetWidth() < textSize.x && ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("%.*s", (int)title.size(), title.data());
-            }
-        }
-        
-        ImGui::SetCursorScreenPos(textRect.Max - ImVec2{ 0, textSize.y + window.DC.CurrLineTextBaseOffset });
         ImGui::SameLine();
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (label_w - ImGui::CalcTextSize(label).x));
+        return avail - label_w - style.ItemInnerSpacing.x;
     }
 
     void InfoIcon(const char* fmt, ...) {
@@ -147,17 +130,18 @@ namespace cyb::ui
         }
     }
 
-#define COMMON_WIDGET_CODE(label)   \
-    PushID m_idGuard{ label };      \
-    ItemLabel(label);               \
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+#define COMMON_WIDGET_CODE(label)           \
+    PushID m_idGuard{ label };              \
+    float avail_width = ItemLabel(label);   \
+    ImGui::SetNextItemWidth(avail_width);
 
-    void Checkbox(const char* label, bool* v, const std::function<void()> onChange)
+    bool Checkbox(const char* label, bool* v, const std::function<void()> onChange)
     {
         COMMON_WIDGET_CODE(label);
         ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
-        ImGui::Checkbox("", v);
+        const bool pressed = ImGui::Checkbox("", v);
         SaveChangeToUndoManager<ui::ModifyValue<bool, 1>>(v, onChange);
+        return pressed;
     }
 
     void CheckboxFlags(const char* label, uint32_t* flags, uint32_t flagsValue, const std::function<void()> onChange)
@@ -194,24 +178,26 @@ namespace cyb::ui
         return change;
     }
 
-    void SliderFloat(const char* label, float* v, const std::function<void()> onChange, float minValue, float maxValue, const char* format, ImGuiSliderFlags flags)
+    bool SliderFloat(const char* label, float* v, const std::function<void()> onChange, float minValue, float maxValue, const char* format, ImGuiSliderFlags flags)
     {
         COMMON_WIDGET_CODE(label);
         float temp = *v;
         ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
-        ImGui::SliderFloat("", &temp, minValue, maxValue);
+        const bool change = ImGui::SliderFloat("", &temp, minValue, maxValue);
         SaveChangeToUndoManager<ui::ModifyValue<float, 1>>(v, onChange);
         *v = temp;
+        return change;
     }
 
-    void SliderInt(const char* label, int* v, const std::function<void()> onChange, int minValue, int maxValue, const char* format, ImGuiSliderFlags flags)
+    bool SliderInt(const char* label, int* v, const std::function<void()> onChange, int minValue, int maxValue, const char* format, ImGuiSliderFlags flags)
     {
         COMMON_WIDGET_CODE(label);
         int temp = *v;
         ScopedStyleVar styleVars({ { ImGuiStyleVar_FrameBorderSize, 1.0f } });
-        ImGui::SliderInt("", &temp, minValue, maxValue, format, flags);
+        const bool change = ImGui::SliderInt("", &temp, minValue, maxValue, format, flags);
         SaveChangeToUndoManager<ui::ModifyValue<int, 1>>(v, onChange);
         *v = temp;
+        return change;
     }
 
     bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags)
@@ -797,5 +783,564 @@ namespace cyb::ui
 
         if (label_size.x > 0.0f)
             RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, inner_bb.Min.y), label);
+    }
+
+    //------------------------------------------------------------------------------
+    // Node graph functions
+    //------------------------------------------------------------------------------
+
+#ifdef CYB_DEBUG_NODE_GRAPH_RECTS
+#define DRAW_DEBUG_RECT() ImGui::DebugDrawItemRect();
+#else
+#define DRAW_DEBUG_RECT()
+#endif
+
+    bool NG_Canvas::IsPinConnected(detail::NG_Pin* pin) const
+    {
+        for (auto& connection : Connections)
+            if (connection.From == pin || connection.To == pin)
+                return true;
+        return false;
+    }
+
+    const detail::NG_Connection* NG_Canvas::FindConnectionTo(detail::NG_Pin* pin) const
+    {
+        assert(pin);
+        for (auto& connection : Connections)
+        {
+            if (connection.To == pin)
+                return &connection;
+        }
+
+        return nullptr;
+    }
+
+    std::vector<const detail::NG_Connection*> NG_Canvas::FindConnectionsFrom(detail::NG_Pin* pin) const
+    {
+        assert(pin);
+        std::vector<const detail::NG_Connection*> result;
+        for (auto& c : Connections)
+        {
+            if (c.From == pin)
+                result.push_back(&c);
+        }
+        return result;
+    }
+
+    void NG_Canvas::UpdateAllValidStates()
+    {
+        // TODO: Optimize (cache checked nodes)
+        for (auto& node : Nodes)
+            node->ValidState = NodeHasValidState(node.get());
+    }
+
+
+    bool NG_Canvas::NodeHasValidState(NG_Node* node) const
+    {
+        for (auto& pin : node->Inputs)
+        {
+            // Check input pin
+            const detail::NG_Connection* connection = FindConnectionTo(pin.get());
+            if (!connection)
+                return false;
+
+            // Check parent node
+            NG_Node* parent = connection->From->ParentNode;
+            if (!NodeHasValidState(parent))
+                return false;
+        }
+
+        return true;
+    }
+
+    void NG_Canvas::SendUpdateSignalFrom(NG_Node* node)
+    {
+        assert(node);
+        for (auto& pin : node->Outputs)
+        {
+            for (auto& connection : FindConnectionsFrom(pin.get()))
+            {
+                connection->To->ParentNode->Update();
+                SendUpdateSignalFrom(connection->To->ParentNode);
+            }
+        }
+    }
+
+    bool NG_Canvas::UpdateHoveredNode()
+    {
+        HoveredNode = nullptr;
+        for (auto it = Nodes.rbegin(); it != Nodes.rend(); ++it)
+        {
+            const NG_Node* node = it->get();
+            const ImVec2 node_start = Pos + Offset + node->Pos * Zoom;
+            if (ImGui::IsMouseHoveringRect(node_start, node_start + node->Size))
+            {
+                HoveredNode = node;
+                break;
+            }
+        }
+
+        return HoveredNode != nullptr;
+    }
+
+    bool NG_Canvas::IsNodeHovered(ImGuiID node_id) const
+    {
+        if (!HoveredNode)
+            return false;
+        return node_id == HoveredNode->GetID();
+    }
+
+    void NG_Canvas::BringNodeToDisplayFront(ImGuiID node_id)
+    {
+        // Cheap early out
+        if (Nodes.size() == 0 || node_id == Nodes.back()->GetID())
+            return;
+
+        auto it = std::find_if(Nodes.begin(), Nodes.end(), [&] (auto& n) {
+            return n->GetID() == node_id;
+        });
+
+        if (it != Nodes.end())
+        {
+            std::unique_ptr<NG_Node> tmp = std::move(*it);
+            Nodes.erase(it);
+            Nodes.push_back(std::move(tmp));
+        }
+    }
+
+    static void DrawGrid(const ImVec2& pos, const ImVec2& size, const ImVec2& offset, float step, ImU32 color)
+    {
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+        for (float x = std::fmod(offset.x, step); x < size.x; x += step)
+            draw_list->AddLine(ImVec2(pos.x + x, pos.y), ImVec2(pos.x + x, pos.y + size.y), color);
+        for (float y = std::fmod(offset.y, step); y < size.y; y += step)
+            draw_list->AddLine(ImVec2(pos.x, pos.y + y), ImVec2(pos.x + size.x, pos.y + y), color);
+    }
+
+    static void DrawNode(NG_Node& node, const NG_Canvas& canvas)
+    {
+        static constexpr float NODE_FRAME_ROUNDING = 6.0f;
+        static constexpr ImColor NODE_BG = ImColor(50, 90, 60, 235);
+        static constexpr ImColor NODE_BORDER_COLOR = ImColor{ 200, 200, 200 };
+        static constexpr ImColor PIN_COLOR = ImColor{ 80, 80, 80 };
+        static constexpr ImColor PIN_COLOR_HOVER = ImColor{ 255, 200, 50 };
+        static constexpr ImColor PIN_CONNECTED_COLOR = ImColor{ 51, 190, 37 };
+        static constexpr float PIN_RADIUS = 8.0f;
+
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const ImVec2 frame_padding = style.FramePadding * canvas.Zoom;
+        const ImVec2 window_padding = style.WindowPadding * canvas.Zoom;
+        const ImVec2 space_size = ImGui::CalcTextSize(" ") * canvas.Zoom;
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+        ImGui::PushID(node.GetID());
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !canvas.IsNodeHovered(node.GetID()));
+
+        // 0 = Background, 1 = Foreground
+        draw_list->ChannelsSplit(2);
+
+        ImGui::BeginGroup();
+        draw_list->ChannelsSetCurrent(1);
+
+        // Calculate space for node label.
+        const ImVec2 node_start = canvas.Pos + canvas.Offset + node.Pos * canvas.Zoom;
+        const ImVec2 label_sz = ImGui::CalcTextSize(node.GetLabel().c_str()) + window_padding;
+#ifdef CYB_DEBUG_NODE_GRAPH_RECTS
+        draw_list->AddRect(node_start, node_start + label_sz, 0xff0000ff);
+#endif
+
+        // Calculate space for pins, but draw them later when node width is known
+        const ImVec2 pins_start = node_start + ImVec2(0, label_sz.y);
+        const int pin_count = ImMax(node.Inputs.size(), node.Outputs.size());
+        float pins_width = 0.0f;
+        for (int i = 0; i < pin_count; ++i)
+        {
+            const char* inLabel = (i < node.Inputs.size()) ? node.Inputs[i]->Label.c_str() : "";
+            const char* outLabel = (i < node.Outputs.size()) ? node.Outputs[i]->Label.c_str() : "";
+            const float width = ImGui::CalcTextSize(inLabel).x + ImGui::CalcTextSize(outLabel).x;
+            pins_width = ImMax(pins_width, width);
+        }
+        const ImVec2 pins_sz = ImVec2(pins_width + space_size.x * 4, (pin_count * ImGui::GetTextLineHeight()) + window_padding.y);
+#ifdef CYB_DEBUG_NODE_GRAPH_RECTS
+        draw_list->AddRect(pins_start, pins_start + pins_sz, 0xff00ffff);
+#endif
+
+        // Display node body
+        const ImVec2 body_start = pins_start + ImVec2(0, pins_sz.y);
+        ImGui::SetCursorScreenPos(body_start + ImVec2(window_padding.x, 0));
+        ImGui::BeginGroup();
+        node.DisplayContent(canvas.Zoom);
+#ifdef CYB_DEBUG_NODE_GRAPH_STATE
+        ImGui::Text("----------------");
+        ImGui::Text("ID: %u", node.ID);
+        ImGui::Text("Hovered: %s", canvas.IsNodeHovered(node.ID) ? "true" : "false");
+        ImGui::Text("Active: %s", ImGui::GetActiveID() == node.ID ? "true" : "false");
+        ImGui::Text("Pos: [%.1f, %.1f]", node.Pos.x, node.Pos.y);
+        ImGui::Text("Size: [%.1f, %.1f]", node.Size.x, node.Size.y);
+#endif
+        ImGui::EndGroup();
+        const ImVec2 body_sz = ImGui::GetItemRectSize() + ImVec2(window_padding.x * 2, window_padding.y);
+        const float node_width = ImMax(pins_sz.x, body_sz.x);
+        DRAW_DEBUG_RECT();
+
+        // Add a close button
+        static constexpr float HEADER_BUTTON_SPACING = 6.0f;
+        ImGui::GetStyle().HoverDelayNormal = 1.5f;
+
+#if 0
+        const ImVec2 header_btn_sz = ImVec2( 14.0f, 14.0f ) * canvas.Zoom;
+        ImRect close_btn_bb{ node_start + ImVec2(node_width - header_btn_sz.x - window_padding.x, window_padding.y),
+                             node_start + ImVec2(node_width - window_padding.x, window_padding.y + header_btn_sz.y) };
+        ImGui::ItemAdd(close_btn_bb, ImGui::GetID("#CLOSE"));
+        DRAW_DEBUG_RECT();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+            ImGui::SetTooltip("Close");
+        const ImColor close_btn_col = ImGui::IsItemHovered() ? ImColor(255, 96, 88) : ImColor(255, 96, 88, 150);
+        draw_list->AddCircleFilled(close_btn_bb.GetCenter(), close_btn_bb.GetWidth() * 0.5f, close_btn_col);
+
+        // Add a compact button
+        ImRect compact_btn_bb{ node_start + ImVec2(node_width - header_btn_sz.x * 2.0f - window_padding.x - HEADER_BUTTON_SPACING * canvas.Zoom, window_padding.y),
+                               node_start + ImVec2(node_width - header_btn_sz.x - window_padding.x - HEADER_BUTTON_SPACING * canvas.Zoom, window_padding.y + header_btn_sz.y) };
+        ImGui::ItemAdd(compact_btn_bb, ImGui::GetID("#COMPACT"));
+        DRAW_DEBUG_RECT();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+            ImGui::SetTooltip("Compact");
+        const ImColor compact_btn_col = ImGui::IsItemHovered() ? ImColor(255, 189, 46) : ImColor(255, 189, 46, 150);
+        draw_list->AddCircleFilled(compact_btn_bb.GetCenter(), compact_btn_bb.GetWidth() * 0.5f, compact_btn_col);
+        DRAW_DEBUG_RECT();
+#endif
+
+        auto draw_pin = [&] (detail::NG_Pin* pin, bool leftAligned) -> bool {
+            const ImVec2 text_sz = ImGui::CalcTextSize(pin->Label.c_str());
+            const float x_pos = leftAligned ?
+                node_start.x + window_padding.x + (PIN_RADIUS * canvas.Zoom) :
+                node_start.x + node_width - text_sz.x - (PIN_RADIUS * canvas.Zoom) - window_padding.x;
+
+            ImGui::SetCursorScreenPos(ImVec2(x_pos, ImGui::GetCursorScreenPos().y));
+            ImGui::Text(pin->Label.c_str());
+            const ImVec2 line_pos = ImGui::GetItemRectMin();
+
+            const float y_pos = line_pos.y + text_sz.y * 0.5f;
+            pin->Pos = leftAligned ?
+                ImVec2(line_pos.x - window_padding.x - PIN_RADIUS * canvas.Zoom, y_pos) :
+                ImVec2(node_start.x + node_width, y_pos);
+            const ImRect pin_bb{ pin->Pos - ImVec2(PIN_RADIUS, PIN_RADIUS) * canvas.Zoom,
+                                 pin->Pos + ImVec2(PIN_RADIUS, PIN_RADIUS) * canvas.Zoom };
+
+            ImGui::ItemAdd(pin_bb, ImGui::GetID(&pin));
+            DRAW_DEBUG_RECT();
+            pin->Hovered = ImGui::ItemHoverable(pin_bb, ImGui::GetID(&pin), 0);
+            const bool connected = canvas.IsPinConnected(pin);
+            const ImColor pin_col = pin->Hovered ? PIN_COLOR_HOVER : connected ? PIN_CONNECTED_COLOR : PIN_COLOR;
+            draw_list->AddCircleFilled(pin->Pos, PIN_RADIUS * canvas.Zoom, pin_col);
+            draw_list->AddCircle(pin->Pos, PIN_RADIUS * canvas.Zoom, NODE_BORDER_COLOR, 0, 2.1f * canvas.Zoom);
+            return pin->Hovered;
+        };
+
+        // Display input pins
+        bool pin_hovered = false;
+        ImGui::SetCursorScreenPos(pins_start + ImVec2(window_padding.x + PIN_RADIUS * canvas.Zoom, 0));
+        for (auto& pin : node.Inputs)
+            pin_hovered |= draw_pin(pin.get(), true);
+
+        // Display output pins
+        ImGui::SetCursorScreenPos(pins_start + ImVec2(window_padding.x, 0));
+        for (auto& pin : node.Outputs)
+            pin_hovered |= draw_pin(pin.get(), false);
+
+        // Display node label center aligned
+        ImGui::SetCursorScreenPos(node_start + frame_padding + ImVec2(node_width * 0.5f - label_sz.x * 0.5f, 0));
+        ImGui::Text(node.GetLabel().c_str());
+        ImGui::EndGroup();
+
+        // Display background & border
+        draw_list->ChannelsSetCurrent(0);
+
+        node.Size = ImVec2(node_width, label_sz.y + pins_sz.y + body_sz.y);
+        const ImRect node_bb{ node_start, node_start + node.Size };
+        draw_list->AddRectFilled(node_bb.Min, node_bb.Max, NODE_BG, NODE_FRAME_ROUNDING * canvas.Zoom);
+        const ImColor borderColor = node.ValidState ? NODE_BORDER_COLOR : ImColor(245, 185, 66, 255);
+        draw_list->AddRect(node_bb.Min, node_bb.Max, borderColor, NODE_FRAME_ROUNDING * canvas.Zoom, 0, 2.1f * canvas.Zoom);
+
+        draw_list->ChannelsMerge();
+
+        // Add an item to handle dragging
+        ImGui::SetCursorScreenPos(node_start);
+        ImGui::ItemAdd(node_bb, node.GetID(), nullptr);
+        ImGui::ItemSize(node.Size);
+        DRAW_DEBUG_RECT();
+
+        const bool any_active = ImGui::IsAnyItemActive();
+        if (canvas.IsNodeHovered(node.GetID()) && !any_active && !pin_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            ImGui::SetActiveID(node.GetID(), ImGui::GetCurrentWindow());
+
+        if (ImGui::IsItemActive() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+            ImGui::ClearActiveID();
+
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+            node.Pos += ImGui::GetIO().MouseDelta / canvas.Zoom;
+
+        ImGui::PopItemFlag();
+        ImGui::PopID();
+    }
+
+    // Cycle detection using depth-first-search (DFS)
+    static bool WouldCreateCycle(const NG_Node* from, const NG_Node* to, const NG_Canvas& canvas)
+    {
+        std::unordered_set<const NG_Node*> visited;
+        std::stack<const NG_Node*> stack;
+        
+        stack.push(to);
+        while (!stack.empty())
+        {
+            const NG_Node* current = stack.top();
+            stack.pop();
+
+            if (current == from)
+                return true; // cycle detected
+
+            if (!visited.insert(current).second)
+                continue;
+
+            // Follow outputs from current node
+            for (auto& connection : canvas.Connections)
+            {
+                if (connection.From->ParentNode == current)
+                    stack.push(connection.To->ParentNode);
+            }
+        }
+
+        return false;
+    }
+
+    bool NodeGraph(NG_Canvas& canvas)
+    {
+        static constexpr float ZOOM_SPEED = 0.1f;
+        static constexpr float ZOOM_SNAP_EPSILON = 0.05;
+        static constexpr float MIN_ZOOM = 0.2f;
+        static constexpr float MAX_ZOOM = 4.0f;
+        static constexpr float GRID_SIZE = 50.0f;
+        static constexpr float GRID_SUBDIVISIONS = 4.0f;
+        static constexpr float SUBGRID_ZOOM_THRESHOLD = 1.2f;
+        static constexpr ImU32 GRID_COLOR = IM_COL32(90, 90, 90, 255);
+        static constexpr ImU32 GRID_SUBGRID_COLOR = IM_COL32(50, 50, 50, 255);
+
+        ImGuiID canvas_id = ImGui::GetID(&canvas);
+        ImGui::PushID(canvas_id);
+
+        ImGuiIO& io = ImGui::GetIO();
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        ImGui::ItemAdd(window->ContentRegionRect, canvas_id);
+
+        canvas.Pos = ImGui::GetCursorScreenPos();
+        const ImVec2 canvas_sz = ImGui::GetContentRegionAvail();
+
+        // Handle panning with middle mouse button
+        if (ImGui::IsWindowHovered() && ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
+            canvas.Offset += io.MouseDelta;
+
+        // Handle zoom with mouse wheel
+        if (ImGui::IsWindowHovered() && io.MouseWheel != 0.0f)
+        {
+            const float prev_zoom = canvas.Zoom;
+            const float log_zoom = std::logf(canvas.Zoom) + io.MouseWheel * ZOOM_SPEED;
+            canvas.Zoom = ImClamp(std::expf(log_zoom), MIN_ZOOM, MAX_ZOOM);
+
+            // Snap to 1.0 zoom if close
+            if (fabsf(canvas.Zoom - 1.0f) < ZOOM_SNAP_EPSILON)
+                canvas.Zoom = 1.0f;
+
+            // Zoom to mouse cursor
+            const ImVec2 mouse_pos = io.MousePos - canvas.Pos;
+            canvas.Offset = (canvas.Offset - mouse_pos) * (canvas.Zoom / prev_zoom) + mouse_pos;
+        }
+
+        // Reset zoom and offset with 'R'
+        if (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGuiKey_R, false))
+        {
+            canvas.Pos = { 0, 0 };
+            canvas.Offset = { 0, 0 };
+            canvas.Zoom = 1.0f;
+        }
+
+        // Display background, grid and a frame
+        draw_list->AddRectFilled(canvas.Pos, canvas.Pos + canvas_sz, IM_COL32(30, 30, 30, 255));
+        const float grid_step = GRID_SIZE * canvas.Zoom;
+        if (canvas.Zoom > SUBGRID_ZOOM_THRESHOLD)
+        {
+            const float subgrid_step = grid_step / GRID_SUBDIVISIONS;
+            DrawGrid(canvas.Pos, canvas_sz, canvas.Offset, subgrid_step, GRID_SUBGRID_COLOR);
+        }
+
+        DrawGrid(canvas.Pos, canvas_sz, canvas.Offset, grid_step, GRID_COLOR);
+        draw_list->AddRect(canvas.Pos, canvas.Pos + canvas_sz, IM_COL32(200, 200, 200, 255));
+
+        // Handle new connections
+        for (auto& node : canvas.Nodes)
+        {
+            auto checkPin = [&] (detail::NG_Pin& pin) {
+                // Start new connection
+                if (!canvas.ActivePin && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && pin.Hovered)
+                    canvas.ActivePin = &pin;
+
+                // Try to finish connection
+                if (canvas.ActivePin && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && pin.Hovered)
+                {
+                    detail::NG_Connection connection = { canvas.ActivePin, &pin };
+                    if (connection.From->Type == detail::NG_PinType::Input)
+                        std::swap(connection.From, connection.To);
+
+                    const bool sameType = canvas.ActivePin->Type == pin.Type;
+                    const bool createsCycle = WouldCreateCycle(connection.From->ParentNode, connection.To->ParentNode, canvas);
+                    if (sameType)
+                        CYB_WARNING("Dropping node connection: {}", "Same pin type");
+                    else if (createsCycle)
+                        CYB_WARNING("Dropping node connection: {}", "Creates cycles");
+
+                    if (!sameType && !createsCycle)
+                    {
+                        // Remove any existing connection to this input
+                        std::erase_if(canvas.Connections, [&] (const auto& c) {
+                            return c.To == connection.To;
+                        });
+
+                        canvas.Connections.push_back(connection);
+
+                        // Update connected nodes and send update signal
+                        connection.From->ParentNode->ValidState = canvas.NodeHasValidState(connection.From->ParentNode);
+                        connection.To->ParentNode->ValidState = canvas.NodeHasValidState(connection.To->ParentNode);
+                        connection.To->Connect(connection.From);
+                        
+                        canvas.UpdateAllValidStates();
+                        connection.From->ParentNode->ModifiedFlag = true;
+                    }
+                }
+            };
+
+            for (auto& pin : node->Inputs)
+                checkPin(*(pin.get()));
+
+            for (auto& pin : node->Outputs)
+                checkPin(*(pin.get()));
+        }
+
+        // Update hovered node, and move it to the front is clicked
+        const bool node_hovered = canvas.UpdateHoveredNode();
+        if (node_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            canvas.BringNodeToDisplayFront(canvas.HoveredNode->GetID());
+
+        // Display nodes
+        for (auto& node : canvas.Nodes)
+        {
+            // TODO: Don't call NodeHasValidState every frame
+            node->ValidState = canvas.NodeHasValidState(node.get());
+            
+            ImGui::SetWindowFontScale(canvas.Zoom);
+            DrawNode(*(node.get()), canvas);
+            ImGui::SetWindowFontScale(1.0f);
+
+            if (node->ModifiedFlag)
+            {
+                canvas.SendUpdateSignalFrom(node.get());
+                node->ModifiedFlag = false;
+            }
+        }
+
+        // Display connections
+        bool connection_hovered = false;
+        for (auto connection = canvas.Connections.begin(); connection != canvas.Connections.end(); )
+        {
+            assert(connection->From != nullptr);
+            assert(connection->To != nullptr);
+
+            const ImVec2& start = connection->From->Pos;
+            const ImVec2& end = connection->To->Pos;
+            const float dx = (end.x - start.x) * 0.75f;
+            const ImVec2 cp0 = ImVec2(start.x + dx, start.y);
+            const ImVec2 cp1 = ImVec2(end.x - dx, end.y);
+
+            // Check if hovering
+            const ImVec2 cp = ImBezierCubicClosestPoint(start, cp0, cp1, end, io.MousePos, 20);
+            const bool hovered = ImSqrt(ImLengthSqr(cp - io.MousePos)) <= 4.0f * canvas.Zoom;
+            connection_hovered |= hovered;
+
+            ImColor col = hovered ? IM_COL32(66, 158, 245, 255) : 0xffffffff;
+            draw_list->AddBezierCubic(start, cp0, cp1, end, col, 2.1f * canvas.Zoom);
+
+            // Right click to delete
+            if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+            {
+                connection->To->Connect(nullptr);
+                connection = canvas.Connections.erase(connection);
+                canvas.ConnectionClick = true;
+            }
+            else
+                ++connection;
+        }
+
+        // Display any ongoing connection
+        if (canvas.ActivePin && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        {
+            const ImVec2& start = canvas.ActivePin->Pos;
+            const ImVec2& end = io.MousePos;
+            const float dx = (end.x - start.x) * 0.75f;
+            const ImVec2 cp0 = ImVec2(start.x + dx, start.y);
+            const ImVec2 cp1 = ImVec2(end.x - dx, end.y);
+
+            draw_list->AddBezierCubic(start, cp0, cp1, end, IM_COL32(200, 200, 100, 255), 2.0f * canvas.Zoom);
+        }
+
+        if (canvas.ActivePin && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+            canvas.ActivePin = nullptr;
+
+        // Display factory menu
+        const bool any_hovered = node_hovered || connection_hovered;
+        const bool popup_open = ImGui::IsPopupOpen(ImGui::GetID("#FACTORY_POPUP"), 0);
+        const bool can_display_popup = (!any_hovered || popup_open) && !canvas.ConnectionClick;
+        if (can_display_popup && ImGui::BeginPopupContextWindow("#FACTORY_POPUP", ImGuiPopupFlags_MouseButtonRight))
+        {
+            const ImVec2 mouse_pos = ImGui::GetMousePosOnOpeningCurrentPopup();
+
+            ImGui::Text("Create New Node");
+            ImGui::Separator();
+            for (auto& [name, entry] : canvas.Factory.GetRegistry())
+            {
+                if (ImGui::MenuItem(name.c_str()))
+                {
+                    auto node = entry.creator();
+                    node->Pos = (mouse_pos - canvas.Pos - canvas.Offset) / canvas.Zoom;
+                    canvas.Nodes.push_back(std::move(node));
+                }
+            }
+
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::GetActiveID() == canvas_id)
+            ImGui::ClearActiveID();
+
+        bool display_state = (canvas.Flags & NG_CanvasFlags_DisplayState);
+        if (display_state)
+        {
+            ImGui::SetCursorScreenPos(canvas.Pos + ImVec2(8, 8));
+            ImGui::BeginGroup();
+            ImGui::Text("Offset: [%.1f, %.1f]", canvas.Offset.x, canvas.Offset.y);
+            ImGui::Text("Zoom: %.2f", canvas.Zoom);
+#ifdef CYB_DEBUG_NODE_GRAPH_STATE
+            ImGui::Text("Canvas pos: [%.1f, %.1f]", canvas.Pos.x, canvas.Pos.y);
+            ImGui::Text("Hovered nodeID: %u", canvas.HoveredNode ? canvas.HoveredNode->ID : 0);
+            ImGui::Text("Node count: %u", canvas.Nodes.size());
+            ImGui::Text("Connection count: %u", canvas.Connections.size());
+#endif
+            ImGui::EndGroup();
+        }
+
+        if (canvas.ConnectionClick && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+            canvas.ConnectionClick = false;
+
+        ImGui::PopID();
+        return true;
     }
 }

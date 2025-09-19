@@ -525,7 +525,7 @@ namespace cyb::rhi::vulkan_internal
         if ((capabilities.maxImageCount > 0) && (imageCount > capabilities.maxImageCount))
             imageCount = capabilities.maxImageCount;
 
-        VkSwapchainCreateInfoKHR createInfo = {};
+        VkSwapchainCreateInfoKHR createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         createInfo.surface = internal_state->surface;
         createInfo.minImageCount = imageCount;
@@ -533,10 +533,10 @@ namespace cyb::rhi::vulkan_internal
         createInfo.imageColorSpace = surfaceFormat.colorSpace;
         createInfo.imageExtent = internal_state->swapchainExtent;
         createInfo.imageArrayLayers = 1;
-        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         createInfo.preTransform = capabilities.currentTransform;
+        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
         createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR; // The only one that is always supported
         if (!internal_state->desc.vsync)
@@ -570,7 +570,7 @@ namespace cyb::rhi::vulkan_internal
         internal_state->swapchainImageViews.resize(internal_state->swapchainImages.size());
         for (size_t i = 0; i < internal_state->swapchainImages.size(); ++i)
         {
-            VkImageViewCreateInfo createInfo = {};
+            VkImageViewCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             createInfo.image = internal_state->swapchainImages[i];
             createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -595,21 +595,17 @@ namespace cyb::rhi::vulkan_internal
             VK_CHECK(vkCreateImageView(device, &createInfo, nullptr, &internal_state->swapchainImageViews[i]));
         }
 
-        VkSemaphoreCreateInfo semaphoreInfo = {};
+        VkSemaphoreCreateInfo semaphoreInfo{};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
         if (internal_state->swapchainAcquireSemaphores.empty())
         {
             for (size_t i = 0; i < internal_state->swapchainImages.size(); ++i)
-            {
                 VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->swapchainAcquireSemaphores.emplace_back()));
-            }
         }
 
         if (internal_state->swapchainReleaseSemaphore == VK_NULL_HANDLE)
-        {
             VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->swapchainReleaseSemaphore));
-        }
 
         return true;
     }
@@ -683,7 +679,7 @@ namespace cyb::rhi
             device->SetFenceName(cmd.fence, "CopyAllocator::fence");
 
             GPUBufferDesc uploaddesc;
-            uploaddesc.size = Max(GetNextPowerOfTwo(staging_size), uint64_t(65536));
+            uploaddesc.size = Max(NextPowerOfTwo(staging_size), uint64_t(65536));
             uploaddesc.cpuAccess = CpuAccessMode::Read;
             bool uploadSuccess = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadBuffer);
             assert(uploadSuccess);
@@ -1343,22 +1339,22 @@ namespace cyb::rhi
                 }
             }
 
-            std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
             std::unordered_set<uint32_t> uniqueQueueFamilies = { graphicsFamily, copyFamily, computeFamily };
 
-            float queue_priority = 1.0f;
+            const float queuePriority = 1.0f;
+            std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
             for (uint32_t queueFamily : uniqueQueueFamilies)
             {
-                VkDeviceQueueCreateInfo queue_info = {};
-                queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-                queue_info.queueFamilyIndex = queueFamily;
-                queue_info.queueCount = 1;
-                queue_info.pQueuePriorities = &queue_priority;
-                queueCreateInfos.push_back(queue_info);
+                VkDeviceQueueCreateInfo queueCreateInfo{};
+                queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+                queueCreateInfo.queueFamilyIndex = queueFamily;
+                queueCreateInfo.queueCount = 1;
+                queueCreateInfo.pQueuePriorities = &queuePriority;
+                queueCreateInfos.push_back(queueCreateInfo);
                 families.push_back(queueFamily);
             }
 
-            VkDeviceCreateInfo device_info = {};
+            VkDeviceCreateInfo device_info{};
             device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
             device_info.queueCreateInfoCount = (uint32_t)queueCreateInfos.size();
             device_info.pQueueCreateInfos = queueCreateInfos.data();
@@ -1547,21 +1543,22 @@ namespace cyb::rhi
 #endif // _WIN32
         }
 
-        uint32_t present_family = VK_QUEUE_FAMILY_IGNORED;
-        for (size_t family_index = 0; family_index < queueFamilies.size(); ++family_index)
+        uint32_t presentFamily = VK_QUEUE_FAMILY_IGNORED;
+        for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilies.size()); ++i)
         {
-            VkBool32 supported = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, (uint32_t)family_index, internal_state->surface, &supported);
+            VkBool32 graphicsSupport = (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT);
+            VkBool32 presentationSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, internal_state->surface, &presentationSupport);
 
-            if (present_family == VK_QUEUE_FAMILY_IGNORED && queueFamilies[family_index].queueCount > 0 && supported)
+            if (graphicsSupport && presentationSupport)
             {
-                present_family = (uint32_t)family_index;
+                presentFamily = i;
                 break;
             }
         }
 
         // present family not found, we cannot create Swapchain
-        if (present_family == VK_QUEUE_FAMILY_IGNORED)
+        if (presentFamily == VK_QUEUE_FAMILY_IGNORED)
             return false;
 
         return CreateSwapchainInternal(internal_state.get(), physicalDevice, device, m_allocationHandler);

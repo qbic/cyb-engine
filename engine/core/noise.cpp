@@ -65,40 +65,40 @@ namespace cyb::noise2
         0.98078528040323032, -0.19509032201612872, 0.99518472667219693, -0.09801714032956051
     };
 
+    static inline double GradCoord(int seed, int x, int y, double xd, double yd)
+    {
+        int hash = Hash(seed, x, y);
+        hash ^= hash >> 15;
+        int index = (hash & 0x3F) * 2;
+        return xd * perlinGradients2D[index] + yd * perlinGradients2D[index + 1];
+    }
+
     static double PerlinNoise2D(double x, double y, int seed)
     {
-        static auto GradCoord = [] (int seed, int xPrimed, int yPrimed, double xd, double yd) -> double {
-            int hash = Hash(seed, xPrimed, yPrimed);
-            hash ^= hash >> 15;
-            hash &= 63 << 1;
-
-            double xg = perlinGradients2D[hash];
-            double yg = perlinGradients2D[hash | 1];
-
-            return xd * xg + yd * yg;
-        };
-
-        const double fx = std::floor(x);
-        const double fy = std::floor(y);
-
-        const double xd0 = x - fx;
-        const double yd0 = y - fy;
-        const double xd1 = xd0 - 1.0;
-        const double yd1 = yd0 - 1.0;
-
-        const double xs = InterpQuinticFunc(xd0);
-        const double ys = InterpQuinticFunc(yd0);
-
-        const int x0 = static_cast<int>(fx) * primeX;
-        const int y0 = static_cast<int>(fy) * primeY;
+        const int x0 = static_cast<int>(std::floor(x)) * primeX;
+        const int y0 = static_cast<int>(std::floor(y)) * primeY;
         const int x1 = x0 + primeX;
         const int y1 = y0 + primeY;
 
-        const double xf0 = std::lerp(GradCoord(seed, x0, y0, xd0, yd0), GradCoord(seed, x1, y0, xd1, yd0), xs);
-        const double xf1 = std::lerp(GradCoord(seed, x0, y1, xd0, yd1), GradCoord(seed, x1, y1, xd1, yd1), xs);
+        const double xd0 = x - std::floor(x);
+        const double yd0 = y - std::floor(y);
+        const double xd1 = xd0 - 1.0;
+        const double yd1 = yd0 - 1.0;
 
-        // Try to map to [0..1] range.
-        return (1.0 + std::lerp(xf0, xf1, ys) * 1.6409504127933312) * 0.5;
+        const double xs = SepticSmoothStep(xd0);
+        const double ys = SepticSmoothStep(yd0);
+
+        const double n00 = GradCoord(seed, x0, y0, xd0, yd0);
+        const double n10 = GradCoord(seed, x1, y0, xd1, yd0);
+        const double n01 = GradCoord(seed, x0, y1, xd0, yd1);
+        const double n11 = GradCoord(seed, x1, y1, xd1, yd1);
+
+        const double xf0 = Lerp(n00, n10, xs);
+        const double xf1 = Lerp(n01, n11, xs);
+        const double result = Lerp(xf0, xf1, ys);
+
+        // Try to map the result to [0..1] range.
+        return (1.0 + result * 1.6409504127933312) * 0.5;
     }
 
     NoiseNode_Perlin& NoiseNode_Perlin::SetOctaves(uint32_t octaves)
@@ -295,36 +295,6 @@ namespace cyb::noise2
         return (distance0 * 1.15);
     }
 
-    void NoiseNode_Cellular::SetSeed(uint32_t seed)
-    {
-        m_seed = seed;
-    }
-
-    void NoiseNode_Cellular::SetFrequency(double frequency)
-    {
-        m_frequency = frequency;
-    }
-
-    void NoiseNode_Cellular::SetJitterModifier(double jitterModifier)
-    {
-        m_jitterModifier = jitterModifier;
-    }
-
-    void NoiseNode_Cellular::SetOctaves(uint32_t octaves)
-    {
-        m_octaves = std::clamp(octaves, 1u, MAX_OCTAVES);
-    }
-
-    void NoiseNode_Cellular::SetLacunarity(double lacunarity)
-    {
-        m_lacunarity = lacunarity;
-    }
-
-    void NoiseNode_Cellular::SetPersistence(double persistence)
-    {
-        m_persistence = persistence;
-    }
-
     uint32_t NoiseNode_Cellular::GetSeed() const
     {
         return m_seed;
@@ -380,11 +350,6 @@ namespace cyb::noise2
 
     //------------------------------------------------------------------------------
 
-    void NoiseNode_Const::SetConstValue(double constValue)
-    {
-        m_constValue = constValue;
-    }
-
     double NoiseNode_Const::GetConstValue() const
     {
         return m_constValue;
@@ -406,7 +371,7 @@ namespace cyb::noise2
         const double value0 = GetInput(0)->GetValue(x, y);
         const double value1 = GetInput(0)->GetValue(x, y);
         const double alpha = GetInput(2)->GetValue(x, y);
-        return std::lerp(value0, value1, alpha);
+        return Lerp(value0, value1, alpha);
     }
 
     //------------------------------------------------------------------------------
@@ -443,10 +408,10 @@ namespace cyb::noise2
         const double value0 = GetInput(0)->GetValue(x, y);
 
         double stepValue = std::floor(value0 * m_strata) / m_strata;
-        double t = InterpHermiteFunc((value0 * m_strata) - std::floor(value0 * m_strata));
-        //double t = InterpQuinticFunc((value0 * m_strata) - std::floor(value0 * m_strata));
+        double t = CubicSmoothStep((value0 * m_strata) - std::floor(value0 * m_strata));
+        //double t = QuinticSmoothStep((value0 * m_strata) - std::floor(value0 * m_strata));
 
-        return std::lerp(stepValue, value0, t);
+        return Lerp(stepValue, value0, t);
     }
 
     //------------------------------------------------------------------------------
@@ -482,8 +447,8 @@ namespace cyb::noise2
                 return value1;
             else
             {
-                const double alpha = InterpHermiteFunc((controlValue - lower) / (2.0 * m_edgeFalloff));
-                return std::lerp(value0, value1, alpha);
+                const double alpha = CubicSmoothStep((controlValue - lower) / (2.0 * m_edgeFalloff));
+                return Lerp(value0, value1, alpha);
             }
         }
 
@@ -565,9 +530,7 @@ namespace cyb::noise2
             }
         }
 
-        CYB_TRACE("minV = {:.4f}, maxV = {:.4f}", minV, maxV);
-
-
+        //CYB_TRACE("minV = {:.4f}, maxV = {:.4f}", minV, maxV);
         return image;
     }
 
@@ -733,8 +696,8 @@ namespace cyb::noise
         const float xd1 = xd0 - 1.0f;
         const float yd1 = yd0 - 1.0f;
 
-        const float xs = InterpQuinticFunc(xd0);
-        const float ys = InterpQuinticFunc(yd0);
+        const float xs = QuinticSmoothStep(xd0);
+        const float ys = QuinticSmoothStep(yd0);
 
         const int x0 = static_cast<int>(fx) * primeX;
         const int y0 = static_cast<int>(fy) * primeY;

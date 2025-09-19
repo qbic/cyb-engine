@@ -1,5 +1,4 @@
 #include <unordered_map>
-#include <vector>
 #include <list>
 #include "core/mutex.h"
 #include "systems/event_system.h"
@@ -9,7 +8,7 @@ namespace cyb::eventsystem
     struct EventManager
     {
         std::unordered_map<int, std::list<std::function<void(uint64_t)>*>> subscribers;
-        std::unordered_map<int, std::vector<std::function<void(uint64_t)>>> subscribers_once;
+        std::unordered_map<int, std::list<std::function<void(uint64_t)>>> subscribers_once;
         Mutex locker;
     };
     std::shared_ptr<EventManager> manager = std::make_shared<EventManager>();
@@ -18,7 +17,6 @@ namespace cyb::eventsystem
 	{
 		std::shared_ptr<EventManager> manager;
 		int id = 0;
-		Handle handle;
 		std::function<void(uint64_t)> callback;
 
 		~EventInternal()
@@ -32,12 +30,11 @@ namespace cyb::eventsystem
 
 	Handle Subscribe(int id, std::function<void(uint64_t)> callback)
 	{
-		Handle handle;
+		Handle handle{};
 		auto eventinternal = std::make_shared<EventInternal>();
 		handle.internal_state = eventinternal;
 		eventinternal->manager = manager;
 		eventinternal->id = id;
-		eventinternal->handle = handle;
 		eventinternal->callback = callback;
 
 		manager->locker.Lock();
@@ -56,9 +53,10 @@ namespace cyb::eventsystem
 
 	void FireEvent(int id, uint64_t userdata)
 	{
+		manager->locker.Lock();
+
 		// Callbacks that only live for once:
 		{
-			manager->locker.Lock();
 			auto it = manager->subscribers_once.find(id);
 			bool found = it != manager->subscribers_once.end();
 
@@ -66,28 +64,39 @@ namespace cyb::eventsystem
 			{
 				auto& callbacks = it->second;
 				for (auto& callback : callbacks)
-					callback(userdata);
+				{
+					// Move callback into temp
+					auto cb = std::move(callback);
+
+					manager->locker.Unlock();
+					cb(userdata);
+					manager->locker.Lock();
+				}
 
 				callbacks.clear();
 			}
-			manager->locker.Unlock();
 		}
+
 		// Callbacks that live until deleted:
 		{
-			manager->locker.Lock();
 			auto it = manager->subscribers.find(id);
 			bool found = it != manager->subscribers.end();
-			manager->locker.Unlock();
-
+			
 			if (found)
 			{
 				auto& callbacks = it->second;
 				for (auto& callback : callbacks)
 				{
-					(*callback)(userdata);
+					// Make copy of callback
+					auto cb = *callback;
+
+					manager->locker.Unlock();
+					cb(userdata);
+					manager->locker.Lock();
 				}
 			}
 		}
-		
+
+		manager->locker.Unlock();
 	}
 }

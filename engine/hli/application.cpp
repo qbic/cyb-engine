@@ -147,6 +147,7 @@ namespace cyb::hli
             assert(success);
         });
 
+        r_vsync.ClearCallbacks();
         r_vsync.RegisterOnChangeCallback([] (const CVar<bool>& cvar) {
             eventsystem::FireEvent(eventsystem::Event_SetVSync, cvar.GetValue() ? 1ull : 0ull);
         });

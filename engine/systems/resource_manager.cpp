@@ -10,8 +10,6 @@
 #include "systems/resource_manager.h"
 #define STB_RECT_PACK_IMPLEMENTATION
 #include "stb_rect_pack.h"
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_STDIO
 #define STBI_NO_LINEAR

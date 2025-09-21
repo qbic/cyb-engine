@@ -6,4 +6,3 @@ source_group(TREE ${CMAKE_SOURCE_DIR} FILES ${SOURCE_FILES})
 
 add_executable(game WIN32 ${SOURCE_FILES})
 target_link_libraries(game PUBLIC cyb-engine)
-

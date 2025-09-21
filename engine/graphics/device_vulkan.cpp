@@ -533,12 +533,12 @@ namespace cyb::rhi::vulkan_internal
         createInfo.imageColorSpace = surfaceFormat.colorSpace;
         createInfo.imageExtent = internal_state->swapchainExtent;
         createInfo.imageArrayLayers = 1;
-        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         createInfo.preTransform = capabilities.currentTransform;
         createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
-        createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR; // The only one that is always supported
+        createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
         if (!internal_state->desc.vsync)
         {
             for (auto& present_mode : presentModes)
@@ -1113,6 +1113,15 @@ namespace cyb::rhi
         commandlist.binder.Flush(cmd);
     }
 
+    [[nodiscard]] std::vector<const char*> StringSetToVector(const std::unordered_set<std::string>& set)
+    {
+        std::vector<const char*> vec;
+        vec.reserve(set.size());
+        for (const auto& s : set)
+            vec.push_back(s.c_str());
+        return vec;
+    }
+
     GraphicsDevice_Vulkan::GraphicsDevice_Vulkan()
     {
         VK_CHECK(volkInitialize());
@@ -1131,46 +1140,69 @@ namespace cyb::rhi
         std::vector<VkLayerProperties> availableInstanceLayers(instanceLayerCount);
         VK_CHECK(vkEnumerateInstanceLayerProperties(&instanceLayerCount, availableInstanceLayers.data()));
 
-        uint32_t extensionCount = 0;
-        VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr));
-        std::vector<VkExtensionProperties> availableInstanceExtensions(extensionCount);
-        VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableInstanceExtensions.data()));
+        uint32_t instanceExtensionCount = 0;
+        VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, nullptr));
+        std::vector<VkExtensionProperties> availableInstanceExtensions(instanceExtensionCount);
+        VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, availableInstanceExtensions.data()));
 
-        std::vector<const char*> instanceLayers;
-        std::vector<const char*> instanceExtensions;
+        constexpr auto hasExtension = [](std::string_view required, const std::vector<VkExtensionProperties>& available) {
+            return std::ranges::any_of(available, [&](const VkExtensionProperties& avail) {
+                return required == avail.extensionName;
+            });
+        };
 
-        for (auto& availableExtension : availableInstanceExtensions)
+        std::unordered_set<std::string> instanceLayers;
+        std::unordered_set<std::string> instanceExtensions;
+
+        // Validate and enable required layer extensions
+        const std::unordered_set<std::string> requiredInstanceExtensions = {
+            VK_KHR_SURFACE_EXTENSION_NAME,
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+            VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
+#endif
+            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+            VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME
+        };
+
+        for (auto& required : requiredInstanceExtensions)
         {
-            if (strcmp(availableExtension.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
+            if (!hasExtension(required, availableInstanceExtensions))
+                FatalError(std::format("No support for required instance extension {}", required));
+            instanceExtensions.insert(required);
+        }
+
+        // Validate and enable optional layer extensions
+        const std::unordered_map<std::string, bool*> optionalInstanceExtensionMap = {
+            { VK_EXT_DEBUG_UTILS_EXTENSION_NAME, &extensions.EXT_debug_utils },
+            { VK_EXT_DEBUG_REPORT_EXTENSION_NAME, &extensions.EXT_debug_report }
+        };
+
+        for (auto& optional : optionalInstanceExtensionMap)
+        {
+            if (hasExtension(optional.first, availableInstanceExtensions))
             {
-                debugUtils = true;
-                instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-            }
-            else if (strcmp(availableExtension.extensionName, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) == 0)
-            {
-                instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-            }
-            else if (strcmp(availableExtension.extensionName, VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME) == 0)
-            {
-                instanceExtensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
+                *(optional.second) = true;
+                instanceExtensions.insert(optional.first);
             }
         }
 
-        instanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-        instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
-#endif
-
+        constexpr auto validateLayers = [](const std::vector<std::string>& required, const std::vector<VkLayerProperties>& available) {
+            return std::ranges::all_of(required, [&](std::string_view layer) {
+                return std::ranges::any_of(available, [&](const VkLayerProperties& avail) {
+                    return layer == avail.layerName;
+                });
+            });
+        };
+        
         if (VALIDATION_MODE_ENABLED)
         {
             // Determine the optimal validation layers to enable that are necessary for useful debugging
-            const std::vector<const char*> validationLayerPriorityList[] = {
+            const std::vector<std::string> validationLayerPriorityList[] = {
                 // The preferred validation layer is "VK_LAYER_KHRONOS_validation"
-                {"VK_LAYER_KHRONOS_validation"},
+                { "VK_LAYER_KHRONOS_validation" },
 
                 // Otherwise we fallback to using the LunarG meta layer
-                {"VK_LAYER_LUNARG_standard_validation"},
+                { "VK_LAYER_LUNARG_standard_validation" },
 
                 // Otherwise we attempt to enable the individual layers that compose the LunarG meta layer since it doesn't exist
                 {
@@ -1182,35 +1214,36 @@ namespace cyb::rhi
                 },
 
                 // Otherwise as a last resort we fallback to attempting to enable the LunarG core layer
-                {"VK_LAYER_LUNARG_core_validation"}
+                { "VK_LAYER_LUNARG_core_validation" }
             };
 
             for (auto& validationLayers : validationLayerPriorityList)
             {
-                if (ValidateLayers(validationLayers, availableInstanceLayers))
+                if (validateLayers(validationLayers, availableInstanceLayers))
                 {
                     for (auto& x : validationLayers)
-                    {
-                        instanceLayers.push_back(x);
-                    }
-                    break;
+                        instanceLayers.insert(x);
+                    break;  // only need one validation layer
                 }
             }
         }
 
         // Create instance:
         {
+            const auto instanceLayersVec = StringSetToVector(instanceLayers);
+            const auto instanceExtensionsVec = StringSetToVector(instanceExtensions);
+
             VkInstanceCreateInfo instanceInfo = {};
             instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
             instanceInfo.pApplicationInfo = &applicationInfo;
-            instanceInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayers.size());
-            instanceInfo.ppEnabledLayerNames = instanceLayers.data();
-            instanceInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
-            instanceInfo.ppEnabledExtensionNames = instanceExtensions.data();
+            instanceInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayersVec.size());
+            instanceInfo.ppEnabledLayerNames = instanceLayersVec.data();
+            instanceInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensionsVec.size());
+            instanceInfo.ppEnabledExtensionNames = instanceExtensionsVec.data();
 
             VkDebugUtilsMessengerCreateInfoEXT debugUtilsCreateInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
 
-            if (VALIDATION_MODE_ENABLED && debugUtils)
+            if (VALIDATION_MODE_ENABLED && extensions.EXT_debug_utils)
             {
                 debugUtilsCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
                 debugUtilsCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
@@ -1222,7 +1255,7 @@ namespace cyb::rhi
             VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &instance));
             volkLoadInstanceOnly(instance);
 
-            if (VALIDATION_MODE_ENABLED && debugUtils)
+            if (VALIDATION_MODE_ENABLED && extensions.EXT_debug_utils)
                 vkCreateDebugUtilsMessengerEXT(instance, &debugUtilsCreateInfo, nullptr, &debugUtilsMessenger);
         }
 
@@ -1236,26 +1269,30 @@ namespace cyb::rhi
             std::vector<VkPhysicalDevice> devices(deviceCount);
             vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-            const std::vector<const char*> requiredDeviceExtensions = {
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME            };
-            std::vector<const char*> enabledDeviceExtensions;
+            const std::unordered_set<std::string> requiredDeviceExtensions = {
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+                VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME
+            };
+            std::unordered_set<std::string> enabledDeviceExtensions;
 
             for (const auto& dev : devices)
             {
                 bool suitable = true;
 
-                uint32_t extensionCount;
-                vkEnumerateDeviceExtensionProperties(dev, nullptr, &extensionCount, nullptr);
-                std::vector<VkExtensionProperties> availableDeviceExtensions(extensionCount);
-                vkEnumerateDeviceExtensionProperties(dev, nullptr, &extensionCount, availableDeviceExtensions.data());
+                uint32_t deviceExtensionCount;
+                vkEnumerateDeviceExtensionProperties(dev, nullptr, &deviceExtensionCount, nullptr);
+                std::vector<VkExtensionProperties> availableDeviceExtensions(deviceExtensionCount);
+                vkEnumerateDeviceExtensionProperties(dev, nullptr, &deviceExtensionCount, availableDeviceExtensions.data());
 
                 for (auto& requiredExtension : requiredDeviceExtensions)
                 {
-                    if (!CheckExtensionSupport(requiredExtension, availableDeviceExtensions))
+                    if (!hasExtension(requiredExtension, availableDeviceExtensions))
                         suitable = false;
                 }
                 if (!suitable)
                     continue;
+
                 enabledDeviceExtensions = requiredDeviceExtensions;
 
                 features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -1265,6 +1302,7 @@ namespace cyb::rhi
                 features2.pNext = &features_1_1;
                 features_1_1.pNext = &features_1_2;
                 features_1_2.pNext = &features_1_3;
+                vkGetPhysicalDeviceFeatures2(dev, &features2);
 
                 properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
                 properties_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES;
@@ -1289,15 +1327,30 @@ namespace cyb::rhi
             if (physicalDevice == VK_NULL_HANDLE)
                 FatalError("Failed to detect a suitable GPU!");
 
-            auto checkFeature = [] (bool expr, const char* name) {
-                if (!expr)
-                    FatalError(std::format("Failed to initialize!\nNo hardware support for {}", name));
+            // Validate and enable optional device extensions
+            const std::unordered_map<std::string, bool*> optionalDeviceExtensionMap =  {
+                { VK_EXT_DEPTH_CLIP_ENABLE_EXTENSION_NAME, &extensions.EXT_depth_clip_enable },
+                { VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, &extensions.EXT_conservative_rasterization },
+                { VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME, &extensions.KHR_fragment_shading_rate },
+                { VK_EXT_CONDITIONAL_RENDERING_EXTENSION_NAME, &extensions.EXT_conditional_rendering },
+                { VK_KHR_VIDEO_QUEUE_EXTENSION_NAME, &extensions.KHR_video_queue },
+                { VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME, &extensions.KHR_video_decode_queue },
+                { VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME, &extensions.KHR_video_decode_h264 }
             };
 
-            vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
-            checkFeature(features2.features.geometryShader == VK_TRUE, "geometryShader");
-            checkFeature(features2.features.samplerAnisotropy == VK_TRUE, "samplerAnisotropy");
-            checkFeature(features_1_3.dynamicRendering == VK_TRUE, "dynamicRendering");
+            uint32_t deviceExtensionCount = 0;
+            vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, nullptr);
+            std::vector<VkExtensionProperties> availableDeviceExtensions(deviceExtensionCount);
+            vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, availableDeviceExtensions.data());
+
+            for (auto& optional : optionalDeviceExtensionMap)
+            {
+                if (hasExtension(optional.first, availableDeviceExtensions))
+                {
+                    *(optional.second) = true;
+                    enabledDeviceExtensions.insert(optional.first);
+                }
+            }
 
             // Find queue families:
             uint32_t queueFamilyCount = 0;
@@ -1354,14 +1407,16 @@ namespace cyb::rhi
                 families.push_back(queueFamily);
             }
 
+            const auto deviceExtensionsVec = StringSetToVector(enabledDeviceExtensions);
+
             VkDeviceCreateInfo device_info{};
             device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-            device_info.queueCreateInfoCount = (uint32_t)queueCreateInfos.size();
+            device_info.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
             device_info.pQueueCreateInfos = queueCreateInfos.data();
             device_info.pEnabledFeatures = nullptr;
             device_info.pNext = &features2;
-            device_info.enabledExtensionCount = static_cast<uint32_t>(enabledDeviceExtensions.size());
-            device_info.ppEnabledExtensionNames = enabledDeviceExtensions.data();
+            device_info.enabledExtensionCount = static_cast<uint32_t>(deviceExtensionsVec.size());
+            device_info.ppEnabledExtensionNames = deviceExtensionsVec.data();
 
             VK_CHECK(vkCreateDevice(physicalDevice, &device_info, nullptr, &device));
             volkLoadDevice(device);
@@ -1393,19 +1448,14 @@ namespace cyb::rhi
 
         // initialize vulkan memory allocator helper:
         VmaAllocatorCreateInfo allocatorInfo = {};
+        allocatorInfo.flags = VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT | VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
         allocatorInfo.physicalDevice = physicalDevice;
+        allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
         allocatorInfo.device = device;
         allocatorInfo.instance = instance;
 
-        // core in 1.1
-        allocatorInfo.flags =
-            VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT |
-            VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
-
         if (features_1_2.bufferDeviceAddress)
-        {
-            allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-        }
+            allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
 #if VMA_DYNAMIC_VULKAN_FUNCTIONS
         VmaVulkanFunctions vulkanFunctions{};
@@ -1460,15 +1510,9 @@ namespace cyb::rhi
 
         // Create pipeline cache
         // TODO: Load pipeline cache from disk
-        {
-            VkPipelineCacheCreateInfo createInfo = {};
-            createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-            //createInfo.initialDataSize = pipelineData.size();
-            //createInfo.pInitialData = pipelineData.data();
-
-            // Create Vulkan pipeline cache
-            VK_CHECK(vkCreatePipelineCache(device, &createInfo, nullptr, &m_pipelineCache));
-        }
+        VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
+        pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+        VK_CHECK(vkCreatePipelineCache(device, &pipelineCacheCreateInfo, nullptr, &m_pipelineCache));
 
         CYB_INFO("Initialized Vulkan {}.{}", VK_API_VERSION_MAJOR(properties2.properties.apiVersion), VK_API_VERSION_MINOR(properties2.properties.apiVersion));
         CYB_INFO("  Device: {}", properties2.properties.deviceName);
@@ -2733,7 +2777,7 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::SetFenceName(VkFence fence, const char* name)
     {
-        if (!debugUtils)
+        if (!extensions.EXT_debug_utils)
             return;
         if (fence == VK_NULL_HANDLE)
             return;
@@ -2748,7 +2792,7 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::SetSemaphoreName(VkSemaphore semaphore, const char* name)
     {
-        if (!debugUtils)
+        if (!extensions.EXT_debug_utils)
             return;
 
         VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
@@ -2759,6 +2803,24 @@ namespace cyb::rhi
         VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
     }
 
+    void GraphicsDevice_Vulkan::CommandQueue::AddWaitSemaphore(VkSemaphore semaphore, uint64_t value)
+    {
+        VkSemaphoreSubmitInfo& waitSemaphore = submit_waitSemaphoreInfos.emplace_back();
+        waitSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        waitSemaphore.semaphore = semaphore;
+        waitSemaphore.value = value;
+        waitSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    }
+
+    void GraphicsDevice_Vulkan::CommandQueue::AddSignalSemaphore(VkSemaphore semaphore, uint64_t value)
+    {
+        VkSemaphoreSubmitInfo& signalSemaphore = submit_signalSemaphoreInfos.emplace_back();
+        signalSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        signalSemaphore.semaphore = semaphore;
+        signalSemaphore.value = value;
+        signalSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    }
+
     uint64_t GraphicsDevice_Vulkan::CommandQueue::Submit(GraphicsDevice_Vulkan* device, VkFence fence)
     {
         ScopedMutex lock(*locker);
@@ -2766,18 +2828,16 @@ namespace cyb::rhi
         // signal the tracking semaphore with the last submitted ID to mark 
         // the end of the frame
         lastSubmittedID++;
-        VkSemaphoreSubmitInfo signalInfo = {};
-        signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        signalInfo.semaphore = trackingSemaphore;
-        signalInfo.value = lastSubmittedID;
-        submit_signalSemaphoreInfos.push_back(signalInfo);
+        AddSignalSemaphore(trackingSemaphore, lastSubmittedID);
 
         VkSubmitInfo2 submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
         submitInfo.commandBufferInfoCount = (uint32_t)submit_cmds.size();
         submitInfo.pCommandBufferInfos = submit_cmds.data();
+
         submitInfo.waitSemaphoreInfoCount = static_cast<uint32_t>(submit_waitSemaphoreInfos.size());
         submitInfo.pWaitSemaphoreInfos = submit_waitSemaphoreInfos.data();
+        
         submitInfo.signalSemaphoreInfoCount = static_cast<uint32_t>(submit_signalSemaphoreInfos.size());
         submitInfo.pSignalSemaphoreInfos = submit_signalSemaphoreInfos.data();
 
@@ -2787,20 +2847,20 @@ namespace cyb::rhi
         submit_signalSemaphoreInfos.clear();
         submit_cmds.clear();
 
-        if (!submit_swapchains.empty())
+        if (!swapchains.empty())
         {
             VkPresentInfoKHR presentInfo = {};
             presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-            presentInfo.waitSemaphoreCount = static_cast<uint32_t>(submit_signalSemaphores.size());
-            presentInfo.pWaitSemaphores = submit_signalSemaphores.data();
-            presentInfo.swapchainCount = static_cast<uint32_t>(submit_swapchains.size());
-            presentInfo.pSwapchains = submit_swapchains.data();
-            presentInfo.pImageIndices = submit_swapchainImageIndices.data();
+            presentInfo.waitSemaphoreCount = static_cast<uint32_t>(swapchainWaitSemaphores.size());
+            presentInfo.pWaitSemaphores = swapchainWaitSemaphores.data();
+            presentInfo.swapchainCount = static_cast<uint32_t>(swapchains.size());
+            presentInfo.pSwapchains = swapchains.data();
+            presentInfo.pImageIndices = swapchainImageIndices.data();
             VK_CHECK(vkQueuePresentKHR(queue, &presentInfo));
 
-            submit_swapchains.clear();
-            submit_swapchainImageIndices.clear();
-            submit_signalSemaphores.clear();
+            swapchainWaitSemaphores.clear();
+            swapchains.clear();
+            swapchainImageIndices.clear();
         }
 
         return lastSubmittedID;
@@ -2833,8 +2893,6 @@ namespace cyb::rhi
                 for (auto& swapchain : commandlist.prevSwapchains)
                 {
                     auto internal_state = ToInternal(&swapchain);
-                    queue.submit_swapchains.push_back(internal_state->swapchain);
-                    queue.submit_swapchainImageIndices.push_back(internal_state->swapchainImageIndex);
 
                     VkSemaphoreSubmitInfo& waitSemaphore = queue.submit_waitSemaphoreInfos.emplace_back();
                     waitSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
@@ -2842,11 +2900,15 @@ namespace cyb::rhi
                     waitSemaphore.value = 0; // not a timeline semaphore
                     waitSemaphore.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
-                    queue.submit_signalSemaphores.push_back(internal_state->swapchainReleaseSemaphore);
                     VkSemaphoreSubmitInfo& signalSemaphore = queue.submit_signalSemaphoreInfos.emplace_back();
                     signalSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
                     signalSemaphore.semaphore = internal_state->swapchainReleaseSemaphore;
                     signalSemaphore.value = 0; // not a timeline semaphore
+                    signalSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+                    queue.swapchains.push_back(internal_state->swapchain);
+                    queue.swapchainImageIndices.push_back(internal_state->swapchainImageIndex);
+                    queue.swapchainWaitSemaphores.push_back(signalSemaphore.semaphore);
                 }
 
                 for (auto& x : commandlist.pipelinesWorker)
@@ -2881,11 +2943,8 @@ namespace cyb::rhi
             {
                 if (queue1 == queue2)
                     continue;
-                VkSemaphoreSubmitInfo& waitSemaphore = queues[queue1].submit_waitSemaphoreInfos.emplace_back();
-                waitSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-                waitSemaphore.semaphore = queues[queue2].trackingSemaphore;
-                waitSemaphore.value = queues[queue2].lastSubmittedID;
-                waitSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+                queues[queue1].AddWaitSemaphore(queues[queue2].trackingSemaphore, queues[queue2].lastSubmittedID);
             }
         }
 
@@ -3369,7 +3428,7 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::SetName(GPUResource* resource, const char* name)
     {
-        if (!debugUtils || resource == nullptr || !resource->IsValid())
+        if (!extensions.EXT_debug_utils || resource == nullptr || !resource->IsValid())
             return;
 
         VkDebugUtilsObjectNameInfoEXT info = {};
@@ -3394,7 +3453,7 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::SetName(Shader* shader, const char* name)
     {
-        if (!debugUtils || shader == nullptr || !shader->IsValid())
+        if (!extensions.EXT_debug_utils || shader == nullptr || !shader->IsValid())
             return;
 
         VkDebugUtilsObjectNameInfoEXT info = {};
@@ -3411,7 +3470,7 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::BeginEvent(const char* name, CommandList cmd)
     {
-        if (!debugUtils)
+        if (!extensions.EXT_debug_utils)
             return;
 
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
@@ -3428,7 +3487,7 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::EndEvent(CommandList cmd)
     {
-        if (!debugUtils)
+        if (!extensions.EXT_debug_utils)
             return;
 
         CommandList_Vulkan& commandlist = GetCommandList(cmd);

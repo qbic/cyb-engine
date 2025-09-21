@@ -13,11 +13,23 @@ namespace cyb::rhi
     class GraphicsDevice_Vulkan final : public GraphicsDevice
     {
     private:
-        bool debugUtils = true;
+        struct
+        {
+            bool EXT_debug_utils = false;
+            bool EXT_debug_report = false;
+            bool EXT_depth_clip_enable = false;
+            bool EXT_conservative_rasterization = false;
+            bool KHR_fragment_shading_rate = false;
+            bool EXT_conditional_rendering = false;
+            bool KHR_video_queue = false;
+            bool KHR_video_decode_queue = false;
+            bool KHR_video_decode_h264 = false;
+        } extensions;
+
         VkInstance instance = VK_NULL_HANDLE;
-        VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
         VkDevice device = VK_NULL_HANDLE;
+        VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
         std::vector<VkQueueFamilyProperties> queueFamilies;
         uint32_t graphicsFamily = VK_QUEUE_FAMILY_IGNORED;
         uint32_t computeFamily = VK_QUEUE_FAMILY_IGNORED;
@@ -44,19 +56,23 @@ namespace cyb::rhi
         struct CommandQueue
         {
             VkQueue queue = VK_NULL_HANDLE;
+            uint64_t lastSubmittedID = 0;
             VkSemaphore trackingSemaphore = VK_NULL_HANDLE;
-            std::vector<VkSwapchainKHR> submit_swapchains;
-            std::vector<uint32_t> submit_swapchainImageIndices;
-            std::vector<VkSemaphore> submit_signalSemaphores;
+            std::shared_ptr<Mutex> locker;
+
             std::vector<VkSemaphoreSubmitInfo> submit_signalSemaphoreInfos;
             std::vector<VkSemaphoreSubmitInfo> submit_waitSemaphoreInfos;
             std::vector<VkCommandBufferSubmitInfo> submit_cmds;
-            std::shared_ptr<Mutex> locker;
 
-            uint64_t lastSubmittedID = 0;
+            std::vector<VkSemaphore> swapchainWaitSemaphores;
+            std::vector<VkSwapchainKHR> swapchains;
+            std::vector<uint32_t> swapchainImageIndices;
 
+            void AddWaitSemaphore(VkSemaphore semaphore, uint64_t value);
+            void AddSignalSemaphore(VkSemaphore semaphore, uint64_t value);
             uint64_t Submit(GraphicsDevice_Vulkan* device, VkFence fence);
         };
+
         [[nodiscard]] CommandQueue& GetQueue(QueueType queueType);
         std::array<CommandQueue, Numerical(QueueType::Count)> queues;
 

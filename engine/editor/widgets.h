@@ -70,10 +70,22 @@ namespace cyb::ui
     class PushID : private NonCopyable
     {
     public:
-        PushID(const void* id) { ImGui::PushID(id); }
-        PushID(const char* id) { ImGui::PushID(id); }
-        PushID(int id) { ImGui::PushID(id); }
-        ~PushID() { ImGui::PopID(); }
+        PushID(const void* id)
+        {
+            ImGui::PushID(id);
+        }
+        PushID(const char* id)
+        {
+            ImGui::PushID(id);
+        }
+        PushID(int id)
+        {
+            ImGui::PushID(id);
+        }
+        ~PushID()
+        {
+            ImGui::PopID();
+        }
     };
 
     //------------------------------------------------------------------------------
@@ -154,9 +166,6 @@ namespace cyb::ui
     /*-----------------------------------------------------------------------------
      * Node graph functions
      *
-     * TODO:
-     *      * Delete node function
-     *
      * Usage:
      *      * Left mouse button to drag a node.
      *      * Scrollwheel to zoom canvas.
@@ -180,8 +189,9 @@ namespace cyb::ui
 
     enum NG_CanvasFlags
     {
-        NG_CanvasFlags_None         = 0,
-        NG_CanvasFlags_DisplayState = 1 << 0
+        NG_CanvasFlags_None = 0,
+        NG_CanvasFlags_DisplayGrid = 1 << 0,
+        NG_CanvasFlags_DisplayState = 1 << 1
     };
 
     struct NG_Node;
@@ -202,10 +212,10 @@ namespace cyb::ui
             std::string Label;
 
             // Internal data (don't manually set)
-            bool Hovered = false;
-            NG_PinType Type = NG_PinType::Input;
-            NG_Node* ParentNode = nullptr;
-            ImVec2 Pos{};
+            bool Hovered{ false };
+            NG_PinType Type{ NG_PinType::Input };
+            NG_Node* ParentNode{ nullptr };
+            ImVec2 Pos{ 0, 0 };
 
             virtual ~NG_Pin() = default;
             virtual void Connect(detail::NG_Pin*) = 0;
@@ -234,7 +244,10 @@ namespace cyb::ui
             CallbackType Callback;
 
             // Only connect from InputPin!
-            void Connect(detail::NG_Pin*) override { assert(0); }
+            void Connect(detail::NG_Pin*) override
+            {
+                assert(0);
+            }
         };
 
         struct NG_Connection
@@ -246,12 +259,13 @@ namespace cyb::ui
 
     struct NG_Node
     {
-        ImVec2 Pos = { 0, 0 };          // Position, relative to cavas
-        ImVec2 Size = { 1, 1 };
+        ImVec2 Pos{ 0, 0 };             // Position, relative to cavas
+        ImVec2 Size{ 1, 1 };
         std::vector<std::unique_ptr<detail::NG_Pin>> Inputs;
         std::vector<std::unique_ptr<detail::NG_Pin>> Outputs;
-        bool ValidState = false;
-        bool ModifiedFlag = false;
+        bool ValidState{ false };
+        bool ModifiedFlag{ false };
+        bool MarkedForDeletion{ false };
 
         NG_Node(const std::string& label)
         {
@@ -259,12 +273,22 @@ namespace cyb::ui
             m_ID = ImGui::GetID(this);
         }
 
-        const std::string& GetLabel() const { return m_Label; }
-        ImGuiID GetID() const { return m_ID; }
+        const std::string& GetLabel() const
+        {
+            return m_Label;
+        }
+        ImGuiID GetID() const
+        {
+            return m_ID;
+        }
 
         // This may be implemented in derived class for displaying custom items.
-        virtual void DisplayContent(float zoom) {}
-        virtual void Update() {}
+        virtual void DisplayContent(float zoom)
+        {
+        }
+        virtual void Update()
+        {
+        }
 
         template <typename T>
         void AddInputPin(const std::string& label, detail::NG_InputPin<T>::CallbackType cb = {})
@@ -290,7 +314,7 @@ namespace cyb::ui
 
     private:
         std::string m_Label;
-        ImGuiID m_ID = 0;
+        ImGuiID m_ID{ 0 };
     };
 
     class NG_Factory
@@ -309,7 +333,7 @@ namespace cyb::ui
 
         void Register(const std::string& name, NodeCreator creator)
         {
-            Entry entry{};
+            Entry entry = {};
             entry.creator = std::move(creator);
             m_creators[name] = std::move(entry);
         }
@@ -333,24 +357,29 @@ namespace cyb::ui
 
     struct NG_Canvas
     {
-        ImVec2 Pos = { 0.0f, 0.0f };
-        ImVec2 Offset = { 0.0f, 0.0f };                 // Canvas scrolling offset
-        float Zoom = 1.0f;
-        NG_CanvasFlags Flags = NG_CanvasFlags_None;
+        ImVec2 Pos{ 0.0f, 0.0f };
+        ImVec2 Offset{ 0.0f, 0.0f };                    // Canvas scrolling offset
+        float Zoom{ 1.0f };
+        NG_CanvasFlags Flags{ NG_CanvasFlags_None };
         NG_Factory Factory;
         std::vector<std::unique_ptr<NG_Node>> Nodes;    // Nodes, sorted in display order, back to front
         std::vector<detail::NG_Connection> Connections;
-        detail::NG_Pin* ActivePin = nullptr;
-        const NG_Node* HoveredNode = nullptr;
+        detail::NG_Pin* ActivePin{ nullptr };
+        const NG_Node* HoveredNode{ nullptr };
 
         // FIXME: This is used to track if a click is used to delete a connection
         //        so that factory popup does not open on the same click.
-        bool ConnectionClick = false;
+        bool ConnectionClick{ false };
 
         /**
          * @brief Check if there are any connection to the pin.
          */
         [[nodiscard]] bool IsPinConnected(detail::NG_Pin* pin) const;
+
+        /**
+         * @brief Check if a connection would create cycling connections.
+         */
+        [[nodiscard]] bool WouldCreateCycle(const NG_Node* from, const NG_Node* to) const;
 
         /**
          * @brief Search for a connection that connects to pin.

@@ -690,10 +690,8 @@ namespace cyb::editor
 
         PreDraw();
         if (ImGui::Begin(GetWindowTitle(), &m_isVisible, m_windowFlags))
-        {
             WindowContent();
-            ImGui::End();
-        }
+        ImGui::End();
         PostDraw();
     }
 
@@ -1782,7 +1780,7 @@ namespace cyb::editor
         ///
         ///    ============== NG_* TEST CODE ==============
         ///
-#if 0
+#if 1
         if (ImGui::Begin("Node Editor DEV", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
         {
             static ui::NG_Canvas nodeCanvas;
@@ -1790,7 +1788,8 @@ namespace cyb::editor
             // if PinCounter == 0 we haven't yet initialized
             if (nodeCanvas.Nodes.size() == 0)
             {
-                //nodeCanvas.Flags = ui::NG_CanvasFlags_DisplayState;
+                nodeCanvas.Flags = ui::NG_CanvasFlags_DisplayGrid;
+                //nodeCanvas.Flags |= ui::NG_CanvasFlags_DisplayState;
 
                 auto test3 = std::make_unique<PerlinNode>();
                 nodeCanvas.Nodes.push_back(std::move(test3));

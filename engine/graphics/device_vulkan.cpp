@@ -419,42 +419,6 @@ namespace cyb::rhi::vulkan_internal
         return static_cast<Swapchain_Vulkan*>(param->internal_state.get());
     }
 
-    static bool CheckExtensionSupport(
-        const char* checkExtension,
-        const std::vector<VkExtensionProperties>& availableExtensions)
-    {
-        for (const auto& x : availableExtensions)
-        {
-            if (strcmp(x.extensionName, checkExtension) == 0)
-                return true;
-        }
-
-        return false;
-    }
-
-    static bool ValidateLayers(
-        const std::vector<const char*>& required,
-        const std::vector<VkLayerProperties>& available)
-    {
-        for (auto layer : required)
-        {
-            bool found = false;
-            for (auto& availableLayer : available)
-            {
-                if (strcmp(availableLayer.layerName, layer) == 0)
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found)
-                return false;
-        }
-
-        return true;
-    }
-
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsMessengerCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -472,18 +436,16 @@ namespace cyb::rhi::vulkan_internal
         VkDevice device,
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationHandler)
     {
-        VkSurfaceCapabilitiesKHR capabilities;
+        VkSurfaceCapabilitiesKHR capabilities = {};
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, internal_state->surface, &capabilities);
 
-        uint32_t formatCount;
+        uint32_t formatCount = 0;
         vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, internal_state->surface, &formatCount, nullptr);
-
         std::vector<VkSurfaceFormatKHR> formats(formatCount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, internal_state->surface, &formatCount, formats.data());
 
-        uint32_t presentModeCount;
+        uint32_t presentModeCount = 0;
         vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, internal_state->surface, &presentModeCount, nullptr);
-
         std::vector<VkPresentModeKHR> presentModes(presentModeCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, internal_state->surface, &presentModeCount, presentModes.data());
 
@@ -940,21 +902,21 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::DescriptorBinderPool::Destroy()
     {
-        if (descriptorPool != VK_NULL_HANDLE)
-        {
-            device->m_allocationHandler->destroylocker.Lock();
-            device->m_allocationHandler->destroyer_descriptorPools.push_back(std::make_pair(descriptorPool, device->frameCount));
-            descriptorPool = VK_NULL_HANDLE;
-            device->m_allocationHandler->destroylocker.Unlock();
-        }
+        if (descriptorPool == VK_NULL_HANDLE)
+            return;
+     
+        device->m_allocationHandler->destroylocker.Lock();
+        device->m_allocationHandler->destroyer_descriptorPools.push_back(std::make_pair(descriptorPool, device->frameCount));
+        descriptorPool = VK_NULL_HANDLE;
+        device->m_allocationHandler->destroylocker.Unlock();
     }
 
     void GraphicsDevice_Vulkan::DescriptorBinderPool::Reset()
     {
-        if (descriptorPool != VK_NULL_HANDLE)
-        {
-            VK_CHECK(vkResetDescriptorPool(device->device, descriptorPool, 0));
-        }
+        if (descriptorPool == VK_NULL_HANDLE)
+            return;
+
+        VK_CHECK(vkResetDescriptorPool(device->device, descriptorPool, 0));
     }
 
     void GraphicsDevice_Vulkan::ValidatePSO(CommandList cmds)
@@ -1228,199 +1190,195 @@ namespace cyb::rhi
             }
         }
 
-        // Create instance:
+        // Create instance
+        const auto instanceLayersVec = StringSetToVector(instanceLayers);
+        const auto instanceExtensionsVec = StringSetToVector(instanceExtensions);
+
+        VkInstanceCreateInfo instanceInfo = {};
+        instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+        instanceInfo.pApplicationInfo = &applicationInfo;
+        instanceInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayersVec.size());
+        instanceInfo.ppEnabledLayerNames = instanceLayersVec.data();
+        instanceInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensionsVec.size());
+        instanceInfo.ppEnabledExtensionNames = instanceExtensionsVec.data();
+
+        VkDebugUtilsMessengerCreateInfoEXT debugUtilsCreateInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
+
+        if (VALIDATION_MODE_ENABLED && extensions.EXT_debug_utils)
         {
-            const auto instanceLayersVec = StringSetToVector(instanceLayers);
-            const auto instanceExtensionsVec = StringSetToVector(instanceExtensions);
-
-            VkInstanceCreateInfo instanceInfo = {};
-            instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-            instanceInfo.pApplicationInfo = &applicationInfo;
-            instanceInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayersVec.size());
-            instanceInfo.ppEnabledLayerNames = instanceLayersVec.data();
-            instanceInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensionsVec.size());
-            instanceInfo.ppEnabledExtensionNames = instanceExtensionsVec.data();
-
-            VkDebugUtilsMessengerCreateInfoEXT debugUtilsCreateInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
-
-            if (VALIDATION_MODE_ENABLED && extensions.EXT_debug_utils)
-            {
-                debugUtilsCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
-                debugUtilsCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-                debugUtilsCreateInfo.pfnUserCallback = DebugUtilsMessengerCallback;
-                instanceInfo.pNext = &debugUtilsCreateInfo;
-                CYB_WARNING("Vulkan is running with validation layers enabled. This will heavily impact performace.");
-            }
-
-            VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &instance));
-            volkLoadInstanceOnly(instance);
-
-            if (VALIDATION_MODE_ENABLED && extensions.EXT_debug_utils)
-                vkCreateDebugUtilsMessengerEXT(instance, &debugUtilsCreateInfo, nullptr, &debugUtilsMessenger);
+            debugUtilsCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+            debugUtilsCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+            debugUtilsCreateInfo.pfnUserCallback = DebugUtilsMessengerCallback;
+            instanceInfo.pNext = &debugUtilsCreateInfo;
+            CYB_WARNING("Vulkan is running with validation layers enabled. This will heavily impact performace.");
         }
+
+        VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &instance));
+        volkLoadInstanceOnly(instance);
+
+        if (VALIDATION_MODE_ENABLED && extensions.EXT_debug_utils)
+            vkCreateDebugUtilsMessengerEXT(instance, &debugUtilsCreateInfo, nullptr, &debugUtilsMessenger);
 
         // Enumerate and create device
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+        if (deviceCount == 0)
+            FatalError("Failed to find GPU with Vulkan support");
+
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+        const std::unordered_set<std::string> requiredDeviceExtensions = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+            VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME
+        };
+        std::unordered_set<std::string> enabledDeviceExtensions;
+
+        for (const auto& dev : devices)
         {
-            uint32_t deviceCount = 0;
-            vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-            if (deviceCount == 0)
-                FatalError("Failed to find GPU with Vulkan support");
+            bool suitable = true;
 
-            std::vector<VkPhysicalDevice> devices(deviceCount);
-            vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
-
-            const std::unordered_set<std::string> requiredDeviceExtensions = {
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
-                VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME
-            };
-            std::unordered_set<std::string> enabledDeviceExtensions;
-
-            for (const auto& dev : devices)
-            {
-                bool suitable = true;
-
-                uint32_t deviceExtensionCount;
-                vkEnumerateDeviceExtensionProperties(dev, nullptr, &deviceExtensionCount, nullptr);
-                std::vector<VkExtensionProperties> availableDeviceExtensions(deviceExtensionCount);
-                vkEnumerateDeviceExtensionProperties(dev, nullptr, &deviceExtensionCount, availableDeviceExtensions.data());
-
-                for (auto& requiredExtension : requiredDeviceExtensions)
-                {
-                    if (!hasExtension(requiredExtension, availableDeviceExtensions))
-                        suitable = false;
-                }
-                if (!suitable)
-                    continue;
-
-                enabledDeviceExtensions = requiredDeviceExtensions;
-
-                features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-                features_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-                features_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-                features_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-                features2.pNext = &features_1_1;
-                features_1_1.pNext = &features_1_2;
-                features_1_2.pNext = &features_1_3;
-                vkGetPhysicalDeviceFeatures2(dev, &features2);
-
-                properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-                properties_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES;
-                properties_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES;
-                properties_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES;
-                properties2.pNext = &properties_1_1;
-                properties_1_1.pNext = &properties_1_2;
-                properties_1_2.pNext = &properties_1_3;
-                vkGetPhysicalDeviceProperties2(dev, &properties2);
-
-                bool discreteGPU = properties2.properties.deviceType == VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-                if (discreteGPU || physicalDevice == VK_NULL_HANDLE)
-                {
-                    physicalDevice = dev;
-
-                    // if this is discrete GPU, look no further (prioritize discrete GPU)
-                    if (discreteGPU)
-                        break;
-                }
-            }
-
-            if (physicalDevice == VK_NULL_HANDLE)
-                FatalError("Failed to detect a suitable GPU!");
-
-            // Validate and enable optional device extensions
-            const std::unordered_map<std::string, bool*> optionalDeviceExtensionMap =  {
-                { VK_EXT_DEPTH_CLIP_ENABLE_EXTENSION_NAME, &extensions.EXT_depth_clip_enable },
-                { VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, &extensions.EXT_conservative_rasterization },
-                { VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME, &extensions.KHR_fragment_shading_rate },
-                { VK_EXT_CONDITIONAL_RENDERING_EXTENSION_NAME, &extensions.EXT_conditional_rendering },
-                { VK_KHR_VIDEO_QUEUE_EXTENSION_NAME, &extensions.KHR_video_queue },
-                { VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME, &extensions.KHR_video_decode_queue },
-                { VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME, &extensions.KHR_video_decode_h264 }
-            };
-
-            uint32_t deviceExtensionCount = 0;
-            vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, nullptr);
+            uint32_t deviceExtensionCount;
+            vkEnumerateDeviceExtensionProperties(dev, nullptr, &deviceExtensionCount, nullptr);
             std::vector<VkExtensionProperties> availableDeviceExtensions(deviceExtensionCount);
-            vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, availableDeviceExtensions.data());
+            vkEnumerateDeviceExtensionProperties(dev, nullptr, &deviceExtensionCount, availableDeviceExtensions.data());
 
-            for (auto& optional : optionalDeviceExtensionMap)
+            for (auto& requiredExtension : requiredDeviceExtensions)
             {
-                if (hasExtension(optional.first, availableDeviceExtensions))
-                {
-                    *(optional.second) = true;
-                    enabledDeviceExtensions.insert(optional.first);
-                }
+                if (!hasExtension(requiredExtension, availableDeviceExtensions))
+                    suitable = false;
             }
+            if (!suitable)
+                continue;
 
-            // Find queue families:
-            uint32_t queueFamilyCount = 0;
-            vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+            enabledDeviceExtensions = requiredDeviceExtensions;
 
-            queueFamilies.resize(queueFamilyCount);
-            vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
+            features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+            features_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+            features_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+            features_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+            features2.pNext = &features_1_1;
+            features_1_1.pNext = &features_1_2;
+            features_1_2.pNext = &features_1_3;
+            vkGetPhysicalDeviceFeatures2(dev, &features2);
 
-            // Query base queue families:
-            for (uint32_t i = 0; i < queueFamilyCount; ++i)
+            properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+            properties_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES;
+            properties_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES;
+            properties_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES;
+            properties2.pNext = &properties_1_1;
+            properties_1_1.pNext = &properties_1_2;
+            properties_1_2.pNext = &properties_1_3;
+            vkGetPhysicalDeviceProperties2(dev, &properties2);
+
+            bool discreteGPU = properties2.properties.deviceType == VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+            if (discreteGPU || physicalDevice == VK_NULL_HANDLE)
             {
-                if (graphicsFamily == VK_QUEUE_FAMILY_IGNORED &&
-                    queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-                    graphicsFamily = i;
-                if (copyFamily == VK_QUEUE_FAMILY_IGNORED &&
-                    queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
-                    copyFamily = i;
-                if (computeFamily == VK_QUEUE_FAMILY_IGNORED &&
-                    queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
-                    computeFamily = i;
+                physicalDevice = dev;
+
+                // if this is discrete GPU, look no further (prioritize discrete GPU)
+                if (discreteGPU)
+                    break;
             }
-
-            // Now try to find dedicated compute and transfer queues:
-            for (uint32_t i = 0; i < queueFamilyCount; ++i)
-            {
-                if (queueFamilies[i].queueCount > 0 &&
-                    queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT &&
-                    !(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
-                    !(queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT))
-                {
-                    copyFamily = i;
-                }
-
-                if (queueFamilies[i].queueCount > 0 &&
-                    queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT &&
-                    !(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
-                {
-                    computeFamily = i;
-                }
-            }
-
-            std::unordered_set<uint32_t> uniqueQueueFamilies = { graphicsFamily, copyFamily, computeFamily };
-
-            const float queuePriority = 1.0f;
-            std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-            for (uint32_t queueFamily : uniqueQueueFamilies)
-            {
-                VkDeviceQueueCreateInfo queueCreateInfo{};
-                queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-                queueCreateInfo.queueFamilyIndex = queueFamily;
-                queueCreateInfo.queueCount = 1;
-                queueCreateInfo.pQueuePriorities = &queuePriority;
-                queueCreateInfos.push_back(queueCreateInfo);
-                families.push_back(queueFamily);
-            }
-
-            const auto deviceExtensionsVec = StringSetToVector(enabledDeviceExtensions);
-
-            VkDeviceCreateInfo device_info{};
-            device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-            device_info.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-            device_info.pQueueCreateInfos = queueCreateInfos.data();
-            device_info.pEnabledFeatures = nullptr;
-            device_info.pNext = &features2;
-            device_info.enabledExtensionCount = static_cast<uint32_t>(deviceExtensionsVec.size());
-            device_info.ppEnabledExtensionNames = deviceExtensionsVec.data();
-
-            VK_CHECK(vkCreateDevice(physicalDevice, &device_info, nullptr, &device));
-            volkLoadDevice(device);
         }
+
+        if (physicalDevice == VK_NULL_HANDLE)
+            FatalError("Failed to detect a suitable GPU!");
+
+        // Validate and enable optional device extensions
+        const std::unordered_map<std::string, bool*> optionalDeviceExtensionMap =  {
+            { VK_EXT_DEPTH_CLIP_ENABLE_EXTENSION_NAME, &extensions.EXT_depth_clip_enable },
+            { VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, &extensions.EXT_conservative_rasterization },
+            { VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME, &extensions.KHR_fragment_shading_rate },
+            { VK_EXT_CONDITIONAL_RENDERING_EXTENSION_NAME, &extensions.EXT_conditional_rendering },
+            { VK_KHR_VIDEO_QUEUE_EXTENSION_NAME, &extensions.KHR_video_queue },
+            { VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME, &extensions.KHR_video_decode_queue },
+            { VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME, &extensions.KHR_video_decode_h264 }
+        };
+
+        uint32_t deviceExtensionCount = 0;
+        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, nullptr);
+        std::vector<VkExtensionProperties> availableDeviceExtensions(deviceExtensionCount);
+        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, availableDeviceExtensions.data());
+
+        for (auto& optional : optionalDeviceExtensionMap)
+        {
+            if (hasExtension(optional.first, availableDeviceExtensions))
+            {
+                *(optional.second) = true;
+                enabledDeviceExtensions.insert(optional.first);
+            }
+        }
+
+        // Find queue families:
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+
+        queueFamilies.resize(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
+
+        // Query base queue families:
+        for (uint32_t i = 0; i < queueFamilyCount; ++i)
+        {
+            if (graphicsFamily == VK_QUEUE_FAMILY_IGNORED &&
+                queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+                graphicsFamily = i;
+            if (copyFamily == VK_QUEUE_FAMILY_IGNORED &&
+                queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
+                copyFamily = i;
+            if (computeFamily == VK_QUEUE_FAMILY_IGNORED &&
+                queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
+                computeFamily = i;
+        }
+
+        // Now try to find dedicated compute and transfer queues:
+        for (uint32_t i = 0; i < queueFamilyCount; ++i)
+        {
+            if (queueFamilies[i].queueCount > 0 &&
+                queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT &&
+                !(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+                !(queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT))
+            {
+                copyFamily = i;
+            }
+
+            if (queueFamilies[i].queueCount > 0 &&
+                queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT &&
+                !(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+            {
+                computeFamily = i;
+            }
+        }
+
+        std::unordered_set<uint32_t> uniqueQueueFamilies = { graphicsFamily, copyFamily, computeFamily };
+
+        const float queuePriority = 1.0f;
+        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+        for (uint32_t queueFamily : uniqueQueueFamilies)
+        {
+            VkDeviceQueueCreateInfo queueCreateInfo{};
+            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueCreateInfo.queueFamilyIndex = queueFamily;
+            queueCreateInfo.queueCount = 1;
+            queueCreateInfo.pQueuePriorities = &queuePriority;
+            queueCreateInfos.push_back(queueCreateInfo);
+            families.push_back(queueFamily);
+        }
+
+        const auto deviceExtensionsVec = StringSetToVector(enabledDeviceExtensions);
+
+        VkDeviceCreateInfo device_info{};
+        device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        device_info.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+        device_info.pQueueCreateInfos = queueCreateInfos.data();
+        device_info.pEnabledFeatures = nullptr;
+        device_info.pNext = &features2;
+        device_info.enabledExtensionCount = static_cast<uint32_t>(deviceExtensionsVec.size());
+        device_info.ppEnabledExtensionNames = deviceExtensionsVec.data();
+
+        VK_CHECK(vkCreateDevice(physicalDevice, &device_info, nullptr, &device));
+        volkLoadDevice(device);        
 
         // Queues:
         {
@@ -1458,7 +1416,7 @@ namespace cyb::rhi
             allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
 #if VMA_DYNAMIC_VULKAN_FUNCTIONS
-        VmaVulkanFunctions vulkanFunctions{};
+        VmaVulkanFunctions vulkanFunctions = {};
         vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
         vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
         allocatorInfo.pVulkanFunctions = &vulkanFunctions;
@@ -1516,7 +1474,10 @@ namespace cyb::rhi
 
         CYB_INFO("Initialized Vulkan {}.{}", VK_API_VERSION_MAJOR(properties2.properties.apiVersion), VK_API_VERSION_MINOR(properties2.properties.apiVersion));
         CYB_INFO("  Device: {}", properties2.properties.deviceName);
-        CYB_INFO("  Driver: {} {}", properties_1_2.driverName, properties_1_2.driverInfo);;
+        CYB_INFO("  Driver: {} {}", properties_1_2.driverName, properties_1_2.driverInfo);
+        CYB_TRACE("VulkanDeviceExtension: {}", deviceExtensionsVec);
+        CYB_TRACE("VulkanInstanceExtensions: {}", instanceExtensionsVec);
+        CYB_TRACE("VulkanInstanceLayers: {}", instanceLayersVec);
     }
 
     GraphicsDevice_Vulkan::~GraphicsDevice_Vulkan()
@@ -1802,7 +1763,7 @@ namespace cyb::rhi
         if (binder.table.CBV_offset[slot] != offset)
         {
             binder.table.CBV_offset[slot] = offset;
-            binder.dirtyFlags |= DescriptorBinder::DIRTY_DESCRIPTOR;
+            binder.dirtyFlags |= DescriptorBinder::DIRTY_OFFSET;
         }
     }
 
@@ -2280,36 +2241,24 @@ namespace cyb::rhi
                     default:
                     case SpvDim1D:
                         if (x->image.arrayed == 0)
-                        {
                             imageViewType = VK_IMAGE_VIEW_TYPE_1D;
-                        }
                         else
-                        {
                             imageViewType = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
-                        }
                         break;
                     case SpvDim2D:
                         if (x->image.arrayed == 0)
-                        {
                             imageViewType = VK_IMAGE_VIEW_TYPE_2D;
-                        }
                         else
-                        {
                             imageViewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-                        }
                         break;
                     case SpvDim3D:
                         imageViewType = VK_IMAGE_VIEW_TYPE_3D;
                         break;
                     case SpvDimCube:
                         if (x->image.arrayed == 0)
-                        {
                             imageViewType = VK_IMAGE_VIEW_TYPE_CUBE;
-                        }
                         else
-                        {
                             imageViewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-                        }
                         break;
                     }
                     break;
@@ -2612,9 +2561,7 @@ namespace cyb::rhi
         uint32_t shaderStageCount = 0;
         auto validate_and_add_shadder = [&] (const Shader* shader) {
             if (shader != nullptr && shader->IsValid())
-            {
                 internal_state->shaderStages[shaderStageCount++] = ToInternal(shader)->stageInfo;
-            }
         };
 
         validate_and_add_shadder(pso->desc.vs);
@@ -2777,9 +2724,7 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::SetFenceName(VkFence fence, const char* name)
     {
-        if (!extensions.EXT_debug_utils)
-            return;
-        if (fence == VK_NULL_HANDLE)
+        if (!extensions.EXT_debug_utils || fence == VK_NULL_HANDLE)
             return;
 
         VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
@@ -3017,9 +2962,7 @@ namespace cyb::rhi
         for (auto& x : m_commandlists)
         {
             for (auto& y : x->pipelinesWorker)
-            {
                 m_allocationHandler->destroyer_pipelines.push_back(std::make_pair(y.second, frameCount));
-            }
             x->pipelinesWorker.clear();
         }
         m_allocationHandler->destroylocker.Unlock();

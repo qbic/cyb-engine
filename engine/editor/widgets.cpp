@@ -803,6 +803,35 @@ namespace cyb::ui
         return false;
     }
 
+    bool NG_Canvas::WouldCreateCycle(const NG_Node* from, const NG_Node* to) const
+    {
+        std::unordered_set<const NG_Node*> visited;
+        std::stack<const NG_Node*> stack;
+
+        // DFS (depth-first-search) cycle detection
+        stack.push(to);
+        while (!stack.empty())
+        {
+            const NG_Node* current = stack.top();
+            stack.pop();
+
+            if (current == from)
+                return true; // Cycle detected
+
+            if (!visited.insert(current).second)
+                continue;
+
+            // Follow outputs from current node
+            for (auto& connection : Connections)
+            {
+                if (connection.From->ParentNode == current)
+                    stack.push(connection.To->ParentNode);
+            }
+        }
+
+        return false;
+    }
+
     const detail::NG_Connection* NG_Canvas::FindConnectionTo(detail::NG_Pin* pin) const
     {
         assert(pin);
@@ -934,6 +963,8 @@ namespace cyb::ui
         const ImVec2 space_size = ImGui::CalcTextSize(" ") * canvas.Zoom;
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
+        bool item_hovered = false;
+
         ImGui::PushID(node.GetID());
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !canvas.IsNodeHovered(node.GetID()));
 
@@ -988,28 +1019,21 @@ namespace cyb::ui
         static constexpr float HEADER_BUTTON_SPACING = 6.0f;
         ImGui::GetStyle().HoverDelayNormal = 1.5f;
 
-#if 0
         const ImVec2 header_btn_sz = ImVec2( 14.0f, 14.0f ) * canvas.Zoom;
         ImRect close_btn_bb{ node_start + ImVec2(node_width - header_btn_sz.x - window_padding.x, window_padding.y),
                              node_start + ImVec2(node_width - window_padding.x, window_padding.y + header_btn_sz.y) };
-        ImGui::ItemAdd(close_btn_bb, ImGui::GetID("#CLOSE"));
-        DRAW_DEBUG_RECT();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-            ImGui::SetTooltip("Close");
-        const ImColor close_btn_col = ImGui::IsItemHovered() ? ImColor(255, 96, 88) : ImColor(255, 96, 88, 150);
-        draw_list->AddCircleFilled(close_btn_bb.GetCenter(), close_btn_bb.GetWidth() * 0.5f, close_btn_col);
-
-        // Add a compact button
-        ImRect compact_btn_bb{ node_start + ImVec2(node_width - header_btn_sz.x * 2.0f - window_padding.x - HEADER_BUTTON_SPACING * canvas.Zoom, window_padding.y),
-                               node_start + ImVec2(node_width - header_btn_sz.x - window_padding.x - HEADER_BUTTON_SPACING * canvas.Zoom, window_padding.y + header_btn_sz.y) };
-        ImGui::ItemAdd(compact_btn_bb, ImGui::GetID("#COMPACT"));
-        DRAW_DEBUG_RECT();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-            ImGui::SetTooltip("Compact");
-        const ImColor compact_btn_col = ImGui::IsItemHovered() ? ImColor(255, 189, 46) : ImColor(255, 189, 46, 150);
-        draw_list->AddCircleFilled(compact_btn_bb.GetCenter(), compact_btn_bb.GetWidth() * 0.5f, compact_btn_col);
-        DRAW_DEBUG_RECT();
-#endif
+        const ImGuiID close_btn_id = ImGui::GetID("#CLOSE");
+        if (ImGui::ItemAdd(close_btn_bb, close_btn_id))
+        {
+            if (ImGui::ButtonBehavior(close_btn_bb, close_btn_id, nullptr, nullptr))
+                node.MarkedForDeletion = true;
+            DRAW_DEBUG_RECT();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+                ImGui::SetTooltip("Close");
+            item_hovered |= ImGui::IsItemHovered();
+            const ImColor close_btn_col = ImGui::IsItemHovered() ? ImColor(255, 96, 88) : ImColor(255, 96, 88, 150);
+            draw_list->AddCircleFilled(close_btn_bb.GetCenter(), close_btn_bb.GetWidth() * 0.5f, close_btn_col);
+        }
 
         auto draw_pin = [&] (detail::NG_Pin* pin, bool leftAligned) -> bool {
             const ImVec2 text_sz = ImGui::CalcTextSize(pin->Label.c_str());
@@ -1027,27 +1051,27 @@ namespace cyb::ui
                 ImVec2(node_start.x + node_width, y_pos);
             const ImRect pin_bb{ pin->Pos - ImVec2(PIN_RADIUS, PIN_RADIUS) * canvas.Zoom,
                                  pin->Pos + ImVec2(PIN_RADIUS, PIN_RADIUS) * canvas.Zoom };
-
-            ImGui::ItemAdd(pin_bb, ImGui::GetID(&pin));
-            DRAW_DEBUG_RECT();
-            pin->Hovered = ImGui::ItemHoverable(pin_bb, ImGui::GetID(&pin), 0);
-            const bool connected = canvas.IsPinConnected(pin);
-            const ImColor pin_col = pin->Hovered ? PIN_COLOR_HOVER : connected ? PIN_CONNECTED_COLOR : PIN_COLOR;
-            draw_list->AddCircleFilled(pin->Pos, PIN_RADIUS * canvas.Zoom, pin_col);
-            draw_list->AddCircle(pin->Pos, PIN_RADIUS * canvas.Zoom, NODE_BORDER_COLOR, 0, 2.1f * canvas.Zoom);
+            if (ImGui::ItemAdd(pin_bb, ImGui::GetID(&pin)))
+            {
+                DRAW_DEBUG_RECT();
+                pin->Hovered = ImGui::ItemHoverable(pin_bb, ImGui::GetID(&pin), 0);
+                const bool connected = canvas.IsPinConnected(pin);
+                const ImColor pin_col = pin->Hovered ? PIN_COLOR_HOVER : connected ? PIN_CONNECTED_COLOR : PIN_COLOR;
+                draw_list->AddCircleFilled(pin->Pos, PIN_RADIUS * canvas.Zoom, pin_col);
+                draw_list->AddCircle(pin->Pos, PIN_RADIUS * canvas.Zoom, NODE_BORDER_COLOR, 0, 2.1f * canvas.Zoom);
+            }
             return pin->Hovered;
         };
 
         // Display input pins
-        bool pin_hovered = false;
         ImGui::SetCursorScreenPos(pins_start + ImVec2(window_padding.x + PIN_RADIUS * canvas.Zoom, 0));
         for (auto& pin : node.Inputs)
-            pin_hovered |= draw_pin(pin.get(), true);
+            item_hovered |= draw_pin(pin.get(), true);
 
         // Display output pins
         ImGui::SetCursorScreenPos(pins_start + ImVec2(window_padding.x, 0));
         for (auto& pin : node.Outputs)
-            pin_hovered |= draw_pin(pin.get(), false);
+            item_hovered |= draw_pin(pin.get(), false);
 
         // Display node label center aligned
         ImGui::SetCursorScreenPos(node_start + frame_padding + ImVec2(node_width * 0.5f - label_sz.x * 0.5f, 0));
@@ -1072,7 +1096,7 @@ namespace cyb::ui
         DRAW_DEBUG_RECT();
 
         const bool any_active = ImGui::IsAnyItemActive();
-        if (canvas.IsNodeHovered(node.GetID()) && !any_active && !pin_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        if (canvas.IsNodeHovered(node.GetID()) && !any_active && !item_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             ImGui::SetActiveID(node.GetID(), ImGui::GetCurrentWindow());
 
         if (ImGui::IsItemActive() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
@@ -1083,35 +1107,6 @@ namespace cyb::ui
 
         ImGui::PopItemFlag();
         ImGui::PopID();
-    }
-
-    // Cycle detection using depth-first-search (DFS)
-    static bool WouldCreateCycle(const NG_Node* from, const NG_Node* to, const NG_Canvas& canvas)
-    {
-        std::unordered_set<const NG_Node*> visited;
-        std::stack<const NG_Node*> stack;
-        
-        stack.push(to);
-        while (!stack.empty())
-        {
-            const NG_Node* current = stack.top();
-            stack.pop();
-
-            if (current == from)
-                return true; // cycle detected
-
-            if (!visited.insert(current).second)
-                continue;
-
-            // Follow outputs from current node
-            for (auto& connection : canvas.Connections)
-            {
-                if (connection.From->ParentNode == current)
-                    stack.push(connection.To->ParentNode);
-            }
-        }
-
-        return false;
     }
 
     bool NodeGraph(NG_Canvas& canvas)
@@ -1166,16 +1161,28 @@ namespace cyb::ui
         }
 
         // Display background, grid and a frame
-        draw_list->AddRectFilled(canvas.Pos, canvas.Pos + canvas_sz, IM_COL32(30, 30, 30, 255));
-        const float grid_step = GRID_SIZE * canvas.Zoom;
-        if (canvas.Zoom > SUBGRID_ZOOM_THRESHOLD)
+        if (canvas.Flags & NG_CanvasFlags_DisplayGrid)
         {
-            const float subgrid_step = grid_step / GRID_SUBDIVISIONS;
-            DrawGrid(canvas.Pos, canvas_sz, canvas.Offset, subgrid_step, GRID_SUBGRID_COLOR);
+            draw_list->AddRectFilled(canvas.Pos, canvas.Pos + canvas_sz, IM_COL32(30, 30, 30, 255));
+            const float grid_step = GRID_SIZE * canvas.Zoom;
+            if (canvas.Zoom > SUBGRID_ZOOM_THRESHOLD)
+            {
+                const float subgrid_step = grid_step / GRID_SUBDIVISIONS;
+                DrawGrid(canvas.Pos, canvas_sz, canvas.Offset, subgrid_step, GRID_SUBGRID_COLOR);
+            }
+
+            DrawGrid(canvas.Pos, canvas_sz, canvas.Offset, grid_step, GRID_COLOR);
+            draw_list->AddRect(canvas.Pos, canvas.Pos + canvas_sz, IM_COL32(200, 200, 200, 255));
         }
 
-        DrawGrid(canvas.Pos, canvas_sz, canvas.Offset, grid_step, GRID_COLOR);
-        draw_list->AddRect(canvas.Pos, canvas.Pos + canvas_sz, IM_COL32(200, 200, 200, 255));
+        // Delete pending nodes and connections
+        std::erase_if(canvas.Connections, [](const auto& c) {
+            return c.To->ParentNode->MarkedForDeletion || 
+                   c.From->ParentNode->MarkedForDeletion;
+        });
+        std::erase_if(canvas.Nodes, [](const auto& node) {
+            return node->MarkedForDeletion == true;
+        });
 
         // Handle new connections
         for (auto& node : canvas.Nodes)
@@ -1193,7 +1200,7 @@ namespace cyb::ui
                         std::swap(connection.From, connection.To);
 
                     const bool sameType = canvas.ActivePin->Type == pin.Type;
-                    const bool createsCycle = WouldCreateCycle(connection.From->ParentNode, connection.To->ParentNode, canvas);
+                    const bool createsCycle = canvas.WouldCreateCycle(connection.From->ParentNode, connection.To->ParentNode);
                     if (sameType)
                         CYB_WARNING("Dropping node connection: {}", "Same pin type");
                     else if (createsCycle)

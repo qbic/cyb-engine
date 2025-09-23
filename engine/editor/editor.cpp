@@ -1789,7 +1789,7 @@ namespace cyb::editor
             if (nodeCanvas.Nodes.size() == 0)
             {
                 nodeCanvas.Flags = ui::NG_CanvasFlags_DisplayGrid;
-                //nodeCanvas.Flags |= ui::NG_CanvasFlags_DisplayState;
+                nodeCanvas.Flags |= ui::NG_CanvasFlags_DisplayState;
 
                 auto test3 = std::make_unique<PerlinNode>();
                 nodeCanvas.Nodes.push_back(std::move(test3));

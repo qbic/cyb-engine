@@ -184,13 +184,14 @@ namespace cyb::ui
      *------------------------------------------------------------------------------*/
 
      // Comment out to draw node graph debug helpers
- //#define CYB_DEBUG_NODE_GRAPH_RECTS
- //#define CYB_DEBUG_NODE_GRAPH_STATE
+//#define CYB_DEBUG_NG_RECTS
+//#define CYB_DEBUG_NG_NODE_STATE
+//#define CYB_DEBUG_NG_CANVAS_STATE
 
     enum NG_CanvasFlags
     {
-        NG_CanvasFlags_None = 0,
-        NG_CanvasFlags_DisplayGrid = 1 << 0,
+        NG_CanvasFlags_None         = 0,
+        NG_CanvasFlags_DisplayGrid  = 1 << 0,
         NG_CanvasFlags_DisplayState = 1 << 1
     };
 
@@ -256,6 +257,22 @@ namespace cyb::ui
             detail::NG_Pin* To;         // InputPin
         };
     }
+
+    struct NG_Style
+    {
+        float PinRadius{ 8.0f };
+        float NodeFrameRounding{ 6.0f };
+        ImVec2 NodeWindowPadding{ 8.0f, 8.0f };             // Padding between node border and content
+        ImVec2 NodeFramePadding{ 4.0f, 3.0f };
+        ImColor NodeBackgroundColor{ 50, 90, 60 };
+        ImColor NodeBorderColor{ 200, 200, 200 };
+        ImColor NodeBorderInvalidColor{ 245, 185, 66 };     // When node is invalid
+        ImColor PinUnConnectedColor{ 80, 80, 80 };
+        ImColor PinConnectedColor{ 51, 190, 37 };
+        ImColor PinHoverColor{ 255, 200, 50 };
+        ImColor ConnectionColor{ 255, 255, 255 };
+        ImColor ConnectionHoverColor{ 66, 158, 245 };
+    };
 
     struct NG_Node
     {
@@ -360,7 +377,8 @@ namespace cyb::ui
         ImVec2 Pos{ 0.0f, 0.0f };
         ImVec2 Offset{ 0.0f, 0.0f };                    // Canvas scrolling offset
         float Zoom{ 1.0f };
-        NG_CanvasFlags Flags{ NG_CanvasFlags_None };
+        uint32_t Flags{ NG_CanvasFlags_None };
+        NG_Style Style;
         NG_Factory Factory;
         std::vector<std::unique_ptr<NG_Node>> Nodes;    // Nodes, sorted in display order, back to front
         std::vector<detail::NG_Connection> Connections;

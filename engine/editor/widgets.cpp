@@ -789,7 +789,7 @@ namespace cyb::ui
     // Node graph functions
     //------------------------------------------------------------------------------
 
-#ifdef CYB_DEBUG_NODE_GRAPH_RECTS
+#ifdef CYB_DEBUG_NG_RECTS
 #define DRAW_DEBUG_RECT() ImGui::DebugDrawItemRect();
 #else
 #define DRAW_DEBUG_RECT()
@@ -949,18 +949,11 @@ namespace cyb::ui
 
     static void DrawNode(NG_Node& node, const NG_Canvas& canvas)
     {
-        static constexpr float NODE_FRAME_ROUNDING = 6.0f;
-        static constexpr ImColor NODE_BG = ImColor(50, 90, 60, 235);
-        static constexpr ImColor NODE_BORDER_COLOR = ImColor{ 200, 200, 200 };
-        static constexpr ImColor PIN_COLOR = ImColor{ 80, 80, 80 };
-        static constexpr ImColor PIN_COLOR_HOVER = ImColor{ 255, 200, 50 };
-        static constexpr ImColor PIN_CONNECTED_COLOR = ImColor{ 51, 190, 37 };
-        static constexpr float PIN_RADIUS = 8.0f;
-
-        const ImGuiStyle& style = ImGui::GetStyle();
-        const ImVec2 frame_padding = style.FramePadding * canvas.Zoom;
-        const ImVec2 window_padding = style.WindowPadding * canvas.Zoom;
+        const NG_Style& style = canvas.Style;
+        const ImVec2 frame_padding = style.NodeFramePadding * canvas.Zoom;
+        const ImVec2 window_padding = style.NodeWindowPadding * canvas.Zoom;
         const ImVec2 space_size = ImGui::CalcTextSize(" ") * canvas.Zoom;
+        const float pin_radius = style.PinRadius * canvas.Zoom;
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
         bool item_hovered = false;
@@ -977,7 +970,7 @@ namespace cyb::ui
         // Calculate space for node label.
         const ImVec2 node_start = canvas.Pos + canvas.Offset + node.Pos * canvas.Zoom;
         const ImVec2 label_sz = ImGui::CalcTextSize(node.GetLabel().c_str()) + window_padding;
-#ifdef CYB_DEBUG_NODE_GRAPH_RECTS
+#ifdef CYB_DEBUG_NG_RECTS
         draw_list->AddRect(node_start, node_start + label_sz, 0xff0000ff);
 #endif
 
@@ -993,7 +986,7 @@ namespace cyb::ui
             pins_width = ImMax(pins_width, width);
         }
         const ImVec2 pins_sz = ImVec2(pins_width + space_size.x * 4, (pin_count * ImGui::GetTextLineHeight()) + window_padding.y);
-#ifdef CYB_DEBUG_NODE_GRAPH_RECTS
+#ifdef CYB_DEBUG_NG_RECTS
         draw_list->AddRect(pins_start, pins_start + pins_sz, 0xff00ffff);
 #endif
 
@@ -1002,11 +995,11 @@ namespace cyb::ui
         ImGui::SetCursorScreenPos(body_start + ImVec2(window_padding.x, 0));
         ImGui::BeginGroup();
         node.DisplayContent(canvas.Zoom);
-#ifdef CYB_DEBUG_NODE_GRAPH_STATE
+#ifdef CYB_DEBUG_NG_CANVAS_STATE
         ImGui::Text("----------------");
-        ImGui::Text("ID: %u", node.ID);
-        ImGui::Text("Hovered: %s", canvas.IsNodeHovered(node.ID) ? "true" : "false");
-        ImGui::Text("Active: %s", ImGui::GetActiveID() == node.ID ? "true" : "false");
+        ImGui::Text("ID: %u", node.GetID());
+        ImGui::Text("Hovered: %s", canvas.IsNodeHovered(node.GetID()) ? "true" : "false");
+        ImGui::Text("Active: %s", ImGui::GetActiveID() == node.GetID() ? "true" : "false");
         ImGui::Text("Pos: [%.1f, %.1f]", node.Pos.x, node.Pos.y);
         ImGui::Text("Size: [%.1f, %.1f]", node.Size.x, node.Size.y);
 #endif
@@ -1038,8 +1031,8 @@ namespace cyb::ui
         auto draw_pin = [&] (detail::NG_Pin* pin, bool leftAligned) -> bool {
             const ImVec2 text_sz = ImGui::CalcTextSize(pin->Label.c_str());
             const float x_pos = leftAligned ?
-                node_start.x + window_padding.x + (PIN_RADIUS * canvas.Zoom) :
-                node_start.x + node_width - text_sz.x - (PIN_RADIUS * canvas.Zoom) - window_padding.x;
+                node_start.x + window_padding.x + pin_radius :
+                node_start.x + node_width - text_sz.x - pin_radius - window_padding.x;
 
             ImGui::SetCursorScreenPos(ImVec2(x_pos, ImGui::GetCursorScreenPos().y));
             ImGui::Text(pin->Label.c_str());
@@ -1047,24 +1040,24 @@ namespace cyb::ui
 
             const float y_pos = line_pos.y + text_sz.y * 0.5f;
             pin->Pos = leftAligned ?
-                ImVec2(line_pos.x - window_padding.x - PIN_RADIUS * canvas.Zoom, y_pos) :
+                ImVec2(line_pos.x - window_padding.x - pin_radius, y_pos) :
                 ImVec2(node_start.x + node_width, y_pos);
-            const ImRect pin_bb{ pin->Pos - ImVec2(PIN_RADIUS, PIN_RADIUS) * canvas.Zoom,
-                                 pin->Pos + ImVec2(PIN_RADIUS, PIN_RADIUS) * canvas.Zoom };
+            const ImRect pin_bb{ pin->Pos - ImVec2(pin_radius, pin_radius),
+                                 pin->Pos + ImVec2(pin_radius, pin_radius)};
             if (ImGui::ItemAdd(pin_bb, ImGui::GetID(&pin)))
             {
                 DRAW_DEBUG_RECT();
                 pin->Hovered = ImGui::ItemHoverable(pin_bb, ImGui::GetID(&pin), 0);
                 const bool connected = canvas.IsPinConnected(pin);
-                const ImColor pin_col = pin->Hovered ? PIN_COLOR_HOVER : connected ? PIN_CONNECTED_COLOR : PIN_COLOR;
-                draw_list->AddCircleFilled(pin->Pos, PIN_RADIUS * canvas.Zoom, pin_col);
-                draw_list->AddCircle(pin->Pos, PIN_RADIUS * canvas.Zoom, NODE_BORDER_COLOR, 0, 2.1f * canvas.Zoom);
+                const ImColor pin_col = pin->Hovered ? style.PinHoverColor : connected ? style.PinConnectedColor : style.PinUnConnectedColor;
+                draw_list->AddCircleFilled(pin->Pos, pin_radius, pin_col);
+                draw_list->AddCircle(pin->Pos, pin_radius, style.NodeBorderColor, 0, 2.1f * canvas.Zoom);
             }
             return pin->Hovered;
         };
 
         // Display input pins
-        ImGui::SetCursorScreenPos(pins_start + ImVec2(window_padding.x + PIN_RADIUS * canvas.Zoom, 0));
+        ImGui::SetCursorScreenPos(pins_start + ImVec2(window_padding.x + pin_radius, 0));
         for (auto& pin : node.Inputs)
             item_hovered |= draw_pin(pin.get(), true);
 
@@ -1083,9 +1076,9 @@ namespace cyb::ui
 
         node.Size = ImVec2(node_width, label_sz.y + pins_sz.y + body_sz.y);
         const ImRect node_bb{ node_start, node_start + node.Size };
-        draw_list->AddRectFilled(node_bb.Min, node_bb.Max, NODE_BG, NODE_FRAME_ROUNDING * canvas.Zoom);
-        const ImColor borderColor = node.ValidState ? NODE_BORDER_COLOR : ImColor(245, 185, 66, 255);
-        draw_list->AddRect(node_bb.Min, node_bb.Max, borderColor, NODE_FRAME_ROUNDING * canvas.Zoom, 0, 2.1f * canvas.Zoom);
+        draw_list->AddRectFilled(node_bb.Min, node_bb.Max, style.NodeBackgroundColor, style.NodeFrameRounding * canvas.Zoom);
+        const ImColor borderColor = node.ValidState ? style.NodeBorderColor : style.NodeBorderInvalidColor;
+        draw_list->AddRect(node_bb.Min, node_bb.Max, borderColor, style.NodeFrameRounding * canvas.Zoom, 0, 2.1f * canvas.Zoom);
 
         draw_list->ChannelsMerge();
 
@@ -1335,9 +1328,9 @@ namespace cyb::ui
             ImGui::BeginGroup();
             ImGui::Text("Offset: [%.1f, %.1f]", canvas.Offset.x, canvas.Offset.y);
             ImGui::Text("Zoom: %.2f", canvas.Zoom);
-#ifdef CYB_DEBUG_NODE_GRAPH_STATE
+#ifdef CYB_DEBUG_NG_NODE_STATE
             ImGui::Text("Canvas pos: [%.1f, %.1f]", canvas.Pos.x, canvas.Pos.y);
-            ImGui::Text("Hovered nodeID: %u", canvas.HoveredNode ? canvas.HoveredNode->ID : 0);
+            ImGui::Text("Hovered nodeID: %u", canvas.HoveredNode ? canvas.HoveredNode->GetID() : 0);
             ImGui::Text("Node count: %u", canvas.Nodes.size());
             ImGui::Text("Connection count: %u", canvas.Connections.size());
 #endif

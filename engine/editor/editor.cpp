@@ -1470,6 +1470,8 @@ namespace cyb::editor
             Pos = { 100, 500 };             // REMOVE
         }
 
+        virtual ~PerlinNode() = default;
+
         void DisplayContent(float zoom) override
         {
             const float childWidth = 240 * zoom;
@@ -1510,6 +1512,8 @@ namespace cyb::editor
         {
             AddOutputPin<noise2::NoiseNode*>("Output", [=] () {return &noise; });
         }
+
+        virtual ~CellularNode() = default;
 
         void DisplayContent(float zoom) override
         {
@@ -1561,6 +1565,8 @@ namespace cyb::editor
 
             Pos = { 600, 400 };         // REMOVE
         }
+
+        virtual ~PreviewNode() = default;
 
         void UpdatePreview()
         {
@@ -1648,6 +1654,8 @@ namespace cyb::editor
             AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_scaleBias; });
         }
 
+        virtual ~ScaleBiasNode() = default;
+
         void DisplayContent(float zoom) override
         {
             const float childWidth = 160 * zoom;
@@ -1684,6 +1692,8 @@ namespace cyb::editor
             Pos = { 300, 300 };     // REMOVE
         }
 
+        virtual ~StrataNode() = default;
+
         void DisplayContent(float zoom) override
         {
             const float childWidth = 160 * zoom;
@@ -1719,6 +1729,8 @@ namespace cyb::editor
             });
             AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_select; });
         }
+
+        virtual ~SelectNode() = default;
 
         void DisplayContent(float zoom) override
         {
@@ -1789,10 +1801,9 @@ namespace cyb::editor
             if (nodeCanvas.Nodes.size() == 0)
             {
                 nodeCanvas.Flags = ui::NG_CanvasFlags_DisplayGrid;
-                nodeCanvas.Flags |= ui::NG_CanvasFlags_DisplayState;
+                //nodeCanvas.Flags |= ui::NG_CanvasFlags_DisplayState;
 
-                auto test3 = std::make_unique<PerlinNode>();
-                nodeCanvas.Nodes.push_back(std::move(test3));
+                nodeCanvas.Nodes.push_back(std::make_unique<PerlinNode>());
                 nodeCanvas.Nodes.push_back(std::make_unique<PreviewNode>());
                 nodeCanvas.Nodes.push_back(std::make_unique<StrataNode>());
 

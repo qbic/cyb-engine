@@ -3,9 +3,7 @@
 #include <memory>
 #include <unordered_map>
 #include <functional>
-#include <ranges>
 #include <variant>
-#define IMGUI_DEFINE_MATH_OPERATORS     // TODO: Remove when moving stuff to .cpp
 #include "imgui.h"
 
 namespace cyb::ui
@@ -192,7 +190,8 @@ namespace cyb::ui
     {
         NG_CanvasFlags_None         = 0,
         NG_CanvasFlags_DisplayGrid  = 1 << 0,
-        NG_CanvasFlags_DisplayState = 1 << 1
+        NG_CanvasFlags_DisplayState = 1 << 1,
+        NG_CanvasFlags_Default      = NG_CanvasFlags_DisplayGrid
     };
 
     struct NG_Node;
@@ -290,6 +289,8 @@ namespace cyb::ui
             m_ID = ImGui::GetID(this);
         }
 
+        virtual ~NG_Node() = default;
+
         const std::string& GetLabel() const
         {
             return m_Label;
@@ -377,7 +378,7 @@ namespace cyb::ui
         ImVec2 Pos{ 0.0f, 0.0f };
         ImVec2 Offset{ 0.0f, 0.0f };                    // Canvas scrolling offset
         float Zoom{ 1.0f };
-        uint32_t Flags{ NG_CanvasFlags_None };
+        uint32_t Flags{ NG_CanvasFlags_Default };
         NG_Style Style;
         NG_Factory Factory;
         std::vector<std::unique_ptr<NG_Node>> Nodes;    // Nodes, sorted in display order, back to front

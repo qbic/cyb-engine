@@ -795,6 +795,36 @@ namespace cyb::ui
 #define DRAW_DEBUG_RECT()
 #endif
 
+    void NG_Factory::DrawMenuContent(NG_Canvas& canvas, const ImVec2& popupPos)
+    {
+        for (auto& [type_str, createCallback] : m_availableNodeTypesMap)
+        {
+            if (ImGui::MenuItem(type_str.c_str()))
+                canvas.Nodes.push_back(std::move(CreateNode(type_str, popupPos)));
+        }
+    }
+
+    std::unique_ptr<NG_Node> NG_Factory::CreateNode(const std::string& node_type, const ImVec2& pos) const
+    {
+        auto it = m_availableNodeTypesMap.find(node_type);
+        if (it != m_availableNodeTypesMap.end())
+        {
+            auto newNode = it->second();
+            newNode->Pos = pos;
+            return newNode;
+        }
+
+        assert(0);
+        return nullptr;
+    }
+
+
+    NG_Canvas::NG_Canvas()
+    {
+        // Create a default factory
+        Factory = std::make_unique<NG_Factory>();
+    }
+
     bool NG_Canvas::IsPinConnected(detail::NG_Pin* pin) const
     {
         for (auto& connection : Connections)
@@ -985,7 +1015,7 @@ namespace cyb::ui
             const float width = ImGui::CalcTextSize(inLabel).x + ImGui::CalcTextSize(outLabel).x;
             pins_width = ImMax(pins_width, width);
         }
-        const ImVec2 pins_sz = ImVec2(pins_width + space_size.x * 4, (pin_count * ImGui::GetTextLineHeight()) + window_padding.y);
+        const ImVec2 pins_sz = ImVec2(pins_width + (space_size.x / canvas.Zoom) * 4.0f, (pin_count * ImGui::GetTextLineHeight()) + window_padding.y);
 #ifdef CYB_DEBUG_NG_RECTS
         draw_list->AddRect(pins_start, pins_start + pins_sz, 0xff00ffff);
 #endif
@@ -1120,6 +1150,7 @@ namespace cyb::ui
         ImGuiIO& io = ImGui::GetIO();
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
         ImGuiWindow* window = ImGui::GetCurrentWindow();
+        NG_Style& style = canvas.Style;
         ImGui::ItemAdd(window->ContentRegionRect, canvas_id);
 
         canvas.Pos = ImGui::GetCursorScreenPos();
@@ -1211,7 +1242,7 @@ namespace cyb::ui
                         // Update connected nodes and send update signal
                         connection.From->ParentNode->ValidState = canvas.NodeHasValidState(connection.From->ParentNode);
                         connection.To->ParentNode->ValidState = canvas.NodeHasValidState(connection.To->ParentNode);
-                        connection.To->Connect(connection.From);
+                        connection.To->OnConnect(connection.From);
                         
                         canvas.UpdateAllValidStates();
                         connection.From->ParentNode->ModifiedFlag = true;
@@ -1266,13 +1297,13 @@ namespace cyb::ui
             const bool hovered = ImSqrt(ImLengthSqr(cp - io.MousePos)) <= 4.0f * canvas.Zoom;
             connection_hovered |= hovered;
 
-            ImColor col = hovered ? IM_COL32(66, 158, 245, 255) : 0xffffffff;
+            ImColor col = hovered ? style.ConnectionHoverColor : style.ConnectionColor;
             draw_list->AddBezierCubic(start, cp0, cp1, end, col, 2.1f * canvas.Zoom);
 
             // Right click to delete
             if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
             {
-                connection->To->Connect(nullptr);
+                connection->To->OnConnect(nullptr);
                 connection = canvas.Connections.erase(connection);
                 canvas.ConnectionClick = true;
             }
@@ -1289,7 +1320,7 @@ namespace cyb::ui
             const ImVec2 cp0 = ImVec2(start.x + dx, start.y);
             const ImVec2 cp1 = ImVec2(end.x - dx, end.y);
 
-            draw_list->AddBezierCubic(start, cp0, cp1, end, IM_COL32(200, 200, 100, 255), 2.0f * canvas.Zoom);
+            draw_list->AddBezierCubic(start, cp0, cp1, end, style.ConnectionDragginColor, 2.0f * canvas.Zoom);
         }
 
         if (canvas.ActivePin && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
@@ -1299,29 +1330,25 @@ namespace cyb::ui
         const bool any_hovered = node_hovered || connection_hovered;
         const bool popup_open = ImGui::IsPopupOpen(ImGui::GetID("#FACTORY_POPUP"), 0);
         const bool can_display_popup = (!any_hovered || popup_open) && !canvas.ConnectionClick;
-        if (can_display_popup && ImGui::BeginPopupContextWindow("#FACTORY_POPUP", ImGuiPopupFlags_MouseButtonRight))
+        if (can_display_popup && canvas.Factory && ImGui::BeginPopupContextWindow("#FACTORY_POPUP", ImGuiPopupFlags_MouseButtonRight))
         {
-            const ImVec2 mouse_pos = ImGui::GetMousePosOnOpeningCurrentPopup();
-
+            const ImVec2 window_mouse_pos = ImGui::GetMousePosOnOpeningCurrentPopup();
+            const ImVec2 canvas_mouse_pos = (window_mouse_pos - canvas.Pos - canvas.Offset) / canvas.Zoom;
+            
             ImGui::Text("Create New Node");
             ImGui::Separator();
-            for (auto& [name, entry] : canvas.Factory.GetRegistry())
-            {
-                if (ImGui::MenuItem(name.c_str()))
-                {
-                    auto node = entry.creator();
-                    node->Pos = (mouse_pos - canvas.Pos - canvas.Offset) / canvas.Zoom;
-                    canvas.Nodes.push_back(std::move(node));
-                }
-            }
-
+            canvas.Factory->DrawMenuContent(canvas, canvas_mouse_pos);
             ImGui::EndPopup();
         }
 
         if (ImGui::GetActiveID() == canvas_id)
             ImGui::ClearActiveID();
 
-        bool display_state = (canvas.Flags & NG_CanvasFlags_DisplayState);
+#ifndef CYB_DEBUG_NG_NODE_STATE
+        const bool display_state = (canvas.Flags & NG_CanvasFlags_DisplayState);
+#else
+        const bool display_state = true;
+#endif
         if (display_state)
         {
             ImGui::SetCursorScreenPos(canvas.Pos + ImVec2(8, 8));

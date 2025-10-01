@@ -2,8 +2,10 @@
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <map>
 #include <functional>
 #include <variant>
+#include "core/hash.h"
 #include "imgui.h"
 
 namespace cyb::ui
@@ -68,22 +70,10 @@ namespace cyb::ui
     class PushID : private NonCopyable
     {
     public:
-        PushID(const void* id)
-        {
-            ImGui::PushID(id);
-        }
-        PushID(const char* id)
-        {
-            ImGui::PushID(id);
-        }
-        PushID(int id)
-        {
-            ImGui::PushID(id);
-        }
-        ~PushID()
-        {
-            ImGui::PopID();
-        }
+        PushID(const void* id) { ImGui::PushID(id); }
+        PushID(const char* id) { ImGui::PushID(id); }
+        PushID(int id) { ImGui::PushID(id); }
+        ~PushID() { ImGui::PopID(); }
     };
 
     //------------------------------------------------------------------------------
@@ -195,6 +185,7 @@ namespace cyb::ui
     };
 
     struct NG_Node;
+    struct NG_Canvas;
 
     namespace detail
     {
@@ -218,7 +209,7 @@ namespace cyb::ui
             ImVec2 Pos{ 0, 0 };
 
             virtual ~NG_Pin() = default;
-            virtual void Connect(detail::NG_Pin*) = 0;
+            virtual void OnConnect(detail::NG_Pin*) = 0;
         };
 
         template <typename T>
@@ -227,7 +218,7 @@ namespace cyb::ui
             using CallbackType = std::function<void(std::optional<T>)>;
             CallbackType Callback;
 
-            void Connect(detail::NG_Pin* from) override
+            void OnConnect(detail::NG_Pin* from) override
             {
                 auto* out = dynamic_cast<NG_OutputPin<T>*>(from);
                 if (out && out->Callback)
@@ -243,9 +234,9 @@ namespace cyb::ui
             using CallbackType = std::function<T()>;
             CallbackType Callback;
 
-            // Only connect from InputPin!
-            void Connect(detail::NG_Pin*) override
+            void OnConnect(detail::NG_Pin*) override
             {
+                // Only connect from InputPin!
                 assert(0);
             }
         };
@@ -271,6 +262,7 @@ namespace cyb::ui
         ImColor PinHoverColor{ 255, 200, 50 };
         ImColor ConnectionColor{ 255, 255, 255 };
         ImColor ConnectionHoverColor{ 66, 158, 245 };
+        ImColor ConnectionDragginColor{ 200, 200, 100 };
     };
 
     struct NG_Node
@@ -295,6 +287,7 @@ namespace cyb::ui
         {
             return m_Label;
         }
+
         ImGuiID GetID() const
         {
             return m_ID;
@@ -338,53 +331,55 @@ namespace cyb::ui
     class NG_Factory
     {
     public:
+        using CreateNodeCallbackType = std::function<std::unique_ptr<NG_Node>()>;
+
         NG_Factory() = default;
-        ~NG_Factory() = default;
+        virtual ~NG_Factory() = default;
 
-        using NodeCreator = std::function<std::unique_ptr<NG_Node>()>;
+        /**
+         * @brief Draw menu items of the create node menu.
+         * 
+         * This has a predefined menu, but can be overwritten for a custom menu.
+         * Function will be called between ImGui::BeginPopupContextWindow() and ImGui::EndPopup().
+         */
+        virtual void DrawMenuContent(NG_Canvas& canvas, const ImVec2& popupPos);
 
-        struct Entry
+        /**
+         * @brief Register a node of type T named `node_type`.
+         */
+        template <typename T>
+        void RegisterFactoryFunction(const std::string& node_type)
         {
-            bool isSeperator = false;
-            NodeCreator creator;
-        };
-
-        void Register(const std::string& name, NodeCreator creator)
-        {
-            Entry entry = {};
-            entry.creator = std::move(creator);
-            m_creators[name] = std::move(entry);
+            auto lambda = [] () { return std::make_unique<T>(); };
+            m_availableNodeTypesMap[node_type] = std::move(lambda);
+            hash::Combine(m_hash, node_type);
         }
 
-        std::unique_ptr<NG_Node> Create(const std::string& name) const
-        {
-            auto it = m_creators.find(name);
-            if (it != m_creators.end())
-                return it->second.creator();
-            return nullptr;
-        }
-
-        const std::unordered_map<std::string, Entry>& GetRegistry() const
-        {
-            return m_creators;
-        }
-
+        /**
+         * @brief Create a new node using registrated type name factory function.
+         */
+        std::unique_ptr<NG_Node> CreateNode(const std::string& node_type, const ImVec2& pos = { 0, 0 }) const;
+    
     private:
-        std::unordered_map<std::string, Entry> m_creators;
+        uint64_t m_hash{ 0 };
+        std::map<std::string, CreateNodeCallbackType> m_availableNodeTypesMap;
     };
 
     struct NG_Canvas
     {
         ImVec2 Pos{ 0.0f, 0.0f };
-        ImVec2 Offset{ 0.0f, 0.0f };                    // Canvas scrolling offset
+        ImVec2 Offset{ 0.0f, 0.0f };                    // Canvas scrolling offset,
         float Zoom{ 1.0f };
         uint32_t Flags{ NG_CanvasFlags_Default };
         NG_Style Style;
-        NG_Factory Factory;
-        std::vector<std::unique_ptr<NG_Node>> Nodes;    // Nodes, sorted in display order, back to front
+        std::unique_ptr<NG_Factory> Factory;            // Can be overwritten by custom user defined factory.
+        std::vector<std::unique_ptr<NG_Node>> Nodes;    // Nodes, sorted in display order, back to front.
         std::vector<detail::NG_Connection> Connections;
         detail::NG_Pin* ActivePin{ nullptr };
         const NG_Node* HoveredNode{ nullptr };
+
+        NG_Canvas();
+        ~NG_Canvas() = default;
 
         // FIXME: This is used to track if a click is used to delete a connection
         //        so that factory popup does not open on the same click.

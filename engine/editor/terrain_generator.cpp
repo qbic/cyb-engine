@@ -385,11 +385,12 @@ namespace cyb::editor
                     .SetThreshold(0.72)
                     .SetEdgeFalloff(0.125);
 
-                auto image = noise2::RenderNoiseImage(noise2::NoiseImageDesc()
-                    .SetInput(&finalTerrain)
-                    .SetSize(PREVIEW_RESOLUTION, PREVIEW_RESOLUTION)
-                    .SetOffset(m_previewOffset.x, m_previewOffset.y)
-                    .SetFrequencyScale(PREVIEW_FREQ_SCALE));
+                noise2::NoiseImageDesc imageDesc{};
+                imageDesc.input = &finalTerrain;
+                imageDesc.size = { PREVIEW_RESOLUTION, PREVIEW_RESOLUTION };
+                imageDesc.offset = { m_previewOffset.x, m_previewOffset.y };
+                imageDesc.freqScale = PREVIEW_FREQ_SCALE;
+                auto image = RenderNoiseImage(imageDesc);
 
                 rhi::TextureDesc desc{};
                 desc.width = PREVIEW_RESOLUTION;

@@ -3,6 +3,7 @@
 #include <limits>
 #include <format>
 #include <functional>
+#include <map>
 #include "core/cvar.h"
 #include "core/hash.h"
 #include "core/logger.h"
@@ -1552,6 +1553,35 @@ namespace cyb::editor
         noise2::NoiseNode_Cellular noise;
     };
 
+    class ConstNode : public ui::NG_Node
+    {
+    public:
+        ConstNode() :
+            NG_Node("Const")
+        {
+            AddOutputPin<noise2::NoiseNode*>("Output", [&]() { return &m_const; });
+        }
+
+        virtual ~ConstNode() = default;
+
+        void DisplayContent(float zoom) override
+        {
+            const float childWidth = 160 * zoom;
+            ImGui::PushItemWidth(childWidth);
+
+            auto onChange = [=]() { ModifiedFlag = true; };
+
+            float fTemp = m_const.GetConstValue();
+            if (ui::SliderFloat("Value", &fTemp, onChange, 0.0f, 1.0f))
+                m_const.SetConstValue(fTemp);
+
+            ImGui::PopItemWidth();
+        }
+
+    private:
+        noise2::NoiseNode_Const m_const;
+    };
+
     class PreviewNode : public ui::NG_Node
     {
     public:
@@ -1574,11 +1604,12 @@ namespace cyb::editor
                 return;
 
             Timer timer;
-            auto image = noise2::RenderNoiseImage(noise2::NoiseImageDesc()
-                .SetInput(m_input)
-                .SetSize(m_previewSize, m_previewSize)
-                .SetOffset(0, 0)
-                .SetFrequencyScale(m_freqScale));
+
+            noise2::NoiseImageDesc imageDesc{};
+            imageDesc.input = m_input;
+            imageDesc.size = { m_previewSize, m_previewSize };
+            imageDesc.freqScale = m_freqScale / (m_previewSize / 128.0f);
+            auto image = RenderNoiseImage(imageDesc);
 
             rhi::TextureDesc desc{};
             desc.width = image->GetWidth();
@@ -1602,7 +1633,7 @@ namespace cyb::editor
         void DisplayContent(float zoom) override
         {
             const ImGuiStyle& style = ImGui::GetStyle();
-            const float childWidth = std::max(256u, m_previewSize) * zoom;
+            const float childWidth = 256.0f * zoom;
             ImGui::PushItemWidth(childWidth);
 
             if (ui::Checkbox("Auto Update", &m_autoUpdate, nullptr) && m_autoUpdate)
@@ -1640,6 +1671,58 @@ namespace cyb::editor
         float m_freqScale = 8.0f;
         rhi::Texture m_texture;
         noise2::NoiseNode* m_input = nullptr;
+    };
+
+    class BlendNode : public ui::NG_Node
+    {
+    public:
+        BlendNode() :
+            NG_Node("Blend")
+        {
+            AddInputPin<noise2::NoiseNode*>("Input A", [&](std::optional<noise2::NoiseNode*> from) {
+                m_blend.SetInput(0, from.value_or(nullptr));
+                });
+            AddInputPin<noise2::NoiseNode*>("Input B", [&](std::optional<noise2::NoiseNode*> from) {
+                m_blend.SetInput(1, from.value_or(nullptr));
+                });
+            AddOutputPin<noise2::NoiseNode*>("Output", [&]() { return &m_blend; });
+        }
+
+        virtual ~BlendNode() = default;
+
+        void DisplayContent(float zoom) override
+        {
+            const float childWidth = 160 * zoom;
+            ImGui::PushItemWidth(childWidth);
+
+            auto onChange = [=]() { ModifiedFlag = true; };
+
+            float fTemp = m_blend.GetAlpha();
+            if (ui::SliderFloat("Alpha", &fTemp, onChange, 0.0f, 1.0f))
+                m_blend.SetAlpha(fTemp);
+
+            ImGui::PopItemWidth();
+        }
+
+    private:
+        noise2::NoiseNode_Blend m_blend;
+    };
+
+    class InvertNode : public ui::NG_Node
+    {
+    public:
+        InvertNode() :
+            NG_Node("Invert")
+        {
+            AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
+                m_inv.SetInput(0, from.value_or(nullptr));
+            });
+            AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_inv; });
+        }
+        virtual ~InvertNode() = default;
+
+    private:
+        noise2::NoiseNode_Invert m_inv;
     };
 
     class ScaleBiasNode : public ui::NG_Node
@@ -1754,6 +1837,63 @@ namespace cyb::editor
         noise2::NoiseNode_Select m_select;
     };
 
+    class NoiseNode_Factory : public ui::NG_Factory
+    {
+    public:
+        NoiseNode_Factory()
+        {
+            // Producer node types
+            RegisterNodeType<CellularNode>("Cellular", Category::Producer);
+            RegisterNodeType<ConstNode>("Const", Category::Producer);
+            RegisterNodeType<PerlinNode>("Perlin", Category::Producer);
+
+            // Modifier node types
+            RegisterNodeType<BlendNode>("Blend", Category::Modifier);
+            RegisterNodeType<InvertNode>("Invert", Category::Modifier);
+            RegisterNodeType<ScaleBiasNode>("ScaleBias", Category::Modifier);
+            RegisterNodeType<SelectNode>("Select", Category::Modifier);
+            RegisterNodeType<StrataNode>("Strata", Category::Modifier);
+
+            // Consumer node types
+            RegisterNodeType<PreviewNode>("Preview", Category::Consumer);
+        }
+        virtual ~NoiseNode_Factory() = default;
+
+       
+
+        void DrawMenuContent(ui::NG_Canvas& canvas, const ImVec2& popupPos) override
+        {
+            size_t count = 0;
+            size_t total = m_categories.size();
+
+            for (auto& [category, types] : m_categories)
+            {
+                for (auto& type : types)
+                {
+                    if (ImGui::MenuItem(type.c_str()))
+                        canvas.Nodes.push_back(std::move(CreateNode(type, popupPos)));
+                }
+
+                // Skip the seperator the the last category.
+                if (++count < total)
+                    ImGui::Separator();
+            }
+        }
+
+    private:
+        enum class Category { Producer, Modifier, Consumer };
+
+        template <typename T>
+        void RegisterNodeType(const std::string& name, Category category)
+        {
+            auto& container = m_categories[category];
+            container.push_back(name);
+            NG_Factory::RegisterFactoryFunction<T>(name);
+        }
+
+        std::map<Category, std::vector<std::string>> m_categories;
+    };
+
     void Update(bool showGui, double dt)
     {
         if (!initialized)
@@ -1797,24 +1937,13 @@ namespace cyb::editor
         {
             static ui::NG_Canvas nodeCanvas;
 
-            // if PinCounter == 0 we haven't yet initialized
-            if (nodeCanvas.Nodes.size() == 0)
+            if (!nodeCanvas.Factory)
             {
                 nodeCanvas.Flags = ui::NG_CanvasFlags_DisplayGrid;
                 //nodeCanvas.Flags |= ui::NG_CanvasFlags_DisplayState;
 
-                nodeCanvas.Nodes.push_back(std::make_unique<PerlinNode>());
-                nodeCanvas.Nodes.push_back(std::make_unique<PreviewNode>());
-                nodeCanvas.Nodes.push_back(std::make_unique<StrataNode>());
-
-                nodeCanvas.Factory.Register("Perlin",    [] () { return std::make_unique<PerlinNode>();    });
-                nodeCanvas.Factory.Register("Cellular",  [] () { return std::make_unique<CellularNode>();  });
-                nodeCanvas.Factory.Register("ScaleBias", [] () { return std::make_unique<ScaleBiasNode>(); });
-                nodeCanvas.Factory.Register("Strata",    [] () { return std::make_unique<StrataNode>();    });
-                nodeCanvas.Factory.Register("Select",    [] () { return std::make_unique<SelectNode>();    });
-                nodeCanvas.Factory.Register("Preview",   [] () { return std::make_unique<PreviewNode>();   });
+                nodeCanvas.Factory = std::make_unique<NoiseNode_Factory>();
             }
-
 
             ui::NodeGraph(nodeCanvas);
         }

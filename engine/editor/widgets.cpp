@@ -818,7 +818,6 @@ namespace cyb::ui
         return nullptr;
     }
 
-
     NG_Canvas::NG_Canvas()
     {
         // Create a default factory
@@ -1005,6 +1004,7 @@ namespace cyb::ui
 #endif
 
         // Calculate space for pins, but draw them later when node width is known
+        // NOTE: We do frame_padding.y * 4.0f for some extra padding between pins and body
         const ImVec2 pins_start = node_start + ImVec2(0, label_sz.y);
         const int pin_count = ImMax(node.Inputs.size(), node.Outputs.size());
         float pins_width = 0.0f;
@@ -1015,7 +1015,7 @@ namespace cyb::ui
             const float width = ImGui::CalcTextSize(inLabel).x + ImGui::CalcTextSize(outLabel).x;
             pins_width = ImMax(pins_width, width);
         }
-        const ImVec2 pins_sz = ImVec2(pins_width + (space_size.x / canvas.Zoom) * 4.0f, (pin_count * ImGui::GetTextLineHeight()) + window_padding.y);
+        const ImVec2 pins_sz = ImVec2(pins_width + (space_size.x / canvas.Zoom) * 4.0f, (pin_count * ImGui::GetTextLineHeight()) + frame_padding.y * 4.0f);
 #ifdef CYB_DEBUG_NG_RECTS
         draw_list->AddRect(pins_start, pins_start + pins_sz, 0xff00ffff);
 #endif
@@ -1087,17 +1087,17 @@ namespace cyb::ui
         };
 
         // Display input pins
-        ImGui::SetCursorScreenPos(pins_start + ImVec2(window_padding.x + pin_radius, 0));
+        ImGui::SetCursorScreenPos(pins_start + frame_padding + ImVec2(window_padding.x + pin_radius, 0));
         for (auto& pin : node.Inputs)
             item_hovered |= draw_pin(pin.get(), true);
 
         // Display output pins
-        ImGui::SetCursorScreenPos(pins_start + ImVec2(window_padding.x, 0));
+        ImGui::SetCursorScreenPos(pins_start + frame_padding + ImVec2(window_padding.x, 0));
         for (auto& pin : node.Outputs)
             item_hovered |= draw_pin(pin.get(), false);
 
         // Display node label center aligned
-        ImGui::SetCursorScreenPos(node_start + frame_padding + ImVec2(node_width * 0.5f - label_sz.x * 0.5f, 0));
+        ImGui::SetCursorScreenPos(node_start + ImVec2(node_width * 0.5f - label_sz.x * 0.5f, 0));
         ImGui::Text(node.GetLabel().c_str());
         ImGui::EndGroup();
 
@@ -1151,7 +1151,11 @@ namespace cyb::ui
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
         ImGuiWindow* window = ImGui::GetCurrentWindow();
         NG_Style& style = canvas.Style;
-        ImGui::ItemAdd(window->ContentRegionRect, canvas_id);
+        if (!ImGui::ItemAdd(window->ContentRegionRect, canvas_id))
+        {
+            ImGui::PopID();
+            return false;
+        }
 
         canvas.Pos = ImGui::GetCursorScreenPos();
         const ImVec2 canvas_sz = ImGui::GetContentRegionAvail();
@@ -1265,7 +1269,7 @@ namespace cyb::ui
         // Display nodes
         for (auto& node : canvas.Nodes)
         {
-            // TODO: Don't call NodeHasValidState every frame
+            // FIXME: Do we really need to call NodeHasValidState every frame?
             node->ValidState = canvas.NodeHasValidState(node.get());
             
             ImGui::SetWindowFontScale(canvas.Zoom);
@@ -1369,5 +1373,32 @@ namespace cyb::ui
 
         ImGui::PopID();
         return true;
+    }
+
+    void NodeGraphStyleEditor(NG_Canvas& canvas)
+    {
+        NG_Style& style = canvas.Style;
+
+        if (ImGui::Begin("NG_StyleEdit"))
+        {
+            ImGui::SliderFloat("PinRadius", &style.PinRadius, 1.0f, 12.0f);
+            ImGui::SliderFloat("NodeFrameRounding", &style.NodeFrameRounding, 1.0f, 12.0f);
+            ImGui::SliderFloat2("NodeWindowPadding", (float*)&style.NodeWindowPadding, 1.0f, 12.0f);
+            ImGui::SliderFloat2("NodeFramePadding", (float*)&style.NodeFramePadding, 1.0f, 12.0f);
+            ImGui::ColorEdit4("NodeBackgroundColor", (float*)&style.NodeBackgroundColor);
+            ImGui::ColorEdit4("NodeBorderColor", (float*)&style.NodeBorderColor);
+            ImGui::ColorEdit4("NodeBorderInvalidColor", (float*)&style.NodeBorderInvalidColor);
+            ImGui::ColorEdit4("PinUnConnectedColor", (float*)&style.PinUnConnectedColor);
+            ImGui::ColorEdit4("PinConnectedColor", (float*)&style.PinConnectedColor);
+            ImGui::ColorEdit4("PinHoverColor", (float*)&style.PinHoverColor);
+            ImGui::ColorEdit4("ConnectionColor", (float*)&style.ConnectionColor);
+            ImGui::ColorEdit4("ConnectionHoverColor", (float*)&style.ConnectionHoverColor);
+            ImGui::ColorEdit4("ConnectionDragginColor", (float*)&style.ConnectionDragginColor);
+
+            if (ImGui::Button("Set To Defaults"))
+                style = ui::NG_Style{};
+        }
+
+        ImGui::End();
     }
 }

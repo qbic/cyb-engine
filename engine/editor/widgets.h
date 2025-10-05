@@ -253,10 +253,10 @@ namespace cyb::ui
         float PinRadius{ 8.0f };
         float NodeFrameRounding{ 6.0f };
         ImVec2 NodeWindowPadding{ 8.0f, 8.0f };             // Padding between node border and content
-        ImVec2 NodeFramePadding{ 4.0f, 3.0f };
+        ImVec2 NodeFramePadding{ 4.0f, 4.0f };
         ImColor NodeBackgroundColor{ 50, 90, 60 };
         ImColor NodeBorderColor{ 200, 200, 200 };
-        ImColor NodeBorderInvalidColor{ 245, 185, 66 };     // When node is invalid
+        ImColor NodeBorderInvalidColor{ 245, 185, 66 };     // Invalid node border color
         ImColor PinUnConnectedColor{ 80, 80, 80 };
         ImColor PinConnectedColor{ 51, 190, 37 };
         ImColor PinHoverColor{ 255, 200, 50 };
@@ -283,23 +283,19 @@ namespace cyb::ui
 
         virtual ~NG_Node() = default;
 
-        const std::string& GetLabel() const
-        {
-            return m_Label;
-        }
-
-        ImGuiID GetID() const
-        {
-            return m_ID;
-        }
+        const std::string& GetLabel() const { return m_Label; }
+        ImGuiID GetID() const { return m_ID; }
 
         // This may be implemented in derived class for displaying custom items.
-        virtual void DisplayContent(float zoom)
-        {
-        }
-        virtual void Update()
-        {
-        }
+        virtual void DisplayContent(float zoom) {}
+
+        /**
+         * @brief Node type user implemented update function.
+         * 
+         * This gets called when any connected input node get the ModfiedFlag and 
+         * when a new connection is made to the node.
+         */
+        virtual void Update() {}
 
         template <typename T>
         void AddInputPin(const std::string& label, detail::NG_InputPin<T>::CallbackType cb = {})
@@ -336,6 +332,8 @@ namespace cyb::ui
         NG_Factory() = default;
         virtual ~NG_Factory() = default;
 
+        uint64_t GetHash() const { return m_hash; }
+
         /**
          * @brief Draw menu items of the create node menu.
          * 
@@ -348,6 +346,7 @@ namespace cyb::ui
          * @brief Register a node of type T named `node_type`.
          */
         template <typename T>
+            requires std::derived_from<T, NG_Node>
         void RegisterFactoryFunction(const std::string& node_type)
         {
             auto lambda = [] () { return std::make_unique<T>(); };
@@ -391,7 +390,7 @@ namespace cyb::ui
         [[nodiscard]] bool IsPinConnected(detail::NG_Pin* pin) const;
 
         /**
-         * @brief Check if a connection would create cycling connections.
+         * @brief Check if a connection would create a cycling connection.
          */
         [[nodiscard]] bool WouldCreateCycle(const NG_Node* from, const NG_Node* to) const;
 
@@ -443,4 +442,6 @@ namespace cyb::ui
     };
 
     bool NodeGraph(NG_Canvas& canvas);
+
+    void NodeGraphStyleEditor(NG_Canvas& canvas);
 }

@@ -1467,8 +1467,7 @@ namespace cyb::editor
         PerlinNode() :
             NG_Node("Perlin Noise")
         {
-            AddOutputPin<noise2::NoiseNode*>("Output", [=] () {return &noise; });
-            Pos = { 100, 500 };             // REMOVE
+            AddOutputPin<noise2::NoiseNode*>("Output", [=] () { return &noise; });
         }
 
         virtual ~PerlinNode() = default;
@@ -1511,7 +1510,7 @@ namespace cyb::editor
         CellularNode() :
             NG_Node("Cellular Noise")
         {
-            AddOutputPin<noise2::NoiseNode*>("Output", [=] () {return &noise; });
+            AddOutputPin<noise2::NoiseNode*>("Output", [=] () { return &noise; });
         }
 
         virtual ~CellularNode() = default;
@@ -1590,10 +1589,7 @@ namespace cyb::editor
         {
             AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
                 m_input = from.value_or(nullptr);
-                Update();
             });
-
-            Pos = { 600, 400 };         // REMOVE
         }
 
         virtual ~PreviewNode() = default;
@@ -1641,18 +1637,18 @@ namespace cyb::editor
             if (!m_autoUpdate && ImGui::Button("Update", ImVec2(childWidth, 0)))
                 UpdatePreview();
 
-            const float image_width = childWidth;
-            const ImVec2 p0 = ImGui::GetCursorScreenPos();
-            const ImVec2 p1 = p0 + ImVec2(image_width, image_width);
+            const ImVec2 imageSize{ childWidth,childWidth };
             if (m_input && ValidState && m_texture.IsValid())
             {
-                ImGui::Image((ImTextureID)&m_texture, ImVec2(image_width, image_width));
+                ImGui::Image((ImTextureID)&m_texture, imageSize);
             }
             else
             {
-                ImGui::ItemAdd(ImRect(p0, p1), 12);
-                ImGui::GetWindowDrawList()->AddRectFilled(p0, p1, 0xff222222);
-                ImGui::SetCursorScreenPos(p0 + ImVec2(0, image_width + style.ItemSpacing.y * zoom));
+                const ImGuiWindow* window = ImGui::GetCurrentWindow();
+                const ImRect bb(window->DC.CursorPos, window->DC.CursorPos + imageSize);
+                ImGui::ItemSize(bb);
+                if (ImGui::ItemAdd(bb, ImGui::GetID(this)))
+                    ImGui::GetWindowDrawList()->AddRectFilled(bb.Min, bb.Max, 0xff222222);
             }
 
             ImGui::Text("Updated in %.2fms", m_lastPreviewGenerationTime);
@@ -1666,7 +1662,7 @@ namespace cyb::editor
 
     private:
         bool m_autoUpdate = true;
-        uint32_t m_previewSize = 128;   // Square, (width, height) = previewSize
+        uint32_t m_previewSize = 128;   // Used as both width and height
         float m_lastPreviewGenerationTime = 0.0f;
         float m_freqScale = 8.0f;
         rhi::Texture m_texture;
@@ -1771,8 +1767,6 @@ namespace cyb::editor
                 m_strata.SetInput(0, from.value_or(nullptr));
             });
             AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_strata; });
-
-            Pos = { 300, 300 };     // REMOVE
         }
 
         virtual ~StrataNode() = default;
@@ -1859,12 +1853,10 @@ namespace cyb::editor
         }
         virtual ~NoiseNode_Factory() = default;
 
-       
-
         void DrawMenuContent(ui::NG_Canvas& canvas, const ImVec2& popupPos) override
         {
+            const size_t total = m_categories.size();
             size_t count = 0;
-            size_t total = m_categories.size();
 
             for (auto& [category, types] : m_categories)
             {
@@ -1933,11 +1925,10 @@ namespace cyb::editor
         ///    ============== NG_* TEST CODE ==============
         ///
 #if 1
+        static ui::NG_Canvas nodeCanvas;
         if (ImGui::Begin("Node Editor DEV", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
         {
-            static ui::NG_Canvas nodeCanvas;
-
-            if (!nodeCanvas.Factory)
+            if (nodeCanvas.Factory->GetHash() == 0)
             {
                 nodeCanvas.Flags = ui::NG_CanvasFlags_DisplayGrid;
                 //nodeCanvas.Flags |= ui::NG_CanvasFlags_DisplayState;
@@ -1948,6 +1939,8 @@ namespace cyb::editor
             ui::NodeGraph(nodeCanvas);
         }
         ImGui::End();
+
+        ui::NodeGraphStyleEditor(nodeCanvas);
 #endif
 
         ///

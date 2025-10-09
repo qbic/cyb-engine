@@ -77,9 +77,7 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
     GetDevice()->CreateTexture(&textureDesc, &textureData, &bd->fontTexture);
 
     SamplerDesc samplerDesc;
-    samplerDesc.minFilter   = false;
-    samplerDesc.magFilter   = false;
-    samplerDesc.mipFilter   = false;
+    samplerDesc.filter      = Filtering::None;
     samplerDesc.addressU    = SamplerAddressMode::Wrap;
     samplerDesc.addressV    = SamplerAddressMode::Wrap;
     samplerDesc.addressW    = SamplerAddressMode::Wrap;
@@ -98,9 +96,9 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 
 static void SetupCustomStyle()
 {
-    constexpr ImVec4 titleBg       = ImVec4(0.01, 0.19, 0.28, 1.0f);
-    constexpr ImVec4 titleActiveBg = ImVec4(0.98, 0.52, 0.00, 1.0f);
-    constexpr ImVec4 selectedItem  = ImVec4(0.13f, 0.62f, 0.74f, 1.0f);
+    constexpr ImVec4 titleBg              = ImVec4(0.01, 0.19, 0.28, 1.0f);
+    constexpr ImVec4 titleActiveBg        = ImVec4(0.98, 0.52, 0.00, 1.0f);
+    constexpr ImVec4 selectedItem         = ImVec4(0.13f, 0.62f, 0.74f, 1.0f);
 
     ImVec4* colors = ImGui::GetStyle().Colors;
     colors[ImGuiCol_WindowBg]             = ImVec4(0.13f, 0.13f, 0.11f, 0.98f);

@@ -266,6 +266,9 @@ namespace cyb::noise2
         double freqScale{ 1.0 };
     };
 
+    void RenderNoiseImageRows(NoiseImage& image,
+                              const NoiseImageDesc& desc,
+                              uint32_t rowStart, uint32_t rowCount);
     std::shared_ptr<NoiseImage> RenderNoiseImage(const NoiseImageDesc& desc);
 }
 

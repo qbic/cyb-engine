@@ -119,7 +119,7 @@ namespace cyb::jobsystem
         internal_state.numCores = std::thread::hardware_concurrency();
         internal_state.numThreads = std::max(1u, internal_state.numCores - 1);
         {
-            std::vector<JobQueue> temp(internal_state.numThreads);
+            std::vector<JobQueue> temp{ internal_state.numThreads };
             internal_state.jobQueuePerThread = std::move(temp);
         }
         internal_state.mainThreadId = std::this_thread::get_id();
@@ -196,7 +196,7 @@ namespace cyb::jobsystem
             job.groupJobOffset = groupID * groupSize;
             job.groupJobEnd = std::min(job.groupJobOffset + groupSize, jobCount);
 
-            job.Execute();
+            internal_state.Submit(std::move(job));
         }
 
         return groupCount;

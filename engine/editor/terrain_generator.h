@@ -5,6 +5,208 @@
 
 namespace cyb::editor
 {
+    class PerlinNode : public ui::NG_Node
+    {
+    public:
+        static constexpr const char* typeString{ "Perlin Noise" };
+
+        PerlinNode();
+        virtual ~PerlinNode() = default;
+        void DisplayContent(float zoom) override;
+
+    private:
+        noise2::NoiseNode_Perlin m_noise;
+    };
+
+    class CellularNode : public ui::NG_Node
+    {
+    public:
+        static constexpr const char* typeString{ "Cellular Noise" };
+
+        CellularNode();
+        virtual ~CellularNode() = default;
+        void DisplayContent(float zoom) override;
+
+    private:
+        noise2::NoiseNode_Cellular m_noise;
+    };
+
+    class ConstNode : public ui::NG_Node
+    {
+    public:
+        static constexpr const char* typeString{ "Const Value" };
+
+        ConstNode();
+        virtual ~ConstNode() = default;
+        void DisplayContent(float zoom) override;
+
+    private:
+        noise2::NoiseNode_Const m_const;
+    };
+
+    class BlendNode : public ui::NG_Node
+    {
+    public:
+        static constexpr const char* typeString{ "Blend" };
+
+        BlendNode();
+        virtual ~BlendNode() = default;
+        void DisplayContent(float zoom) override;
+
+    private:
+        noise2::NoiseNode_Blend m_blend;
+    };
+
+    class InvertNode : public ui::NG_Node
+    {
+    public:
+        static constexpr const char* typeString{ "Invert" };
+
+        InvertNode();
+        virtual ~InvertNode() = default;
+
+    private:
+        noise2::NoiseNode_Invert m_inv;
+    };
+
+    class ScaleBiasNode : public ui::NG_Node
+    {
+    public:
+        static constexpr const char* typeString{ "ScaleBias" };
+
+        ScaleBiasNode();
+        virtual ~ScaleBiasNode() = default;
+        void DisplayContent(float zoom) override;
+
+    private:
+        noise2::NoiseNode_ScaleBias m_scaleBias;
+    };
+
+    class StrataNode : public ui::NG_Node
+    {
+    public:
+        static constexpr const char* typeString{ "Strata" };
+
+        StrataNode();
+        virtual ~StrataNode() = default;
+        void DisplayContent(float zoom) override;
+
+    private:
+        noise2::NoiseNode_Strata m_strata;
+    };
+
+    class SelectNode : public ui::NG_Node
+    {
+    public:
+        static constexpr const char* typeString{ "Select" };
+
+        SelectNode();
+        virtual ~SelectNode() = default;
+        void DisplayContent(float zoom) override;
+
+    private:
+        noise2::NoiseNode_Select m_select;
+    };
+
+    class PreviewNode : public ui::NG_Node
+    {
+    public:
+        static constexpr const char* typeString{ "Preivew" };
+
+        PreviewNode();
+        virtual ~PreviewNode() = default;
+        void UpdatePreview();
+        void Update() override;
+        void DisplayContent(float zoom) override;
+
+    private:
+        bool m_autoUpdate = true;
+        uint32_t m_previewSize = 128;   // Used as both width and height
+        float m_lastPreviewGenerationTime = 0.0f;
+        float m_freqScale = 8.0f;
+        rhi::Texture m_texture;
+        noise2::NoiseNode* m_input = nullptr;
+    };
+
+    class GenerateMeshNode : public ui::NG_Node
+    {
+    public:
+        static constexpr const char* typeString{ "Generate Mesh" };
+
+        GenerateMeshNode();
+        virtual ~GenerateMeshNode() = default;
+        void DisplayContent(float zoom) override;
+
+        void GenerateTerrainMesh();
+
+    private:
+        struct Chunk
+        {
+            int32_t x{ 0 };
+            int32_t z{ 0 };
+
+            constexpr bool operator==(const Chunk& other) const
+            {
+                return (x == other.x) && (z == other.z);
+            }
+            inline size_t GetHash() const
+            {
+                return ((std::hash<int>()(x) ^ (std::hash<int>()(z) << 1)) >> 1);
+            }
+        };
+
+        struct ChunkData
+        {
+            ecs::Entity entity{ ecs::INVALID_ENTITY };
+            scene::Scene scene;
+        };
+
+        struct ChunkHash
+        {
+            inline size_t operator()(const Chunk& chunk) const
+            {
+                return chunk.GetHash();
+            }
+        };
+
+        int m_chunkExpand{ 2 };
+        int m_chunkSize{ 256 };             // Chunk size in meters
+        float m_maxError{ 0.004f };
+        float m_minMeshAltitude{ -22.0f };  // Min altidude in meters
+        float m_maxMeshAltitude{ 200.0f };  // Max altitude in meters
+        ui::Gradient m_biomeColorBand;
+
+        jobsystem::Context m_jobContext;
+        ecs::Entity m_terrainGroupID{ ecs::INVALID_ENTITY };
+        noise2::NoiseNode* m_input{ nullptr };
+    };
+
+    class NoiseNode_Factory : public ui::NG_Factory
+    {
+    public:
+        NoiseNode_Factory();
+        virtual ~NoiseNode_Factory() = default;
+        void DrawMenuContent(ui::NG_Canvas& canvas, const ImVec2& popupPos) override;
+
+    private:
+        enum class Category { Producer, Modifier, Consumer };
+
+        template <typename T>
+        void RegisterNodeType(const std::string& name, Category category)
+        {
+            auto& container = m_categories[category];
+            container.push_back(name);
+            NG_Factory::RegisterFactoryFunction<T>(name);
+        }
+
+        std::map<Category, std::vector<std::string>> m_categories;
+    };
+
+    ////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////
+
     struct TerrainMeshDesc
     {
         int32_t size = 256;             // terrain size in meters per chunk

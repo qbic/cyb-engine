@@ -1,26 +1,10 @@
 #pragma once
 #include <cassert>
 #include <vector>
+#include "core/non_copyable.h"
 
 namespace cyb
 {
-    struct ArenaBlock
-    {
-        size_t size;
-        uint8_t* base;
-        size_t used;
-    };
-
-    struct ArenaStats
-    {
-        size_t numBlocks;
-        size_t totalAllocatedMemory;
-        size_t totalUsedMemory;
-        size_t maxUsedMemory;
-        size_t alignment;
-        size_t minimumBlockSize;
-    };
-
     template <typename T>
     [[nodiscard]] T AlignPow2(const T value, const T align) noexcept
     {
@@ -35,17 +19,28 @@ namespace cyb
         return result;
     }
 
-    class Arena
+    class ArenaAllocator : private NonCopyable
     {
     private:
-        const size_t DEFAULT_BLOCK_SIZE = 1024 * 1024;
+        static constexpr size_t DEFAULT_BLOCK_SIZE{ 1024 * 1024 };
+
+        struct Block
+        {
+            uint8_t* base;
+            size_t capacity;
+            size_t size;
+        };
 
     public:
-        Arena() = default;
-        Arena(size_t minimumBlockSize, size_t alignment) :
+        ArenaAllocator() = default;
+        
+        ArenaAllocator(size_t minimumBlockSize, size_t alignment) :
             m_minimumBlockSize(minimumBlockSize),
-            m_alignment(alignment) {}
-        ~Arena()
+            m_alignment(alignment)
+        {
+        }
+
+        ~ArenaAllocator()
         {
             Clear();
         }
@@ -63,34 +58,25 @@ namespace cyb
             assert(m_alignment <= 128);
             assert(IsPow2(m_alignment));
 
-            size_t allocationSize = AlignPow2(size, m_alignment);
+            const size_t alignedSize = AlignPow2(size, m_alignment);
+            Block& block = GetBlockForAllocation(alignedSize);
+            uint8_t* result = block.base + block.size;
+            block.size += alignedSize;
 
-            // try to find a block with memory available for the allocation
-            // if no available block, create a new and try again
-            ArenaBlock* block = BlockForAllocation(allocationSize);
-            if (!block)
-            {
-                AllocateNewBlock(size + m_alignment);
-                return Allocate(size);
-            }
-
-            uint8_t* result = block->base + block->used;
-            block->used += allocationSize;
-
-            m_totalUsedMemory += allocationSize;
-            m_maxUsedMemory = std::max(m_totalUsedMemory, m_maxUsedMemory);
+            // Update the LRU cache
+            m_lastUsedBlock = &block;
 
             return result;
         }
 
-        // reset all blocks in the arena, but does not free any memory
+        // Reset all blocks in the arena, but does not free any memory
+        // Any memory referenced before Reset() is target for corruption!
         void Reset()
         {
             for (auto& block : m_blocks)
-                block.used = 0;
+                block.size = 0;
 
             m_lastUsedBlock = nullptr;
-            m_totalUsedMemory = 0;
         }
 
         // free all memory and clear all blocks
@@ -102,69 +88,54 @@ namespace cyb
             m_blocks.clear();
         }
 
-        [[nodiscard]] ArenaStats GetStats() const
+    private:
+        [[nodiscard]] Block& GetBlockForAllocation(size_t allocationSize)
         {
-            ArenaStats stats = {};
-            stats.numBlocks = m_blocks.size();
-            stats.totalAllocatedMemory = m_totalAllocatedMemory;
-            stats.totalUsedMemory = m_totalUsedMemory;
-            stats.maxUsedMemory = m_maxUsedMemory;
-            stats.alignment = m_alignment;
-            stats.minimumBlockSize = m_minimumBlockSize;
-            return stats;
+            Block* block = FindBlockForAllocation(allocationSize);
+            if (block != nullptr)
+                return *block;
+            return PushNewBlock(allocationSize);
         }
 
-    private:
-        [[nodiscard]] ArenaBlock* BlockForAllocation(size_t allocationSize)
+        [[nodiscard]] bool BlockCanAllocate(const Block& block, size_t allocationSize) const
         {
-            const auto hasFreespace = [](const ArenaBlock* block, size_t size) -> bool
-            {
-                return (block->used + size) <= block->size;
-            };
+            return (block.size + allocationSize) < block.capacity;
+        }
 
-            // check last used block first
-            if (m_lastUsedBlock != nullptr && hasFreespace(m_lastUsedBlock, allocationSize))
+        [[nodiscard]] Block* FindBlockForAllocation(size_t allocationSize)
+        {
+            // Check LRU cache first.
+            if (m_lastUsedBlock != nullptr && BlockCanAllocate(*m_lastUsedBlock, allocationSize))
                 return m_lastUsedBlock;
 
-            // fallback to linear search
+            // Fallback to linear search.
             for (auto& block : m_blocks)
             {
-                if (hasFreespace(&block, allocationSize))
-                {
-                    m_lastUsedBlock = &block;
+                if (BlockCanAllocate(block, allocationSize))
                     return &block;
-                }
             }
 
             return nullptr;
         }
 
-        void AllocateNewBlock(size_t blockSize)
+        Block& PushNewBlock(size_t blockSize)
         {
             if (!m_minimumBlockSize)
                 m_minimumBlockSize = DEFAULT_BLOCK_SIZE;
 
-            ArenaBlock& block = m_blocks.emplace_back();
-            block.size = std::max(blockSize, m_minimumBlockSize);
-            block.used = 0;
-            block.base = (uint8_t*)_aligned_malloc(block.size, m_alignment);
+            Block& block = m_blocks.emplace_back();
+            block.capacity = std::max(blockSize, m_minimumBlockSize);
+            block.size = 0;
+            block.base = (uint8_t*)_aligned_malloc(block.capacity, m_alignment);
 
-            // we assume no previous block fit the allocation and
-            // update the last used cache to the new block
-            m_lastUsedBlock = &block;
-
-            m_totalAllocatedMemory += AlignPow2(block.size, m_alignment);
+            return m_blocks.back();
         }
 
     private:
-        std::vector<ArenaBlock> m_blocks;
-        ArenaBlock* m_lastUsedBlock = nullptr;  // cache last used block
-        size_t m_alignment = 1;
-        size_t m_minimumBlockSize = 0;          // if set to 0, DEFAULT_BLOCK_SIZE will be used
-
-        size_t m_totalAllocatedMemory = 0;
-        size_t m_totalUsedMemory = 0;
-        size_t m_maxUsedMemory = 0;             // ignoring resets
+        std::vector<Block> m_blocks;
+        Block* m_lastUsedBlock{ nullptr };      // Block LRU cache
+        size_t m_alignment{ 1 };
+        size_t m_minimumBlockSize{ 0 };         // if set to 0, DEFAULT_BLOCK_SIZE will be used
     };
 
     template <typename T>
@@ -174,7 +145,7 @@ namespace cyb
         using value_type = T;
 
         ArenaStlProxy() noexcept = default;
-        ArenaStlProxy(Arena* arena) noexcept : m_arena(arena) {}
+        ArenaStlProxy(ArenaAllocator* arena) noexcept : m_arena(arena) {}
 
         template <class U>
         ArenaStlProxy(const ArenaStlProxy<U>& other) noexcept :
@@ -208,6 +179,6 @@ namespace cyb
             return m_arena != b.m_arena;
         }
 
-        Arena* m_arena = nullptr;
+        ArenaAllocator* m_arena = nullptr;
     };
 }

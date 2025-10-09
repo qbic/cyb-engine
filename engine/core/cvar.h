@@ -36,7 +36,8 @@ namespace cyb
         {
         public:
             explicit CVarBase(const std::string& name, CVarFlag flags, const std::string& description);
-            
+            virtual ~CVarBase() = default;
+
             [[nodiscard]] uint64_t GetHash() const;
             [[nodiscard]] const std::string& GetName() const;
             [[nodiscard]] const std::string& GetDescription() const;
@@ -44,9 +45,9 @@ namespace cyb
             void SetModified(bool value);
             [[nodiscard]] bool IsReadOnly() const;
 
-            virtual const std::type_info& GetType() const = 0;
-            virtual const std::string& GetValueAsString() const = 0;
-            virtual const std::string& GetTypeAsString() const = 0;
+            [[nodiscard]] virtual const std::type_info& GetType() const = 0;
+            [[nodiscard]] virtual const std::string& GetValueAsString() const = 0;
+            [[nodiscard]] virtual const std::string& GetTypeAsString() const = 0;
 
         private:
             const std::string m_name;
@@ -70,6 +71,7 @@ namespace cyb
                 m_value(value)
             {
             }
+            virtual ~CVarCommon() = default;
 
             void SetValue(const ValueType& value)
             {
@@ -151,6 +153,8 @@ namespace cyb
         {
         }
 
+        virtual ~CVar() = default;
+
         [[nodiscard]] const std::string& GetValueAsString() const
         {
             return m_valueString;
@@ -162,9 +166,8 @@ namespace cyb
             const T clampedValue = std::clamp(this->GetValue(), m_minValue, m_maxValue);
             if (clampedValue != this->GetValue())
             {
+                // Early out here sence SetValue() will call this function again.
                 this->SetValue(clampedValue);
-
-                // We can return early here sence SetValue() will call this function again.
                 return;
             }
 
@@ -192,7 +195,9 @@ namespace cyb
         {
         }
 
-        [[nodiscard]] const std::string& GetValueAsString() const
+        virtual ~CVar() = default;
+
+        [[nodiscard]] const std::string& GetValueAsString() const override
         {
             static const std::string boolStrings[] = { "false", "true" };
             return GetValue() ? boolStrings[1] : boolStrings[0];
@@ -211,7 +216,9 @@ namespace cyb
         {
         }
 
-        [[nodiscard]] const std::string& GetValueAsString() const
+        virtual ~CVar() = default;
+
+        [[nodiscard]] const std::string& GetValueAsString() const override
         {
             return GetValue();
         }

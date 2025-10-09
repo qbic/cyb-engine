@@ -10,7 +10,7 @@
 namespace cyb::input::rawinput
 {
     CVar<uint32_t> inputArenaSize("inputArenaSize", 16 * 1024, CVarFlag::SystemBit, "Memory arena size (64bit aligned) for the raw input system (restart requierd)");
-    Arena inputArena;
+    ArenaAllocator inputArena;
     std::vector<RAWINPUT*> inputMessages;
 
     input::KeyboardState keyboard;
@@ -39,7 +39,7 @@ namespace cyb::input::rawinput
             assert(0);
         }
 
-        inputArena.SetBlockSizeAndAlignment(inputArenaSize.GetValue(), 64); // 16k block size, 8byte alignment
+        inputArena.SetBlockSizeAndAlignment(inputArenaSize.GetValue(), 8);
         inputMessages.reserve(64);
         initialized.store(true);
     }
@@ -51,9 +51,13 @@ namespace cyb::input::rawinput
             const RAWKEYBOARD& rawkeyboard = raw.data.keyboard;
             assert(rawkeyboard.VKey < keyboard.buttons.size());
 
-            if (rawkeyboard.Flags == RI_KEY_MAKE)
+            // Ignore key 255 as it is sent as a press sequence and is not a real buttons.
+            if (rawkeyboard.VKey == 255)
+                return;
+
+            if ((rawkeyboard.Flags & RI_KEY_BREAK) == 0)
                 keyboard.buttons[rawkeyboard.VKey].RegisterKeyDown();
-            else if (rawkeyboard.Flags == RI_KEY_BREAK)
+            else
                 keyboard.buttons[rawkeyboard.VKey].RegisterKeyUp();
         }
         else if (raw.header.dwType == RIM_TYPEMOUSE)

@@ -170,10 +170,7 @@ namespace cyb::renderer
         desc.maxLOD = FLT_MAX;
 
         // Point filtering states
-        desc.minFilter = false;
-        desc.magFilter = false;
-        desc.mipFilter = false;
-
+        desc.filter = Filtering::None;
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_WRAP]);
 
@@ -184,10 +181,7 @@ namespace cyb::renderer
         device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_CLAMP]);
 
         // BiLinear filtering states
-        desc.minFilter = true;
-        desc.magFilter = true;
-        desc.mipFilter = false;
-
+        desc.filter = Filtering::Min | Filtering::Mag;
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_WRAP]);
 
@@ -197,11 +191,8 @@ namespace cyb::renderer
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Clamp;
         device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_CLAMP]);
 
-        // TriLinearfiltering states
-        desc.minFilter = true;
-        desc.magFilter = true;
-        desc.mipFilter = true;
-
+        // TriLinear filtering states
+        desc.filter = Filtering::Min | Filtering::Mag | Filtering::Mip;
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
         device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_WRAP]);
 
@@ -212,9 +203,7 @@ namespace cyb::renderer
         device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_CLAMP]);
 
         // Anisotropic filtering states
-        desc.minFilter = true;
-        desc.magFilter = true;
-        desc.mipFilter = true;
+        desc.filter = Filtering::Min | Filtering::Mag | Filtering::Mip;
         desc.maxAnisotropy = 16.0f;
 
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;

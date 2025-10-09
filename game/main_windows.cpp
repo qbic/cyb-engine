@@ -73,6 +73,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
     BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     assert(dpiSuccess);
 
+
     RegisterWindowClass(hInstance);
     if (!InitInstance(hInstance, nShowCmd))
     {

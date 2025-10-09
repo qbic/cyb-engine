@@ -1378,7 +1378,7 @@ namespace cyb::rhi
         device_info.ppEnabledExtensionNames = deviceExtensionsVec.data();
 
         VK_CHECK(vkCreateDevice(physicalDevice, &device_info, nullptr, &device));
-        volkLoadDevice(device);        
+        volkLoadDevice(device);    
 
         // Queues:
         {
@@ -2284,9 +2284,9 @@ namespace cyb::rhi
         samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
         samplerInfo.flags = 0;
         samplerInfo.pNext = nullptr;
-        samplerInfo.minFilter = desc->minFilter ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
-        samplerInfo.magFilter = desc->magFilter ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
-        samplerInfo.mipmapMode = desc->minFilter ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerInfo.minFilter = HasFlag(desc->filter, Filtering::Min) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+        samplerInfo.magFilter = HasFlag(desc->filter, Filtering::Mag) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+        samplerInfo.mipmapMode = HasFlag(desc->filter, Filtering::Mip) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
         samplerInfo.anisotropyEnable = anisotropyEnable;
         samplerInfo.maxAnisotropy = anisotropyEnable ? desc->maxAnisotropy : 1.0f;
         samplerInfo.compareEnable = VK_FALSE;

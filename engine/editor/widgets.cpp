@@ -629,7 +629,7 @@ namespace cyb::ui
 
         const ImRect bb(pos, pos + size);
         ImGui::ItemSize(size, style.FramePadding.y);
-        if (!ImGui::ItemAdd(bb, ImGui::GetItemID()))
+        if (!ImGui::ItemAdd(bb, ImGui::GetID(gradient)))
             return false;
 
         const float frameHeight = size.y - style.FramePadding.y;

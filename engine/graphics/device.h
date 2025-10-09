@@ -26,6 +26,15 @@ namespace cyb::rhi
         Write                           //!< CPU, GPU write
     };
 
+    enum class Filtering : uint8_t
+    {
+        None                = 0,
+        Min                 = BIT(0),   //!< Minification filtering
+        Mag                 = BIT(1),   //!< Magnification filtering
+        Mip                 = BIT(2),   //!< Mipmap filtering
+    };
+    CYB_ENABLE_BITMASK_OPERATORS(Filtering);
+
     enum class SamplerAddressMode : uint8_t
     {
         Clamp,
@@ -250,9 +259,7 @@ namespace cyb::rhi
 
     struct SamplerDesc
     {
-        bool minFilter = true;
-        bool magFilter = true;
-        bool mipFilter = true;
+        Filtering filter = Filtering::Min | Filtering::Mag | Filtering::Mip;
         SamplerAddressMode addressU = SamplerAddressMode::Wrap;
         SamplerAddressMode addressV = SamplerAddressMode::Wrap;
         SamplerAddressMode addressW = SamplerAddressMode::Wrap;

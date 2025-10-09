@@ -355,39 +355,40 @@ namespace cyb::noise2
         return m_stride * m_size.height;
     }
 
+    void RenderNoiseImageRows(
+        NoiseImage& image,
+        const NoiseImageDesc& desc,
+        uint32_t rowStart, uint32_t rowCount)
+    {
+        assert(rowCount > 0);
+        assert((rowStart + rowCount) <= image.GetHeight());
+        
+        auto mapToColor = [] (double value) -> NoiseImage::Color {
+            uint8_t color = static_cast<uint8_t>(std::clamp(255.0 * value, 0.0, 255.0));
+            return NoiseImage::Color{ color, color, color, 0xff };
+        };
+
+        for (uint32_t y = rowStart; y < rowStart + rowCount; ++y)
+        {
+            NoiseImage::Color* dest = image.GetPtr(y);
+            for (uint32_t x = 0; x < desc.size.width; ++x)
+            {
+                const double value = desc.input->GetValue(
+                    (double(x + desc.offset.x) * desc.freqScale) * 0.002,
+                    (double(y + desc.offset.y) * desc.freqScale) * 0.002);
+                dest[x] = mapToColor(value);
+            }
+        }
+    }
+
     std::shared_ptr<NoiseImage> RenderNoiseImage(const NoiseImageDesc& desc)
     {
         assert(desc.input != nullptr);
         assert(desc.size.width > 0);
         assert(desc.size.height > 0);
 
-        auto mapToColor = [] (double value) -> NoiseImage::Color {
-            uint8_t color = static_cast<uint8_t>(std::clamp(255.0 * value, 0.0, 255.0));
-            return NoiseImage::Color{ color, color, color, 0xff };
-        };
-
         auto image = std::make_shared<NoiseImage>(desc.size);
-        double maxV = std::numeric_limits<double>::min();
-        double minV = std::numeric_limits<double>::max();
-
-        for (uint32_t y = 0; y < desc.size.height; ++y)
-        {
-            NoiseImage::Color* dest = image->GetPtr(y);
-            for (uint32_t x = 0; x < desc.size.width; ++x)
-            {
-                const double value = desc.input->GetValue(
-                    (double(x + desc.offset.x) * desc.freqScale) * 0.002,
-                    (double(y + desc.offset.y) * desc.freqScale) * 0.002);
-                *dest = mapToColor(value);
-
-                maxV = std::max(maxV, value);
-                minV = std::min(minV, value);
-
-                ++dest;
-            }
-        }
-
-        //CYB_TRACE("minV = {:.4f}, maxV = {:.4f}", minV, maxV);
+        RenderNoiseImageRows(*image.get(), desc, 0, image->GetHeight());
         return image;
     }
 }

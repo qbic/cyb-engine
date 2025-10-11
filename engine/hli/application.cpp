@@ -84,10 +84,10 @@ namespace cyb::hli
 
         jobsystem::Context ctx;
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { resourcemanager::Initialize(); });
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { input::Initialize(); });
+        jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) { input::Initialize(window); });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { renderer::Initialize(); });
-        jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(window); });
-        jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) {
+        jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(window); });
+        jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) {
             RenderPath* renderPath = GetRenderPath();
             renderPath->Load();
 

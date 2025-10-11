@@ -1,16 +1,13 @@
 #pragma once
 #include <array>
+#include "core/enum_flags.h"
 #include "core/platform.h"
 
 namespace cyb::input
 {
-    enum Button
+    enum KeyboardButton
     {
         BUTTON_NONE = 0,
-
-        MOUSE_BUTTON_LEFT,
-        MOUSE_BUTTON_RIGHT,
-        MOUSE_BUTTON_MIDDLE,
 
         KEYBOARD_BUTTON_UP,
         KEYBOARD_BUTTON_DOWN,
@@ -39,43 +36,110 @@ namespace cyb::input
         CHARACHTER_RANGE_START = 'A',       // 'A' == 65
     };
 
-    struct ButtonState
+    class KeyboardState
     {
-        bool isDown = false;
-        uint32_t halfTransitionCount = 0;
+    public:
+        KeyboardState() = default;
+        ~KeyboardState() = default;
 
-        void RegisterKeyDown();
-        void RegisterKeyUp();
-        void Reset();
+        void Update(bool ignoreInput);
+        bool KeyDown(int key) const;
+        bool KeyUp(int key) const;
+        bool KeyChanged(int key) const;
+        bool KeyPressed(int key) const;
+        bool KeyReleased(int key) const;
+
+        void SetKey(int key, bool active);
+
+    private:
+        int8_t m_keys[2][256]{ 0 };     // Keep 2 keyboard states, one latest state, one previous
+        int m_active{ 0 };              // Index to active state
+        int8_t m_currentState[256]{ 0 };
     };
 
-    struct KeyboardState
+    enum class MouseButton : uint8_t
     {
-        std::array<ButtonState, 256> buttons = {};
+        None    = 0,
+        Left    = BIT(0),
+        Right   = BIT(1),
+        Middle  = BIT(2)
     };
+    CYB_ENABLE_BITMASK_OPERATORS(MouseButton);
 
     struct MouseState
     {
-        XMFLOAT2 position = XMFLOAT2(0, 0);
-        XMFLOAT2 deltaPosition = XMFLOAT2(0, 0);
-        float deltaWheel = 0;
-        ButtonState leftButton = {};
-        ButtonState middleButton = {};
-        ButtonState rightButton = {};
+        MouseState() = default;
+        ~MouseState() = default;
+
+        void Update(WindowHandle window, bool ignoreInput);
+
+        [[nodiscard]] MouseButton GetButtons() const { return buttons[activeButtonIndex]; }
+        [[nodiscard]] MouseButton GetChangedButtons() const { return buttons[0] ^ buttons[1]; }
+        [[nodiscard]] MouseButton GetPressedButtons() const { return GetChangedButtons() & GetButtons(); }
+        [[nodiscard]] MouseButton GetReleasedButtons() const { return GetChangedButtons() & buttons[activeButtonIndex ^ 1]; }
+
+        MouseButton buttons[2]{ MouseButton::None };
+        MouseButton currentButtonState{ MouseButton::None };
+        uint8_t activeButtonIndex{ 0 };
+        XMFLOAT2 pointerPosition{ 0, 0 };
+        XMFLOAT2 pointerDelta{ 0, 0 };
+        float wheelDelta{ 0 };
     };
 
-    // Initialize the input system
-    void Initialize();
+    /**
+     * @brief Initialize all the needed subsystem used by input.
+     */
+    void Initialize(WindowHandle window);
 
-    // Call once per frame (before processing new input events)
+    /*
+     * @brief Update the states of all input devices.
+     *
+     * Call this once per frame (before processing new input events).
+     */
     void Update(WindowHandle window);
 
+    /**
+     * @brief Get a const reference to the raw keyboard state.
+     */
     [[nodiscard]] const KeyboardState& GetKeyboardState();
+
+    /**
+     * @brief Get a const reference to the raw mouse state.
+     */
     [[nodiscard]] const MouseState& GetMouseState();
 
-    // Check if a button is down
-    [[nodiscard]] bool IsDown(uint32_t button);
+    /**
+     * @brief Check if a keyboard key is current down.
+     */
+    [[nodiscard]] bool KeyDown(uint32_t key);
 
-    // Check if a button is pressed once
-    [[nodiscard]] bool WasPressed(uint32_t button);
+    /**
+     * @brief Check if a keyboard key is currently up.
+     */
+    [[nodiscard]] bool KeyUp(uint32_t key);
+
+    /**
+     * @brief Check if a keystate changed to 'down' from previous frame.
+     */
+    [[nodiscard]] bool KeyPressed(uint32_t key);
+
+    /**
+     * @brief Check if a keystate changed to 'up' from previous frame.
+     */
+    [[nodiscard]] bool KeyReleased(uint32_t key);
+
+    /**
+     * @brief Get a bitmask of the mouse button states.
+     */
+    [[nodiscard]] MouseButton MouseButtons();
+
+    /**
+     * @brief Get a bitmask of mouse buttonstates that changed to 'down' from previous frame.
+     */
+    [[nodiscard]] MouseButton MouseButtonsPressed();
+
+    /**
+     * @brief Get a bitmask of mouse buttonstates that changed to 'up' from previous frame.
+     */
+    [[nodiscard]] MouseButton MouseButtonsReleased();
 }

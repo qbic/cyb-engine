@@ -32,7 +32,7 @@ namespace cyb::hli
         }
 
 #ifndef NO_EDITOR
-        if (input::WasPressed(input::KEYBOARD_BUTTON_F1))
+        if (input::KeyPressed(input::KEYBOARD_BUTTON_F1))
             showEditor = !showEditor;
 
         {

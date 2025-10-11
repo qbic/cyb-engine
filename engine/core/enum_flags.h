@@ -44,6 +44,13 @@ constexpr E& operator&=(E& lhs, E rhs) noexcept
 }
 
 template<BitmaskEnum E>
+[[nodiscard]] constexpr E operator^(E lhs, E rhs) noexcept
+{
+    using underlying = typename std::underlying_type<E>::type;
+    return static_cast<E>(static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs));
+}
+
+template<BitmaskEnum E>
 [[nodiscard]] constexpr E operator~(E rhs) noexcept
 {
     using underlying = typename std::underlying_type<E>::type;

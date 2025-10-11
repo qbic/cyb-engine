@@ -58,31 +58,31 @@ void Game::CameraControl(double dt)
     float xDif = 0;
     float yDif = 0;
 
-    if (input::IsDown(input::MOUSE_BUTTON_RIGHT))
+    if (HasFlag(input::MouseButtons(), input::MouseButton::Right))
     {
-        const input::MouseState& mouse = input::GetMouseState();
-        xDif = m_mouseSensitivity * mouse.deltaPosition.x * (1.0f / 60.0f);
-        yDif = m_mouseSensitivity * mouse.deltaPosition.y * (1.0f / 60.0f);
+        const XMFLOAT2& pointerDelta = input::GetMouseState().pointerDelta;
+        xDif = m_mouseSensitivity * pointerDelta.x * (1.0f / 60.0f);
+        yDif = m_mouseSensitivity * pointerDelta.y * (1.0f / 60.0f);
     }
 
     // if dt > 100 millisec, don't allow the camera to jump too far...
     const float clampedDt = std::min((float)dt, 0.1f);
 
-    const float speed = (input::IsDown('F') ? 3.0f : 1.0f) * 10.0f * m_moveSpeed * clampedDt;
+    const float speed = (input::KeyDown('F') ? 3.0f : 1.0f) * 10.0f * m_moveSpeed * clampedDt;
     XMVECTOR move = XMLoadFloat3(&m_cameraVelocity);
     XMVECTOR moveNew = XMVectorSet(0, 0, 0, 0);
 
-    if (input::IsDown('A'))
+    if (input::KeyDown('A'))
         moveNew += XMVectorSet(-1, 0, 0, 0);
-    if (input::IsDown('D'))
+    if (input::KeyDown('D'))
         moveNew += XMVectorSet(1, 0, 0, 0);
-    if (input::IsDown('S'))
+    if (input::KeyDown('S'))
         moveNew += XMVectorSet(0, 0, -1, 0);
-    if (input::IsDown('W'))
+    if (input::KeyDown('W'))
         moveNew += XMVectorSet(0, 0, 1, 0);
-    if (input::IsDown('C'))
+    if (input::KeyDown('C'))
         moveNew += XMVectorSet(0, -1, 0, 0);
-    if (input::IsDown(input::KEYBOARD_BUTTON_SPACE))
+    if (input::KeyDown(input::KEYBOARD_BUTTON_SPACE))
         moveNew += XMVectorSet(0, 1, 0, 0);
     moveNew = XMVector3Normalize(moveNew) * speed;
 

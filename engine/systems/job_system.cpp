@@ -2,6 +2,7 @@
 #include <semaphore>
 #include <mutex>
 #include <condition_variable>
+#include <cassert>
 #ifdef _WIN32
 #include <Windows.h>
 #endif

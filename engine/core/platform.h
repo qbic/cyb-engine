@@ -2,8 +2,6 @@
 #include <string>
 #include <vector>
 #include "core/types.h"
-#include "core/mathlib.h"
-#include "core/enum_flags.h"
 
 #ifdef _WIN32
 #ifndef NOMINMAX

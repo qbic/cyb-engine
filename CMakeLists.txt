@@ -12,6 +12,17 @@ set(CYB_VERSION_PATCH "${CMAKE_MATCH_3}")
 set(CMAKE_CXX_STANDARD 23)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# Select X86 processor features to use
+option(USE_SSE4_1 "Enable SSE4.1" ON)
+option(USE_SSE4_2 "Enable SSE4.2" ON)
+option(USE_AVX "Enable AVX" ON)
+option(USE_AVX2 "Enable AVX2" ON)
+option(USE_AVX512 "Enable AVX512" OFF)
+option(USE_LZCNT "Enable LZCNT" ON)
+option(USE_TZCNT "Enable TZCNT" ON)
+option(USE_F16C "Enable F16C" ON)
+option(USE_FMADD "Enable FMADD" ON)
+
 # Find required packages
 find_package(Vulkan REQUIRED)
 

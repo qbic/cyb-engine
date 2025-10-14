@@ -47,7 +47,7 @@ namespace cyb::input
         m_currentState[key] = active ? 1 : 0;
     }
 
-    void MouseState::Update(WindowHandle window, bool ignoreInput)
+    void MouseState::Update(bool ignoreInput)
     {
         if (ignoreInput)
             currentButtonState = MouseButton::None;
@@ -59,6 +59,7 @@ namespace cyb::input
     void Initialize(WindowHandle window)
     {
         Timer timer;
+
 #ifdef _WIN32
         rawinput::Initialize(window);
 #endif
@@ -89,7 +90,7 @@ namespace cyb::input
         const bool ignoreInput = (::GetForegroundWindow() != window);
 
         keyboard.Update(ignoreInput);
-        mouse.Update(window, ignoreInput);
+        mouse.Update(ignoreInput);
     }
 
     const KeyboardState& GetKeyboardState()

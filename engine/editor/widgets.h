@@ -20,7 +20,6 @@ namespace cyb::ui
         using VarValue = std::variant<float, ImVec2>;
         StyleVarSet() = default;
         StyleVarSet(std::initializer_list<std::pair<ImGuiStyleVar, VarValue>> list);
-        [[nodiscard]] size_t GetSize() const;
         void PushStyleVars() const;
         void PopStyleVars() const;
 
@@ -34,7 +33,6 @@ namespace cyb::ui
         using ColorValue = std::variant<ImVec4, ImU32, int>;
         StyleColorSet() = default;
         StyleColorSet(std::initializer_list<std::pair<ImGuiCol, ColorValue>> list);
-        [[nodiscard]] size_t GetSize() const;
         void PushStyleColors() const;
         void PopStyleColors() const;
 
@@ -51,7 +49,7 @@ namespace cyb::ui
         ~ScopedStyleVar();
 
     private:
-        uint32_t m_varCount;
+        StyleVarSet m_varSet;
     };
 
     // Set a stylecolor or stylecolorscheme for imgui that will be reset when out of scope
@@ -63,7 +61,7 @@ namespace cyb::ui
         ~ScopedStyleColor();
 
     private:
-        uint32_t m_colorCount;
+        StyleColorSet m_colorSet;
     };
 
     // Push an imgui id that will be popped when of scope
@@ -287,7 +285,7 @@ namespace cyb::ui
         ImGuiID GetID() const { return m_ID; }
 
         // This may be implemented in derived class for displaying custom items.
-        virtual void DisplayContent(float zoom) {}
+        virtual void DisplayContent([[maybe_unused]] float zoom) {}
 
         /**
          * @brief Node type user implemented update function.

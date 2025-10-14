@@ -19,11 +19,6 @@ namespace cyb::ui
             m_values.emplace(key, val);
     }
 
-    size_t StyleVarSet::GetSize() const
-    {
-        return m_values.size();
-    }
-
     void StyleVarSet::PushStyleVars() const
     {
         for (const auto& [styleVar, val] : m_values)
@@ -36,18 +31,14 @@ namespace cyb::ui
 
     void StyleVarSet::PopStyleVars() const
     {
-        ImGui::PopStyleVar(GetSize());
+        assert(m_values.size() < std::numeric_limits<int>::max());
+        ImGui::PopStyleVar(static_cast<int>(m_values.size()));
     }
 
     StyleColorSet::StyleColorSet(std::initializer_list<std::pair<ImGuiCol, ColorValue>> list)
     {
         for (const auto& [key, val] : list)
             m_values.emplace(key, val);
-    }
-
-    size_t StyleColorSet::GetSize() const
-    {
-        return m_values.size();
     }
 
     void StyleColorSet::PushStyleColors() const
@@ -62,29 +53,30 @@ namespace cyb::ui
 
     void StyleColorSet::PopStyleColors() const
     {
-        ImGui::PopStyleColor(GetSize());
-    }
-
-    ScopedStyleColor::ScopedStyleColor(const StyleColorSet& colorSet) :
-        m_colorCount(colorSet.GetSize())
-    {
-        colorSet.PushStyleColors();
-    }
-
-    ScopedStyleColor::~ScopedStyleColor()
-    {
-        ImGui::PopStyleColor(m_colorCount);
+        assert(m_values.size() < std::numeric_limits<int>::max());
+        ImGui::PopStyleColor(static_cast<int>(m_values.size()));
     }
 
     ScopedStyleVar::ScopedStyleVar(const StyleVarSet& varSet) :
-        m_varCount(varSet.GetSize())
+        m_varSet(varSet)
     {
-        varSet.PushStyleVars();
+        m_varSet.PushStyleVars();
     }
 
     ScopedStyleVar::~ScopedStyleVar()
     {
-        ImGui::PopStyleVar(m_varCount);
+        m_varSet.PopStyleVars();
+    }
+
+    ScopedStyleColor::ScopedStyleColor(const StyleColorSet& colorSet) :
+        m_colorSet(colorSet)
+    {
+        m_colorSet.PushStyleColors();
+    }
+
+    ScopedStyleColor::~ScopedStyleColor()
+    {
+        m_colorSet.PopStyleColors();
     }
 
     // draw a left-aligned item label
@@ -732,7 +724,7 @@ namespace cyb::ui
             if (line.Values.size() >= values_count_min)
             {
                 int res_w = ImMin((int)frame_size.x, (int)line.Values.size()) - 1;
-                int item_count = line.Values.size() - 1;
+                size_t item_count = line.Values.size() - 1;
 
                 const float t_step = 1.0f / (float)res_w;
                 const float inv_scale = (scale_min == scale_max) ? 0.0f : (1.0f / (scale_max - scale_min));
@@ -1006,9 +998,9 @@ namespace cyb::ui
         // Calculate space for pins, but draw them later when node width is known
         // NOTE: We do frame_padding.y * 4.0f for some extra padding between pins and body
         const ImVec2 pins_start = node_start + ImVec2(0, label_sz.y);
-        const int pin_count = ImMax(node.Inputs.size(), node.Outputs.size());
+        const size_t pin_count = ImMax(node.Inputs.size(), node.Outputs.size());
         float pins_width = 0.0f;
-        for (int i = 0; i < pin_count; ++i)
+        for (size_t i = 0; i < pin_count; ++i)
         {
             const char* inLabel = (i < node.Inputs.size()) ? node.Inputs[i]->Label.c_str() : "";
             const char* outLabel = (i < node.Outputs.size()) ? node.Outputs[i]->Label.c_str() : "";

@@ -14,7 +14,7 @@ using namespace cyb::rhi;
 
 namespace cyb::hli
 {
-    CVar<bool> r_vsync("r_vsync", true, CVarFlag::RendererBit, "Enable/Disable framebuffer swap on vertical refresh");
+    CVar<bool> r_vsync{ "r_vsync", true, CVarFlag::RendererBit, "Enable/Disable framebuffer swap on vertical refresh" };
 
     void Application::ActivePath(RenderPath* component)
     {

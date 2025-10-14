@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <vector>
+#include "core/enum_flags.h"
 #include "core/platform.h"
 #include "core/mathlib.h"
 #include "core/logger.h"

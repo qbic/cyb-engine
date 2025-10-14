@@ -1,4 +1,5 @@
 #pragma once
+#include <concepts>
 #include <type_traits>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>

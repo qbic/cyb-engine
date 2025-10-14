@@ -12,6 +12,9 @@
 - Create a hardcoded fallback for all resources when loading fail
 - Compute shader support
 
+### Todo (smaller stuff):
+- change XMFLOAT4X4 TransformComponent::world to XMMATRIX
+
 ### Todo (editor)
 - Undo for delete action
 - SceneGraphView generates a new list every single frame, wich makes it VERY inefficent

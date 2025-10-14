@@ -45,8 +45,8 @@ namespace cyb::resourcemanager
     std::unordered_map<uint64_t, std::weak_ptr<ResourceInternal>> resourceCache;
     std::vector<std::string> searchPaths;
     DirectoryWatcher directoryWatcher;
-    CVar<bool> assetReloadOnChange("assetReloadOnChange", true, CVarFlag::SystemBit, "Auto reload loaded asset on filesystem change");
-    CVar<uint32_t> assetFileWatcherStableDelay("assetFileWatcherStableDelay", 200, CVarFlag::SystemBit, "Delay in milliseconds from filesystem change to stable file");
+    CVar<bool> cl_assetReloadOnChange{ "cl_assetReloadOnChange", true, CVarFlag::SystemBit, "Auto reload loaded asset on filesystem change" };
+    CVar<uint32_t> cl_assetChangeStableDelay{ "cl_assetChangeStableDelay", 200, CVarFlag::SystemBit, "Delay in milliseconds from filesystem change to stable file" };
 
     static const ska::flat_hash_map<std::string_view, ResourceType> types = {
         std::make_pair("jpg",   ResourceType::Image),
@@ -84,7 +84,7 @@ namespace cyb::resourcemanager
 
     void Initialize()
     {
-        assetReloadOnChange.RegisterOnChangeCallback([&] (const CVar<bool>& cvar) {
+        cl_assetReloadOnChange.RegisterOnChangeCallback([&] (const CVar<bool>& cvar) {
             if (cvar.GetValue())
             {
                 // re-add all search paths and start
@@ -98,11 +98,11 @@ namespace cyb::resourcemanager
             }
         });
 
-        assetFileWatcherStableDelay.RegisterOnChangeCallback([&] (const CVar<uint32_t>& cvar) {
+        cl_assetChangeStableDelay.RegisterOnChangeCallback([&] (const CVar<uint32_t>& cvar) {
             directoryWatcher.SetEnqueueToStableDelay(cvar.GetValue());
         });
 
-        if (assetReloadOnChange.GetValue())
+        if (cl_assetReloadOnChange.GetValue())
             directoryWatcher.Start();
     }
 
@@ -112,7 +112,7 @@ namespace cyb::resourcemanager
         const std::string slash = (path[path.length() - 1] != '/') ? "/" : "";
         searchPaths.push_back(path + slash);
 
-        if (assetReloadOnChange.GetValue())
+        if (cl_assetReloadOnChange.GetValue())
             directoryWatcher.AddDirectory(path, OnAssetFileChangeEvent, true);
     }
 

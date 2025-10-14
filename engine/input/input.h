@@ -1,6 +1,6 @@
 #pragma once
-#include <array>
 #include "core/enum_flags.h"
+#include "core/mathlib.h"
 #include "core/platform.h"
 
 namespace cyb::input
@@ -71,7 +71,7 @@ namespace cyb::input
         MouseState() = default;
         ~MouseState() = default;
 
-        void Update(WindowHandle window, bool ignoreInput);
+        void Update(bool ignoreInput);
 
         [[nodiscard]] MouseButton GetButtons() const { return buttons[activeButtonIndex]; }
         [[nodiscard]] MouseButton GetChangedButtons() const { return buttons[0] ^ buttons[1]; }

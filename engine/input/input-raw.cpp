@@ -1,16 +1,15 @@
-#include "core/arena.h"
-#include "core/cvar.h"
-#include "core/logger.h"
-#include "input/input.h"
-#include "input/input-raw.h"
+#include <array>
+#include <windows.h>
 #include <hidsdi.h>
-#include <list>
+#include "core/arena.h"
+#include "core/logger.h"
+#include "input/input-raw.h"
+
 #pragma comment(lib, "Hid.lib")
 
 namespace cyb::input::rawinput
 {
-    CVar<uint32_t> cl_inputArenaSize{ "cl_inputArenaSize", 2 * 1024, CVarFlag::SystemBit, "Memory arena size (64bit aligned) for the raw input system (restart requierd)" };
-
+    static constexpr size_t inputArenaBlockSize = 1024 * 2;
     ArenaAllocator inputArena;
     std::vector<RAWINPUT*> inputMessages;
     std::atomic<bool> initialized{ false };
@@ -37,7 +36,7 @@ namespace cyb::input::rawinput
             assert(0);
         }
 
-        inputArena.SetBlockSizeAndAlignment(cl_inputArenaSize.GetValue(), 8);
+        inputArena.SetBlockSizeAndAlignment(inputArenaBlockSize, 8);
         inputMessages.reserve(64);
         initialized.store(true);
     }
@@ -143,10 +142,6 @@ namespace cyb::input::rawinput
                     mouse.pointerDelta.y += static_cast<float>(rawmouse.lLastY);
                 if (rawmouse.usButtonFlags == RI_MOUSE_WHEEL)
                     mouse.wheelDelta += static_cast<float>((SHORT)rawmouse.usButtonData) / static_cast<float>(WHEEL_DELTA);
-            }
-            else if (rawmouse.usFlags == MOUSE_MOVE_ABSOLUTE)
-            {
-                // for some reason we never get absolute coordinates with raw input...
             }
 
             if (rawmouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)

@@ -547,12 +547,12 @@ namespace cyb::renderer
         assert(camera);
 
         CameraConstants cc = {};
-        cc.proj = camera->projection;
-        cc.view = camera->view;
-        cc.vp = camera->VP;
-        cc.inv_proj = camera->inv_projection;
-        cc.inv_view = camera->inv_view;
-        cc.inv_vp = camera->inv_VP;
+        XMStoreFloat4x4(&cc.proj, camera->projection);
+        XMStoreFloat4x4(&cc.view, camera->view);
+        XMStoreFloat4x4(&cc.vp, camera->VP);
+        XMStoreFloat4x4(&cc.inv_proj, camera->invProjection);
+        XMStoreFloat4x4(&cc.inv_view, camera->invView);
+        XMStoreFloat4x4(&cc.inv_vp, camera->invVP);
         cc.pos = XMFLOAT4(camera->pos.x, camera->pos.y, camera->pos.z, 1.0f);
 
         device->UpdateBuffer(&constantbuffers[CBTYPE_CAMERA], &cc, cmd);
@@ -602,9 +602,9 @@ namespace cyb::renderer
 
             const TransformComponent& transform = view.scene->transforms[object.transformIndex];
             MiscCB cb = {};
-            XMMATRIX W = XMLoadFloat4x4(&transform.world);
+            XMMATRIX W = transform.world;
             XMStoreFloat4x4(&cb.g_xModelMatrix, XMMatrixTranspose(W));
-            XMStoreFloat4x4(&cb.g_xTransform, XMMatrixTranspose(W * view.camera->GetViewProjection()));
+            XMStoreFloat4x4(&cb.g_xTransform, XMMatrixTranspose(W * view.camera->VP));
             device->BindDynamicConstantBuffer(cb, CBSLOT_MISC, cmd);
 
             for (const auto& subset : mesh.subsets)
@@ -703,7 +703,7 @@ namespace cyb::renderer
             {
                 const AxisAlignedBox& aabb = view.scene->aabb_objects[objectIndex];
                 MiscCB misc_cb;
-                XMStoreFloat4x4(&misc_cb.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
+                XMStoreFloat4x4(&misc_cb.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->VP));
                 device->BindDynamicConstantBuffer(misc_cb, CBSLOT_MISC, cmd);
 
                 device->DrawIndexed(24, 0, 0, cmd);
@@ -728,8 +728,8 @@ namespace cyb::renderer
                 params.position = transform->translation_local;
                 params.size = XMFLOAT2(dist, dist);
 
-                XMMATRIX invR = XMMatrixInverse(nullptr, XMLoadFloat3x3(&view.camera->rotation));
-                XMMATRIX P = view.camera->GetViewProjection();
+                XMMATRIX invR = view.camera->invRotation;
+                XMMATRIX P = view.camera->VP;
                 params.customRotation = &invR;
                 params.customProjection = &P;
 
@@ -771,7 +771,7 @@ namespace cyb::renderer
                 {
                     const AxisAlignedBox& aabb = view.scene->aabb_lights[lightIndex];
                     MiscCB cbMisc;
-                    XMStoreFloat4x4(&cbMisc.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->GetViewProjection()));
+                    XMStoreFloat4x4(&cbMisc.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->VP));
                     device->BindDynamicConstantBuffer(cbMisc, CBSLOT_MISC, cmd);
                     device->DrawIndexed(24, 0, 0, cmd);
                 }

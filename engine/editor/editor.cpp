@@ -1359,17 +1359,16 @@ namespace cyb::editor
 
         const ecs::Entity entity = scenegraphView.GetSelectedEntity();
         scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
+        if (!transform)
+            return;
 
         XMFLOAT4X4 world{};
-        if (transform)
-            world = transform->world;
+        XMStoreFloat4x4(&world, transform->world);
 
-        const bool isEnabled = (transform != nullptr);
-        ImGuizmo::Enable(isEnabled);
         ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
         ImGuizmo::Manipulate(
-            &camera.view._11,
-            &camera.projection._11,
+            (float*)&camera.view,
+            (float*)&camera.projection,
             gizmoOperation,
             ImGuizmo::WORLD,
             &world._11);
@@ -1378,8 +1377,8 @@ namespace cyb::editor
         {
             ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
             ImGuizmo::ViewManipulate(
-                &camera.view._11,
-                &camera.projection._11,
+                (float*)&camera.view,
+                (float*)&camera.projection,
                 gizmoOperation,
                 ImGuizmo::WORLD,
                 &world._11,
@@ -1389,12 +1388,12 @@ namespace cyb::editor
                 0x00000000);
         }
 
-        if (ImGuizmo::IsUsing() && isEnabled)
+        if (ImGuizmo::IsUsing())
         {
             if (!isUsingGizmo)
                 ui::GetUndoManager().EmplaceAction<ui::ModifyValue<scene::TransformComponent>>(windowID, transform);
 
-            transform->world = world;
+            transform->world = XMLoadFloat4x4(&world);
             transform->ApplyTransform();
 
             // Transform to local space if parented
@@ -1403,7 +1402,7 @@ namespace cyb::editor
             {
                 const scene::TransformComponent* parent_transform = scene.transforms.GetComponent(hierarchy->parentID);
                 if (parent_transform != nullptr)
-                    transform->MatrixTransform(XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent_transform->world)));
+                    transform->MatrixTransform(XMMatrixInverse(nullptr, parent_transform->world));
             }
 
             isUsingGizmo = true;
@@ -1426,8 +1425,8 @@ namespace cyb::editor
         float screenW = io.DisplaySize.x;
         float screenH = io.DisplaySize.y;
 
-        XMMATRIX V = XMLoadFloat4x4(&camera.view);
-        XMMATRIX P = XMLoadFloat4x4(&camera.projection);
+        XMMATRIX V = camera.view;
+        XMMATRIX P = camera.projection;
         XMMATRIX W = XMMatrixIdentity();
         XMVECTOR lineStart = XMVector3Unproject(XMVectorSet(cursorX, cursorY, 1, 1), 0, 0, screenW, screenH, 0.0f, 1.0f, P, V, W);
         XMVECTOR lineEnd = XMVector3Unproject(XMVectorSet(cursorX, cursorY, 0, 1), 0, 0, screenW, screenH, 0.0f, 1.0f, P, V, W);

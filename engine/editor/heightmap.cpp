@@ -8,11 +8,11 @@ namespace cyb::editor
         switch (op)
         {
         case HeightmapStrataOp::SharpSub: {
-            const float steps = -std::abs(std::sin(value * strength * PI) * (0.1f / strength * PI));
+            const float steps = -std::abs(std::sin(value * strength * g_PI) * (0.1f / strength * g_PI));
             value = (value + steps) * 0.5f;
         } break;
         case HeightmapStrataOp::SharpAdd: {
-            const float steps = std::abs(std::sin(value * strength * PI) * (0.1f / strength * PI));
+            const float steps = std::abs(std::sin(value * strength * g_PI) * (0.1f / strength * g_PI));
             value = (value + steps) * 0.5f;
         } break;
         case HeightmapStrataOp::Quantize: {
@@ -21,7 +21,7 @@ namespace cyb::editor
         } break;
         case HeightmapStrataOp::Smooth: {
             const float strata = strength * 2.0f;
-            const float steps = std::sin(value * strata * PI) * (0.1f / strata * PI);
+            const float steps = std::sin(value * strata * g_PI) * (0.1f / strata * g_PI);
             value = (value + steps) * 0.5f;
         } break;
         default:

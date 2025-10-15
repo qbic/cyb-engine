@@ -15,17 +15,13 @@ using namespace DirectX::PackedVector;
 
 namespace cyb
 {
-    constexpr float PI = 3.14159265358979323846264338327950288f;
-    constexpr XMFLOAT3 VECTOR_ZERO    { 0, 0, 0 };
-    constexpr XMFLOAT3 VECTOR_IDENTITY{ 1, 1, 1 };
-    constexpr XMFLOAT3 VECTOR_UP      { 0, 1, 0 };
-    constexpr XMFLOAT3 VECTOR_FORWARD { 0, 0, 1 };
-    constexpr XMFLOAT3 VECTOR_RIGHT   { 1, 0, 0 };
-    constexpr XMFLOAT4X4 MATRIX_IDENTITY{ 1, 0, 0, 0,
-                                          0, 1, 0, 0,
-                                          0, 0, 1, 0,
-                                          0, 0, 0, 1 };
-    constexpr XMFLOAT4 QUATERNION_IDENTITY{ 0, 0, 0, 1 };
+    inline constexpr float g_PI = 3.141592653589793f;
+    inline constexpr XMFLOAT3 g_float3Zero { 0, 0, 0 };
+    inline constexpr XMFLOAT3 g_float3One  { 1, 1, 1 };
+    inline constexpr XMFLOAT3 g_float3OneX { 1, 0, 0 };
+    inline constexpr XMFLOAT3 g_float3OneY { 0, 1, 0 };
+    inline constexpr XMFLOAT3 g_float3OneZ { 0, 0, 1 };
+    inline constexpr XMFLOAT4 g_float4OneW { 0, 0, 0, 1 };
 
     template <typename T>
     concept ArithmeticType = std::is_arithmetic_v<T>;
@@ -49,7 +45,7 @@ namespace cyb
     template <FloatType T>
     [[nodiscard]] constexpr T ToRadians(const T degrees) noexcept
     {
-        return (degrees * PI) / T(180);
+        return (degrees * g_PI) / T(180);
     }
 
     /**
@@ -58,7 +54,7 @@ namespace cyb
     template <FloatType T>
     [[nodiscard]] constexpr T ToDegrees(const T radians) noexcept
     {
-        return (radians * T(180)) / PI;
+        return (radians * T(180)) / g_PI;
     }
 
     /**

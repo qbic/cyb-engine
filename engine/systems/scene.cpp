@@ -20,44 +20,6 @@ namespace cyb::scene
         return HasFlag(flags, Flags::DirtyBit);
     }
 
-    XMFLOAT3 TransformComponent::GetPosition() const noexcept
-    {
-        return *((XMFLOAT3*)&world._41);
-    }
-
-    XMFLOAT4 TransformComponent::GetRotation() const noexcept
-    {
-        XMFLOAT4 rotation;
-        XMStoreFloat4(&rotation, GetRotationV());
-        return rotation;
-    }
-
-    XMFLOAT3 TransformComponent::GetScale() const noexcept
-    {
-        XMFLOAT3 scale;
-        XMStoreFloat3(&scale, GetScaleV());
-        return scale;
-    }
-
-    XMVECTOR TransformComponent::GetPositionV() const noexcept
-    {
-        return XMLoadFloat3((XMFLOAT3*)&world._41);
-    }
-
-    XMVECTOR TransformComponent::GetRotationV() const noexcept
-    {
-        XMVECTOR S, R, T;
-        XMMatrixDecompose(&S, &R, &T, XMLoadFloat4x4(&world));
-        return R;
-    }
-
-    XMVECTOR TransformComponent::GetScaleV() const noexcept
-    {
-        XMVECTOR S, R, T;
-        XMMatrixDecompose(&S, &R, &T, XMLoadFloat4x4(&world));
-        return S;
-    }
-
     XMMATRIX TransformComponent::GetLocalMatrix() const noexcept
     {
         XMVECTOR S = XMLoadFloat3(&scale_local);
@@ -70,29 +32,24 @@ namespace cyb::scene
 
     void TransformComponent::ApplyTransform()
     {
-        SetDirty(true);
-
         XMVECTOR S, R, T;
-        XMMatrixDecompose(&S, &R, &T, XMLoadFloat4x4(&world));
+        XMMatrixDecompose(&S, &R, &T, world);
         XMStoreFloat3(&scale_local, S);
         XMStoreFloat4(&rotation_local, R);
         XMStoreFloat3(&translation_local, T);
-    }
 
-    void TransformComponent::MatrixTransform(const XMFLOAT4X4& matrix)
-    {
-        MatrixTransform(XMLoadFloat4x4(&matrix));
+        SetDirty(true);
     }
 
     void TransformComponent::MatrixTransform(const XMMATRIX& matrix)
     {
-        SetDirty(true);
-
         XMVECTOR S, R, T;
         XMMatrixDecompose(&S, &R, &T, GetLocalMatrix() * matrix);
         XMStoreFloat3(&scale_local, S);
         XMStoreFloat4(&rotation_local, R);
         XMStoreFloat3(&translation_local, T);
+
+        SetDirty(true);
     }
 
     void TransformComponent::UpdateTransform()
@@ -100,28 +57,25 @@ namespace cyb::scene
         if (!IsDirty())
             return;
 
+        world = GetLocalMatrix();
         SetDirty(false);
-        XMStoreFloat4x4(&world, GetLocalMatrix());
     }
 
     void TransformComponent::UpdateTransformParented(const TransformComponent& parent)
     {
-        XMMATRIX W = GetLocalMatrix() * XMLoadFloat4x4(&parent.world);
-        XMStoreFloat4x4(&world, W);
+        world = GetLocalMatrix() * parent.world;
     }
 
     void TransformComponent::Translate(const XMFLOAT3& value)
     {
-        SetDirty();
         translation_local.x += value.x;
         translation_local.y += value.y;
         translation_local.z += value.z;
+        SetDirty();
     }
 
     void TransformComponent::RotateRollPitchYaw(const XMFLOAT3& value)
     {
-        SetDirty();
-
         XMVECTOR quat = XMLoadFloat4(&rotation_local);
         XMVECTOR x = XMQuaternionRotationRollPitchYaw(value.x, 0, 0);
         XMVECTOR y = XMQuaternionRotationRollPitchYaw(0, value.y, 0);
@@ -133,6 +87,7 @@ namespace cyb::scene
         quat = XMQuaternionNormalize(quat);
 
         XMStoreFloat4(&rotation_local, quat);
+        SetDirty();
     }
 
     void MaterialComponent::SetUseVertexColors(bool value)
@@ -353,51 +308,38 @@ namespace cyb::scene
     void CameraComponent::UpdateCamera()
     {
         // using reverse z-buffer: zNear > zFar
-        const XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(ToRadians(fov), aspect, zFarPlane, zNearPlane);
+        projection = XMMatrixPerspectiveFovLH(ToRadians(fov), aspect, zFarPlane, zNearPlane);
 
-        const XMVECTOR cameraEye = XMLoadFloat3(&pos);
-        const XMVECTOR cameraDirection = XMLoadFloat3(&target);
-        const XMVECTOR cameraUp = XMLoadFloat3(&up);
-        const XMMATRIX viewMatrix = XMMatrixLookToLH(cameraEye, cameraDirection, cameraUp);
-        
-        XMStoreFloat4x4(&view, viewMatrix);
-        XMStoreFloat4x4(&projection, projectionMatrix);
-        
-        XMStoreFloat4x4(&inv_view, XMMatrixInverse(nullptr, viewMatrix));
-        XMStoreFloat4x4(&inv_projection, XMMatrixInverse(nullptr, projectionMatrix));
+        const XMVECTOR camPos = XMLoadFloat3(&pos);
+        const XMVECTOR camDir = XMLoadFloat3(&target);
+        const XMVECTOR camUp  = XMLoadFloat3(&up);
+        view = XMMatrixLookToLH(camPos, camDir, camUp);
+        VP = XMMatrixMultiply(view, projection);
 
-        const XMMATRIX viewProjectionMatrix = XMMatrixMultiply(viewMatrix, projectionMatrix);
-        XMStoreFloat4x4(&VP, viewProjectionMatrix);
-        XMStoreFloat4x4(&inv_VP, XMMatrixInverse(nullptr, viewProjectionMatrix));
+        invProjection = XMMatrixInverse(nullptr, projection);
+        invView       = XMMatrixInverse(nullptr, view);
+        invVP         = XMMatrixInverse(nullptr, VP);
 
         XMVECTOR S, R, T;
-        XMMatrixDecompose(&S, &R, &T, viewMatrix);
-        const XMMATRIX _Rot = XMMatrixRotationQuaternion(R);
-        XMStoreFloat3x3(&rotation, _Rot);
+        XMMatrixDecompose(&S, &R, &T, view);
+        invRotation = XMMatrixInverse(nullptr, XMMatrixRotationQuaternion(R));
 
-        frustum = Frustum(viewProjectionMatrix);
+        frustum = Frustum(VP);
     }
 
     void CameraComponent::TransformCamera(const TransformComponent& transform)
     {
         XMVECTOR S, R, T;
-        XMMatrixDecompose(&S, &R, &T, XMLoadFloat4x4(&transform.world));
+        XMMatrixDecompose(&S, &R, &T, transform.world);
 
-        XMVECTOR _Eye = T;
-        XMVECTOR _At = XMVectorSet(0, 0, 1, 0);
-        XMVECTOR _Up = XMVectorSet(0, 1, 0, 0);
-
-        XMMATRIX _Rot = XMMatrixRotationQuaternion(R);
-        _At = XMVector3TransformNormal(_At, _Rot);
-        _Up = XMVector3TransformNormal(_Up, _Rot);
-        XMStoreFloat3x3(&rotation, _Rot);
-
-        XMMATRIX _V = XMMatrixLookToLH(_Eye, _At, _Up);
-        XMStoreFloat4x4(&view, _V);
-
-        XMStoreFloat3(&pos, _Eye);
-        XMStoreFloat3(&target, _At);
-        XMStoreFloat3(&up, _Up);
+        const XMMATRIX rotation = XMMatrixRotationQuaternion(R);
+        const XMVECTOR camPos = T;
+        const XMVECTOR camDir = XMVector3TransformNormal(XMVectorSet(0, 0, 1, 0), rotation);
+        const XMVECTOR camUp  = XMVector3TransformNormal(XMVectorSet(0, 1, 0, 0), rotation);
+        
+        XMStoreFloat3(&pos, camPos);
+        XMStoreFloat3(&target, camDir);
+        XMStoreFloat3(&up, camUp);
     }
 
     ecs::Entity Scene::CreateGroup(const std::string& name)
@@ -487,10 +429,9 @@ namespace cyb::scene
         if (parent != nullptr && child != nullptr)
         {
             // move child to parent's local space
-            XMMATRIX B = XMMatrixInverse(nullptr, XMLoadFloat4x4(&parent->world));
+            XMMATRIX B = XMMatrixInverse(nullptr, parent->world);
             child->MatrixTransform(B);
             child->UpdateTransform();
-
             child->UpdateTransformParented(*parent);
         }
     }
@@ -747,7 +688,7 @@ namespace cyb::scene
             }
 
             if (transform != nullptr)
-                XMStoreFloat4x4(&transform->world, worldMatrix);
+                transform->world = worldMatrix;
         });
     }
 
@@ -784,7 +725,7 @@ namespace cyb::scene
                 const TransformComponent& transform = transforms[object.transformIndex];
 
                 AxisAlignedBox& aabb = aabb_objects[args.jobIndex];
-                aabb = mesh.aabb.Transform(XMLoadFloat4x4(&transform.world));
+                aabb = mesh.aabb.Transform(transform.world);
             }
         });
     }
@@ -801,9 +742,8 @@ namespace cyb::scene
             const TransformComponent& transform = *transforms.GetComponent(entity);
             AxisAlignedBox& aabb = aabb_lights[args.jobIndex];
 
-            XMMATRIX W = XMLoadFloat4x4(&transform.world);
             XMVECTOR S, R, T;
-            XMMatrixDecompose(&S, &R, &T, W);
+            XMMatrixDecompose(&S, &R, &T, transform.world);
             XMStoreFloat3(&light.position, T);
 
             switch (light.type)
@@ -845,9 +785,8 @@ namespace cyb::scene
                     continue;
 
                 const auto keyframe = std::lower_bound(sampler.keyframeTimes.begin(), sampler.keyframeTimes.end(), animation.timer);
-                if (keyframe == sampler.keyframeTimes.begin())
-                    continue;
-                if (keyframe == sampler.keyframeTimes.end())
+                if (keyframe == sampler.keyframeTimes.begin() ||
+                    keyframe == sampler.keyframeTimes.end())
                     continue;
                 const auto rightKeyIndex = keyframe - sampler.keyframeTimes.begin();
                 const auto leftKeyIndex = rightKeyIndex - 1;
@@ -1049,7 +988,7 @@ namespace cyb::scene
                 continue;
 
             const MeshComponent* mesh = scene.meshes.GetComponent(object.meshID);
-            const XMMATRIX object_matrix = object.transformIndex >= 0 ? XMLoadFloat4x4(&scene.transforms[object.transformIndex].world) : XMMatrixIdentity();
+            const XMMATRIX object_matrix = object.transformIndex >= 0 ? scene.transforms[object.transformIndex].world : XMMatrixIdentity();
             const XMMATRIX inv_object_matrix = XMMatrixInverse(nullptr, object_matrix);
             const XMVECTOR ray_origin_local = XMVector3Transform(ray_origin, inv_object_matrix);
             const XMVECTOR ray_direction_local = XMVector3Normalize(XMVector3TransformNormal(ray_direction, inv_object_matrix));

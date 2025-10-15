@@ -25,28 +25,21 @@ namespace cyb::scene
         };
 
         Flags flags{ Flags::DirtyBit };
-        XMFLOAT3 scale_local{ VECTOR_IDENTITY };
-        XMFLOAT4 rotation_local{ QUATERNION_IDENTITY };  // quaternion rotation
-        XMFLOAT3 translation_local{ VECTOR_ZERO };
+        XMFLOAT3 scale_local{ g_float3One };
+        XMFLOAT4 rotation_local{ g_float4OneW };    // quaternion rotation
+        XMFLOAT3 translation_local{ g_float3Zero };
 
         // non-serialized data
-        XMFLOAT4X4 world{ MATRIX_IDENTITY };
+        XMMATRIX world{};
 
         void SetDirty(bool value = true);
         [[nodiscard]] bool IsDirty() const;
 
-        [[nodiscard]] XMFLOAT3 GetPosition() const noexcept;
-        [[nodiscard]] XMFLOAT4 GetRotation() const noexcept;
-        [[nodiscard]] XMFLOAT3 GetScale() const noexcept;
-        [[nodiscard]] XMVECTOR GetPositionV() const noexcept;
-        [[nodiscard]] XMVECTOR GetRotationV() const noexcept;
-        [[nodiscard]] XMVECTOR GetScaleV() const noexcept;
         [[nodiscard]] XMMATRIX GetLocalMatrix() const noexcept;
 
         // apply world matrix to local space, overwriting scale, rotation & translation
         void ApplyTransform();
 
-        void MatrixTransform(const XMFLOAT4X4& matrix);
         void MatrixTransform(const XMMATRIX& matrix);
 
         void UpdateTransform();
@@ -131,7 +124,7 @@ namespace cyb::scene
         struct Vertex_Pos
         {
             static constexpr rhi::Format FORMAT{ rhi::Format::RGBA32_FLOAT };
-            XMFLOAT3 pos{ VECTOR_ZERO };
+            XMFLOAT3 pos{ g_float3Zero };
             uint32_t normal{ 0 };
 
             void Set(const XMFLOAT3& pos, const XMFLOAT3& norm);
@@ -228,19 +221,19 @@ namespace cyb::scene
         float zFarPlane = 800.0f;
         float fov = 90.0f;      // field of view in degrees
 
-        XMFLOAT3 pos{ VECTOR_ZERO };
-        XMFLOAT3 target{ VECTOR_FORWARD };
-        XMFLOAT3 up{ VECTOR_UP };
+        XMFLOAT3 pos{ g_float3Zero };
+        XMFLOAT3 target{ g_float3OneZ };
+        XMFLOAT3 up{ g_float3OneY };
 
         // non-serialized data
-        XMFLOAT3X3 rotation{};
-        XMFLOAT4X4 view{}, projection{}, VP{};
-        XMFLOAT4X4 inv_view{}, inv_projection{}, inv_VP{};
+        XMMATRIX invRotation{};
+        XMMATRIX projection{}, invProjection{};
+        XMMATRIX view{}, invView{};
+        XMMATRIX VP{}, invVP{};
         Frustum frustum;
 
         CameraComponent() = default;
         CameraComponent(float newAspect, float newNear, float newFar, float newFOV) { CreatePerspective(newAspect, newNear, newFar, newFOV); }
-        XMMATRIX GetViewProjection() const { return XMLoadFloat4x4(&VP); }
         void CreatePerspective(float newAspect, float newNear, float newFar, float newFOV);
         void UpdateCamera();
         void TransformCamera(const TransformComponent& transform);
@@ -418,7 +411,7 @@ namespace cyb::scene
     struct PickResult
     {
         ecs::Entity entity = ecs::INVALID_ENTITY;
-        XMFLOAT3 position = VECTOR_ZERO;
+        XMFLOAT3 position = g_float3Zero;
         float distance = FLT_MAX;
     };
 

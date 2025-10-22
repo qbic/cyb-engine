@@ -59,7 +59,10 @@ namespace cyb::editor
 
     void InspectNameComponent(scene::NameComponent* name_component)
     {
-        ImGui::InputText("Name", &name_component->name);
+        ImGui::Text(ICON_FA_TAGS " Name ");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputText("##2", &name_component->name);
     }
 
     void InspectTransformComponent(scene::TransformComponent* transform)
@@ -541,13 +544,17 @@ namespace cyb::editor
 
         scene::Scene& scene = scene::GetScene();
 
+        // Display entity name and ID
+        scene::NameComponent* name = scene.names.GetComponent(entityID);
+        InspectNameComponent(name);
+        ImGui::Spacing();
+
         scene::ObjectComponent* object = scene.objects.GetComponent(entityID);
         if (object)
         {
-            if (ImGui::CollapsingHeader(ICON_FA_TAGS " Object"))
+            if (ImGui::CollapsingHeader(ICON_FA_EXPAND " Object"))
             {
                 ImGui::Indent();
-                InspectNameComponent(scene.names.GetComponent(entityID));
                 InspectObjectComponent(object);
                 ImGui::Unindent();
             }

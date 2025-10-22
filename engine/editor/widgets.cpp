@@ -84,15 +84,22 @@ namespace cyb::ui
     {
         const ImGuiStyle& style = ImGui::GetStyle();
         const float avail = ImGui::CalcItemWidth();
-        const float label_w = avail * 0.5f;
+        const float item_w = avail * 0.5f;
 
-        ImGui::SetNextItemWidth(label_w);
+        ImGui::SetNextItemWidth(item_w);
         ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(label);
+        const ImVec2 pos = ImGui::GetCursorScreenPos();
+        const ImVec2 label_sz = ImGui::CalcTextSize(label);
+        ImRect bb{ pos, pos + ImVec2(item_w, label_sz.y) };
 
+        ImGui::ItemSize(label_sz, 0.0f);
+        if (!ImGui::ItemAdd(bb, 0))
+            return avail;
+        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label + strlen(label), NULL);
+        
         ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (label_w - ImGui::CalcTextSize(label).x));
-        return avail - label_w - style.ItemInnerSpacing.x;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (item_w - label_sz.x));
+        return avail - item_w - style.ItemInnerSpacing.x * 2.0f;
     }
 
     void InfoIcon(const char* fmt, ...) {

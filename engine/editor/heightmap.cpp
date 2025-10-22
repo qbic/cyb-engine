@@ -144,6 +144,9 @@ namespace cyb::editor
             return (edgeValue < 0 && delta != 0) ? Max(0, -edgeValue / delta) : 0;
         };
 
+        Vector2<float> a, b;
+        auto c = Min(a, b);
+
         // triangle bounding box
         const XMINT2 bbMin = Min(Min(p0, p1), p2);
         const XMINT2 bbMax = Max(Max(p0, p1), p2);

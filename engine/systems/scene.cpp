@@ -324,7 +324,7 @@ namespace cyb::scene
         XMMatrixDecompose(&S, &R, &T, view);
         invRotation = XMMatrixInverse(nullptr, XMMatrixRotationQuaternion(R));
 
-        frustum = Frustum(VP);
+        frustum = Frustum{ VP };
     }
 
     void CameraComponent::TransformCamera(const TransformComponent& transform)

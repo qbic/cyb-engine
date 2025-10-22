@@ -1,12 +1,11 @@
 #pragma once
 #include <concepts>
 #include <type_traits>
+#include <format>
 #include <DirectXMath.h>
-#include <DirectXPackedVector.h>
 #include <DirectXCollision.h>
 
 using namespace DirectX;
-using namespace DirectX::PackedVector;
 
 [[nodiscard]] constexpr XMINT2 operator+(const XMINT2& a, const XMINT2& b) noexcept
 {
@@ -24,25 +23,47 @@ namespace cyb
     inline constexpr XMFLOAT4 g_float4OneW { 0, 0, 0, 1 };
 
     template <typename T>
-    concept ArithmeticType = std::is_arithmetic_v<T>;
+    concept IsArithmetic = std::is_arithmetic_v<std::remove_cvref_t<T>>;
 
     template <typename T>
-    concept FloatType = std::same_as<T, float> ||
-                        std::same_as<T, double>;
+    concept IsFloatingPoint = std::is_floating_point_v<std::remove_cvref_t<T>>;
 
     template <typename T>
-    concept IntegerType = std::is_integral_v<T>;
+    concept IsInteger = std::numeric_limits<std::remove_cvref_t<T>>::is_integer;
 
-    template<typename T>
-    concept Vec2Type = requires(T t) {
-        { t.x } -> std::convertible_to<int>;
-        { t.y } -> std::convertible_to<int>;
+    template <typename T>
+    concept IsVector2Compatable = requires(T t) {
+        { t.x } -> IsArithmetic;
+        { t.y } -> IsArithmetic;
+        requires std::same_as<decltype(t.x), decltype(t.y)>;
     };
+
+    template <IsArithmetic T>
+    struct Vector2
+    {
+        T x{};
+        T y{};
+
+        Vector2() = default;
+        Vector2(const Vector2&) = default;
+        Vector2(Vector2&&) = default;
+        constexpr Vector2(T _x, T _y) noexcept : x(_x), y(_y) {}
+
+        Vector2& operator=(const Vector2&) = default;
+        Vector2& operator=(Vector2&&) = default;
+        Vector2 operator+(const Vector2& rhs) const { return Vector2{ x + rhs.x, y + rhs.y }; }
+        Vector2 operator-(const Vector2& rhs) const { return Vector2{ x - rhs.x, y - rhs.y }; }
+        Vector2& operator+=(const Vector2& rhs) { x += rhs.x; y += rhs.y; return *this; }
+        Vector2& operator-=(const Vector2& rhs) { x -= rhs.x; y -= rhs.y; return *this; }
+    };
+
+    using Vector2f = Vector2<float>;
+    using Vector2i = Vector2<int32_t>;
 
     /**
      * @brief Convert angle from degrees to radians.
      */
-    template <FloatType T>
+    template <IsFloatingPoint T>
     [[nodiscard]] constexpr T ToRadians(const T degrees) noexcept
     {
         return (degrees * g_PI) / T(180);
@@ -51,7 +72,7 @@ namespace cyb
     /**
      * @brief Convert angle from radians to degrees.
      */
-    template <FloatType T>
+    template <IsFloatingPoint T>
     [[nodiscard]] constexpr T ToDegrees(const T radians) noexcept
     {
         return (radians * T(180)) / g_PI;
@@ -60,7 +81,7 @@ namespace cyb
     /**
      * @brief Get the lowest value of two numbers.
      */
-    template<ArithmeticType T>
+    template<IsArithmetic T>
     [[nodiscard]] constexpr T Min(const T a, const T b) noexcept
     {
         return a < b ? a : b;
@@ -69,7 +90,7 @@ namespace cyb
     /**
      * @brief Get the highest value of two numbers.
      */
-    template<ArithmeticType T>
+    template<IsArithmetic T>
     [[nodiscard]] constexpr T Max(const T a, const T b) noexcept
     {
         return a > b ? a : b;
@@ -78,7 +99,7 @@ namespace cyb
     /**
      * @brief Get the lowest [x, y] values of two 2d vectors.
      */
-    template<Vec2Type T>
+    template<IsVector2Compatable T>
     [[nodiscard]] constexpr T Min(const T& a, const T& b) noexcept
     {
         return T(Min(a.x, b.x), Min(a.y, b.y));
@@ -87,7 +108,7 @@ namespace cyb
     /**
      * @brief Get the highest [x, y] values of two 2d vectors.
      */
-    template<Vec2Type T>
+    template<IsVector2Compatable T>
     [[nodiscard]] constexpr T Max(const T& a, const T& b) noexcept
     {
         return T(Max(a.x, b.x), Max(a.y, b.y));
@@ -96,7 +117,7 @@ namespace cyb
     /**
      * @brief Get the largest integer number not larger than num.
      */
-    template <FloatType T>
+    template <IsFloatingPoint T>
     [[nodiscard]] constexpr int Floor(T num) noexcept
     {
         return num >= 0 ? (int)num : (int)num - 1;
@@ -105,7 +126,7 @@ namespace cyb
     /**
      * @brief Get the nearest integer value for num.
      */
-    template <FloatType T>
+    template <IsFloatingPoint T>
     [[nodiscard]] constexpr int Round(T num) noexcept
     {
         return num >= 0 ? (int)(num + 0.5f) : (int)(num - 0.5f);
@@ -114,7 +135,7 @@ namespace cyb
     /**
      * @brief Get the num ensuring it's within the low and high boundaries.
      */
-    template <ArithmeticType T>
+    template <IsArithmetic T>
     [[nodiscard]] constexpr T Clamp(T num, T low, T high)
     {
         return Min(Max(num, low), high);
@@ -123,13 +144,13 @@ namespace cyb
     /**
      * @brief Clamp num to min 0, max 1.
      */
-    template <FloatType T>
+    template <IsFloatingPoint T>
     [[nodiscard]] constexpr T Saturate(T x) noexcept
     {
         return Clamp(x, T(0), T(1));
     }
 
-    template <IntegerType T>
+    template <IsInteger T>
     [[nodiscard]] constexpr T NextPowerOfTwo(T x) noexcept
     {
         --x;
@@ -152,7 +173,7 @@ namespace cyb
         return num + (divisor - bits);
     }
 
-    template <FloatType T>
+    template <IsFloatingPoint T>
     [[nodiscard]] constexpr T Lerp(const T a, const T b, const T t) noexcept
     {
         return a + (b - a) * t;
@@ -169,7 +190,7 @@ namespace cyb
      *
      * f(t) = t^2 * (3 - 2 t)
      */
-    template <FloatType T>
+    template <IsFloatingPoint T>
     [[nodiscard]] constexpr T CubicSmoothStep(T t) noexcept
     {
         return t * t * (T(3.0) - T(2.0) * t);
@@ -180,7 +201,7 @@ namespace cyb
      *
      * f(t) = t^3 * (t * (6 t - 15) + 10)
      */
-    template <FloatType T>
+    template <IsFloatingPoint T>
     [[nodiscard]] constexpr T QuinticSmoothStep(T t) noexcept
     {
         return t * t * t * (t * (t * T(6.0) - T(15.0)) + T(10.0));
@@ -191,7 +212,7 @@ namespace cyb
      *
      * f(t) = t^4 * (35 - 84 t + 70 t^2 - 20 t^3)
      */
-    template <FloatType T>
+    template <IsFloatingPoint T>
     [[nodiscard]] constexpr T SepticSmoothStep(T t) noexcept
     {
         const T t2 = t * t;

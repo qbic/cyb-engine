@@ -119,13 +119,13 @@ namespace cyb::noise2
     [[nodiscard]] static double MakeInt32Range(double n)
     {
         if (n >= 1073741824.0)
-            return (2.0 * fmod(n, 1073741824.0)) - 1073741824.0;
+            return (2.0 * std::fmod(n, 1073741824.0)) - 1073741824.0;
         else if (n <= -1073741824.0)
-            return (2.0 * fmod(n, 1073741824.0)) + 1073741824.0;
+            return (2.0 * std::fmod(n, 1073741824.0)) + 1073741824.0;
         return n;
     }
 
-    [[nodiscard]] static constexpr int Hash(int seed, int xPrimed, int yPrimed)
+    [[nodiscard]] static inline int Hash(int seed, int xPrimed, int yPrimed)
     {
         int hash = seed ^ xPrimed ^ yPrimed;
         hash *= 0x27d4eb2d;
@@ -136,11 +136,11 @@ namespace cyb::noise2
     {
         int hash = Hash(seed, x, y);
         hash ^= hash >> 15;
-        int index = (hash & 0x3F) * 2;
+        int index = (hash & 0x3f) << 1;
         return xd * perlinGradients2D[index] + yd * perlinGradients2D[index + 1];
     }
 
-    [[nodiscard]] static double PerlinNoise2D(double x, double y, int seed)
+    [[nodiscard]] static double PerlinNoise2D(int seed, double x, double y)
     {
         const int x0 = static_cast<int>(std::floor(x)) * primeX;
         const int y0 = static_cast<int>(std::floor(y)) * primeY;
@@ -152,8 +152,8 @@ namespace cyb::noise2
         const double xd1 = xd0 - 1.0;
         const double yd1 = yd0 - 1.0;
 
-        const double xs = SepticSmoothStep(xd0);
-        const double ys = SepticSmoothStep(yd0);
+        const double xs = QuinticSmoothStep(xd0);
+        const double ys = QuinticSmoothStep(yd0);
 
         const double n00 = GradCoord(seed, x0, y0, xd0, yd0);
         const double n10 = GradCoord(seed, x1, y0, xd1, yd0);
@@ -168,13 +168,13 @@ namespace cyb::noise2
         return (1.0 + result * 1.6409504127933312) * 0.5;
     }
 
-    [[nodiscard]] static double CellularNoise2D(double x, double y, uint32_t seed, double jitterModifier)
+    [[nodiscard]] static double CellularNoise2D(uint32_t seed, double jitterModifier, double x, double y)
     {
         const int xr = static_cast<int>(std::lround(x));
         const int yr = static_cast<int>(std::lround(y));
 
         double distance0 = std::numeric_limits<double>::max();
-        double distance1 = std::numeric_limits<double>::max();
+        //double distance1 = std::numeric_limits<double>::max();
         int closestHash = 0;
 
         const double cellularJitter = 0.43701595 * jitterModifier;
@@ -195,7 +195,7 @@ namespace cyb::noise2
                 const double vecY = (double)(yi - y) + worleyRandomVecs2D[idx | 1] * cellularJitter;
                 const double newDistance = vecX * vecX + vecY * vecY;
 
-                distance1 = std::max(std::min(distance1, newDistance), distance0);
+                //distance1 = std::max(std::min(distance1, newDistance), distance0);
                 if (newDistance < distance0)
                 {
                     distance0 = newDistance;
@@ -222,9 +222,9 @@ namespace cyb::noise2
         for (uint32_t i = 0; i < m_octaves; i++)
         {
             const double signal = PerlinNoise2D(
-                MakeInt32Range(x * frequency), 
-                MakeInt32Range(y * frequency),
-                (m_seed + i) & 0xffffffff);
+                (m_seed + i) & 0xffffffff,
+                MakeInt32Range(x * frequency),
+                MakeInt32Range(y * frequency));
 
             value += signal * amplitude;
             amplitudeSum += amplitude;
@@ -245,10 +245,10 @@ namespace cyb::noise2
         for (uint32_t i = 0; i < m_octaves; i++)
         {
             const double signal = CellularNoise2D(
-                MakeInt32Range(x * frequency),
-                MakeInt32Range(y * frequency),
                 (m_seed + i) & 0xffffffff,
-                m_jitterModifier);
+                m_jitterModifier,
+                MakeInt32Range(x * frequency),
+                MakeInt32Range(y * frequency));
             
             value += signal * amplitude;
             amplitude *= m_persistence;

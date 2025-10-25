@@ -197,8 +197,12 @@ namespace cyb::editor
         auto onChange = [=] () { ModifiedFlag = true; };
 
         float fTemp = m_strata.GetStrata();
-        if (ui::SliderFloat("Strata", &fTemp, onChange, 2.0f, 12.0f))
+        if (ImGui::SliderFloat("Strata", &fTemp, 0, 12))
             m_strata.SetStrata(fTemp);
+        if (ImGui::SliderFloat("StrataVarius", &fTemp, 0, 12))
+            m_strata.SetStrata(fTemp);
+        //if (ui::SliderFloat("Strata", &fTemp, onChange, 2.0f, 12.0f))
+        //    m_strata.SetStrata(fTemp);
 
         ImGui::PopItemWidth();
     }

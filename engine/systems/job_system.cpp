@@ -6,7 +6,7 @@
 #ifdef _WIN32
 #include <Windows.h>
 #endif
-#include "core/threadsafe_queue.h"
+#include "core/atomic_queue.h"
 #include "core/platform.h"
 #include "core/logger.h"
 #include "core/non_copyable.h"
@@ -38,7 +38,7 @@ namespace cyb::jobsystem
     };
 
     static constexpr size_t JOB_QUEUE_MAX_SIZE = 1024;
-    using JobQueue = ThreadSafeCircularQueue<Job, JOB_QUEUE_MAX_SIZE>;
+    using JobQueue = AtomicCircularQueue<Job, JOB_QUEUE_MAX_SIZE>;
 
     // This structure is responsible to stop worker thread loops
     // once this is destroyed, worker threads will be woken up and end their loops.
@@ -66,7 +66,7 @@ namespace cyb::jobsystem
             auto& queue = jobQueuePerThread[nextQueue.fetch_add(1) % numThreads];
 
             // If the queue is full, execute the job immidietly on the main thread.
-            if (!queue.PushBack(std::move(job)))
+            if (!queue.Enqueue(std::move(job)))
             {
                 assert(0);          // break if debug mode
                 job.Execute();
@@ -96,7 +96,7 @@ namespace cyb::jobsystem
         for (uint32_t i = 0; i < internal_state.numThreads; ++i)
         {
             JobQueue& queue = internal_state.jobQueuePerThread[(startingQueue + i) % internal_state.numThreads];
-            while (auto job = queue.PopFront())
+            while (auto job = queue.Dequeue())
             {
                 const uint32_t progressBefore = job->Execute();
 

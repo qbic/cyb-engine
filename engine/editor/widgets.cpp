@@ -83,23 +83,18 @@ namespace cyb::ui
     float ItemLabel(const char* label)
     {
         const ImGuiStyle& style = ImGui::GetStyle();
-        const float avail = ImGui::CalcItemWidth();
-        const float item_w = avail * 0.5f;
-
-        ImGui::SetNextItemWidth(item_w);
-        ImGui::AlignTextToFramePadding();
+        const float avail_w = ImGui::CalcItemWidth();
         const ImVec2 pos = ImGui::GetCursorScreenPos();
         const ImVec2 label_sz = ImGui::CalcTextSize(label);
-        ImRect bb{ pos, pos + ImVec2(item_w, label_sz.y) };
+        const ImRect bb{ pos, pos + ImVec2(avail_w * 0.5f, label_sz.y + style.FramePadding.y * 2.0f) };
 
-        ImGui::ItemSize(label_sz, 0.0f);
+        ImGui::ItemSize(bb, style.FramePadding.y);
         if (!ImGui::ItemAdd(bb, 0))
-            return avail;
-        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label + strlen(label), NULL);
-        
+            return avail_w - bb.GetWidth();
+
+        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label + strlen(label), nullptr, ImVec2(0.0f, 0.5f));
         ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (item_w - label_sz.x));
-        return avail - item_w - style.ItemInnerSpacing.x * 2.0f;
+        return avail_w - bb.GetWidth();
     }
 
     void InfoIcon(const char* fmt, ...) {
@@ -132,7 +127,7 @@ namespace cyb::ui
 #define COMMON_WIDGET_CODE(label)           \
     PushID m_idGuard{ label };              \
     float avail_width = ItemLabel(label);   \
-    ImGui::SetNextItemWidth(avail_width);
+    ImGui::SetNextItemWidth(avail_width);       // -1 messes up NG_Node rendering
 
     bool Checkbox(const char* label, bool* v, const std::function<void()> onChange)
     {

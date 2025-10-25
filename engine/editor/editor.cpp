@@ -546,7 +546,8 @@ namespace cyb::editor
 
         // Display entity name and ID
         scene::NameComponent* name = scene.names.GetComponent(entityID);
-        InspectNameComponent(name);
+        if (name != nullptr)
+            InspectNameComponent(name);
         ImGui::Spacing();
 
         scene::ObjectComponent* object = scene.objects.GetComponent(entityID);

@@ -3,7 +3,7 @@
 #include <hidsdi.h>
 #include "core/arena.h"
 #include "core/logger.h"
-#include "input/input-raw.h"
+#include "input/input_raw.h"
 
 #pragma comment(lib, "Hid.lib")
 
@@ -36,7 +36,7 @@ namespace cyb::input::rawinput
             assert(0);
         }
 
-        inputArena.SetBlockSizeAndAlignment(inputArenaBlockSize, 8);
+        inputArena.SetPageSizeAndAlignment(inputArenaBlockSize, 8);
         inputMessages.reserve(64);
         initialized.store(true);
     }

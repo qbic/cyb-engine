@@ -10563,7 +10563,7 @@ void VmaBlockMetadata_TLSF::Free(VmaAllocHandle allocHandle)
 {
     Block* block = (Block*)allocHandle;
     Block* next = block->nextPhysical;
-    VMA_ASSERT(!block->IsFree() && "Block is already free!");
+    VMA_ASSERT(!block->IsFree() && "Page is already free!");
 
     if (!IsVirtual())
         m_GranularityHandler.FreePages(block->offset, block->size);
@@ -10818,7 +10818,7 @@ bool VmaBlockMetadata_TLSF::CheckBlock(
     VmaSuballocationType allocType,
     VmaAllocationRequest* pAllocationRequest)
 {
-    VMA_ASSERT(block.IsFree() && "Block is already taken!");
+    VMA_ASSERT(block.IsFree() && "Page is already taken!");
 
     VkDeviceSize alignedOffset = VmaAlignUp(block.offset, allocAlignment);
     if (block.size < allocSize + alignedOffset - block.offset)

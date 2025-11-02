@@ -129,7 +129,7 @@ namespace cyb::rhi
         const size_t shaderSize = sizeof(uint32_t) * (compileResult.end() - compileResult.begin());
         output.shader.resize(shaderSize);
         memcpy(output.shader.data(), compileResult.begin(), shaderSize);
-        output.hash = hash::String(preprocessResult.begin());
+        output.hash = HashString(preprocessResult.begin());
 
         CYB_TRACE("Compiled GLSL -> SPIR-V (filename={0}) in {1:.2f}ms", input.name, timer.ElapsedMilliseconds());
         return output;

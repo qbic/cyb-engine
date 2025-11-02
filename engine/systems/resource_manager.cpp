@@ -66,7 +66,7 @@ namespace cyb::resourcemanager
         if (event.action != cyb::FileChangeAction::Modified)
             return;
 
-        const uint64_t hash = hash::String(event.filename);
+        const uint64_t hash = HashString(event.filename);
         locker.Lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
         locker.Unlock();
@@ -209,7 +209,7 @@ namespace cyb::resourcemanager
 
         // compute hash for the asset and try locate it in the cache
         std::string fixedName = filesystem::FixFilePath(name);
-        const uint64_t hash = hash::String(fixedName);
+        const uint64_t hash = HashString(fixedName);
         locker.Lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
         if (internalState != nullptr && force == false)

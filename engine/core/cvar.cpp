@@ -7,6 +7,7 @@ namespace cyb {
 
 CVarRegistryMapType g_cvarRegistry;
 
+// This registry is for pre-RegisterStaticCVars() only.
 static std::vector<detail::CVarBase*>& StaticRegistry()
 {
     static std::vector<detail::CVarBase*> registry;
@@ -52,7 +53,7 @@ CVarBase::CVarBase(const std::string& name, CVarFlag flags, const std::string& d
     name_(name),
     flags_(flags),
     description_(description),
-    hash_(hash::String(name))
+    hash_(HashString(name))
 {
     if (!IsStaticCVarsRegistered())
         StaticRegistry().push_back(this);

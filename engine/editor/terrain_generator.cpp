@@ -16,23 +16,18 @@
 #define PREVIEW_RESOLUTION      128         // increase for higher quality, but slower to update preview
 #define PREVIEW_FREQ_SCALE      8.0         // higher value shows more terrain, but might get noisy
 #define MULTITHREADED_PREVIEW   1
-
-static constexpr uint32_t PREVIEW_GEN_GROUP_SIZE = 32;
-
+#define PREVIEW_GEN_GROUP_SIZE  32
 
 namespace cyb::editor
 {
     PerlinNode::PerlinNode() :
-        NG_Node(typeString)
+        NG_Node(typeString, 240.0f)
     {
         AddOutputPin<noise2::NoiseNode*>("Output", [=] () { return &m_noise; });
     }
 
-    void PerlinNode::DisplayContent(float zoom)
+    void PerlinNode::DisplayContent()
     {
-        const float childWidth = 240 * zoom;
-        ImGui::PushItemWidth(childWidth);
-
         auto onChange = [=] () { ModifiedFlag = true; };
 
         uint32_t iTemp = m_noise.GetSeed();
@@ -54,21 +49,16 @@ namespace cyb::editor
         fTemp = m_noise.GetPersistance();
         if (ui::SliderFloat("Persistance", &fTemp, onChange, 0.0f, 4.0f))
             m_noise.SetPersistence(fTemp);
-
-        ImGui::PopItemWidth();
     }
 
     CellularNode::CellularNode() :
-        NG_Node(typeString)
+        NG_Node(typeString, 240.0f)
     {
         AddOutputPin<noise2::NoiseNode*>("Output", [=] () { return &m_noise; });
     }
 
-    void CellularNode::DisplayContent(float zoom)
+    void CellularNode::DisplayContent()
     {
-        const float childWidth = 240 * zoom;
-        ImGui::PushItemWidth(childWidth);
-
         auto onChange = [=] () { ModifiedFlag = true; };
 
         uint32_t iTemp = m_noise.GetSeed();
@@ -94,32 +84,25 @@ namespace cyb::editor
         fTemp = m_noise.GetPersistance();
         if (ui::SliderFloat("Persistance", &fTemp, onChange, 0.0f, 4.0f))
             m_noise.SetPersistence(fTemp);
-
-        ImGui::PopItemWidth();
     }
 
     ConstNode::ConstNode() :
-        NG_Node(typeString)
+        NG_Node(typeString, 160.0f)
     {
         AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_const; });
     }
 
-    void ConstNode::DisplayContent(float zoom)
+    void ConstNode::DisplayContent()
     {
-        const float childWidth = 160 * zoom;
-        ImGui::PushItemWidth(childWidth);
-
         auto onChange = [=] () { ModifiedFlag = true; };
 
         float fTemp = m_const.GetConstValue();
         if (ui::SliderFloat("Value", &fTemp, onChange, 0.0f, 1.0f))
             m_const.SetConstValue(fTemp);
-
-        ImGui::PopItemWidth();
     }
 
     BlendNode::BlendNode() :
-        NG_Node(typeString)
+        NG_Node(typeString, 160.0f)
     {
         AddInputPin<noise2::NoiseNode*>("Input A", [&] (std::optional<noise2::NoiseNode*> from) {
             m_blend.SetInput(0, from.value_or(nullptr));
@@ -130,18 +113,13 @@ namespace cyb::editor
         AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_blend; });
     }
 
-    void BlendNode::DisplayContent(float zoom)
+    void BlendNode::DisplayContent()
     {
-        const float childWidth = 160 * zoom;
-        ImGui::PushItemWidth(childWidth);
-
         auto onChange = [=] () { ModifiedFlag = true; };
 
         float fTemp = m_blend.GetAlpha();
         if (ui::SliderFloat("Alpha", &fTemp, onChange, 0.0f, 1.0f))
             m_blend.SetAlpha(fTemp);
-
-        ImGui::PopItemWidth();
     }
 
     InvertNode::InvertNode() :
@@ -154,7 +132,7 @@ namespace cyb::editor
     }
 
     ScaleBiasNode::ScaleBiasNode() :
-        NG_Node(typeString)
+        NG_Node(typeString, 160.0f)
     {
         AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
             m_scaleBias.SetInput(0, from.value_or(nullptr));
@@ -162,11 +140,8 @@ namespace cyb::editor
         AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_scaleBias; });
     }
 
-    void ScaleBiasNode::DisplayContent(float zoom)
+    void ScaleBiasNode::DisplayContent()
     {
-        const float childWidth = 160 * zoom;
-        ImGui::PushItemWidth(childWidth);
-
         auto onChange = [=] () { ModifiedFlag = true; };
 
         float fTemp = m_scaleBias.GetScale();
@@ -176,12 +151,10 @@ namespace cyb::editor
         fTemp = m_scaleBias.GetBias();
         if (ui::SliderFloat("Bias", &fTemp, onChange, 0.0f, 1.0f))
             m_scaleBias.SetBias(fTemp);
-
-        ImGui::PopItemWidth();
     }
 
     StrataNode::StrataNode() :
-        NG_Node(typeString)
+        NG_Node(typeString, 160.0f)
     {
         AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
             m_strata.SetInput(0, from.value_or(nullptr));
@@ -189,26 +162,17 @@ namespace cyb::editor
         AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_strata; });
     }
 
-    void StrataNode::DisplayContent(float zoom)
+    void StrataNode::DisplayContent()
     {
-        const float childWidth = 160 * zoom;
-        ImGui::PushItemWidth(childWidth);
-
         auto onChange = [=] () { ModifiedFlag = true; };
 
         float fTemp = m_strata.GetStrata();
-        if (ImGui::SliderFloat("Strata", &fTemp, 0, 12))
+        if (ui::SliderFloat("Strata", &fTemp, onChange, 2.0f, 12.0f))
             m_strata.SetStrata(fTemp);
-        if (ImGui::SliderFloat("StrataVarius", &fTemp, 0, 12))
-            m_strata.SetStrata(fTemp);
-        //if (ui::SliderFloat("Strata", &fTemp, onChange, 2.0f, 12.0f))
-        //    m_strata.SetStrata(fTemp);
-
-        ImGui::PopItemWidth();
     }
 
     SelectNode::SelectNode() :
-        NG_Node(typeString)
+        NG_Node(typeString, 160.0f)
     {
         AddInputPin<noise2::NoiseNode*>("Input A", [&] (std::optional<noise2::NoiseNode*> from) {
             m_select.SetInput(0, from.value_or(nullptr));
@@ -222,11 +186,8 @@ namespace cyb::editor
         AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_select; });
     }
 
-    void SelectNode::DisplayContent(float zoom)
+    void SelectNode::DisplayContent()
     {
-        const float childWidth = 160 * zoom;
-        ImGui::PushItemWidth(childWidth);
-
         auto onChange = [=] () { ModifiedFlag = true; };
 
         float fTemp = m_select.GetThreshold();
@@ -236,12 +197,10 @@ namespace cyb::editor
         fTemp = m_select.GetEdgeFalloff();
         if (ui::SliderFloat("Edge Falloff", &fTemp, onChange, 0.0f, 1.0f))
             m_select.SetEdgeFalloff(fTemp);
-
-        ImGui::PopItemWidth();
     }
 
     PreviewNode::PreviewNode() :
-        NG_Node(typeString)
+        NG_Node(typeString, 256.0f)
     {
         AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
             m_input = from.value_or(nullptr);
@@ -294,18 +253,19 @@ namespace cyb::editor
             UpdatePreview();
     }
 
-    void PreviewNode::DisplayContent(float zoom)
+    void PreviewNode::DisplayContent()
     {
         const ImGuiStyle& style = ImGui::GetStyle();
-        const float childWidth = 256.0f * zoom;
-        ImGui::PushItemWidth(childWidth);
 
         if (ui::Checkbox("Auto Update", &m_autoUpdate, nullptr) && m_autoUpdate)
             UpdatePreview();
-        if (!m_autoUpdate && ImGui::Button("Update", ImVec2(childWidth, 0)))
+        if (!m_autoUpdate && ImGui::Button("Update", ImVec2(0, 0)))
             UpdatePreview();
 
-        const ImVec2 imageSize{ childWidth,childWidth };
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        const float imageWidth = window->WorkRect.GetWidth();
+        const ImVec2 imageSize{ imageWidth, imageWidth };
+        ImGui::Text("Size: %f", imageWidth);
         if (m_input && ValidState && m_texture.IsValid())
         {
             ImGui::Image((ImTextureID)&m_texture, imageSize);
@@ -324,8 +284,6 @@ namespace cyb::editor
             Update();
         if (ui::SliderFloat("Freq Scale", &m_freqScale, nullptr, 1.0f, 12.0f))
             Update();
-
-        ImGui::PopItemWidth();
     }
 
     GenerateMeshNode::GenerateMeshNode() :
@@ -347,12 +305,8 @@ namespace cyb::editor
         };
     }
 
-    void GenerateMeshNode::DisplayContent(float zoom)
+    void GenerateMeshNode::DisplayContent()
     {
-        const float childWidth = 256.0f * zoom;
-
-        ImGui::PushItemWidth(childWidth);
-
         ui::SliderInt("ChunkExpand", (int*)&m_chunkExpand, nullptr, 0, 24);
         ui::DragInt("ChunkSize", &m_chunkSize, 1, 1, 2000, "%dm");
         ui::DragFloat("Min Altitude", &m_minMeshAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
@@ -365,20 +319,18 @@ namespace cyb::editor
 
         if (!jobsystem::IsBusy(m_jobContext))
         {
-            if (ImGui::Button("Generate Mesh", ImVec2(childWidth, 0.0f)))
+            if (ImGui::Button("Generate Mesh", ImVec2(2560, 0.0f)))
             {
                 //GenerateTerrainMesh();
             }
         }
         else
         {
-            if (ImGui::Button("[Cancel Generation]", ImVec2(childWidth, 0.0f)))
+            if (ImGui::Button("[Cancel Generation]", ImVec2(0, 0.0f)))
             {
                 //cancelTerrainGen.store(true);
             }
         }
-
-        ImGui::PopItemWidth();
     }
 
     // Colorize vertical faces with rock color.

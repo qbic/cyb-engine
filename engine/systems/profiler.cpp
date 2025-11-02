@@ -18,13 +18,13 @@ namespace cyb::profiler
 
     EntryId Context::GetUniqueId(const std::string& name) const
     {
-        EntryId id = hash::String(name);
+        EntryId id = HashString(name);
 
         // if one entry name is hit multiple times, differentiate between them!
         size_t differentiator = 0;
         ScopedMutex lck(lock);
         while (context.entries[id].inUse)
-            hash::Combine(id, differentiator++);
+            HashCombine(id, differentiator++);
 
         return id;
     }

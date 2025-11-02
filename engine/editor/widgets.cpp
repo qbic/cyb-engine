@@ -79,23 +79,70 @@ namespace cyb::ui
         m_colorSet.PopStyleColors();
     }
 
-    // draw a left-aligned item label
+    // Draw a left-aligned item label and place cursor on same line.
+    // Returns the available width for the widget item.
+#if 0
     float ItemLabel(const char* label)
     {
+        constexpr float label_width_ratio = 0.5f;
         const ImGuiStyle& style = ImGui::GetStyle();
         const float avail_w = ImGui::CalcItemWidth();
         const ImVec2 pos = ImGui::GetCursorScreenPos();
         const ImVec2 label_sz = ImGui::CalcTextSize(label);
-        const ImRect bb{ pos, pos + ImVec2(avail_w * 0.5f, label_sz.y + style.FramePadding.y * 2.0f) };
+        const ImRect bb{ pos, pos + ImVec2(avail_w * label_width_ratio, label_sz.y + style.FramePadding.y * 2.0f) };
 
+        ImGui::AlignTextToFramePadding();
         ImGui::ItemSize(bb, style.FramePadding.y);
         if (!ImGui::ItemAdd(bb, 0))
             return avail_w - bb.GetWidth();
 
-        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label + strlen(label), nullptr, ImVec2(0.0f, 0.5f));
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImGui::RenderTextEllipsis(draw_list, bb.Min, bb.Max, bb.Max.x, bb.Max.x, label, nullptr, &label_sz);
+        if (bb.GetWidth() < label_sz.x && ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", label);
         ImGui::SameLine();
         return avail_w - bb.GetWidth();
     }
+#else
+    float ItemLabel(const char* label)
+    {
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        if (window->SkipItems)
+            return false;
+
+        const ImGuiStyle& style = GImGui->Style;
+        const ImGuiID id = window->GetID(label);
+        const float width = ImGui::CalcItemWidth();
+        const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
+
+        // Right-align the frame_bb within the content region
+        const float right_edge = window->WorkRect.Max.x - style.WindowPadding.x;
+        const ImVec2 frame_max(right_edge, window->DC.CursorPos.y + label_size.y + style.FramePadding.y * 2.0f);
+        const ImVec2 frame_min(frame_max.x - width, window->DC.CursorPos.y);
+        const ImRect frame_bb(frame_min, frame_max);
+
+        // Label goes to the left of the frame
+        const ImVec2 label_offset(style.ItemInnerSpacing.x, 0.0f);
+        const ImRect label_bb{ window->DC.CursorPos, ImVec2{frame_bb.Min.x - label_offset.x, window->DC.CursorPos.y + label_size.y + style.FramePadding.y * 2.0f } };
+        const ImRect total_bb(label_bb.Min, frame_bb.Max);
+
+        ImGui::ItemSize(label_bb, 0);
+        if (ImGui::ItemAdd(label_bb, id, &frame_bb))
+        {
+            ImDrawList* draw_list = window->DrawList;
+            ImGui::RenderTextEllipsis(draw_list, label_bb.Min, label_bb.Max, label_bb.Max.x, label_bb.Max.x, label, nullptr, &label_size);
+
+            // Display tooltip on hover is label was clipped
+            if (label_bb.GetWidth() < label_size.x && ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", label);
+        }
+
+        // Setup cursor for the item
+        ImGui::SetCursorScreenPos(frame_bb.Min);
+        ImGui::SameLine();
+        return width;
+    }
+#endif
 
     void InfoIcon(const char* fmt, ...) {
         ImGui::Text(ICON_FA_CIRCLE_INFO);
@@ -789,6 +836,32 @@ namespace cyb::ui
 #define DRAW_DEBUG_RECT()
 #endif
 
+    void NG_Node::PushWindowWorkRect(const NG_Canvas& canvas)
+    {
+        const NG_Style& style = canvas.Style;
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        const float width = m_NodeMaxWidth * canvas.Zoom;
+
+        m_ParentWorkRectMin = window->WorkRect.Min;
+        m_ParentWorkRectMax = window->WorkRect.Max;
+
+        window->WorkRect.Min.x = window->WorkRect.Min.x + Pos.x* canvas.Zoom + canvas.Offset.x + style.NodeWindowPadding.x * canvas.Zoom;
+        window->WorkRect.Max.x = window->WorkRect.Min.x + width + style.NodeWindowPadding.x * canvas.Zoom;
+
+#ifdef CYB_DEBUG_NG_RECTS
+        window->DrawList->AddRect(window->WorkRect.Min, window->WorkRect.Max, 0xff00ffff);
+#endif
+        ImGui::PushItemWidth(width * 0.5f);
+    }
+
+    void NG_Node::PopWindowWorkRect()
+    {
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        ImGui::PopItemWidth();
+        window->WorkRect.Min = m_ParentWorkRectMin;
+        window->WorkRect.Max = m_ParentWorkRectMax;
+    }
+
     void NG_Factory::DrawMenuContent(NG_Canvas& canvas, const ImVec2& popupPos)
     {
         for (auto& [type_str, createCallback] : m_availableNodeTypesMap)
@@ -1018,7 +1091,9 @@ namespace cyb::ui
         const ImVec2 body_start = pins_start + ImVec2(0, pins_sz.y);
         ImGui::SetCursorScreenPos(body_start + ImVec2(window_padding.x, 0));
         ImGui::BeginGroup();
-        node.DisplayContent(canvas.Zoom);
+        node.PushWindowWorkRect(canvas);
+        node.DisplayContent();
+        node.PopWindowWorkRect();
 #ifdef CYB_DEBUG_NG_CANVAS_STATE
         ImGui::Text("----------------");
         ImGui::Text("ID: %u", node.GetID());

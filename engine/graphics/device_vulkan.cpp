@@ -927,7 +927,7 @@ namespace cyb::rhi
 
         const PipelineState* pso = commandlist.active_pso;
         size_t pipeline_hash = commandlist.prevPipelineHash;
-        hash::Combine(pipeline_hash, commandlist.vertexbuffer_hash);
+        HashCombine(pipeline_hash, commandlist.vertexbuffer_hash);
         PipelineState_Vulkan* pipelineStateInternal = ToInternal(pso);
 
         VkPipeline pipeline = VK_NULL_HANDLE;
@@ -1683,7 +1683,7 @@ namespace cyb::rhi
 
         for (uint32_t i = 0; i < count; ++i)
         {
-            hash::Combine(hash, strides[i]);
+            HashCombine(hash, strides[i]);
             commandList.vertexbuffer_strides[i] = strides[i];
 
             auto internal_state = ToInternal(vertexBuffers[i]);
@@ -2309,13 +2309,13 @@ namespace cyb::rhi
         pso->desc = *desc;
 
         pso->hash = 0;
-        hash::Combine(pso->hash, desc->vs);
-        hash::Combine(pso->hash, desc->gs);
-        hash::Combine(pso->hash, desc->ps);
-        hash::Combine(pso->hash, desc->rs);
-        hash::Combine(pso->hash, desc->dss);
-        hash::Combine(pso->hash, desc->il);
-        hash::Combine(pso->hash, desc->pt);
+        HashCombine(pso->hash, desc->vs);
+        HashCombine(pso->hash, desc->gs);
+        HashCombine(pso->hash, desc->ps);
+        HashCombine(pso->hash, desc->rs);
+        HashCombine(pso->hash, desc->dss);
+        HashCombine(pso->hash, desc->il);
+        HashCombine(pso->hash, desc->pt);
 
         // Create bindings:
         {
@@ -2386,15 +2386,15 @@ namespace cyb::rhi
         uint32_t i = 0;
         for (auto& x : internal_state->layout_bindings)
         {
-            hash::Combine(internal_state->binding_hash, x.binding);
-            hash::Combine(internal_state->binding_hash, x.descriptorCount);
-            hash::Combine(internal_state->binding_hash, x.descriptorType);
-            hash::Combine(internal_state->binding_hash, x.stageFlags);
-            hash::Combine(internal_state->binding_hash, internal_state->imageViewTypes[i++]);
+            HashCombine(internal_state->binding_hash, x.binding);
+            HashCombine(internal_state->binding_hash, x.descriptorCount);
+            HashCombine(internal_state->binding_hash, x.descriptorType);
+            HashCombine(internal_state->binding_hash, x.stageFlags);
+            HashCombine(internal_state->binding_hash, internal_state->imageViewTypes[i++]);
         }
-        hash::Combine(internal_state->binding_hash, internal_state->pushconstants.offset);
-        hash::Combine(internal_state->binding_hash, internal_state->pushconstants.size);
-        hash::Combine(internal_state->binding_hash, internal_state->pushconstants.stageFlags);
+        HashCombine(internal_state->binding_hash, internal_state->pushconstants.offset);
+        HashCombine(internal_state->binding_hash, internal_state->pushconstants.size);
+        HashCombine(internal_state->binding_hash, internal_state->pushconstants.stageFlags);
 
         m_psoLayoutCacheMutex.Lock();
         if (m_psoLayoutCache[internal_state->binding_hash].pipeline_layout == VK_NULL_HANDLE)
@@ -2631,8 +2631,8 @@ namespace cyb::rhi
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
 
         size_t pipelineHash = 0;
-        hash::Combine(pipelineHash, pso->hash);
-        hash::Combine(pipelineHash, commandlist.renderpassInfo.GetHash());
+        HashCombine(pipelineHash, pso->hash);
+        HashCombine(pipelineHash, commandlist.renderpassInfo.GetHash());
         if (pipelineHash == commandlist.prevPipelineHash)
             return;
 
@@ -3417,7 +3417,7 @@ namespace cyb::rhi
             return;
 
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        const uint64_t hash = hash::String(name);
+        const uint64_t hash = HashString(name);
 
         VkDebugUtilsLabelEXT label = { VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT };
         label.pLabelName = name;

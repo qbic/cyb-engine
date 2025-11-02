@@ -273,8 +273,9 @@ namespace cyb::ui
         bool ModifiedFlag{ false };
         bool MarkedForDeletion{ false };
 
-        NG_Node(const std::string& label)
+        NG_Node(const std::string& label, float max_width = 200.0f)
         {
+            m_NodeMaxWidth = max_width;
             m_Label = label;
             m_ID = ImGui::GetID(this);
         }
@@ -285,7 +286,7 @@ namespace cyb::ui
         ImGuiID GetID() const { return m_ID; }
 
         // This may be implemented in derived class for displaying custom items.
-        virtual void DisplayContent([[maybe_unused]] float zoom) {}
+        virtual void DisplayContent() {}
 
         /**
          * @brief Node type user implemented update function.
@@ -317,7 +318,22 @@ namespace cyb::ui
             Outputs.push_back(std::move(pin));
         }
 
+        /**
+         * @brief Push node size to current windows work rect.
+         * <<<< Internal use only. Used by DrawNode(). >>>>
+         */
+        void PushWindowWorkRect(const NG_Canvas& canvas);
+
+        /**
+         * @brief Restore the current windows work rect.
+         * <<<< Internal use only. Used by DrawNode(). >>>>
+         */
+        void PopWindowWorkRect();
+
     private:
+        ImVec2 m_ParentWorkRectMin{ 0, 0 };
+        ImVec2 m_ParentWorkRectMax{ 0, 0 };
+        float m_NodeMaxWidth{ 0 };
         std::string m_Label;
         ImGuiID m_ID{ 0 };
     };
@@ -349,7 +365,7 @@ namespace cyb::ui
         {
             auto lambda = [] () { return std::make_unique<T>(); };
             m_availableNodeTypesMap[node_type] = std::move(lambda);
-            hash::Combine(m_hash, node_type);
+            HashCombine(m_hash, node_type);
         }
 
         /**

@@ -12,7 +12,7 @@ namespace cyb::editor
 
         PerlinNode();
         virtual ~PerlinNode() = default;
-        void DisplayContent(float zoom) override;
+        void DisplayContent() override;
 
     private:
         noise2::NoiseNode_Perlin m_noise;
@@ -25,7 +25,7 @@ namespace cyb::editor
 
         CellularNode();
         virtual ~CellularNode() = default;
-        void DisplayContent(float zoom) override;
+        void DisplayContent() override;
 
     private:
         noise2::NoiseNode_Cellular m_noise;
@@ -38,7 +38,7 @@ namespace cyb::editor
 
         ConstNode();
         virtual ~ConstNode() = default;
-        void DisplayContent(float zoom) override;
+        void DisplayContent() override;
 
     private:
         noise2::NoiseNode_Const m_const;
@@ -51,7 +51,7 @@ namespace cyb::editor
 
         BlendNode();
         virtual ~BlendNode() = default;
-        void DisplayContent(float zoom) override;
+        void DisplayContent() override;
 
     private:
         noise2::NoiseNode_Blend m_blend;
@@ -76,7 +76,7 @@ namespace cyb::editor
 
         ScaleBiasNode();
         virtual ~ScaleBiasNode() = default;
-        void DisplayContent(float zoom) override;
+        void DisplayContent() override;
 
     private:
         noise2::NoiseNode_ScaleBias m_scaleBias;
@@ -89,7 +89,7 @@ namespace cyb::editor
 
         StrataNode();
         virtual ~StrataNode() = default;
-        void DisplayContent(float zoom) override;
+        void DisplayContent() override;
 
     private:
         noise2::NoiseNode_Strata m_strata;
@@ -102,7 +102,7 @@ namespace cyb::editor
 
         SelectNode();
         virtual ~SelectNode() = default;
-        void DisplayContent(float zoom) override;
+        void DisplayContent() override;
 
     private:
         noise2::NoiseNode_Select m_select;
@@ -117,7 +117,7 @@ namespace cyb::editor
         virtual ~PreviewNode() = default;
         void UpdatePreview();
         void Update() override;
-        void DisplayContent(float zoom) override;
+        void DisplayContent() override;
 
     private:
         bool m_autoUpdate = true;
@@ -135,7 +135,7 @@ namespace cyb::editor
 
         GenerateMeshNode();
         virtual ~GenerateMeshNode() = default;
-        void DisplayContent(float zoom) override;
+        void DisplayContent() override;
 
         void GenerateTerrainMesh();
 

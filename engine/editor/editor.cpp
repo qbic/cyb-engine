@@ -132,6 +132,46 @@ namespace cyb::editor
         ui::InfoIcon("This will duplicate any shared vertices and\npossibly create additional mesh geometry");
     }
 
+    ///
+    ///
+    ///
+    ///
+    bool DebugLine(const char* label)
+    {
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        if (window->SkipItems)
+            return false;
+
+        const ImGuiStyle& style = GImGui->Style;
+        const ImGuiID id = window->GetID(label);
+        const float w = ImGui::CalcItemWidth();
+        const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
+        const ImRect frame_bb(window->DC.CursorPos + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0.0f),
+                              window->DC.CursorPos + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0.0f)
+                              + ImVec2(w, label_size.y + style.FramePadding.y * 2.0f));
+        const ImRect label_bb(window->DC.CursorPos, frame_bb.Min);
+        const ImRect total_bb(window->DC.CursorPos, frame_bb.Max);
+
+        ImDrawList* draw_list = window->DrawList;
+        draw_list->AddRect(frame_bb.Min, frame_bb.Max, 0xff0000ff, 0, 0, 3.0f);
+        draw_list->AddRect(total_bb.Min, total_bb.Max, 0xffff00ff);
+
+        ImGui::ItemSize(total_bb, style.FramePadding.y);
+        if (!ImGui::ItemAdd(total_bb, id, &frame_bb))
+            return false;
+
+        if (label_size.x > 0.0f)
+            ImGui::RenderText(ImVec2(label_bb.Min.x + style.ItemInnerSpacing.x, label_bb.Min.y + style.FramePadding.y), label);
+
+
+        return true;
+    }
+    ///
+    ///
+    ///
+    ///
+    ///
+
     void InspectMaterialComponent(scene::MaterialComponent* material)
     {
         if (!material)
@@ -149,6 +189,13 @@ namespace cyb::editor
         ui::ColorEdit4("BaseColor", &material->baseColor.x);
         ui::SliderFloat("Roughness", &material->roughness, nullptr, 0.0f, 1.0f);
         ui::SliderFloat("Metalness", &material->metalness, nullptr, 0.0f, 1.0f);
+
+        ImGui::SliderFloat("asd", &material->metalness, 0, 16);
+        ImGui::SliderFloat("asdasdasd", &material->metalness, 0, 16);
+        ImGui::SliderFloat("asdasdasd12345678", &material->metalness, 0, 16);
+        DebugLine("asdasdasd");
+        DebugLine("asdasda33333sd");
+
     }
 
     struct SortableNameEntityData
@@ -771,49 +818,49 @@ namespace cyb::editor
             std::string text;
         };
 
-        class LogModule : public logger::OutputModule
+        class LogModule : public LogOutputModule
         {
         public:
             LogModule(std::vector<LogLine>& messages) :
-                m_messages(messages)
+                messages_(messages)
             {
             }
 
-            [[nodiscard]] ImVec4 GetMessageColor(logger::Level level)
+            [[nodiscard]] ImVec4 GetMessageColor(LogMessageSeverityLevel level)
             {
                 switch (level)
                 {
-                case logger::Level::Trace:      return ImVec4(0.45f, 0.65f, 1.0f, 1.0f);
-                case logger::Level::Info:       return ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-                case logger::Level::Warning:    return ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
-                case logger::Level::Error:      return ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+                case LogMessageSeverityLevel::Trace:      return ImVec4(0.45f, 0.65f, 1.0f, 1.0f);
+                case LogMessageSeverityLevel::Info:       return ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                case LogMessageSeverityLevel::Warning:    return ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+                case LogMessageSeverityLevel::Error:      return ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
                 }
 
                 assert(0);
                 return ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
             }
 
-            void Write(const logger::Message& msg) override
+            void Write(const LogMessage& msg) override
             {
-                auto& newline = m_messages.emplace_back();
+                auto& newline = messages_.emplace_back();
                 newline.text = msg.text;
                 newline.color = GetMessageColor(msg.severity);
             }
 
         private:
-            std::vector<LogLine>& m_messages;
+            std::vector<LogLine>& messages_;
         };
 
         Tool_LogDisplay(const std::string& title) :
             ToolWindow(title)
         {
-            logger::RegisterOutputModule<LogModule>(m_messages);
+            RegisterLogOutputModule<LogModule>(messages_);
         }
 
         void WindowContent() override
         {
             ImGui::PushTextWrapPos(0.0f);
-            for (const auto& msg : m_messages)
+            for (const auto& msg : messages_)
             {
                 ImGui::PushStyleColor(ImGuiCol_Text, msg.color);
                 ImGui::TextUnformatted(msg.text.c_str());
@@ -826,7 +873,7 @@ namespace cyb::editor
         }
 
     private:
-        std::vector<LogLine> m_messages;
+        std::vector<LogLine> messages_;
     };
 
     //------------------------------------------------------------------------------
@@ -1457,9 +1504,9 @@ namespace cyb::editor
         AttachToolToMenu(std::make_unique<Tool_CVarViewer>("CVar viewer"));
         AttachToolToMenu(std::make_unique<Tool_LogDisplay>("Backlog"));
 
-        r_vsync = FindCVar<bool>(hash::String("r_vsync"));
-        r_debugObjectAABB = FindCVar<bool>(hash::String("r_debugObjectAABB"));
-        r_debugLightSources = FindCVar<bool>(hash::String("r_debugLightSources"));
+        r_vsync = FindCVar<bool>(HashString("r_vsync"));
+        r_debugObjectAABB = FindCVar<bool>(HashString("r_debugObjectAABB"));
+        r_debugLightSources = FindCVar<bool>(HashString("r_debugLightSources"));
 #if 1
         // ImGuizmo style
         ImGuizmo::Style& style = ImGuizmo::GetStyle();

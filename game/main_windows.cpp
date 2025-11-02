@@ -7,8 +7,6 @@
 
 #pragma comment(lib, "dwmapi.lib")
 
-using namespace cyb;
-
 #define MAX_LOADSTRING 100
 
 WCHAR szTitle[MAX_LOADSTRING];
@@ -63,8 +61,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDS_TEXTLOG, szTextlogFile, MAX_LOADSTRING);
 
     // setup engine logger output modules
-    logger::RegisterOutputModule<logger::LogOutputModule_VisualStudio>();
-    logger::RegisterOutputModule<logger::OutputModule_File>(szTextlogFile);
+    cyb::RegisterLogOutputModule<cyb::LogOutputModule_VisualStudio>();
+    cyb::RegisterLogOutputModule<cyb::LogOutputModule_File>(szTextlogFile);
 
     // configure asset saerch paths
     cyb::resourcemanager::AddSearchPath("assets/");
@@ -81,7 +79,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
         return FALSE;
     }
 
-    static auto fullscreenEvent = eventsystem::Subscribe(eventsystem::Event_SetFullScreen, EnterFullscreenMode);
+    static auto fullscreenEvent = cyb::eventsystem::Subscribe(cyb::eventsystem::Event_SetFullScreen, EnterFullscreenMode);
 
     MSG msg = { 0 };
     while (msg.message != WM_QUIT)
@@ -188,7 +186,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_INPUT:
-        input::rawinput::ParseMessage((HRAWINPUT)lParam);
+        cyb::input::rawinput::ParseMessage((HRAWINPUT)lParam);
         break;
 
     case WM_SETTINGCHANGE:

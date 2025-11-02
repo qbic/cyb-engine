@@ -26,6 +26,10 @@ public:
             buffer_[i].sequence.store(i, std::memory_order_relaxed);
     }
 
+    AtomicCircularQueue(const AtomicCircularQueue&) = delete;
+    AtomicCircularQueue& operator=(const AtomicCircularQueue&) = delete;
+
+
     /**
      * @brief Enqueue a value at the back of the queue.
      * @return True if value was successfully enqueued, false is queue is full.
@@ -45,10 +49,10 @@ public:
             // diff > 0: Another thread advanced ahead
             const intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos);
 
-            if (diff < 0) [[unlikley]]
+            if (diff < 0) [[unlikely]]
                 return false;
 
-            if (diff == 0) [[likley]]
+            if (diff == 0) [[likely]]
             {
                 if (enqueuePos_.compare_exchange_weak(pos, pos + 1, std::memory_order_acquire, std::memory_order_relaxed))
                     break;
@@ -82,12 +86,12 @@ public:
             // diff > 0: Another consumer advanced (retry)
             const intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos + 1);
 
-            if (diff < 0) [[unlikey]]
+            if (diff < 0) [[unlikely]]
                 return std::nullopt;
 
-            if (diff == 0) [[likley]]
+            if (diff == 0) [[likely]]
             {
-                if (dequeuePos_.compare_exchange_weak(pos, pos + 1, std::memory_order_acquire, std::memory_order_relaxed))
+                if (dequeuePos_.compare_exchange_weak(pos, pos + 1, std::memory_order_acq_rel, std::memory_order_relaxed))
                     break;
             }
 

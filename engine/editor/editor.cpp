@@ -166,11 +166,6 @@ namespace cyb::editor
 
         return true;
     }
-    ///
-    ///
-    ///
-    ///
-    ///
 
     void InspectMaterialComponent(scene::MaterialComponent* material)
     {
@@ -189,13 +184,6 @@ namespace cyb::editor
         ui::ColorEdit4("BaseColor", &material->baseColor.x);
         ui::SliderFloat("Roughness", &material->roughness, nullptr, 0.0f, 1.0f);
         ui::SliderFloat("Metalness", &material->metalness, nullptr, 0.0f, 1.0f);
-
-        ImGui::SliderFloat("asd", &material->metalness, 0, 16);
-        ImGui::SliderFloat("asdasdasd", &material->metalness, 0, 16);
-        ImGui::SliderFloat("asdasdasd12345678", &material->metalness, 0, 16);
-        DebugLine("asdasdasd");
-        DebugLine("asdasda33333sd");
-
     }
 
     struct SortableNameEntityData

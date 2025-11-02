@@ -1361,7 +1361,7 @@ namespace cyb::ui
 
             const ImVec2& start = connection->From->Pos;
             const ImVec2& end = connection->To->Pos;
-            const float dx = (end.x - start.x) * 0.75f;
+            const float dx = (end.x - start.x) * style.NodeConnectionTension;
             const ImVec2 cp0 = ImVec2(start.x + dx, start.y);
             const ImVec2 cp1 = ImVec2(end.x - dx, end.y);
 
@@ -1389,7 +1389,7 @@ namespace cyb::ui
         {
             const ImVec2& start = canvas.ActivePin->Pos;
             const ImVec2& end = io.MousePos;
-            const float dx = (end.x - start.x) * 0.75f;
+            const float dx = (end.x - start.x) * style.NodeConnectionTension;
             const ImVec2 cp0 = ImVec2(start.x + dx, start.y);
             const ImVec2 cp1 = ImVec2(end.x - dx, end.y);
 
@@ -1463,6 +1463,7 @@ namespace cyb::ui
             ImGui::ColorEdit4("ConnectionColor", (float*)&style.ConnectionColor);
             ImGui::ColorEdit4("ConnectionHoverColor", (float*)&style.ConnectionHoverColor);
             ImGui::ColorEdit4("ConnectionDragginColor", (float*)&style.ConnectionDragginColor);
+            ImGui::SliderFloat("NodeConnectionTension", &style.NodeConnectionTension, 0.0f, 1.0f);
 
             if (ImGui::Button("Set To Defaults"))
                 style = ui::NG_Style{};

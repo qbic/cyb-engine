@@ -250,6 +250,7 @@ namespace cyb::ui
     {
         float PinRadius{ 8.0f };
         float NodeFrameRounding{ 6.0f };
+        float NodeConnectionTension{ 0.75f };
         ImVec2 NodeWindowPadding{ 8.0f, 8.0f };             // Padding between node border and content
         ImVec2 NodeFramePadding{ 4.0f, 4.0f };
         ImColor NodeBackgroundColor{ 50, 90, 60 };

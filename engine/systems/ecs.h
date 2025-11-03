@@ -189,6 +189,10 @@ namespace cyb::ecs
         [[nodiscard]] size_t Size() const { return m_components.size(); }
         [[nodiscard]] T& operator[](size_t index) { return m_components[index]; }
         [[nodiscard]] const T& operator[](size_t index) const { return m_components[index]; }
+        [[nodiscard]] auto begin() noexcept { return m_components.begin(); }
+        [[nodiscard]] auto end() noexcept { return m_components.end(); }
+        [[nodiscard]] auto begin() const noexcept { return m_components.begin(); }
+        [[nodiscard]] auto end() const noexcept { return m_components.end(); }
 
     private:
         std::vector<T> m_components;

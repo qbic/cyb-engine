@@ -830,7 +830,7 @@ namespace cyb::ui
     // Node graph functions
     //------------------------------------------------------------------------------
 
-#ifdef CYB_DEBUG_NG_RECTS
+#ifdef CYB_NG_DEBUG_RECTS
 #define DRAW_DEBUG_RECT() ImGui::DebugDrawItemRect();
 #else
 #define DRAW_DEBUG_RECT()
@@ -848,7 +848,7 @@ namespace cyb::ui
         window->WorkRect.Min.x = window->WorkRect.Min.x + Pos.x* canvas.Zoom + canvas.Offset.x + style.NodeWindowPadding.x * canvas.Zoom;
         window->WorkRect.Max.x = window->WorkRect.Min.x + width + style.NodeWindowPadding.x * canvas.Zoom;
 
-#ifdef CYB_DEBUG_NG_RECTS
+#ifdef CYB_NG_DEBUG_RECTS
         window->DrawList->AddRect(window->WorkRect.Min, window->WorkRect.Max, 0xff00ffff);
 #endif
         ImGui::PushItemWidth(width * 0.5f);
@@ -1066,7 +1066,7 @@ namespace cyb::ui
         // Calculate space for node label.
         const ImVec2 node_start = canvas.Pos + canvas.Offset + node.Pos * canvas.Zoom;
         const ImVec2 label_sz = ImGui::CalcTextSize(node.GetLabel().c_str()) + window_padding;
-#ifdef CYB_DEBUG_NG_RECTS
+#ifdef CYB_NG_DEBUG_RECTS
         draw_list->AddRect(node_start, node_start + label_sz, 0xff0000ff);
 #endif
 
@@ -1083,7 +1083,7 @@ namespace cyb::ui
             pins_width = ImMax(pins_width, width);
         }
         const ImVec2 pins_sz = ImVec2(pins_width + (space_size.x / canvas.Zoom) * 4.0f, (pin_count * ImGui::GetTextLineHeight()) + frame_padding.y * 4.0f);
-#ifdef CYB_DEBUG_NG_RECTS
+#ifdef CYB_NG_DEBUG_RECTS
         draw_list->AddRect(pins_start, pins_start + pins_sz, 0xff00ffff);
 #endif
 
@@ -1094,7 +1094,7 @@ namespace cyb::ui
         node.PushWindowWorkRect(canvas);
         node.DisplayContent();
         node.PopWindowWorkRect();
-#ifdef CYB_DEBUG_NG_CANVAS_STATE
+#ifdef CYB_NG_DEBUG_CANVAS_STATE
         ImGui::Text("----------------");
         ImGui::Text("ID: %u", node.GetID());
         ImGui::Text("Hovered: %s", canvas.IsNodeHovered(node.GetID()) ? "true" : "false");
@@ -1417,7 +1417,7 @@ namespace cyb::ui
         if (ImGui::GetActiveID() == canvas_id)
             ImGui::ClearActiveID();
 
-#ifndef CYB_DEBUG_NG_NODE_STATE
+#ifndef CYB_NG_DEBUG_NODE_STATE
         const bool display_state = (canvas.Flags & NG_CanvasFlags_DisplayState);
 #else
         const bool display_state = true;
@@ -1428,7 +1428,7 @@ namespace cyb::ui
             ImGui::BeginGroup();
             ImGui::Text("Offset: [%.1f, %.1f]", canvas.Offset.x, canvas.Offset.y);
             ImGui::Text("Zoom: %.2f", canvas.Zoom);
-#ifdef CYB_DEBUG_NG_NODE_STATE
+#ifdef CYB_NG_DEBUG_NODE_STATE
             ImGui::Text("Canvas pos: [%.1f, %.1f]", canvas.Pos.x, canvas.Pos.y);
             ImGui::Text("Hovered nodeID: %u", canvas.HoveredNode ? canvas.HoveredNode->GetID() : 0);
             ImGui::Text("Node count: %u", canvas.Nodes.size());

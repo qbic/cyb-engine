@@ -16,34 +16,34 @@ static std::deque<LogMessage> g_logHistory;
 static SpinLock g_locker;
 
 LogOutputModule_StringBuffer::LogOutputModule_StringBuffer(std::string& output) :
-    stringBuffer_(output)
+    m_stringBuffer(output)
 {
 }
 
 void LogOutputModule_StringBuffer::Write(const LogMessage& msg)
 {
-    stringBuffer_.append(msg.text);
+    m_stringBuffer.append(msg.text);
 }
 
 LogOutputModule_File::LogOutputModule_File(const std::filesystem::path& filename, bool timestampMessages) :
-    filename_(filename),
-    writeTimestamp_(timestampMessages)
+    m_filename(filename),
+    m_writeTimestamp(timestampMessages)
 {
-    file_.open(filename);
+    m_file.open(filename);
 }
 
 void LogOutputModule_File::Write(const LogMessage& msg)
 {
-    if (!file_.is_open())
+    if (!m_file.is_open())
         return;
 
-    if (writeTimestamp_)
+    if (m_writeTimestamp)
     {
         const auto time = std::chrono::system_clock::to_time_t(msg.timestamp);
-        file_ << std::put_time(std::localtime(&time), "%Y-%m-%d %X ");
+        m_file << std::put_time(std::localtime(&time), "%Y-%m-%d %X ");
     }
 
-    file_ << msg.text;
+    m_file << msg.text;
 }
 
 #ifdef _WIN32

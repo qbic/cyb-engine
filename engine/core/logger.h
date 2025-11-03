@@ -45,7 +45,7 @@ public:
     void Write(const LogMessage& msg) override;
 
 private:
-    std::string& stringBuffer_;
+    std::string& m_stringBuffer;
 };
 
 class LogOutputModule_File : public LogOutputModule
@@ -55,9 +55,9 @@ public:
     void Write(const LogMessage& msg) override;
 
 private:
-    std::ofstream file_;
-    std::filesystem::path filename_;
-    bool writeTimestamp_;
+    std::ofstream m_file;
+    std::filesystem::path m_filename;
+    bool m_writeTimestamp;
 };
 
 #ifdef _WIN32

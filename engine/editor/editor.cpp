@@ -132,41 +132,6 @@ namespace cyb::editor
         ui::InfoIcon("This will duplicate any shared vertices and\npossibly create additional mesh geometry");
     }
 
-    ///
-    ///
-    ///
-    ///
-    bool DebugLine(const char* label)
-    {
-        ImGuiWindow* window = ImGui::GetCurrentWindow();
-        if (window->SkipItems)
-            return false;
-
-        const ImGuiStyle& style = GImGui->Style;
-        const ImGuiID id = window->GetID(label);
-        const float w = ImGui::CalcItemWidth();
-        const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
-        const ImRect frame_bb(window->DC.CursorPos + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0.0f),
-                              window->DC.CursorPos + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0.0f)
-                              + ImVec2(w, label_size.y + style.FramePadding.y * 2.0f));
-        const ImRect label_bb(window->DC.CursorPos, frame_bb.Min);
-        const ImRect total_bb(window->DC.CursorPos, frame_bb.Max);
-
-        ImDrawList* draw_list = window->DrawList;
-        draw_list->AddRect(frame_bb.Min, frame_bb.Max, 0xff0000ff, 0, 0, 3.0f);
-        draw_list->AddRect(total_bb.Min, total_bb.Max, 0xffff00ff);
-
-        ImGui::ItemSize(total_bb, style.FramePadding.y);
-        if (!ImGui::ItemAdd(total_bb, id, &frame_bb))
-            return false;
-
-        if (label_size.x > 0.0f)
-            ImGui::RenderText(ImVec2(label_bb.Min.x + style.ItemInnerSpacing.x, label_bb.Min.y + style.FramePadding.y), label);
-
-
-        return true;
-    }
-
     void InspectMaterialComponent(scene::MaterialComponent* material)
     {
         if (!material)
@@ -180,7 +145,7 @@ namespace cyb::editor
             { scene::MaterialComponent::Shadertype_Terrain, "Terrain (NOT IMPLEMENTED)" }
         };
 
-        ui::ComboBox("Shader Type", material->shaderType, shadertype_names);
+        ui::ComboBox("Shader", material->shaderType, shadertype_names);
         ui::ColorEdit4("BaseColor", &material->baseColor.x);
         ui::SliderFloat("Roughness", &material->roughness, nullptr, 0.0f, 1.0f);
         ui::SliderFloat("Metalness", &material->metalness, nullptr, 0.0f, 1.0f);
@@ -626,11 +591,40 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
+    /**
+     * @brief Add a unique digit to prefix baseStr with to make it unique in the scene.
+     * If we cant find a unique name with thegiven digits, highest possible num will be used.
+     */
+    [[nodiscard]] static std::string CreateUniqueEntityName(const scene::Scene& scene, const char* baseStr, uint32_t digits)
+    {
+        uint32_t num = 0;
+        std::string name{};
+        bool nameMatch = false;
+
+        do {
+            name = std::format("{}{:0{}}", baseStr, num, digits);
+            nameMatch = false;
+            for (const auto& comp : scene.names)
+            {
+                if (name == comp.name)
+                {
+                    nameMatch = true;
+                    break;
+                }
+            }
+
+            if (++num > std::pow(10, digits) - 1)
+                break;
+        } while (nameMatch);
+
+        return name;
+    }
+
     ecs::Entity CreateDirectionalLight()
     {
         scene::Scene& scene = scene::GetScene();
         return scene.CreateLight(
-            "Light_Directional_NEW",
+            CreateUniqueEntityName(scene, "Light_Directional_", 2),
             XMFLOAT3(0.0f, 70.0f, 0.0f),
             XMFLOAT3(1.0f, 1.0f, 1.0f),
             1.0f, 100.0f,
@@ -641,7 +635,7 @@ namespace cyb::editor
     {
         scene::Scene& scene = scene::GetScene();
         ecs::Entity entity = scene.CreateLight(
-            "Light_Point_NEW",
+            CreateUniqueEntityName(scene, "Light_Point_", 2),
             XMFLOAT3(0.0f, 20.0f, 0.0f),
             XMFLOAT3(1.0f, 1.0f, 1.0f),
             1.0f, 100.0f,
@@ -880,7 +874,7 @@ namespace cyb::editor
         Animations
     };
 
-    static const std::unordered_map<EntityType, std::string> typeSelectCombo{
+    static const std::unordered_map<EntityType, std::string> typeSelectCombo = {
             { EntityType::Names,        "Names"         },
             { EntityType::Transforms,   "Transforms"    },
             { EntityType::Groups,       "Groups"        },

@@ -23,7 +23,7 @@ public:
     AtomicCircularQueue()
     {
         for (size_t i = 0; i < capacity; ++i)
-            buffer_[i].sequence.store(i, std::memory_order_relaxed);
+            m_buffer[i].sequence.store(i, std::memory_order_relaxed);
     }
 
     AtomicCircularQueue(const AtomicCircularQueue&) = delete;
@@ -31,17 +31,17 @@ public:
 
 
     /**
-     * @brief Enqueue a value at the back of the queue.
+     * @brief Push a value at the back of the queue.
      * @return True if value was successfully enqueued, false is queue is full.
      */
-    bool Enqueue(T&& value)
+    bool Push(T&& value)
     {
         Slot* slot = nullptr;
-        size_t pos = enqueuePos_.load(std::memory_order_relaxed);
+        size_t pos = m_enqueuePos.load(std::memory_order_relaxed);
 
         for (;;)
         {
-            slot = &buffer_[pos % capacity];
+            slot = &m_buffer[pos % capacity];
             const size_t seq = slot->sequence.load(std::memory_order_acquire);
 
             // diff == 0: Slot is free to write
@@ -54,12 +54,12 @@ public:
 
             if (diff == 0) [[likely]]
             {
-                if (enqueuePos_.compare_exchange_weak(pos, pos + 1, std::memory_order_acquire, std::memory_order_relaxed))
+                if (m_enqueuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_acquire, std::memory_order_relaxed))
                     break;
             }
 
             // CAS failed, reload pos
-            pos = enqueuePos_.load(std::memory_order_relaxed);
+            pos = m_enqueuePos.load(std::memory_order_relaxed);
         }
 
         slot->value = std::move(value);
@@ -68,17 +68,17 @@ public:
     }
 
     /**
-     * @brief Dequeue a value from the front of the queue.
+     * @brief Pop a value from the front of the queue.
      * @return The dequeued value, std::nullopt if queue is empty.
      */
-    std::optional<T> Dequeue()
+    std::optional<T> Pop()
     {
         Slot* slot = nullptr;
-        size_t pos = dequeuePos_.load(std::memory_order_relaxed);
+        size_t pos = m_dequeuePos.load(std::memory_order_relaxed);
 
         for (;;)
         {
-            slot = &buffer_[pos % capacity];
+            slot = &m_buffer[pos % capacity];
             const size_t seq = slot->sequence.load(std::memory_order_acquire);
 
             // diff == 0: Slot is ready to consume
@@ -91,12 +91,12 @@ public:
 
             if (diff == 0) [[likely]]
             {
-                if (dequeuePos_.compare_exchange_weak(pos, pos + 1, std::memory_order_acq_rel, std::memory_order_relaxed))
+                if (m_dequeuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_acq_rel, std::memory_order_relaxed))
                     break;
             }
 
             // CAS failed, reload pos
-            pos = dequeuePos_.load(std::memory_order_relaxed);
+            pos = m_dequeuePos.load(std::memory_order_relaxed);
         }
 
         slot->sequence.store(pos + capacity, std::memory_order_release);
@@ -104,9 +104,9 @@ public:
     }
 
 private:
-    Slot buffer_[capacity];
-    alignas(std::hardware_destructive_interference_size) std::atomic_size_t enqueuePos_{ 0 };
-    alignas(std::hardware_destructive_interference_size) std::atomic_size_t dequeuePos_{ 0 };
+    Slot m_buffer[capacity];
+    alignas(std::hardware_destructive_interference_size) std::atomic_size_t m_enqueuePos{ 0 };
+    alignas(std::hardware_destructive_interference_size) std::atomic_size_t m_dequeuePos{ 0 };
 };
 
 } // namespace cyb

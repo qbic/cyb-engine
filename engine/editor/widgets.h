@@ -8,6 +8,11 @@
 #include "core/hash.h"
 #include "imgui.h"
 
+// Comment out to draw node graph debug helpers
+//#define CYB_NG_DEBUG_RECTS
+//#define CYB_NG_DEBUG_NODE_STATE
+//#define CYB_NG_DEBUG_CANVAS_STATE
+
 namespace cyb::ui
 {
     //------------------------------------------------------------------------------
@@ -168,11 +173,6 @@ namespace cyb::ui
      *      * You can not create cyclic (infinite) loop connections.
      *      * You can not connect input to input, or output to output.
      *------------------------------------------------------------------------------*/
-
-     // Comment out to draw node graph debug helpers
-//#define CYB_DEBUG_NG_RECTS
-//#define CYB_DEBUG_NG_NODE_STATE
-//#define CYB_DEBUG_NG_CANVAS_STATE
 
     enum NG_CanvasFlags
     {

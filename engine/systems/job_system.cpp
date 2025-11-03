@@ -66,7 +66,7 @@ namespace cyb::jobsystem
             auto& queue = jobQueuePerThread[nextQueue.fetch_add(1) % numThreads];
 
             // If the queue is full, execute the job immidietly on the main thread.
-            if (!queue.Enqueue(std::move(job)))
+            if (!queue.Push(std::move(job)))
             {
                 assert(0);          // break if debug mode
                 job.Execute();
@@ -96,7 +96,7 @@ namespace cyb::jobsystem
         for (uint32_t i = 0; i < internal_state.numThreads; ++i)
         {
             JobQueue& queue = internal_state.jobQueuePerThread[(startingQueue + i) % internal_state.numThreads];
-            while (auto job = queue.Dequeue())
+            while (auto job = queue.Pop())
             {
                 const uint32_t progressBefore = job->Execute();
 

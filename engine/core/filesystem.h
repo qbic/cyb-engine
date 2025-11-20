@@ -20,14 +20,6 @@ namespace cyb::filesystem
     // Write a file to the filesystem, if the file allready exist it will be trunced.
     [[nodiscard]] bool WriteFile(const std::string& filename, std::span<const uint8_t> data);
 
-    // Open a file browser dialog window for opening a file on a seperate thread.
-    // If the user clicks on "Open", onSuccess is executed
-    void OpenDialog(const std::string& filters, std::function<void(std::string filename)> onSuccess);
-    
-    // Open a file browser dialog window for saving a file on a seperate thread.
-    // If the user clicks on "Save", onSuccess is executed.
-    void SaveDialog(const std::string& filters, std::function<void(std::string filename)> onSuccess);
-
     // Replace backslashes (\) with forward backslashs (/)
     std::string FixFilePath(const std::string& path);
 }

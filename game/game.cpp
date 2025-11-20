@@ -1,7 +1,7 @@
 #include "editor/editor.h"
 #include "game.h"
 
-#include "core/logger.h"
+#include "graphics/display.h"
 using namespace cyb;
 
 void Game::Load()
@@ -35,6 +35,8 @@ void Game::Load()
 
     camera->zFarPlane = 1500.f;
     cameraTransform.Translate(XMFLOAT3(0, 2, -10));
+
+    auto modes = cyb::GetFullscreenDisplayModes();
 
     RenderPath3D::Load();
 }

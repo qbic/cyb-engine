@@ -1,8 +1,8 @@
 #include <algorithm>
 #include <numeric>
+#include <mutex>
 #include "core/hash.h"
 #include "core/logger.h"
-#include "core/mutex.h"
 #include "systems/profiler.h"
 
 namespace cyb::profiler
@@ -10,7 +10,7 @@ namespace cyb::profiler
     Context context;
 
     bool initialized = false;
-    Mutex lock;
+    std::mutex lock;
     rhi::GPUQuery query;
     std::array<rhi::GPUBuffer, rhi::GraphicsDevice::GetBufferCount()> queryResultBuffer = {};
     std::atomic<uint32_t> queryCount = 0;
@@ -22,7 +22,7 @@ namespace cyb::profiler
 
         // if one entry name is hit multiple times, differentiate between them!
         size_t differentiator = 0;
-        ScopedMutex lck(lock);
+        std::scoped_lock lck{ lock };
         while (context.entries[id].inUse)
             HashCombine(id, differentiator++);
 
@@ -146,10 +146,10 @@ namespace cyb::profiler
 
     void EndEntry(EntryId id)
     {
-        lock.Lock();
+        lock.lock();
         auto it = context.entries.find(id);
         assert(it != context.entries.end());
-        lock.Unlock();
+        lock.unlock();
 
         Entry& entry = it->second;
         if (entry.IsCPUEntry())

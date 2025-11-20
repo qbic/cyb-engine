@@ -1,6 +1,6 @@
 #include <unordered_map>
 #include <list>
-#include "core/mutex.h"
+#include <mutex>
 #include "systems/event_system.h"
 
 namespace cyb::eventsystem
@@ -9,7 +9,7 @@ namespace cyb::eventsystem
     {
         std::unordered_map<int, std::list<std::function<void(uint64_t)>*>> subscribers;
         std::unordered_map<int, std::list<std::function<void(uint64_t)>>> subscribers_once;
-        Mutex locker;
+        std::mutex locker;
     };
     std::shared_ptr<EventManager> manager = std::make_shared<EventManager>();
 
@@ -21,7 +21,7 @@ namespace cyb::eventsystem
 
 		~EventInternal()
 		{
-			ScopedMutex lock(manager->locker);
+			std::scoped_lock lock{ manager->locker };
 			auto it = manager->subscribers.find(id);
 			if (it != manager->subscribers.end())
 				it->second.remove(&callback);
@@ -37,23 +37,22 @@ namespace cyb::eventsystem
 		eventinternal->id = id;
 		eventinternal->callback = callback;
 
-		manager->locker.Lock();
+		manager->locker.lock();
 		manager->subscribers[id].push_back(&eventinternal->callback);
-		manager->locker.Unlock();
+		manager->locker.unlock();
 
 		return handle;
 	}
 
 	void Subscribe_Once(int id, std::function<void(uint64_t)> callback)
 	{
-		manager->locker.Lock();
+		std::scoped_lock lock{ manager->locker };
 		manager->subscribers_once[id].push_back(callback);
-		manager->locker.Unlock();
 	}
 
 	void FireEvent(int id, uint64_t userdata)
 	{
-		manager->locker.Lock();
+		manager->locker.lock();
 
 		// Callbacks that only live for once:
 		{
@@ -68,9 +67,9 @@ namespace cyb::eventsystem
 					// Move callback into temp
 					auto cb = std::move(callback);
 
-					manager->locker.Unlock();
+					manager->locker.unlock();
 					cb(userdata);
-					manager->locker.Lock();
+					manager->locker.lock();
 				}
 
 				callbacks.clear();
@@ -90,13 +89,13 @@ namespace cyb::eventsystem
 					// Make copy of callback
 					auto cb = *callback;
 
-					manager->locker.Unlock();
+					manager->locker.unlock();
 					cb(userdata);
-					manager->locker.Lock();
+					manager->locker.lock();
 				}
 			}
 		}
 
-		manager->locker.Unlock();
+		manager->locker.unlock();
 	}
 }

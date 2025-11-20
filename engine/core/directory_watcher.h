@@ -2,8 +2,8 @@
 #include <functional>
 #include <thread>
 #include <chrono>
-#include "core/mutex.h"
-#include "core/platform.h"
+#include <mutex>
+#include "core/sys.h"
 
 namespace cyb
 {
@@ -46,7 +46,7 @@ namespace cyb
             };
 
             std::unordered_map<std::string, Entry> m_files;
-            Mutex m_mutex;
+            std::mutex m_mutex;
         };
     }
 
@@ -90,4 +90,4 @@ namespace cyb
         uint32_t m_enqueueToStableDelay = 200;        // in ms
 #endif
     };
-}
+} // namespace cyb

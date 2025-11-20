@@ -1,7 +1,9 @@
 #include <deque>
 #include <cassert>
+#include <mutex>
 #include "core/cvar.h"
-#include "core/mutex.h"
+#include "core/spinlock.h"
+#include "core/sys.h"
 #include "core/logger.h"
 
 namespace cyb
@@ -57,7 +59,7 @@ namespace cyb
     {
         void RegisterLogOutputModule(std::unique_ptr<LogOutputModule>&& outputModule)
         {
-            ScopedMutex lock(g_locker);
+            std::scoped_lock lock{ g_locker };
             for (const auto& it : g_logHistory)
                 outputModule->Write(it);
 
@@ -88,7 +90,7 @@ namespace cyb
             log.timestamp = std::chrono::system_clock::now();
             log.severity = severity;
 
-            ScopedMutex lock(g_locker);
+            std::scoped_lock lock{ g_locker };
             g_logHistory.push_back(log);
             while (g_logHistory.size() > logHistorySize.GetValue())
                 g_logHistory.pop_front();

@@ -1,5 +1,5 @@
 #pragma once
-#include "core/platform.h"
+#include "core/sys.h"
 
 namespace cyb
 {

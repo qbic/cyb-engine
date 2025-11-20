@@ -1,5 +1,5 @@
 #pragma once
-#include "core/platform.h"
+#include "core/sys.h"
 #include "core/timer.h"
 #include "hli/renderpath.h"
 

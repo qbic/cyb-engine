@@ -3,7 +3,6 @@
 #include <fstream>
 #include <thread>
 #include "core/logger.h"
-#include "core/platform.h"
 #include "core/filesystem.h"
 
 namespace cyb::filesystem
@@ -61,24 +60,6 @@ namespace cyb::filesystem
 
         file.write((const char*)data.data(), data.size());
         return true;
-    }
-
-    void OpenDialog(const std::string& filters, std::function<void(std::string filename)> onSuccess)
-    {
-        std::thread([=] {
-            std::string filename;
-            if (FileOpenDialog(filename, filters))
-                onSuccess(filename);
-        }).detach();
-    }
-
-    void SaveDialog(const std::string& filters, std::function<void(std::string filename)> onSuccess)
-    {
-        std::thread([=] {
-            std::string filename;
-            if (FileSaveDialog(filename, filters))
-                onSuccess(filename);
-        }).detach();
     }
 
     std::string FixFilePath(const std::string& path)

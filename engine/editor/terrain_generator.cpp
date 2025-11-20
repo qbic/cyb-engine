@@ -676,7 +676,7 @@ namespace cyb::editor
     void TerrainGenerator::DrawGui(ecs::Entity selectedEntity)
     {
         static const uint32_t settingsPandelWidth = 340;
-
+#if 0
         if (ImGui::BeginMenuBar())
         {
             if (ImGui::BeginMenu("File"))
@@ -686,7 +686,6 @@ namespace cyb::editor
                     filesystem::SaveDialog("JSON (*.json)\0*.json\0", [&](std::string filename) {
                         nlohmann::ordered_json json;
                         auto& terrain = json["terrain_settings"];
-#if 0
                         terrain["mesh"]["size"] = m_meshDesc.size;
                         terrain["mesh"]["maxAltitude"] = m_meshDesc.maxAltitude;
                         terrain["mesh"]["minAltitude"] = m_meshDesc.minAltitude;
@@ -724,7 +723,7 @@ namespace cyb::editor
                         input2["strataOp"] = m_heightmapDesc.device2.strataOp;
                         input2["strata"] = m_heightmapDesc.device2.strata;
                         input2["blur"] = m_heightmapDesc.device2.blur;
-#endif
+
                         if (!filesystem::HasExtension(filename, "json"))
                             filename += ".json";
 
@@ -738,7 +737,7 @@ namespace cyb::editor
                         std::ifstream f(filename);
 
                         nlohmann::json json = nlohmann::json::parse(f);
-#if 0
+
                         auto& terrain = json["terrain_settings"];
                         m_meshDesc.size = terrain["mesh"]["size"];
                         m_meshDesc.maxAltitude = terrain["mesh"]["maxAltitude"];
@@ -776,7 +775,7 @@ namespace cyb::editor
                         m_heightmapDesc.device2.strataOp = input2["strataOp"];
                         m_heightmapDesc.device2.strata = input2["strata"];
                         m_heightmapDesc.device2.blur = input2["blur"];
-#endif
+
                         UpdatePreview();
                         ui::GetUndoManager().ClearHistory();
                         });
@@ -794,6 +793,7 @@ namespace cyb::editor
 
             ImGui::EndMenuBar();
         }
+#endif
 
         const auto updatePreviewCb = std::bind(&TerrainGenerator::UpdatePreview, this);
 

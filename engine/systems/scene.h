@@ -1,5 +1,5 @@
 #pragma once
-#include "core/mutex.h"
+#include <mutex>
 #include "core/serializer.h"
 #include "core/intersect.h"
 #include "core/enum_flags.h"
@@ -326,7 +326,7 @@ struct Scene
     // non-serialized attributes:
     float dt{ 0.0f };
     float time{ 0.0f };
-    Mutex lock;
+    std::mutex lock;
 
     // AABB culling streams:
     std::vector<AxisAlignedBox> aabb_objects;

@@ -1,7 +1,9 @@
 #pragma once
 #include "core/enum_flags.h"
 #include "core/mathlib.h"
-#include "core/platform.h"
+#include "core/sys.h"
+
+#include "graphics/display.h"
 
 namespace cyb::input
 {

@@ -8,11 +8,14 @@
 #include "core/timer.h"
 #include "core/filesystem.h"
 #include "core/mathlib.h"
+#include "core/sys.h"
+#include "graphics/display.h"
 #include "graphics/renderer.h"
 #include "graphics/model_import.h"
 #include "systems/event_system.h"
 #include "systems/profiler.h"
 #include "editor/editor.h"
+#include "editor/filedialog.h"
 #include "editor/undo_manager.h"
 #include "editor/icons_font_awesome6.h"
 #include "imgui_internal.h"
@@ -25,18 +28,17 @@ using namespace std::string_literals;
 
 extern ImFont* imguiBigFont;    // from imgui_backend.cpp
 
-// filters are passed to FileDialog function as std::string, thus we 
-// need to use string literals to avoid them of being stripped
-const auto FILE_FILTER_ALL = "All Files (*.*)\0*.*\0"s;
-const auto FILE_FILTER_SCD = "CybSceneData (*.csd)\0*.csd\0"s;
-const auto FILE_FILTER_GLTF = "glTF 2.0 (*.gltf; *.glb)\0*.gltf;*.glb\0"s;
-const auto FILE_FILTER_IMPORT_MODEL = FILE_FILTER_GLTF + FILE_FILTER_SCD + FILE_FILTER_ALL;
 
 namespace cyb::editor
 {
     CVar<bool> e_autoremoveLinkedEntities{ "e_autoremoveLinkedEntities", true, CVarFlag::GuiBit, "On entity delete, also delete linked entities that isn't beeing used." };
     CVar<bool> e_recursiveDelete{ "e_recursiveDelete", true, CVarFlag::GuiBit, "On entity delete, also delete all of the child entities." };
     
+    // Predefined file dialog filters
+    const FileDialogFilter FILE_FILTER_SCD =  { "CybSceneData (*.csd)", "csd" };
+    const FileDialogFilter FILE_FILTER_GLTF = { "glTF 2.0 (*.gltf; *.glb)", "gltf;glb" };
+    const FileDialogFilter FILE_FILTER_ALL =  { "All Files (*.*)" , "*" };
+
     bool initialized = false;
     bool fullscreenEnabled = false; // FIXME: initial value has to be synced with Application::fullscreenEnabled
     bool displayCubeView = false;
@@ -46,7 +48,7 @@ namespace cyb::editor
 
     ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
     SceneGraphView scenegraphView;
-    std::vector<VideoModeInfo> videoModeList;
+    std::vector<DisplayMode> displayModeList;
 
     // fps counter data
     std::array<double, 100> deltatimes{};
@@ -648,8 +650,9 @@ namespace cyb::editor
     // TODO: Add a dialog to prompt user about unsaved progress
     void OpenDialog_Open()
     {
-        filesystem::OpenDialog(FILE_FILTER_SCD, [] (std::string filename) {
-            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
+        const std::vector<FileDialogFilter> filters = { FILE_FILTER_SCD, FILE_FILTER_ALL };
+        OpenLoadFileDialog(filters, [](const std::string& filename) {
+            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
                 Timer timer;
                 scene::Scene& scene = scene::GetScene();
                 scene.Clear();
@@ -666,10 +669,11 @@ namespace cyb::editor
     }
 
     // Import a new model to the scene, once the loading is complete
-    // it will be automaticly selected in the scene graph view.
+    // it will be automatically selected in the scene graph view.
     void OpenDialog_ImportGLTF(const std::string filter)
     {
-        filesystem::OpenDialog(filter, [] (std::string filename) {
+        const std::vector<FileDialogFilter> filters = { FILE_FILTER_GLTF,  FILE_FILTER_ALL };
+        OpenLoadFileDialog(filters, [] (const std::string& filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
                 const std::string extension = filesystem::GetExtension(filename);
                 if (filesystem::HasExtension(filename, "glb") || filesystem::HasExtension(filename, "gltf"))
@@ -683,7 +687,8 @@ namespace cyb::editor
 
     void OpenDialog_ImportCSD(const std::string filter)
     {
-        filesystem::OpenDialog(filter, [] (std::string filename) {
+        const std::vector<FileDialogFilter> filters = { FILE_FILTER_SCD,  FILE_FILTER_ALL };
+        OpenLoadFileDialog(filters, [] (const std::string& filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
                 const std::string extension = filesystem::GetExtension(filename);
                 if (filesystem::HasExtension(filename, "csd"))
@@ -697,13 +702,15 @@ namespace cyb::editor
 
     void OpenDialog_SaveAs()
     {
-        filesystem::SaveDialog(FILE_FILTER_SCD, [] (std::string filename) {
-            if (!filesystem::HasExtension(filename, "csd"))
-                filename += ".csd";
+        const std::vector<FileDialogFilter> filters = { FILE_FILTER_SCD };
+        OpenSaveFileDialog(filters, [] (const std::string& filename) {
+            std::string path = filename;
+            if (!filesystem::HasExtension(path, "csd"))
+                path += ".csd";
 
             Timer timer;
-            if (SerializeToFile(filename, scene::GetScene(), true))
-                CYB_INFO("Serialized scene to file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
+            if (SerializeToFile(path, scene::GetScene(), true))
+                CYB_INFO("Serialized scene to file (filename={0}) in {1:.2f}ms", path, timer.ElapsedMilliseconds());
         });
     }
 
@@ -1259,10 +1266,10 @@ namespace cyb::editor
 
                 if (ImGui::BeginMenu("Import"))
                 {
-                    if (ImGui::MenuItem("CybSceneData (.csd)"))
+                    /*if (ImGui::MenuItem("CybSceneData (.csd)"))
                         OpenDialog_ImportCSD(FILE_FILTER_SCD);
                     if (ImGui::MenuItem("glTF 2.0 (.gltf/.glb)"))
-                        OpenDialog_ImportGLTF(FILE_FILTER_GLTF);
+                        OpenDialog_ImportGLTF(FILE_FILTER_GLTF);*/
 
                     ImGui::EndMenu();
                 }
@@ -1342,11 +1349,10 @@ namespace cyb::editor
 
                 if (ImGui::BeginMenu("Resolution"))
                 {
-                    for (size_t i = 0; i < videoModeList.size(); i++)
+                    for (size_t i = 0; i < displayModeList.size(); i++)
                     {
-                        VideoModeInfo& mode = videoModeList[i];
-                        std::string str = std::format("{}x{} {}bpp @ {}hz", mode.width, mode.height, mode.bitsPerPixel, mode.displayFrequency);
-                        if (ImGui::MenuItem(str.c_str()))
+                        const std::string modeString = DisplayModeToString(displayModeList[i]);
+                        if (ImGui::MenuItem(modeString.c_str()))
                         {
                             eventsystem::FireEvent(eventsystem::Event_SetFullScreen, i);
                             fullscreenEnabled = true;
@@ -1503,7 +1509,7 @@ namespace cyb::editor
 #endif
 
         // Grab available fullscreen resolutions
-        GetVideoModesForDisplay(videoModeList, 0);
+        displayModeList = GetFullscreenDisplayModes();
 
         initialized = true;
     }

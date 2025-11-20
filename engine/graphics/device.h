@@ -2,9 +2,10 @@
 #include <array>
 #include <vector>
 #include "core/enum_flags.h"
-#include "core/platform.h"
 #include "core/mathlib.h"
+#include "core/sys.h"
 #include "core/logger.h"
+#include "graphics/display.h"   // for WindowHandle
 
 namespace cyb::rhi
 {

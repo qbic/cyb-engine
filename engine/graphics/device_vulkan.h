@@ -1,7 +1,8 @@
 #pragma once
 #include <array>
 #include <deque>
-#include "core/mutex.h"
+#include <mutex>
+#include "core/spinlock.h"
 #include "graphics/device.h"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
@@ -58,7 +59,7 @@ namespace cyb::rhi
             VkQueue queue = VK_NULL_HANDLE;
             uint64_t lastSubmittedID = 0;
             VkSemaphore trackingSemaphore = VK_NULL_HANDLE;
-            std::shared_ptr<Mutex> locker;
+            std::shared_ptr<std::mutex> locker;
 
             std::vector<VkSemaphoreSubmitInfo> submit_signalSemaphoreInfos;
             std::vector<VkSemaphoreSubmitInfo> submit_waitSemaphoreInfos;
@@ -79,7 +80,7 @@ namespace cyb::rhi
         struct CopyAllocator
         {
             GraphicsDevice_Vulkan* device = nullptr;
-            Mutex locker;
+            std::mutex locker;
 
             struct CopyCMD
             {
@@ -203,7 +204,7 @@ namespace cyb::rhi
             VkDescriptorSetLayout descriptorset_layout = VK_NULL_HANDLE;
         };
         mutable std::unordered_map<size_t, PSOLayout> m_psoLayoutCache;
-        mutable Mutex m_psoLayoutCacheMutex;
+        mutable std::mutex m_psoLayoutCacheMutex;
 
         VkPipelineCache m_pipelineCache = VK_NULL_HANDLE;
         std::unordered_map<size_t, VkPipeline> m_pipelinesGlobal;
@@ -279,7 +280,7 @@ namespace cyb::rhi
             VmaAllocator allocator = VK_NULL_HANDLE;
             VkDevice device = VK_NULL_HANDLE;
             VkInstance instance = VK_NULL_HANDLE;
-            Mutex destroylocker;
+            std::mutex destroylocker;
             uint64_t framecount = 0;
 
             std::deque<std::pair<std::pair<VkImage, VmaAllocation>, uint64_t>> destroyer_images;
@@ -319,7 +320,7 @@ namespace cyb::rhi
                     }
                 };
 
-                ScopedMutex lck(destroylocker);
+                std::scoped_lock lck{ destroylocker };
                 framecount = frameCount;
 
                 destroy(destroyer_images, [&](auto& item) {

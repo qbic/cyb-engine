@@ -24,9 +24,8 @@ GameApplication application;
 
 bool EnterFullscreenMode(uint64_t modeIndex)
 {
-    std::vector<cyb::VideoModeInfo> modeList;
-    cyb::GetVideoModesForDisplay(modeList, 0);
-    cyb::VideoModeInfo& mode = modeList[modeIndex];
+    auto modeList = cyb::GetFullscreenDisplayModes();
+    cyb::DisplayMode& mode = modeList[modeIndex];
 
     DEVMODE fullscreenSettings{};
     fullscreenSettings.dmSize = sizeof(fullscreenSettings);
@@ -34,7 +33,7 @@ bool EnterFullscreenMode(uint64_t modeIndex)
     fullscreenSettings.dmPelsWidth = mode.width;
     fullscreenSettings.dmPelsHeight = mode.height;
     fullscreenSettings.dmBitsPerPel = mode.bitsPerPixel;
-    fullscreenSettings.dmDisplayFrequency = mode.displayFrequency;
+    fullscreenSettings.dmDisplayFrequency = mode.refreshRate;
     fullscreenSettings.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL | DM_DISPLAYFREQUENCY;
 
     HWND hwnd = (HWND)application.GetWindow();
@@ -62,7 +61,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
     cyb::RegisterLogOutputModule<cyb::LogOutputModule_VisualStudio>();
     cyb::RegisterLogOutputModule<cyb::LogOutputModule_File>(szTextlogFile);
 
-    // configure asset saerch paths
+    // configure asset search paths
     cyb::resourcemanager::AddSearchPath("assets/");
     cyb::resourcemanager::AddSearchPath("../assets/");
 

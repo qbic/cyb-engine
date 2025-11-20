@@ -9,6 +9,7 @@
 #include "input/input.h"
 #include "input/input_raw.h"
 
+#include "graphics/display.h"
 #include "graphics/model_import.h"
 #include "graphics/renderer.h"
 

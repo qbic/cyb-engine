@@ -24,13 +24,11 @@ GameApplication application;
 
 bool EnterFullscreenMode(uint64_t modeIndex)
 {
-    DEVMODE fullscreenSettings = {};
-    bool isChangeSuccessful;
-
     std::vector<cyb::VideoModeInfo> modeList;
     cyb::GetVideoModesForDisplay(modeList, 0);
     cyb::VideoModeInfo& mode = modeList[modeIndex];
 
+    DEVMODE fullscreenSettings{};
     fullscreenSettings.dmSize = sizeof(fullscreenSettings);
     EnumDisplaySettings(NULL, 0, &fullscreenSettings);
     fullscreenSettings.dmPelsWidth = mode.width;
@@ -42,7 +40,7 @@ bool EnterFullscreenMode(uint64_t modeIndex)
     HWND hwnd = (HWND)application.GetWindow();
     SetWindowLongPtr(hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW);
     SetWindowLongPtr(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
-    isChangeSuccessful = ChangeDisplaySettings(&fullscreenSettings, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL;
+    bool isChangeSuccessful = ChangeDisplaySettings(&fullscreenSettings, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL;
     ShowWindow(hwnd, SW_MAXIMIZE);
 
     application.SetWindow(hwnd);
@@ -70,7 +68,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance,
 
     BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     assert(dpiSuccess);
-
 
     RegisterWindowClass(hInstance);
     if (!InitInstance(hInstance, nShowCmd))

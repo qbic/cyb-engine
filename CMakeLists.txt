@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.27)
 project(cyb-engine)
 
 set(CYB_VERSION "2025.05.01")
-
 string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _match "${CYB_VERSION}")
 set(CYB_VERSION_MAJOR "${CMAKE_MATCH_1}")
 set(CYB_VERSION_MINOR "${CMAKE_MATCH_2}")
@@ -30,7 +29,7 @@ find_package(Vulkan REQUIRED)
 set(FETCHCONTENT_QUIET OFF)
 include(FetchContent)
 FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.90)
-FetchContent_Declare(freetype GIT_REPOSITORY https://gitlab.freedesktop.org/freetype/freetype.git GIT_TAG VER-2-13-2)
+FetchContent_Declare(freetype GIT_REPOSITORY https://gitlab.freedesktop.org/freetype/freetype.git GIT_TAG VER-2-14-1)
 FetchContent_MakeAvailable(imgui freetype)
 
 add_library(imgui)

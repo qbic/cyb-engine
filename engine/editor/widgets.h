@@ -111,7 +111,7 @@ namespace cyb::ui
 
     struct GradientMark {
         ImColor color;
-        float position = 0.0f;     // [0..1] range
+        float position = 0.0f;      // [0..1] range
     };
 
     struct Gradient {
@@ -176,10 +176,10 @@ namespace cyb::ui
 
     enum NG_CanvasFlags
     {
-        NG_CanvasFlags_None         = 0,
-        NG_CanvasFlags_DisplayGrid  = 1 << 0,
+        NG_CanvasFlags_None = 0,
+        NG_CanvasFlags_DisplayGrid = 1 << 0,
         NG_CanvasFlags_DisplayState = 1 << 1,
-        NG_CanvasFlags_Default      = NG_CanvasFlags_DisplayGrid
+        NG_CanvasFlags_Default = NG_CanvasFlags_DisplayGrid
     };
 
     struct NG_Node;
@@ -241,10 +241,10 @@ namespace cyb::ui
 
         struct NG_Connection
         {
-            detail::NG_Pin* From;       // OutputPin
-            detail::NG_Pin* To;         // InputPin
+            detail::NG_Pin* From;           // OutputPin
+            detail::NG_Pin* To;             // InputPin
         };
-    }
+    } // namespace detail
 
     struct NG_Style
     {
@@ -274,7 +274,7 @@ namespace cyb::ui
         bool ModifiedFlag{ false };
         bool MarkedForDeletion{ false };
 
-        NG_Node(const std::string& label, float max_width = 200.0f)
+        NG_Node(const std::string_view& label, float max_width = 200.0f)
         {
             m_NodeMaxWidth = max_width;
             m_Label = label;
@@ -291,8 +291,8 @@ namespace cyb::ui
 
         /**
          * @brief Node type user implemented update function.
-         * 
-         * This gets called when any connected input node get the ModfiedFlag and 
+         *
+         * This gets called when any connected input node get the ModfiedFlag and
          * when a new connection is made to the node.
          */
         virtual void Update() {}
@@ -334,15 +334,21 @@ namespace cyb::ui
     private:
         ImVec2 m_ParentWorkRectMin{ 0, 0 };
         ImVec2 m_ParentWorkRectMax{ 0, 0 };
+        ImVec2 m_ParentContentRegionMax{ 0, 0 };
         float m_NodeMaxWidth{ 0 };
         std::string m_Label;
         ImGuiID m_ID{ 0 };
     };
 
+    /**
+     * @brief Factory class for creating nodes using node type strings.
+     * This is used for creating the right-click create node menu.
+     */
     class NG_Factory
     {
     public:
         using CreateNodeCallbackType = std::function<std::unique_ptr<NG_Node>()>;
+        using NameToCallbackMap = std::map<const std::string_view, CreateNodeCallbackType>;
 
         NG_Factory() = default;
         virtual ~NG_Factory() = default;
@@ -351,7 +357,7 @@ namespace cyb::ui
 
         /**
          * @brief Draw menu items of the create node menu.
-         * 
+         *
          * This has a predefined menu, but can be overwritten for a custom menu.
          * Function will be called between ImGui::BeginPopupContextWindow() and ImGui::EndPopup().
          */
@@ -362,7 +368,7 @@ namespace cyb::ui
          */
         template <typename T>
             requires std::derived_from<T, NG_Node>
-        void RegisterFactoryFunction(const std::string& node_type)
+        void RegisterFactoryFunction(const std::string_view& node_type)
         {
             auto lambda = [] () { return std::make_unique<T>(); };
             m_availableNodeTypesMap[node_type] = std::move(lambda);
@@ -372,11 +378,11 @@ namespace cyb::ui
         /**
          * @brief Create a new node using registrated type name factory function.
          */
-        std::unique_ptr<NG_Node> CreateNode(const std::string& node_type, const ImVec2& pos = { 0, 0 }) const;
-    
+        std::unique_ptr<NG_Node> CreateNode(const std::string_view& node_type, const ImVec2& pos = { 0, 0 }) const;
+
     private:
         uint64_t m_hash{ 0 };
-        std::map<std::string, CreateNodeCallbackType> m_availableNodeTypesMap;
+        NameToCallbackMap m_availableNodeTypesMap;
     };
 
     struct NG_Canvas
@@ -421,9 +427,9 @@ namespace cyb::ui
          */
         [[nodiscard]] std::vector<const detail::NG_Connection*> FindConnectionsFrom(detail::NG_Pin* pin) const;
 
-       /**
-        * @brief Updates the ValidState on all nodes. See NG_Canvas::NodeHasValidState().
-        */
+        /**
+         * @brief Updates the ValidState on all nodes. See NG_Canvas::NodeHasValidState().
+         */
         void UpdateAllValidStates();
 
         /**
@@ -459,4 +465,4 @@ namespace cyb::ui
     bool NodeGraph(NG_Canvas& canvas);
 
     void NodeGraphStyleEditor(NG_Canvas& canvas);
-}
+} // namespace cyb::ui

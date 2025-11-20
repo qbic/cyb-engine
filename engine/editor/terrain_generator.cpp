@@ -319,14 +319,14 @@ namespace cyb::editor
 
         if (!jobsystem::IsBusy(m_jobContext))
         {
-            if (ImGui::Button("Generate Mesh", ImVec2(2560, 0.0f)))
+            if (ImGui::Button("Generate Mesh", ImVec2(-1.0f, 0.0f)))
             {
                 //GenerateTerrainMesh();
             }
         }
         else
         {
-            if (ImGui::Button("[Cancel Generation]", ImVec2(0, 0.0f)))
+            if (ImGui::Button("[Cancel Generation]", ImVec2(0.0f, 0.0f)))
             {
                 //cancelTerrainGen.store(true);
             }

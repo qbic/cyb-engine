@@ -1000,7 +1000,7 @@ namespace cyb::editor
                     ImGui::Text(cvar->GetName().c_str());
 
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetTypeAsString().c_str());
+                    ImGui::Text(cvar->GetTypeAsString().data());
 
                     ImGui::TableNextColumn();
                     ImGui::Text(cvar->GetValueAsString().c_str());

@@ -8,7 +8,7 @@ namespace cyb::editor
     class PerlinNode : public ui::NG_Node
     {
     public:
-        static constexpr const char* typeString{ "Perlin Noise" };
+        static constexpr std::string_view typeString = "Perlin Noise";
 
         PerlinNode();
         virtual ~PerlinNode() = default;
@@ -21,7 +21,7 @@ namespace cyb::editor
     class CellularNode : public ui::NG_Node
     {
     public:
-        static constexpr const char* typeString{ "Cellular Noise" };
+        static constexpr std::string_view typeString = "Cellular Noise";
 
         CellularNode();
         virtual ~CellularNode() = default;
@@ -34,7 +34,7 @@ namespace cyb::editor
     class ConstNode : public ui::NG_Node
     {
     public:
-        static constexpr const char* typeString{ "Const Value" };
+        static constexpr std::string_view typeString = "Const Value";
 
         ConstNode();
         virtual ~ConstNode() = default;
@@ -47,7 +47,7 @@ namespace cyb::editor
     class BlendNode : public ui::NG_Node
     {
     public:
-        static constexpr const char* typeString{ "Blend" };
+        static constexpr std::string_view typeString = "Blend";
 
         BlendNode();
         virtual ~BlendNode() = default;
@@ -60,7 +60,7 @@ namespace cyb::editor
     class InvertNode : public ui::NG_Node
     {
     public:
-        static constexpr const char* typeString{ "Invert" };
+        static constexpr std::string_view typeString = "Invert";
 
         InvertNode();
         virtual ~InvertNode() = default;
@@ -72,7 +72,7 @@ namespace cyb::editor
     class ScaleBiasNode : public ui::NG_Node
     {
     public:
-        static constexpr const char* typeString{ "ScaleBias" };
+        static constexpr std::string_view typeString = "ScaleBias";
 
         ScaleBiasNode();
         virtual ~ScaleBiasNode() = default;
@@ -85,7 +85,7 @@ namespace cyb::editor
     class StrataNode : public ui::NG_Node
     {
     public:
-        static constexpr const char* typeString{ "Strata" };
+        static constexpr std::string_view typeString = "Strata";
 
         StrataNode();
         virtual ~StrataNode() = default;
@@ -98,7 +98,7 @@ namespace cyb::editor
     class SelectNode : public ui::NG_Node
     {
     public:
-        static constexpr const char* typeString{ "Select" };
+        static constexpr std::string_view typeString = "Select";
 
         SelectNode();
         virtual ~SelectNode() = default;
@@ -111,7 +111,7 @@ namespace cyb::editor
     class PreviewNode : public ui::NG_Node
     {
     public:
-        static constexpr const char* typeString{ "Preivew" };
+        static constexpr std::string_view typeString = "Preivew";
 
         PreviewNode();
         virtual ~PreviewNode() = default;
@@ -131,7 +131,7 @@ namespace cyb::editor
     class GenerateMeshNode : public ui::NG_Node
     {
     public:
-        static constexpr const char* typeString{ "Generate Mesh" };
+        static constexpr std::string_view typeString = "Generate Mesh";
 
         GenerateMeshNode();
         virtual ~GenerateMeshNode() = default;
@@ -192,10 +192,10 @@ namespace cyb::editor
         enum class Category { Producer, Modifier, Consumer };
 
         template <typename T>
-        void RegisterNodeType(const std::string& name, Category category)
+        void RegisterNodeType(const std::string_view& name, Category category)
         {
             auto& container = m_categories[category];
-            container.push_back(name);
+            container.push_back(name.data());
             NG_Factory::RegisterFactoryFunction<T>(name);
         }
 

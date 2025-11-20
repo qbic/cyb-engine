@@ -5,6 +5,7 @@ file(GLOB_RECURSE SOURCE_FILES *.cpp *.c *.h)
 # Shader files will only be added to the source groups for easy access when
 # using an IDE and is not part of the library source files
 file(GLOB_RECURSE SHADER_FILES *.frag *.vert *.geom *.glsl)
+list(APPEND SOURCE_FILES ${SHADER_FILES})
 
 # Let cmake create source groups based on file paths, to make the project
 # easier to navigate though an IDE

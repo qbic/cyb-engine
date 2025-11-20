@@ -1,3 +1,4 @@
+#include <utility>
 #include "core/cvar.h"
 #include "core/filesystem.h"
 #include "core/logger.h"
@@ -521,18 +522,18 @@ namespace cyb::renderer
         }
 
         // sort the lights by type, first directional, then point
-        frameCB.pointLightsOffset = frameCB.numLights;
-        for (uint32_t i = 0; i < frameCB.numLights; ++i)
+        uint32_t last = std::max(frameCB.numLights - 1, 0);
+        for (uint32_t i = 0; i <= last; )
         {
-            if (i >= frameCB.pointLightsOffset)
-                break;
+            LightSource& light = frameCB.lights[i];
 
-            if (frameCB.lights[i].type == LIGHTSOURCE_TYPE_POINT)
-            {
-                std::exchange(frameCB.lights[i], frameCB.lights[frameCB.pointLightsOffset - 1]);
-                frameCB.pointLightsOffset--;
-            }
+            if (light.type == LIGHTSOURCE_TYPE_POINT)
+                std::swap(light, frameCB.lights[last--]);
+            else
+                ++i;
         }
+
+        frameCB.pointLightsOffset = last + 1;
     }
 
     void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, rhi::CommandList cmd)

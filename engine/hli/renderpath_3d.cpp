@@ -1,4 +1,4 @@
-#include "core/platform.h"
+#include "core/sys.h"
 #include "core/cvar.h"
 #include "graphics/device.h"
 #include "graphics/image.h"

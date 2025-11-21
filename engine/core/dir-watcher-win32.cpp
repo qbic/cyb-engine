@@ -1,4 +1,4 @@
-#include "core/directory_watcher.h"
+#include "core/dir-watcher.h"
 #include "core/filesystem.h"
 #include "core/logger.h"
 
@@ -10,24 +10,20 @@ namespace cyb
         {
             switch (action)
             {
-            case FileChangeAction::Added:   return "Added";
-            case FileChangeAction::Removed: return "Removed";
-            case FileChangeAction::Modified:    return "Modified";
+            case FileChangeAction::Added:           return "Added";
+            case FileChangeAction::Removed:         return "Removed";
+            case FileChangeAction::Modified:        return "Modified";
             case FileChangeAction::RenamedNewName:  return "RenamedNewName";
             case FileChangeAction::RenamedOldName:  return "RenamedOldName";
             case FileChangeAction::Invalid: 
-            default:
-                return "Invalid";
+            default:                                return "Invalid";
             }
         }
 
-        auto GetLocaltime(uint64_t time)
+        [[nodiscard]] auto GetLocaltime(uint64_t time)
         {
-            constexpr int64_t WINDOWS_TICK = 10'000'000;
-            constexpr int64_t SEC_TO_UNIX_EPOCH = 11'644'473'600LL;
-            const auto unix_seconds = (time / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH;
-            const std::chrono::system_clock::time_point tp = std::chrono::system_clock::from_time_t(unix_seconds);
-            return std::chrono::zoned_time{ std::chrono::current_zone(), tp };
+            const auto timeUTC{ std::chrono::system_clock::now() };
+            return std::chrono::current_zone()->to_local(timeUTC);
         }
 
         void StableFileEventQueue::Enqueue(const FileChangeEvent& event)
@@ -78,7 +74,6 @@ namespace cyb
 
         m_isRunning = true;
         m_watchThread = std::thread([this] {
-
             while (m_isRunning)
             {
                 for (auto& info : m_watchInfos)
@@ -121,7 +116,7 @@ namespace cyb
                     for (const auto& event : m_stableQueue.PollStableFiles(m_enqueueToStableDelay))
                     {
                         auto localTime = detail::GetLocaltime(event.lastWriteTime);
-                        CYB_TRACE("DirectoryWatcher(): {} \"{}\", last writen {}",
+                        CYB_TRACE("DirectoryWatcher(): {} \"{}\", last written {}",
                             detail::FileChangeActionToString(event.action),
                             event.filename,
                             std::format("{:%c}", localTime));

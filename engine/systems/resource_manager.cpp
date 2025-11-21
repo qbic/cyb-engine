@@ -1,7 +1,7 @@
 #include <filesystem>
 #include <mutex>
 #include "core/cvar.h"
-#include "core/directory_watcher.h"
+#include "core/dir-watcher.h"
 #include "core/filesystem.h"
 #include "core/hash.h"
 #include "core/logger.h"
@@ -77,7 +77,7 @@ namespace cyb::resourcemanager
 
             CYB_TRACE("Detected change in loaded asset ({}), reloading...", event.filename);
 
-            // Return value is ignored here sence LoadFile() will update the inrernal_state in cache.
+            // Return value is ignored here since LoadFile() will update the internal_state in cache.
             auto _ = LoadFile(event.filename, internalState->flags, true);
         }
     }
@@ -212,34 +212,47 @@ namespace cyb::resourcemanager
         const uint64_t hash = HashString(fixedName);
         locker.lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
-        if (internalState != nullptr && force == false)
+        if (internalState != nullptr)
         {
-            locker.unlock();
-            CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), fixedName, hash);
-            return Resource(internalState);
+            if (!force)
+            {
+                // Asset is allready loaded
+                locker.unlock();
+                CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), fixedName, hash);
+                return Resource(internalState);
+            } 
+            else
+            {
+                // Force reload of the asset
+                internalState->flags = flags;
+                internalState->name = fixedName;
+                resourceCache[hash] = internalState;
+                locker.unlock();
+            }
         }
         else
         {
+            // Create a new asset
             internalState = std::make_shared<ResourceInternal>();
             internalState->name = fixedName;
             internalState->hash = hash;
             internalState->flags = flags;
-        }
 
-        if (!GetAssetTypeFromFilename(&internalState->type, fixedName))
-        {
+            if (!GetAssetTypeFromFilename(&internalState->type, fixedName))
+            {
+                locker.unlock();
+                CYB_ERROR("Failed to determine resource type (filename={0})", fixedName);
+                return Resource();
+            }
+
+            resourceCache[hash] = internalState;
             locker.unlock();
-            CYB_ERROR("Failed to determine resource type (filename={0})", fixedName);
-            return Resource();
         }
-
-        resourceCache[hash] = internalState;
-        locker.unlock();
 
         /*
-         * NOTE: If we could check if ReadFile is being run on a machanical hard drive we 
-         * could make a special case where the mutex unlocks after file read sence starting
-         * alot of file reads on mechanical drive async will hurt it's performance.
+         * NOTE: If we could check if ReadFile is being run on a mechanical hard drive we 
+         * could make a special case where the mutex unlocks after file read since starting
+         * a lot of file reads on mechanical drive async will hurt it's performance.
          */
         if (!filesystem::ReadFile(FindFile(name), internalState->data))
             return Resource();

@@ -4,15 +4,17 @@
 
 namespace cyb
 {
-    std::string BuildFilterString(const std::vector<FileDialogFilter>& filters)
+    [[nodiscard]] static std::string BuildFilterString(const std::vector<FileDialogFilter>& filters)
     {
         std::string filterStr;
+        filterStr.reserve(64);
+
         for (const auto& filter : filters)
         {
             filterStr.append(filter.description);
             filterStr.push_back('\0');
 
-            std::string_view ext = filter.extensions;
+            const std::string_view& ext = filter.extensions;
             size_t start = 0;
 
             for (size_t pos = 0; pos != std::string_view::npos; )
@@ -33,7 +35,7 @@ namespace cyb
             }
         }
 
-        filterStr.push_back('\0'); // double null terminate
+        filterStr.push_back('\0'); // Double null terminate
         return filterStr;
     }
 
@@ -43,7 +45,7 @@ namespace cyb
             OPENFILENAMEA ofn{ 0 };
             CHAR szFile[MAX_PATH]{ 0 };
 
-            std::string filter = BuildFilterString(filters);
+            const std::string filter = BuildFilterString(filters);
 
             ofn.lStructSize = sizeof(ofn);
             ofn.hwndOwner = nullptr;
@@ -67,7 +69,7 @@ namespace cyb
             OPENFILENAMEA ofn{ 0 };
             CHAR szFile[MAX_PATH]{ 0 };
 
-            std::string filter = BuildFilterString(filters);
+            const std::string filter = BuildFilterString(filters);
 
             ofn.lStructSize = sizeof(ofn);
             ofn.hwndOwner = nullptr;

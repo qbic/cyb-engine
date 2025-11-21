@@ -714,9 +714,9 @@ namespace cyb::renderer
 
         if (r_debugLightSources.GetValue())
         {
-            device->BeginEvent("DebugLightsources", cmd);
+            device->BeginEvent("DebugLightSources", cmd);
 
-            // Draw icons over all the lightsources
+            // Draw icons over all the light sources
             for (uint32_t lightIndex : view.lightIndexes)
             {
                 const ecs::Entity lightID = view.scene->lights.GetEntity(lightIndex);
@@ -749,7 +749,7 @@ namespace cyb::renderer
                 }
             }
 
-            // Draw all the aabb boxes for lightsources
+            // Draw all the aabb boxes for light sources
             device->BindPipelineState(&pso_debug[DEBUGRENDERING_CUBE], cmd);
             const GPUBuffer* vbs[] = {
                 &wirecube_vb,

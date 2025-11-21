@@ -654,15 +654,17 @@ namespace cyb::editor
         OpenLoadFileDialog(filters, [](const std::string& filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
                 Timer timer;
-                scene::Scene& scene = scene::GetScene();
-                scene.Clear();
 
-                if (!SerializeFromFile(filename, scene))
+                scene::Scene newScene;
+                if (!SerializeFromFile(filename, newScene))
                 {
                     CYB_ERROR("Failed to serialize file: {}", filename);
                     return;
                 }
 
+                scene::Scene& scene = scene::GetScene();
+                scene.Clear();
+                scene.Merge(newScene);
                 CYB_INFO("Serialized scene from file (filename={0}) in {1:.2f}ms", filename, timer.ElapsedMilliseconds());
             });
         });

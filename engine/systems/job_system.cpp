@@ -7,7 +7,7 @@
 #include <Windows.h>
 #endif
 #include "core/atomic_queue.h"
-#include "core/platform.h"
+#include "core/sys.h"
 #include "core/logger.h"
 #include "core/non_copyable.h"
 #include "systems/job_system.h"

@@ -78,9 +78,9 @@ namespace cyb
     } // namespace detail
 
     template <typename T, typename ...Args>
-        requires std::derived_from<T, LogOutputModule>&&
-    std::constructible_from<T, Args...>
-        void RegisterLogOutputModule(Args&&... args)
+    requires std::derived_from<T, LogOutputModule> &&
+             std::constructible_from<T, Args...>
+    void RegisterLogOutputModule(Args&&... args)
     {
         detail::RegisterLogOutputModule(std::make_unique<T>(std::forward<Args>(args)...));
     }

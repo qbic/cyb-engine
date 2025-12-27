@@ -48,19 +48,9 @@ namespace cyb::resourcemanager
     CVar<bool> cl_assetReloadOnChange{ "cl_assetReloadOnChange", true, CVarFlag::SystemBit, "Auto reload loaded asset on filesystem change" };
     CVar<uint32_t> cl_assetChangeStableDelay{ "cl_assetChangeStableDelay", 200, CVarFlag::SystemBit, "Delay in milliseconds from filesystem change to stable file" };
 
-    static const ska::flat_hash_map<std::string_view, ResourceType> types = {
-        std::make_pair("jpg",   ResourceType::Image),
-        std::make_pair("jpeg",  ResourceType::Image),
-        std::make_pair("png",   ResourceType::Image),
-        std::make_pair("dds",   ResourceType::Image),
-        std::make_pair("tga",   ResourceType::Image),
-        std::make_pair("bmp",   ResourceType::Image),
-        std::make_pair("frag",  ResourceType::Shader),
-        std::make_pair("vert",  ResourceType::Shader),
-        std::make_pair("geom",  ResourceType::Shader),
-        std::make_pair("comp",  ResourceType::Shader)
-    };
-
+    /**
+     * @brief Callback for directory watcher when a file change is detected.
+     */
     static void OnAssetFileChangeEvent(const FileChangeEvent& event)
     {
         if (event.action != cyb::FileChangeAction::Modified)
@@ -70,16 +60,19 @@ namespace cyb::resourcemanager
         locker.lock();
         std::shared_ptr<ResourceInternal> internalState = resourceCache[hash].lock();
         locker.unlock();
-        if (internalState != nullptr)
-        {
-            if (HasFlag(internalState->flags, AssetFlags::IgnoreFilesystemChange))
-                return;
 
-            CYB_TRACE("Detected change in loaded asset ({}), reloading...", event.filename);
+        // If the file is not loaded, ignore the change.
+        if (internalState == nullptr)
+            return;
 
-            // Return value is ignored here since LoadFile() will update the internal_state in cache.
-            auto _ = LoadFile(event.filename, internalState->flags, true);
-        }
+        if (HasFlag(internalState->flags, AssetFlags::IgnoreFilesystemChange))
+            return;
+
+        CYB_TRACE("Detected change in loaded asset ({}), reloading...", event.filename);
+
+        // Ignore the return value here since LoadFile() will update the internal
+        // state of the already loaded asset.
+        auto _ = LoadFile(event.filename, internalState->flags, true);
     }
 
     void Initialize()
@@ -128,29 +121,36 @@ namespace cyb::resourcemanager
         return filename;
     }
 
-    bool GetAssetTypeFromFilename(ResourceType* type, const std::string& filename)
+    ResourceType GetTypeFromExtension(std::string_view extension)
     {
-        const auto& it = types.find(filesystem::GetExtension(filename));
-        if (it == types.end())
-            return false;
+        static const ska::flat_hash_map<std::string_view, ResourceType> types{
+            std::make_pair("jpg",   ResourceType::Image),
+            std::make_pair("jpeg",  ResourceType::Image),
+            std::make_pair("png",   ResourceType::Image),
+            std::make_pair("dds",   ResourceType::Image),
+            std::make_pair("tga",   ResourceType::Image),
+            std::make_pair("bmp",   ResourceType::Image),
+            std::make_pair("frag",  ResourceType::Shader),
+            std::make_pair("vert",  ResourceType::Shader),
+            std::make_pair("geom",  ResourceType::Shader),
+            std::make_pair("comp",  ResourceType::Shader)
+        };
 
-        if (type != nullptr)
-            *type = it->second;
-        return true;
+        const auto& it = types.find(extension);
+        return (it != types.end()) ? it->second : ResourceType::None;
     }
 
-    const char* GetTypeAsString(ResourceType type)
+    std::string_view GetTypeAsString(ResourceType type)
     {
         switch (type)
         {
-        case ResourceType::None:    return "None";
         case ResourceType::Image:   return "Image";
         case ResourceType::Shader:  return "Shader";
         case ResourceType::Sound:   return "Sound";
         }
 
         assert(0);
-        return "None";
+        return "Unknown";
     }
 
     static bool LoadImageResouce(std::shared_ptr<ResourceInternal> resource)
@@ -216,7 +216,7 @@ namespace cyb::resourcemanager
         {
             if (!force)
             {
-                // Asset is allready loaded
+                // Asset is already loaded
                 locker.unlock();
                 CYB_TRACE("Grabbed {} asset from cache name={} hash=0x{:x}", GetTypeAsString(internalState->type), fixedName, hash);
                 return Resource(internalState);
@@ -227,7 +227,6 @@ namespace cyb::resourcemanager
                 internalState->flags = flags;
                 internalState->name = fixedName;
                 resourceCache[hash] = internalState;
-                locker.unlock();
             }
         }
         else
@@ -237,8 +236,8 @@ namespace cyb::resourcemanager
             internalState->name = fixedName;
             internalState->hash = hash;
             internalState->flags = flags;
-
-            if (!GetAssetTypeFromFilename(&internalState->type, fixedName))
+            internalState->type = GetTypeFromExtension(filesystem::GetExtension(fixedName));
+            if (internalState->type == ResourceType::None)
             {
                 locker.unlock();
                 CYB_ERROR("Failed to determine resource type (filename={0})", fixedName);
@@ -246,8 +245,8 @@ namespace cyb::resourcemanager
             }
 
             resourceCache[hash] = internalState;
-            locker.unlock();
         }
+        locker.unlock();
 
         /*
          * NOTE: If we could check if ReadFile is being run on a mechanical hard drive we 

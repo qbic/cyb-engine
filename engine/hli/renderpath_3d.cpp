@@ -6,8 +6,6 @@
 #include "systems/scene.h"
 #include "hli/renderpath_3d.h"
 
-#include "editor//editor.h"
-
 using namespace cyb::rhi;
 
 namespace cyb::hli

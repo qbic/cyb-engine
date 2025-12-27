@@ -16,8 +16,8 @@ namespace cyb
         GuiBit      = BIT(2),       //!< CVar belongs to GUI.
         GameBit     = BIT(3),       //!< CVar belongs to game.
         RomBit      = BIT(10),      //!< Read only access, cannot be changed by user.
-        NoSaveBit   = BIT(11),       //!< Cvar wont be written during serialization.
-        ModifiedBit = BIT(12)       //!< Flags that CVar has been modified sence init.
+        NoSaveBit   = BIT(11),      //!< Cvar wont be written during serialization.
+        ModifiedBit = BIT(12)       //!< Flags that CVar has been modified since init.
     };
     CYB_ENABLE_BITMASK_OPERATORS(CVarFlag);
 
@@ -30,7 +30,7 @@ namespace cyb
     namespace detail
     {
         /**
-         * @brief CVar base functionality that doesen't require value type.
+         * @brief CVar base functionality that doesn't require value type.
          */
         class CVarBase : private NonCopyable
         {
@@ -230,12 +230,12 @@ namespace cyb
     void RegisterStaticCVars();
 
     /**
-     * @brief Get a const map of the registry containing all registrated cvars.
+     * @brief Get a const map of the registry containing all registered cvars.
      */
     [[nodiscard]] const CVarRegistryMapType& GetCVarRegistry();
 
     /**
-     * @brief Try to find a registrated cvar of type T.
+     * @brief Try to find a registered cvar of type T.
      *
      * Example usage:
      *  auto* cvar = Find<bool>(hash::String("cvarName"));

@@ -52,14 +52,12 @@ namespace cyb::resourcemanager
     void AddSearchPath(const std::string& path);
 
     /**
-     * @brief Try to resolve asset type though parsing the filename.
+     * @brief Try to resolve resource type from file extension (no pre dot).
      * 
-     * @param type Pointer to where to store resource type. Can be nullptr.
-     * @param filename Filename of the asset to resolve.
-     * 
-     * @return True if successfully parsed asset type, else false.
+     * @param extension File extension to resolve.
+     * @return ResourceType enum value. ResourceType::None if not found.
      */
-    [[nodiscard]] bool GetAssetTypeFromFilename(ResourceType* type, const std::string& filename);
+    [[nodiscard]] ResourceType GetTypeFromExtension(std::string_view extension);
 
     /**
      * @brief Try to locate a file in any of the added search paths.
@@ -70,13 +68,13 @@ namespace cyb::resourcemanager
     /**
      * @brief Get resource type as string.
      */
-    [[nodiscard]] const char* GetTypeAsString(ResourceType type);
+    [[nodiscard]] std::string_view GetTypeAsString(ResourceType type);
 
     /**
      * @brief Load a resource from file.
      * 
      * Internally searched for file though \see FindFile.
-     * Type will automaticly by deduced by extension.
+     * Type will automatically by deduced by extension.
      * 
      * @param name Relative path to file.
      * @param flags (optional) Specify flags that modify behaviour.

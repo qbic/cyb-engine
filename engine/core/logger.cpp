@@ -8,7 +8,7 @@
 
 namespace cyb
 {
-    // logHistorySize only used to append logs to newly registrated output
+    // logHistorySize only used to append logs to newly registered output
     // modules and should't need to be very big
     CVar<uint32_t> logHistorySize{ "logHistorySize", 40, CVarFlag::SystemBit, "Maximum numbers of log lines to save" };
     CVar<uint32_t> logSeverityThreshold{ "logSeverityThreshold", 0, CVarFlag::SystemBit, "0=Trace, 1=Info, 2=Warning, 3=Error" };

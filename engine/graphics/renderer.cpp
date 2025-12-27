@@ -522,18 +522,13 @@ namespace cyb::renderer
         }
 
         // sort the lights by type, first directional, then point
-        uint32_t last = std::max(frameCB.numLights - 1, 0);
-        for (uint32_t i = 0; i <= last; )
-        {
-            LightSource& light = frameCB.lights[i];
+        auto first = frameCB.lights;
+        auto last = frameCB.lights + frameCB.numLights;
+        auto pointLightBegin = std::partition(first, last, [] (const auto& light) {
+            return light.type == LIGHTSOURCE_TYPE_DIRECTIONAL;
+        });
 
-            if (light.type == LIGHTSOURCE_TYPE_POINT)
-                std::swap(light, frameCB.lights[last--]);
-            else
-                ++i;
-        }
-
-        frameCB.pointLightsOffset = last + 1;
+        frameCB.pointLightsOffset = static_cast<uint32_t>(pointLightBegin - first);
     }
 
     void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, rhi::CommandList cmd)
@@ -569,7 +564,7 @@ namespace cyb::renderer
         uint8_t prevUserStencilRef = 0;
         device->BindStencilRef(0, cmd);
 
-        // Draw all visiable objects
+        // Draw all visible objects
         for (uint32_t objectIndex : view.objectIndexes)
         {
             const ObjectComponent& object = view.scene->objects[objectIndex];

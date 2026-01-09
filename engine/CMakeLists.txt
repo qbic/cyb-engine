@@ -53,7 +53,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 endif()
 
 #target_compile_definitions(cyb-engine PRIVATE $<$<PLATFORM_ID:Windows>:VK_USE_PLATFORM_WIN32_KHR>)
-target_link_directories(cyb-engine PUBLIC $ENV{VULKAN_SDK}/Lib ${imgui_BINARY_DIR})
+target_link_directories(${PROJECT_NAME} PRIVATE $ENV{VULKAN_SDK}/Lib ${imgui_BINARY_DIR})
 
 target_include_directories(cyb-engine PUBLIC
   ${CMAKE_BINARY_DIR}

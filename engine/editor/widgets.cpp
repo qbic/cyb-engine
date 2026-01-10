@@ -879,7 +879,7 @@ void NG_Factory::DrawMenuContent(NG_Canvas& canvas, const ImVec2& popupPos)
     for (auto& [type_str, createCallback] : m_availableNodeTypesMap)
     {
         if (ImGui::MenuItem(type_str.data()))
-            canvas.Nodes.push_back(std::move(CreateNode(type_str.data(), popupPos)));
+            canvas.AddNode(std::move(CreateNode(type_str.data(), popupPos)));
     }
 }
 
@@ -901,6 +901,12 @@ NG_Canvas::NG_Canvas()
 {
     // Create a default factory
     Factory = std::make_unique<NG_Factory>();
+}
+
+void NG_Canvas::AddNode(std::unique_ptr<NG_Node> node)
+{
+    node->ValidState = NodeHasValidState(node.get());
+    Nodes.push_back(std::move(node));
 }
 
 bool NG_Canvas::WouldCreateCycle(const std::shared_ptr<NG_Connection> connection) const
@@ -1295,6 +1301,7 @@ bool NodeGraph(NG_Canvas& canvas)
         });
 
         canvas.Flags &= ~NG_CanvasFlags_Internal_NodeDeleted;
+        canvas.UpdateAllValidStates();
     }
 
     // Handle new connections
@@ -1355,9 +1362,6 @@ bool NodeGraph(NG_Canvas& canvas)
     // Display nodes
     for (auto& node : canvas.Nodes)
     {
-        // FIXME: Do we really need to call NodeHasValidState every frame?
-        node->ValidState = canvas.NodeHasValidState(node.get());
-
         ImGui::SetWindowFontScale(canvas.Zoom);
         DrawNode(*(node.get()), canvas);
         ImGui::SetWindowFontScale(1.0f);
@@ -1396,6 +1400,7 @@ bool NodeGraph(NG_Canvas& canvas)
         if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
         {
             it = canvas.RemoveConnection(it);
+            canvas.UpdateAllValidStates();
             canvas.ConnectionClick = true;
         }
         else

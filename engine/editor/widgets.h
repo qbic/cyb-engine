@@ -170,7 +170,6 @@ namespace cyb::ui
      * 
      * Bugs / Todo:
      *      * Mouse clicks will leak though overlaying windows if they are open.
-     *      * Only call NodeHasValidState() when connections are changed.
      *      * Cache optimize UpdateAllValidStates().
      *      * Input pin Invoke() function go get value on demand instead of on connect.
      *      
@@ -470,6 +469,11 @@ namespace cyb::ui
         // FIXME: This is used to track if a click is used to delete a connection
         //        so that factory popup does not open on the same click.
         bool ConnectionClick{ false };
+
+        /**
+         * @brief Add node to canvas.
+         */
+        void AddNode(std::unique_ptr<NG_Node> node);
 
         /**
          * @brief Check if a connection would create a cycling connection.

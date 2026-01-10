@@ -605,10 +605,10 @@ namespace cyb::editor
             for (auto& type : types)
             {
                 if (ImGui::MenuItem(type.c_str()))
-                    canvas.Nodes.push_back(std::move(CreateNode(type, popupPos)));
+                    canvas.AddNode(std::move(CreateNode(type, popupPos)));
             }
 
-            // Skip the seperator the the last category.
+            // Skip the separator the the last category.
             if (++count < total)
                 ImGui::Separator();
         }

@@ -157,6 +157,7 @@ namespace cyb::ui
      *      * Scroll wheel to zoom canvas.
      *      * Drag with middle mouse button to scroll canvas.
      *      * Press 'R' to reset scroll, position and zoom.
+     *      * Press 'S' to open style editor window. (when compiled with CYB_NG_STYLE_EDITOR)
      *      * Drag with left mouse button from pin to pin to create connection.
      *      * Right-click connection to remove.
      *
@@ -169,9 +170,8 @@ namespace cyb::ui
      *      * You can not connect input to input, or output to output.
      * 
      * Bugs / Todo:
-     *      * Mouse clicks will leak though overlaying windows if they are open.
-     *      * Cache optimize UpdateAllValidStates().
      *      * Input pin Invoke() function go get value on demand instead of on connect.
+     *      * Preprocessor flag for enabling style editor window (CYB_NG_STYLE_EDITOR)
      *      
      *------------------------------------------------------------------------------*/
 
@@ -185,7 +185,6 @@ namespace cyb::ui
         NG_CanvasFlags_None = 0,
         NG_CanvasFlags_DisplayGrid = 1 << 0,
         NG_CanvasFlags_DisplayState = 1 << 1,
-        NG_CanvasFlags_Internal_NodeDeleted = 1 << 2,    // Internal use only
         NG_CanvasFlags_Default = NG_CanvasFlags_DisplayGrid
     };
 
@@ -459,16 +458,15 @@ namespace cyb::ui
         std::vector<std::shared_ptr<NG_Connection>> Connections;
         std::shared_ptr<detail::NG_Pin> ActivePin;      // For new connection creation.
         const NG_Node* HoveredNode{ nullptr };
+        bool MouseClickConsumed{ false };
+        bool HasMouseFocus{ false };
+        bool AnyNodeMarkedForDeletion{ false };
         bool DisplayStyleEditor{ false };
 
         using const_connection_iterator = const std::vector<std::shared_ptr<NG_Connection>>::iterator;
 
         NG_Canvas();
         ~NG_Canvas() = default;
-
-        // FIXME: This is used to track if a click is used to delete a connection
-        //        so that factory popup does not open on the same click.
-        bool ConnectionClick{ false };
 
         /**
          * @brief Add node to canvas.

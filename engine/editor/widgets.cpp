@@ -940,7 +940,6 @@ bool NG_Canvas::WouldCreateCycle(const std::shared_ptr<NG_Connection> connection
 
 void NG_Canvas::UpdateAllValidStates()
 {
-    // TODO: Optimize (cache checked nodes)
     for (auto& node : Nodes)
         node->ValidState = NodeHasValidState(node.get());
 }
@@ -1200,7 +1199,7 @@ static void DrawNode(NG_Node& node, const NG_Canvas& canvas)
     DRAW_DEBUG_RECT();
 
     const bool any_active = ImGui::IsAnyItemActive();
-    if (canvas.IsNodeHovered(node.GetID()) && !any_active && !item_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+    if (canvas.IsNodeHovered(node.GetID()) && !any_active && !item_hovered && canvas.HasMouseFocus && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         ImGui::SetActiveID(node.GetID(), ImGui::GetCurrentWindow());
 
     if (ImGui::IsItemActive() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
@@ -1238,15 +1237,16 @@ bool NodeGraph(NG_Canvas& canvas)
         return false;
     }
 
+    canvas.HasMouseFocus = ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive();
     canvas.Pos = ImGui::GetCursorScreenPos();
     const ImVec2 canvas_sz = ImGui::GetContentRegionAvail();
 
     // Handle panning with middle mouse button
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
+    if (canvas.HasMouseFocus && ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
         canvas.Offset += io.MouseDelta;
 
     // Handle zoom with mouse wheel
-    if (ImGui::IsWindowHovered() && io.MouseWheel != 0.0f)
+    if (canvas.HasMouseFocus && io.MouseWheel != 0.0f)
     {
         const float prev_zoom = canvas.Zoom;
         const float log_zoom = std::logf(canvas.Zoom) + io.MouseWheel * ZOOM_SPEED;
@@ -1262,14 +1262,15 @@ bool NodeGraph(NG_Canvas& canvas)
     }
 
     // Reset zoom and offset with 'R'
-    if (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGuiKey_R, false))
+    if (canvas.HasMouseFocus && ImGui::IsKeyPressed(ImGuiKey_R, false))
     {
         canvas.Pos = { 0, 0 };
         canvas.Offset = { 0, 0 };
         canvas.Zoom = 1.0f;
     }
 
-    if (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGuiKey_S, false))
+    // Open style editor with 'S'
+    if (canvas.HasMouseFocus && ImGui::IsKeyPressed(ImGuiKey_S, false))
         canvas.DisplayStyleEditor = !canvas.DisplayStyleEditor;
 
     // Display background, grid and a frame
@@ -1290,7 +1291,7 @@ bool NodeGraph(NG_Canvas& canvas)
     // Delete pending nodes and connections
     // This has to be done before drawing since node data is needed for drawing
     // by the ImGui backend. This way we don't send invalid data to ImGui.
-    if (canvas.Flags & NG_CanvasFlags_Internal_NodeDeleted)
+    if (canvas.AnyNodeMarkedForDeletion)
     {
         canvas.RemoveConnectionsIf([] (const auto& c) {
             return c->InputPin->ParentNode->MarkedForDeletion ||
@@ -1300,7 +1301,7 @@ bool NodeGraph(NG_Canvas& canvas)
             return node->MarkedForDeletion == true;
         });
 
-        canvas.Flags &= ~NG_CanvasFlags_Internal_NodeDeleted;
+        canvas.AnyNodeMarkedForDeletion = false;
         canvas.UpdateAllValidStates();
     }
 
@@ -1309,11 +1310,11 @@ bool NodeGraph(NG_Canvas& canvas)
     {
         auto handlePinConnection = [&] (std::shared_ptr<detail::NG_Pin> pin) {
             // Start new connection
-            if (!canvas.ActivePin && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && pin->Hovered)
+            if (!canvas.ActivePin && canvas.HasMouseFocus && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && pin->Hovered)
                 canvas.ActivePin = pin;
 
             // Try to finish connection
-            if (canvas.ActivePin && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && pin->Hovered)
+            if (canvas.ActivePin && canvas.HasMouseFocus && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && pin->Hovered)
             {
                 auto connection = std::make_shared<NG_Connection>(canvas.ActivePin, pin);
 
@@ -1373,8 +1374,7 @@ bool NodeGraph(NG_Canvas& canvas)
         }
 
         // Nodes marked for deletion will be removed in the next frame
-        if (node->MarkedForDeletion)
-            canvas.Flags |= NG_CanvasFlags_Internal_NodeDeleted;
+        canvas.AnyNodeMarkedForDeletion |= node->MarkedForDeletion;
     }
 
     // Display connections
@@ -1397,11 +1397,11 @@ bool NodeGraph(NG_Canvas& canvas)
         draw_list->AddBezierCubic(start, cp0, cp1, end, col, 2.1f * canvas.Zoom);
 
         // Right click to delete
-        if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+        if (hovered && canvas.HasMouseFocus && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
         {
             it = canvas.RemoveConnection(it);
             canvas.UpdateAllValidStates();
-            canvas.ConnectionClick = true;
+            canvas.MouseClickConsumed = true;
         }
         else
         {
@@ -1427,7 +1427,7 @@ bool NodeGraph(NG_Canvas& canvas)
     // Display factory menu
     const bool any_hovered = node_hovered || connection_hovered;
     const bool popup_open = ImGui::IsPopupOpen(ImGui::GetID("#FACTORY_POPUP"), 0);
-    const bool can_display_popup = (!any_hovered || popup_open) && !canvas.ConnectionClick;
+    const bool can_display_popup = (!any_hovered || popup_open) && !canvas.MouseClickConsumed;
     if (can_display_popup && canvas.Factory && ImGui::BeginPopupContextWindow("#FACTORY_POPUP", ImGuiPopupFlags_MouseButtonRight))
     {
         const ImVec2 window_mouse_pos = ImGui::GetMousePosOnOpeningCurrentPopup();
@@ -1462,8 +1462,8 @@ bool NodeGraph(NG_Canvas& canvas)
         ImGui::EndGroup();
     }
 
-    if (canvas.ConnectionClick && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
-        canvas.ConnectionClick = false;
+    if (canvas.MouseClickConsumed && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+        canvas.MouseClickConsumed = false;
 
     if (canvas.DisplayStyleEditor)
         NodeGraphStyleEditor(canvas);

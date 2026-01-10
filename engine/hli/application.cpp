@@ -7,6 +7,7 @@
 #include "systems/resource_manager.h"
 #include "input/input.h"
 #include "hli/application.h"
+#include "config.h"
 
 #include "editor/imgui_backend.h"
 
@@ -77,7 +78,7 @@ namespace cyb::hli
         CYB_INFO("Running debug build, performance will be slow!");
 #endif
         CYB_INFO_HR();
-        CYB_INFO("Initializing cyb-engine (asynchronous), please wait...");
+        CYB_INFO("Initializing cyb-engine v{} (asynchronous), please wait...", CYB_VERSION_STRING);
 
         RegisterStaticCVars();
         jobsystem::Initialize();

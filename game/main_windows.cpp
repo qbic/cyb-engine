@@ -159,8 +159,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     RECT rc = { 0, 0, width, height };
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
-    std::string version = std::format("{}.{} (build {}.{})", CYB_VERSION_MAJOR, CYB_VERSION_MINOR, CYB_VERSION_BUILD, CYB_VERSION_HASH);
-    std::wstring title = std::wstring(szTitle) + L" v" + ToWide(version);
+    std::wstring title = std::wstring(szTitle) + L" v" + ToWide(CYB_VERSION_STRING);
 
     HWND hWnd = CreateWindowW(
         szWindowClass,

@@ -12,8 +12,8 @@ list(APPEND SOURCE_FILES ${SHADER_FILES})
 # easier to navigate through an IDE
 source_group(TREE ${CMAKE_SOURCE_DIR} FILES ${SOURCE_FILES})
 
-add_library(cyb-engine STATIC ${SOURCE_FILES})
-target_link_libraries(cyb-engine PRIVATE ${Vulkan_LIBRARIES} shaderc_shared spirv-cross-reflect imgui)
+add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES} shaderc_shared spirv-cross-reflect imgui)
 
 #--- Compiler switches
 if(CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -52,10 +52,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     endif()
 endif()
 
-#target_compile_definitions(cyb-engine PRIVATE $<$<PLATFORM_ID:Windows>:VK_USE_PLATFORM_WIN32_KHR>)
-target_link_directories(${PROJECT_NAME} PRIVATE $ENV{VULKAN_SDK}/Lib ${imgui_BINARY_DIR})
+target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<PLATFORM_ID:Windows>:VK_USE_PLATFORM_WIN32_KHR>)
+target_link_directories(${PROJECT_NAME} PUBLIC $ENV{VULKAN_SDK}/Lib ${imgui_BINARY_DIR})
 
-target_include_directories(cyb-engine PUBLIC
+target_include_directories(${PROJECT_NAME} PUBLIC
   ${CMAKE_BINARY_DIR}
   ${imgui_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/engine

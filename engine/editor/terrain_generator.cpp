@@ -46,8 +46,8 @@ namespace cyb::editor
         if (ui::SliderFloat("Lacunarity", &fTemp, onChange, 0.0f, 4.0f))
             m_noise.SetLacunarity(fTemp);
 
-        fTemp = m_noise.GetPersistance();
-        if (ui::SliderFloat("Persistance", &fTemp, onChange, 0.0f, 4.0f))
+        fTemp = m_noise.GetPersistence();
+        if (ui::SliderFloat("Persistence", &fTemp, onChange, 0.0f, 4.0f))
             m_noise.SetPersistence(fTemp);
     }
 
@@ -81,8 +81,8 @@ namespace cyb::editor
         if (ui::SliderFloat("Lacunarity", &fTemp, onChange, 0.0f, 4.0f))
             m_noise.SetLacunarity(fTemp);
 
-        fTemp = m_noise.GetPersistance();
-        if (ui::SliderFloat("Persistance", &fTemp, onChange, 0.0f, 4.0f))
+        fTemp = m_noise.GetPersistence();
+        if (ui::SliderFloat("Persistence", &fTemp, onChange, 0.0f, 4.0f))
             m_noise.SetPersistence(fTemp);
     }
 
@@ -1011,7 +1011,6 @@ namespace cyb::editor
 #endif
         //});
     }
-
     
     void TerrainGenerator::RemoveTerrainData()
     {

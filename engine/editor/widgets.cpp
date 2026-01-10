@@ -835,6 +835,14 @@ void PlotMultiLines(
 #define DRAW_DEBUG_RECT()
 #endif
 
+void detail::NG_InputPinBase::SetConnection(std::shared_ptr<NG_Connection>& con)
+{
+    Connection = con;
+    auto outputPin = con->OutputPin;
+    outputPin->ParentNode->ModifiedFlag = true;
+    OnConnect(outputPin);
+}
+
 void NG_Node::PushWindowWorkRect(const NG_Canvas& canvas)
 {
     const NG_Style& style = canvas.Style;
@@ -895,65 +903,33 @@ NG_Canvas::NG_Canvas()
     Factory = std::make_unique<NG_Factory>();
 }
 
-bool NG_Canvas::IsPinConnected(detail::NG_Pin* pin) const
-{
-    for (auto& connection : Connections)
-        if (connection.From == pin || connection.To == pin)
-            return true;
-    return false;
-}
-
-bool NG_Canvas::WouldCreateCycle(const NG_Node* from, const NG_Node* to) const
+bool NG_Canvas::WouldCreateCycle(const std::shared_ptr<NG_Connection> connection) const
 {
     std::unordered_set<const NG_Node*> visited;
     std::stack<const NG_Node*> stack;
 
     // DFS (depth-first-search) cycle detection
-    stack.push(to);
+    stack.push(connection->OutputPin->ParentNode);
     while (!stack.empty())
     {
         const NG_Node* current = stack.top();
         stack.pop();
 
-        if (current == from)
+        if (current == connection->InputPin->ParentNode)
             return true; // Cycle detected
 
         if (!visited.insert(current).second)
             continue;
 
         // Follow outputs from current node
-        for (auto& connection : Connections)
+        for (auto& active_connection : Connections)
         {
-            if (connection.From->ParentNode == current)
-                stack.push(connection.To->ParentNode);
+            if (active_connection->InputPin->ParentNode == current)
+                stack.push(active_connection->OutputPin->ParentNode);
         }
     }
 
     return false;
-}
-
-const detail::NG_Connection* NG_Canvas::FindConnectionTo(detail::NG_Pin* pin) const
-{
-    assert(pin);
-    for (auto& connection : Connections)
-    {
-        if (connection.To == pin)
-            return &connection;
-    }
-
-    return nullptr;
-}
-
-std::vector<const detail::NG_Connection*> NG_Canvas::FindConnectionsFrom(detail::NG_Pin* pin) const
-{
-    assert(pin);
-    std::vector<const detail::NG_Connection*> result;
-    for (auto& c : Connections)
-    {
-        if (c.From == pin)
-            result.push_back(&c);
-    }
-    return result;
 }
 
 void NG_Canvas::UpdateAllValidStates()
@@ -963,23 +939,46 @@ void NG_Canvas::UpdateAllValidStates()
         node->ValidState = NodeHasValidState(node.get());
 }
 
-
-bool NG_Canvas::NodeHasValidState(NG_Node* node) const
+bool NG_Canvas::NodeHasValidState(const NG_Node* node) const
 {
     for (auto& pin : node->Inputs)
     {
         // Check input pin
-        const detail::NG_Connection* connection = FindConnectionTo(pin.get());
+        if (!pin->IsConnected())
+            return false;
+
+        const auto inputPin = std::dynamic_pointer_cast<detail::NG_InputPinBase>(pin);
+        if (!inputPin)
+            return false;
+
+        const auto connection = inputPin->Connection.lock();
         if (!connection)
             return false;
 
+        // Follow to the node that provides this input (the connection's OutputPin parent)
+        const NG_Node* provider = connection->OutputPin->ParentNode;
+        if (!provider)
+            return false;
+
         // Check parent node
-        NG_Node* parent = connection->From->ParentNode;
-        if (!NodeHasValidState(parent))
+        if (!NodeHasValidState(provider))
             return false;
     }
 
     return true;
+}
+
+NG_Canvas::const_connection_iterator NG_Canvas::RemoveConnection(NG_Canvas::const_connection_iterator it)
+{
+    auto inputPin = dynamic_cast<detail::NG_InputPinBase*>((*it)->InputPin);
+    auto outputPin = dynamic_cast<detail::NG_OutputPinBase*>((*it)->OutputPin);
+
+    const_connection_iterator next = Connections.erase(it);
+
+    inputPin->DeleteConnection();
+    outputPin->DeleteExpiredConnections();
+
+    return next;
 }
 
 void NG_Canvas::SendUpdateSignalFrom(NG_Node* node)
@@ -987,10 +986,13 @@ void NG_Canvas::SendUpdateSignalFrom(NG_Node* node)
     assert(node);
     for (auto& pin : node->Outputs)
     {
-        for (auto& connection : FindConnectionsFrom(pin.get()))
+        auto outputPin = std::dynamic_pointer_cast<detail::NG_OutputPinBase>(pin);
+        for (auto& connection : outputPin->Connections)
         {
-            connection->To->ParentNode->Update();
-            SendUpdateSignalFrom(connection->To->ParentNode);
+            assert(!connection.expired());
+            auto inputPin = connection.lock()->InputPin;
+            inputPin->ParentNode->Update();
+            SendUpdateSignalFrom(inputPin->ParentNode);
         }
     }
 }
@@ -1025,7 +1027,7 @@ void NG_Canvas::BringNodeToDisplayFront(ImGuiID node_id)
     if (Nodes.size() == 0 || node_id == Nodes.back()->GetID())
         return;
 
-    auto it = std::find_if(Nodes.begin(), Nodes.end(), [&] (auto& n) {
+    auto it = std::find_if(Nodes.begin(), Nodes.end(), [node_id] (auto& n) {
         return n->GetID() == node_id;
     });
 
@@ -1098,7 +1100,7 @@ static void DrawNode(NG_Node& node, const NG_Canvas& canvas)
     node.PushWindowWorkRect(canvas);
     node.DisplayContent();
     node.PopWindowWorkRect();
-#ifdef CYB_NG_DEBUG_CANVAS_STATE
+#ifdef CYB_NG_DEBUG_NODE_STATE
     ImGui::Text("----------------");
     ImGui::Text("ID: %u", node.GetID());
     ImGui::Text("Hovered: %s", canvas.IsNodeHovered(node.GetID()) ? "true" : "false");
@@ -1127,7 +1129,7 @@ static void DrawNode(NG_Node& node, const NG_Canvas& canvas)
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("Close");
         item_hovered |= ImGui::IsItemHovered();
-        const ImColor close_btn_col = ImGui::IsItemHovered() ? ImColor(255, 96, 88) : ImColor(255, 96, 88, 150);
+        const ImColor close_btn_col = ImGui::IsItemHovered() ? style.NodeCloseButtonHoverColor : style.NodeCloseButtonColor;
         draw_list->AddCircleFilled(close_btn_bb.GetCenter(), close_btn_bb.GetWidth() * 0.5f, close_btn_col);
     }
 
@@ -1151,7 +1153,7 @@ static void DrawNode(NG_Node& node, const NG_Canvas& canvas)
         {
             DRAW_DEBUG_RECT();
             pin->Hovered = ImGui::ItemHoverable(pin_bb, ImGui::GetID(&pin), 0);
-            const bool connected = canvas.IsPinConnected(pin);
+            const bool connected = pin->IsConnected();
             const ImColor pin_col = pin->Hovered ? style.PinHoverColor : connected ? style.PinConnectedColor : style.PinUnConnectedColor;
             draw_list->AddCircleFilled(pin->Pos, pin_radius, pin_col);
             draw_list->AddCircle(pin->Pos, pin_radius, style.NodeBorderColor, 0, 2.1f * canvas.Zoom);
@@ -1261,6 +1263,9 @@ bool NodeGraph(NG_Canvas& canvas)
         canvas.Zoom = 1.0f;
     }
 
+    if (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGuiKey_S, false))
+        canvas.DisplayStyleEditor = !canvas.DisplayStyleEditor;
+
     // Display background, grid and a frame
     if (canvas.Flags & NG_CanvasFlags_DisplayGrid)
     {
@@ -1277,61 +1282,69 @@ bool NodeGraph(NG_Canvas& canvas)
     }
 
     // Delete pending nodes and connections
-    std::erase_if(canvas.Connections, [] (const auto& c) {
-        return c.To->ParentNode->MarkedForDeletion ||
-            c.From->ParentNode->MarkedForDeletion;
-    });
-    std::erase_if(canvas.Nodes, [] (const auto& node) {
-        return node->MarkedForDeletion == true;
-    });
+    // This has to be done before drawing since node data is needed for drawing
+    // by the ImGui backend. This way we don't send invalid data to ImGui.
+    if (canvas.Flags & NG_CanvasFlags_Internal_NodeDeleted)
+    {
+        canvas.RemoveConnectionsIf([] (const auto& c) {
+            return c->InputPin->ParentNode->MarkedForDeletion ||
+                   c->OutputPin->ParentNode->MarkedForDeletion;
+        });
+        std::erase_if(canvas.Nodes, [] (const auto& node) {
+            return node->MarkedForDeletion == true;
+        });
+
+        canvas.Flags &= ~NG_CanvasFlags_Internal_NodeDeleted;
+    }
 
     // Handle new connections
     for (auto& node : canvas.Nodes)
     {
-        auto checkPin = [&] (detail::NG_Pin& pin) {
+        auto handlePinConnection = [&] (std::shared_ptr<detail::NG_Pin> pin) {
             // Start new connection
-            if (!canvas.ActivePin && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && pin.Hovered)
-                canvas.ActivePin = &pin;
+            if (!canvas.ActivePin && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && pin->Hovered)
+                canvas.ActivePin = pin;
 
             // Try to finish connection
-            if (canvas.ActivePin && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && pin.Hovered)
+            if (canvas.ActivePin && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && pin->Hovered)
             {
-                detail::NG_Connection connection = { canvas.ActivePin, &pin };
-                if (connection.From->Type == detail::NG_PinType::Input)
-                    std::swap(connection.From, connection.To);
+                auto connection = std::make_shared<NG_Connection>(canvas.ActivePin, pin);
 
-                const bool sameType = canvas.ActivePin->Type == pin.Type;
-                const bool createsCycle = canvas.WouldCreateCycle(connection.From->ParentNode, connection.To->ParentNode);
+                const bool sameType = connection->InputPin->Type == connection->OutputPin->Type;
+                const bool createsCycle = canvas.WouldCreateCycle(connection);
                 if (sameType)
-                    CYB_WARNING("Dropping node connection: {}", "Same pin type");
+                    CYB_WARNING("Dropping node connection: {}", "Not an input -> output connection");
                 else if (createsCycle)
                     CYB_WARNING("Dropping node connection: {}", "Creates cycles");
-
-                if (!sameType && !createsCycle)
+                else
                 {
-                    // Remove any existing connection to this input
-                    std::erase_if(canvas.Connections, [&] (const auto& c) {
-                        return c.To == connection.To;
+                    // Drop any previous connection to input pin
+                    canvas.RemoveConnectionsIf([connection] (const auto& c) {
+                        return c->InputPin == connection->InputPin;
                     });
 
                     canvas.Connections.push_back(connection);
 
                     // Update connected nodes and send update signal
-                    connection.From->ParentNode->ValidState = canvas.NodeHasValidState(connection.From->ParentNode);
-                    connection.To->ParentNode->ValidState = canvas.NodeHasValidState(connection.To->ParentNode);
-                    connection.To->OnConnect(connection.From);
+                    auto inputPin = dynamic_cast<detail::NG_InputPinBase*>(connection->InputPin);
+                    inputPin->SetConnection(connection);
+                    inputPin->ParentNode->ValidState = canvas.NodeHasValidState(inputPin->ParentNode);
 
+                    auto outputPin = dynamic_cast<detail::NG_OutputPinBase*>(connection->OutputPin);
+                    outputPin->AddConnection(connection);
+                    outputPin->ParentNode->ValidState = canvas.NodeHasValidState(outputPin->ParentNode);
+
+                    // TODO: Only update affected nodes
                     canvas.UpdateAllValidStates();
-                    connection.From->ParentNode->ModifiedFlag = true;
                 }
             }
         };
 
         for (auto& pin : node->Inputs)
-            checkPin(*(pin.get()));
+            handlePinConnection(pin);
 
         for (auto& pin : node->Outputs)
-            checkPin(*(pin.get()));
+            handlePinConnection(pin);
     }
 
     // Update hovered node, and move it to the front is clicked
@@ -1354,17 +1367,19 @@ bool NodeGraph(NG_Canvas& canvas)
             canvas.SendUpdateSignalFrom(node.get());
             node->ModifiedFlag = false;
         }
+
+        // Nodes marked for deletion will be removed in the next frame
+        if (node->MarkedForDeletion)
+            canvas.Flags |= NG_CanvasFlags_Internal_NodeDeleted;
     }
 
     // Display connections
     bool connection_hovered = false;
-    for (auto connection = canvas.Connections.begin(); connection != canvas.Connections.end(); )
+    for (auto it = canvas.Connections.begin(); it != canvas.Connections.end();)
     {
-        assert(connection->From != nullptr);
-        assert(connection->To != nullptr);
-
-        const ImVec2& start = connection->From->Pos;
-        const ImVec2& end = connection->To->Pos;
+        const auto& connection = *it;
+        const ImVec2 start = connection->InputPin->Pos;
+        const ImVec2 end = connection->OutputPin->Pos;
         const float dx = (end.x - start.x) * style.NodeConnectionTension;
         const ImVec2 cp0 = ImVec2(start.x + dx, start.y);
         const ImVec2 cp1 = ImVec2(end.x - dx, end.y);
@@ -1380,12 +1395,13 @@ bool NodeGraph(NG_Canvas& canvas)
         // Right click to delete
         if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
         {
-            connection->To->OnConnect(nullptr);
-            connection = canvas.Connections.erase(connection);
+            it = canvas.RemoveConnection(it);
             canvas.ConnectionClick = true;
         }
         else
-            ++connection;
+        {
+            ++it;
+        }
     }
 
     // Display any ongoing connection
@@ -1397,7 +1413,7 @@ bool NodeGraph(NG_Canvas& canvas)
         const ImVec2 cp0 = ImVec2(start.x + dx, start.y);
         const ImVec2 cp1 = ImVec2(end.x - dx, end.y);
 
-        draw_list->AddBezierCubic(start, cp0, cp1, end, style.ConnectionDragginColor, 2.0f * canvas.Zoom);
+        draw_list->AddBezierCubic(start, cp0, cp1, end, style.ConnectionDragColor, 2.0f * canvas.Zoom);
     }
 
     if (canvas.ActivePin && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
@@ -1421,7 +1437,7 @@ bool NodeGraph(NG_Canvas& canvas)
     if (ImGui::GetActiveID() == canvas_id)
         ImGui::ClearActiveID();
 
-#ifndef CYB_NG_DEBUG_NODE_STATE
+#ifndef CYB_NG_DEBUG_CANVAS_STATE
     const bool display_state = (canvas.Flags & NG_CanvasFlags_DisplayState);
 #else
     const bool display_state = true;
@@ -1432,7 +1448,7 @@ bool NodeGraph(NG_Canvas& canvas)
         ImGui::BeginGroup();
         ImGui::Text("Offset: [%.1f, %.1f]", canvas.Offset.x, canvas.Offset.y);
         ImGui::Text("Zoom: %.2f", canvas.Zoom);
-#ifdef CYB_NG_DEBUG_NODE_STATE
+#ifdef CYB_NG_DEBUG_CANVAS_STATE
         ImGui::Text("Canvas pos: [%.1f, %.1f]", canvas.Pos.x, canvas.Pos.y);
         ImGui::Text("Hovered nodeID: %u", canvas.HoveredNode ? canvas.HoveredNode->GetID() : 0);
         ImGui::Text("Node count: %u", canvas.Nodes.size());
@@ -1444,6 +1460,9 @@ bool NodeGraph(NG_Canvas& canvas)
     if (canvas.ConnectionClick && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
         canvas.ConnectionClick = false;
 
+    if (canvas.DisplayStyleEditor)
+        NodeGraphStyleEditor(canvas);
+
     ImGui::PopID();
     return true;
 }
@@ -1452,7 +1471,7 @@ void NodeGraphStyleEditor(NG_Canvas& canvas)
 {
     NG_Style& style = canvas.Style;
 
-    if (ImGui::Begin("NG_StyleEdit"))
+    if (ImGui::Begin("NG_StyleEdit"), &canvas.DisplayStyleEditor)
     {
         ImGui::SliderFloat("PinRadius", &style.PinRadius, 1.0f, 12.0f);
         ImGui::SliderFloat("NodeFrameRounding", &style.NodeFrameRounding, 1.0f, 12.0f);
@@ -1461,12 +1480,14 @@ void NodeGraphStyleEditor(NG_Canvas& canvas)
         ImGui::ColorEdit4("NodeBackgroundColor", (float*)&style.NodeBackgroundColor);
         ImGui::ColorEdit4("NodeBorderColor", (float*)&style.NodeBorderColor);
         ImGui::ColorEdit4("NodeBorderInvalidColor", (float*)&style.NodeBorderInvalidColor);
+        ImGui::ColorEdit4("NodeCloseButtonColor", (float*)&style.NodeCloseButtonColor);
+        ImGui::ColorEdit4("NodeCloseButtonHoverColor", (float*)&style.NodeCloseButtonHoverColor);
         ImGui::ColorEdit4("PinUnConnectedColor", (float*)&style.PinUnConnectedColor);
         ImGui::ColorEdit4("PinConnectedColor", (float*)&style.PinConnectedColor);
         ImGui::ColorEdit4("PinHoverColor", (float*)&style.PinHoverColor);
         ImGui::ColorEdit4("ConnectionColor", (float*)&style.ConnectionColor);
         ImGui::ColorEdit4("ConnectionHoverColor", (float*)&style.ConnectionHoverColor);
-        ImGui::ColorEdit4("ConnectionDragginColor", (float*)&style.ConnectionDragginColor);
+        ImGui::ColorEdit4("ConnectionDragColor", (float*)&style.ConnectionDragColor);
         ImGui::SliderFloat("NodeConnectionTension", &style.NodeConnectionTension, 0.0f, 1.0f);
 
         if (ImGui::Button("Set To Defaults"))

@@ -1,42 +1,22 @@
 cmake_minimum_required(VERSION 3.27)
 
-set(CYB_VERSION 2025.05.01)
-string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _match ${CYB_VERSION})
-set(CYB_VERSION_MAJOR ${CMAKE_MATCH_1})
-set(CYB_VERSION_MINOR ${CMAKE_MATCH_2})
-set(CYB_VERSION_PATCH ${CMAKE_MATCH_3})
-
+#--- Versioning
+include(cmake/version.cmake)
 project(cyb-engine
     VERSION ${CYB_VERSION}
     DESCRIPTION "A modern C++ game engine focused on high performance and ease of use."
     LANGUAGES CXX)
 
 # Configure CMake global variables
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 set(CMAKE_CXX_STANDARD 23)
+set(FETCHCONTENT_QUIET OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 #--- Find required packages
 find_package(Vulkan REQUIRED)
-
-# Fetch statically linked dependencies
-set(FETCHCONTENT_QUIET OFF)
-include(FetchContent)
-FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.90)
-FetchContent_Declare(freetype GIT_REPOSITORY https://gitlab.freedesktop.org/freetype/freetype.git GIT_TAG VER-2-14-1)
-FetchContent_MakeAvailable(imgui freetype)
-
-add_library(imgui)
-target_include_directories(imgui PUBLIC 
-    ${imgui_SOURCE_DIR}
-    ${ImNodeFlow_SOURCE_DIR}/include)
-target_link_libraries(imgui PUBLIC freetype)
-target_sources(imgui PUBLIC
-    ${imgui_SOURCE_DIR}/imgui.cpp
-    ${imgui_SOURCE_DIR}/imgui_draw.cpp
-    ${imgui_SOURCE_DIR}/imgui_tables.cpp
-    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-    ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
-    ${imgui_SOURCE_DIR}/misc/freetype/imgui_freetype.cpp)
+include(fetch-freetype)
+include(fetch-imgui)
 
  # Setup global compile flags
 add_definitions(-DUNICODE -D_UNICODE)
@@ -52,12 +32,13 @@ set_property(DIRECTORY ${CMAKE_CURRENT_LIST_DIR} PROPERTY VS_STARTUP_PROJECT gam
 set_target_properties(game PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 
 message(STATUS "")
-message(STATUS "Configured cyb-engine version ${CYB_VERSION} with the following options:")
+message(STATUS "Configuration Summary:")
 message(STATUS "")
 message(STATUS "Platform: ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION}")
 message(STATUS "Architecture: ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "Vulkan: v${Vulkan_VERSION}")
+message(STATUS "Version: ${CYB_VERSION} (build ${CYB_VERSION_BUILD}, git ${CYB_VERSION_HASH})")
 message(STATUS "")
 
 #--- Packaging
@@ -69,7 +50,7 @@ if(POLICY CMP0177)
 endif()
 install(TARGETS game RUNTIME DESTINATION .)
 install(FILES ${SHADERC_DLL_PATH} DESTINATION .)
-install(FILES build/imgui.ini DESTINATION .)
+install(FILES ${CMAKE_BINARY_DIR}/imgui.ini DESTINATION .)
 install(DIRECTORY assets/ DESTINATION assets)
 install(DIRECTORY engine/shaders/ DESTINATION engine/shaders)
 

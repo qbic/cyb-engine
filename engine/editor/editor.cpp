@@ -884,16 +884,16 @@ namespace cyb::editor
     };
 
     static const std::unordered_map<EntityType, std::string> typeSelectCombo = {
-            { EntityType::Names,        "Names"         },
-            { EntityType::Transforms,   "Transforms"    },
-            { EntityType::Groups,       "Groups"        },
-            { EntityType::Hierarchies,  "Hierarchies"   },
-            { EntityType::Materials,    "Materials"     },
-            { EntityType::Meshes,       "Meshes"        },
-            { EntityType::Objects,      "Objects"       },
-            { EntityType::Lights,       "Lights"        },
-            { EntityType::Cameras,      "Cameras"       },
-            { EntityType::Animations,   "Animations"    }
+        { EntityType::Names,        "Names"         },
+        { EntityType::Transforms,   "Transforms"    },
+        { EntityType::Groups,       "Groups"        },
+        { EntityType::Hierarchies,  "Hierarchies"   },
+        { EntityType::Materials,    "Materials"     },
+        { EntityType::Meshes,       "Meshes"        },
+        { EntityType::Objects,      "Objects"       },
+        { EntityType::Lights,       "Lights"        },
+        { EntityType::Cameras,      "Cameras"       },
+        { EntityType::Animations,   "Animations"    }
     };
 
     class Tool_ContentBrowser : public ToolWindow, private NonCopyable
@@ -1059,7 +1059,6 @@ namespace cyb::editor
         void WindowContent() override
         {
             ui::NodeGraph(m_canvas);
-            //ui::NodeGraphStyleEditor(m_canvas);
         }
 
     private:
@@ -1303,7 +1302,6 @@ namespace cyb::editor
                     scene::GetScene().RemoveUnusedEntities();
 
                 ImGui::Separator();
-
                 if (ImGui::BeginMenu("Add"))
                 {
                     if (ImGui::MenuItem("Directional Light"))

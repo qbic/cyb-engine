@@ -1,0 +1,36 @@
+
+# Sematic versioning (MANUAL)
+set(CYB_VERSION_MAJOR 0)
+set(CYB_VERSION_MINOR 1)
+set(CYB_VERSION "${CYB_VERSION_MAJOR}.${CYB_VERSION_MINOR}")
+
+# Build version (AUTO)
+string(TIMESTAMP CYB_YEAR "%Y")
+string(TIMESTAMP CYB_MONTH "%m")
+
+find_package(Git QUIET)
+
+if(GIT_FOUND)
+    set(SINCE_DATE "${CYB_YEAR}-${CYB_MONTH}-01 00:00:00")
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-list --count --since=${SINCE_DATE} HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE CYB_COMMITS_THIS_MONTH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE CYB_VERSION_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+else()
+    set(CYB_COMMITS_THIS_MONTH 0)
+    set(CYB_VERSION_HASH "nogit")
+endif()
+
+set(CYB_VERSION_BUILD "${CYB_YEAR}.${CYB_MONTH}.${CYB_COMMITS_THIS_MONTH}")

@@ -120,6 +120,37 @@ ATOM RegisterWindowClass(HINSTANCE hInstance)
     return RegisterClassW(&wc);
 }
 
+static std::wstring ToWide(std::string_view utf8)
+{
+    if (utf8.empty())
+        return {};
+
+    const int requiredSize = MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        utf8.data(),
+        static_cast<int>(utf8.size()),
+        nullptr,
+        0);
+
+    if (requiredSize <= 0)
+        return {};
+
+    std::wstring wide(requiredSize, L'\0');
+
+    MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        utf8.data(),
+        static_cast<int>(utf8.size()),
+        wide.data(),
+        requiredSize
+    );
+
+    return wide;
+}
+
+
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
     CONST LONG width = 1920;
@@ -128,7 +159,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     RECT rc = { 0, 0, width, height };
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
-    std::wstring title = std::format(L"{} v{}.{}.{}", szTitle, CYB_VERSION_MAJOR, CYB_VERSION_MINOR, CYB_VERSION_PATCH);
+    std::string version = std::format("{}.{} (build {}.{})", CYB_VERSION_MAJOR, CYB_VERSION_MINOR, CYB_VERSION_BUILD, CYB_VERSION_HASH);
+    std::wstring title = std::wstring(szTitle) + L" v" + ToWide(version);
 
     HWND hWnd = CreateWindowW(
         szWindowClass,

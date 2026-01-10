@@ -67,7 +67,7 @@ namespace cyb::noise2
         [[nodiscard]] double GetFrequency() const { return m_frequency; }
         [[nodiscard]] uint32_t GetOctaves() const { return m_octaves; }
         [[nodiscard]] double GetLacunarity() const { return m_lacunarity; }
-        [[nodiscard]] double GetPersistance() const { return m_persistence; }
+        [[nodiscard]] double GetPersistence() const { return m_persistence; }
 
         [[nodiscard]] virtual double GetValue(double x, double y) const override;
 
@@ -103,7 +103,7 @@ namespace cyb::noise2
         [[nodiscard]] double GetJitterModifier() const { return m_jitterModifier; }
         [[nodiscard]] uint32_t GetOctaves() const { return m_octaves; }
         [[nodiscard]] double GetLacunarity() const { return m_lacunarity; }
-        [[nodiscard]] double GetPersistance() const { return m_persistence; }
+        [[nodiscard]] double GetPersistence() const { return m_persistence; }
 
         [[nodiscard]] virtual double GetValue(double x, double y) const override;
 

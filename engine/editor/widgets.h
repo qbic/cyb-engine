@@ -8,11 +8,6 @@
 #include "core/hash.h"
 #include "imgui.h"
 
-// Comment out to draw node graph debug helpers
-//#define CYB_NG_DEBUG_RECTS
-//#define CYB_NG_DEBUG_NODE_STATE
-//#define CYB_NG_DEBUG_CANVAS_STATE
-
 namespace cyb::ui
 {
     //------------------------------------------------------------------------------
@@ -159,7 +154,7 @@ namespace cyb::ui
      *
      * Usage:
      *      * Left mouse button to drag a node.
-     *      * Scrollwheel to zoom canvas.
+     *      * Scroll wheel to zoom canvas.
      *      * Drag with middle mouse button to scroll canvas.
      *      * Press 'R' to reset scroll, position and zoom.
      *      * Drag with left mouse button from pin to pin to create connection.
@@ -167,23 +162,37 @@ namespace cyb::ui
      *
      * Connection rules:
      *      * Only one connection per input pin.
-     *        Prevous connection will be removed if new is created.
+     *        Previous connection will be removed if new is created.
      *      * Output pins can have multiple connections.
      *      * You can not connect an output to an input in the same node.
      *      * You can not create cyclic (infinite) loop connections.
      *      * You can not connect input to input, or output to output.
+     * 
+     * Bugs / Todo:
+     *      * Mouse clicks will leak though overlaying windows if they are open.
+     *      * Only call NodeHasValidState() when connections are changed.
+     *      * Cache optimize UpdateAllValidStates().
+     *      * Input pin Invoke() function go get value on demand instead of on connect.
+     *      
      *------------------------------------------------------------------------------*/
+
+    // Comment out to draw node graph debug helpers
+//#define CYB_NG_DEBUG_RECTS
+//#define CYB_NG_DEBUG_NODE_STATE
+//#define CYB_NG_DEBUG_CANVAS_STATE
 
     enum NG_CanvasFlags
     {
         NG_CanvasFlags_None = 0,
         NG_CanvasFlags_DisplayGrid = 1 << 0,
         NG_CanvasFlags_DisplayState = 1 << 1,
+        NG_CanvasFlags_Internal_NodeDeleted = 1 << 2,    // Internal use only
         NG_CanvasFlags_Default = NG_CanvasFlags_DisplayGrid
     };
 
     struct NG_Node;
     struct NG_Canvas;
+    struct NG_Connection;
 
     namespace detail
     {
@@ -207,11 +216,31 @@ namespace cyb::ui
             ImVec2 Pos{ 0, 0 };
 
             virtual ~NG_Pin() = default;
+            [[nodiscard]] virtual bool IsConnected() const = 0;
             virtual void OnConnect(detail::NG_Pin*) = 0;
         };
 
+        struct NG_InputPinBase : detail::NG_Pin
+        {
+            std::weak_ptr<NG_Connection> Connection;
+
+            virtual ~NG_InputPinBase() = default;
+            void SetConnection(std::shared_ptr<NG_Connection>& con);
+
+            void DeleteConnection()
+            {
+                Connection.reset();
+                OnConnect(nullptr);
+            }
+
+            [[nodiscard]] bool IsConnected() const override
+            {
+                return !Connection.expired();
+            }
+        };
+
         template <typename T>
-        struct NG_InputPin : public detail::NG_Pin
+        struct NG_InputPin : NG_InputPinBase
         {
             using CallbackType = std::function<void(std::optional<T>)>;
             CallbackType Callback;
@@ -226,8 +255,31 @@ namespace cyb::ui
             }
         };
 
+        struct NG_OutputPinBase : detail::NG_Pin
+        {
+            std::vector<std::weak_ptr<NG_Connection>> Connections;
+
+            void AddConnection(std::shared_ptr<NG_Connection> con)
+            {
+                Connections.emplace_back(con);
+            }
+
+            void DeleteExpiredConnections()
+            {
+                size_t cnt = std::erase_if(Connections, [] (const std::weak_ptr<NG_Connection>& c) {
+                    return c.expired();
+                });
+                assert(cnt > 0 && "No expired connections");
+            }
+
+            [[nodiscard]] bool IsConnected() const override
+            {
+                return Connections.empty() == false;
+            }
+        };
+
         template <typename T>
-        struct NG_OutputPin : public detail::NG_Pin
+        struct NG_OutputPin : NG_OutputPinBase
         {
             using CallbackType = std::function<T()>;
             CallbackType Callback;
@@ -239,12 +291,21 @@ namespace cyb::ui
             }
         };
 
-        struct NG_Connection
-        {
-            detail::NG_Pin* From;           // OutputPin
-            detail::NG_Pin* To;             // InputPin
-        };
     } // namespace detail
+
+    struct NG_Connection
+    {
+        detail::NG_Pin* InputPin;
+        detail::NG_Pin* OutputPin;
+
+        NG_Connection(std::shared_ptr<detail::NG_Pin> in, std::shared_ptr<detail::NG_Pin> out) :
+            InputPin(in.get()),
+            OutputPin(out.get())
+        {
+            if (in->Type == detail::NG_PinType::Output)
+                std::swap(InputPin, OutputPin);
+        }
+    };
 
     struct NG_Style
     {
@@ -256,20 +317,22 @@ namespace cyb::ui
         ImColor NodeBackgroundColor{ 50, 90, 60 };
         ImColor NodeBorderColor{ 200, 200, 200 };
         ImColor NodeBorderInvalidColor{ 245, 185, 66 };     // Invalid node border color
+        ImColor NodeCloseButtonColor{ 255, 96, 88, 150 };
+        ImColor NodeCloseButtonHoverColor{ 255, 96, 88 };
         ImColor PinUnConnectedColor{ 80, 80, 80 };
         ImColor PinConnectedColor{ 51, 190, 37 };
         ImColor PinHoverColor{ 255, 200, 50 };
         ImColor ConnectionColor{ 255, 255, 255 };
         ImColor ConnectionHoverColor{ 66, 158, 245 };
-        ImColor ConnectionDragginColor{ 200, 200, 100 };
+        ImColor ConnectionDragColor{ 200, 200, 100 };
     };
 
     struct NG_Node
     {
         ImVec2 Pos{ 0, 0 };             // Position, relative to cavas
         ImVec2 Size{ 1, 1 };
-        std::vector<std::unique_ptr<detail::NG_Pin>> Inputs;
-        std::vector<std::unique_ptr<detail::NG_Pin>> Outputs;
+        std::vector<std::shared_ptr<detail::NG_Pin>> Inputs;
+        std::vector<std::shared_ptr<detail::NG_Pin>> Outputs;
         bool ValidState{ false };
         bool ModifiedFlag{ false };
         bool MarkedForDeletion{ false };
@@ -300,7 +363,7 @@ namespace cyb::ui
         template <typename T>
         void AddInputPin(const std::string& label, detail::NG_InputPin<T>::CallbackType cb = {})
         {
-            auto pin = std::make_unique<detail::NG_InputPin<T>>();
+            auto pin = std::make_shared<detail::NG_InputPin<T>>();
             pin->Label = label;
             pin->Type = detail::NG_PinType::Input;
             pin->ParentNode = this;
@@ -311,7 +374,7 @@ namespace cyb::ui
         template <typename T>
         void AddOutputPin(const std::string& label, detail::NG_OutputPin<T>::CallbackType cb = {})
         {
-            auto pin = std::make_unique<detail::NG_OutputPin<T>>();
+            auto pin = std::make_shared<detail::NG_OutputPin<T>>();
             pin->Label = label;
             pin->Type = detail::NG_PinType::Output;
             pin->ParentNode = this;
@@ -376,7 +439,7 @@ namespace cyb::ui
         }
 
         /**
-         * @brief Create a new node using registrated type name factory function.
+         * @brief Create a new node using registered type name factory function.
          */
         std::unique_ptr<NG_Node> CreateNode(const std::string_view& node_type, const ImVec2& pos = { 0, 0 }) const;
 
@@ -388,15 +451,18 @@ namespace cyb::ui
     struct NG_Canvas
     {
         ImVec2 Pos{ 0.0f, 0.0f };
-        ImVec2 Offset{ 0.0f, 0.0f };                    // Canvas scrolling offset,
+        ImVec2 Offset{ 0.0f, 0.0f };                    // Canvas scrolling offset
         float Zoom{ 1.0f };
         uint32_t Flags{ NG_CanvasFlags_Default };
         NG_Style Style;
         std::unique_ptr<NG_Factory> Factory;            // Can be overwritten by custom user defined factory.
         std::vector<std::unique_ptr<NG_Node>> Nodes;    // Nodes, sorted in display order, back to front.
-        std::vector<detail::NG_Connection> Connections;
-        detail::NG_Pin* ActivePin{ nullptr };
+        std::vector<std::shared_ptr<NG_Connection>> Connections;
+        std::shared_ptr<detail::NG_Pin> ActivePin;      // For new connection creation.
         const NG_Node* HoveredNode{ nullptr };
+        bool DisplayStyleEditor{ false };
+
+        using const_connection_iterator = const std::vector<std::shared_ptr<NG_Connection>>::iterator;
 
         NG_Canvas();
         ~NG_Canvas() = default;
@@ -406,26 +472,9 @@ namespace cyb::ui
         bool ConnectionClick{ false };
 
         /**
-         * @brief Check if there are any connection to the pin.
-         */
-        [[nodiscard]] bool IsPinConnected(detail::NG_Pin* pin) const;
-
-        /**
          * @brief Check if a connection would create a cycling connection.
          */
-        [[nodiscard]] bool WouldCreateCycle(const NG_Node* from, const NG_Node* to) const;
-
-        /**
-         * @brief Search for a connection that connects to pin.
-         * @return A pointer to the connection if any or nullptr otherwise.
-         */
-        [[nodiscard]] const detail::NG_Connection* FindConnectionTo(detail::NG_Pin* pin) const;
-
-        /**
-         * @brief Search for connections that connect from pin.
-         * @return A range filter view of connections.
-         */
-        [[nodiscard]] std::vector<const detail::NG_Connection*> FindConnectionsFrom(detail::NG_Pin* pin) const;
+        [[nodiscard]] bool WouldCreateCycle(const std::shared_ptr<NG_Connection> connection) const;
 
         /**
          * @brief Updates the ValidState on all nodes. See NG_Canvas::NodeHasValidState().
@@ -435,7 +484,29 @@ namespace cyb::ui
         /**
          * @brief Check if node, and all dependent nodes have all input pins connected.
          */
-        [[nodiscard]] bool NodeHasValidState(NG_Node* node) const;
+        [[nodiscard]] bool NodeHasValidState(const NG_Node* node) const;
+
+        /**
+         * @brief Remove connection from canvas and update pin connection states.
+         */
+        const_connection_iterator RemoveConnection(const_connection_iterator it);
+
+        /**
+         * @brief Remove connections matching predicate from canvas and update pins connection states.
+         */
+        template <class Pred>
+        size_t RemoveConnectionsIf(Pred pred)
+        {
+            const size_t old_size = Connections.size();
+            for (auto it = Connections.begin(); it != Connections.end(); )
+            {
+                if (pred(*it))
+                    it = RemoveConnection(it);
+                else
+                    ++it;
+            }
+            return old_size - Connections.size();
+        }
 
         /**
          * @brief Send an update signal calling NG_Node::Update() to all parents connected to node.

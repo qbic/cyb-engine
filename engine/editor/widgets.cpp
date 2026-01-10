@@ -1393,7 +1393,7 @@ bool NodeGraph(NG_Canvas& canvas)
         const bool hovered = ImSqrt(ImLengthSqr(cp - io.MousePos)) <= 4.0f * canvas.Zoom;
         connection_hovered |= hovered;
 
-        ImColor col = hovered ? style.ConnectionHoverColor : style.ConnectionColor;
+        ImColor col = (hovered && canvas.HasMouseFocus) ? style.ConnectionHoverColor : style.ConnectionColor;
         draw_list->AddBezierCubic(start, cp0, cp1, end, col, 2.1f * canvas.Zoom);
 
         // Right click to delete
@@ -1476,7 +1476,7 @@ void NodeGraphStyleEditor(NG_Canvas& canvas)
 {
     NG_Style& style = canvas.Style;
 
-    if (ImGui::Begin("NG_StyleEdit"), &canvas.DisplayStyleEditor)
+    if (ImGui::Begin("NG_StyleEdit", &canvas.DisplayStyleEditor))
     {
         ImGui::SliderFloat("PinRadius", &style.PinRadius, 1.0f, 12.0f);
         ImGui::SliderFloat("NodeFrameRounding", &style.NodeFrameRounding, 1.0f, 12.0f);

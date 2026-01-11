@@ -175,10 +175,11 @@ namespace cyb::ui
      *      
      *------------------------------------------------------------------------------*/
 
-    // Comment out to draw node graph debug helpers
+    // Comment out to enable feature
 //#define CYB_NG_DEBUG_RECTS
 //#define CYB_NG_DEBUG_NODE_STATE
 //#define CYB_NG_DEBUG_CANVAS_STATE
+#define CYB_NG_STYLE_EDITOR
 
     enum NG_CanvasFlags
     {
@@ -461,7 +462,9 @@ namespace cyb::ui
         bool MouseClickConsumed{ false };
         bool HasMouseFocus{ false };
         bool AnyNodeMarkedForDeletion{ false };
+#ifdef CYB_NG_STYLE_EDITOR
         bool DisplayStyleEditor{ false };
+#endif // CYB_NG_STYLE_EDITOR
 
         using const_connection_iterator = const std::vector<std::shared_ptr<NG_Connection>>::iterator;
 
@@ -537,5 +540,7 @@ namespace cyb::ui
 
     bool NodeGraph(NG_Canvas& canvas);
 
+#ifdef CYB_NG_STYLE_EDITOR
     void NodeGraphStyleEditor(NG_Canvas& canvas);
+#endif // CYB_NG_STYLE_EDITOR
 } // namespace cyb::ui

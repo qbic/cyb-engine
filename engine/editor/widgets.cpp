@@ -1123,8 +1123,9 @@ static void DrawNode(NG_Node& node, const NG_Canvas& canvas)
     ImGui::GetStyle().HoverDelayNormal = 1.5f;
 
     const ImVec2 header_btn_sz = ImVec2(14.0f, 14.0f) * canvas.Zoom;
-    ImRect close_btn_bb{ node_start + ImVec2(node_width - header_btn_sz.x - window_padding.x, window_padding.y),
-                         node_start + ImVec2(node_width - window_padding.x, window_padding.y + header_btn_sz.y) };
+    const ImVec2 header_btn_margin = ImVec2(6.0f, 6.0f) * canvas.Zoom;
+    ImRect close_btn_bb{ node_start + ImVec2(node_width - header_btn_sz.x - header_btn_margin.x, header_btn_margin.y),
+                         node_start + ImVec2(node_width - header_btn_margin.x, header_btn_margin.y + header_btn_sz.y) };
     const ImGuiID close_btn_id = ImGui::GetID("#CLOSE");
     if (ImGui::ItemAdd(close_btn_bb, close_btn_id))
     {
@@ -1269,9 +1270,11 @@ bool NodeGraph(NG_Canvas& canvas)
         canvas.Zoom = 1.0f;
     }
 
+#ifdef CYB_NG_STYLE_EDITOR
     // Open style editor with 'S'
     if (canvas.HasMouseFocus && ImGui::IsKeyPressed(ImGuiKey_S, false))
         canvas.DisplayStyleEditor = !canvas.DisplayStyleEditor;
+#endif // CYB_NG_STYLE_EDITOR
 
     // Display background, grid and a frame
     if (canvas.Flags & NG_CanvasFlags_DisplayGrid)
@@ -1458,20 +1461,23 @@ bool NodeGraph(NG_Canvas& canvas)
         ImGui::Text("Hovered nodeID: %u", canvas.HoveredNode ? canvas.HoveredNode->GetID() : 0);
         ImGui::Text("Node count: %u", canvas.Nodes.size());
         ImGui::Text("Connection count: %u", canvas.Connections.size());
-#endif
+#endif // CYB_NG_DEBUG_CANVAS_STATE
         ImGui::EndGroup();
     }
 
     if (canvas.MouseClickConsumed && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
         canvas.MouseClickConsumed = false;
 
+#ifdef CYB_NG_STYLE_EDITOR
     if (canvas.DisplayStyleEditor)
         NodeGraphStyleEditor(canvas);
+#endif // CYB_NG_STYLE_EDITOR
 
     ImGui::PopID();
     return true;
 }
 
+#ifdef CYB_NG_STYLE_EDITOR
 void NodeGraphStyleEditor(NG_Canvas& canvas)
 {
     NG_Style& style = canvas.Style;
@@ -1501,5 +1507,5 @@ void NodeGraphStyleEditor(NG_Canvas& canvas)
 
     ImGui::End();
 }
-
+#endif // CYB_NG_STYLE_EDITOR
 } // namespace cyb::ui

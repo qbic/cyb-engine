@@ -21,7 +21,7 @@ GRADIENT_COUNT = 64
 gradients = generate_gradients(GRADIENT_COUNT)
 print(f"Perlin noise gradients [{GRADIENT_COUNT * 2}]:")
 for i, (gx, gy) in enumerate(gradients):
-    print(f" {gx:.17f}, {gy:.17f},", end="")
+    print(f"{gx:>10.7f}f, {gy:>10.7f}f,", end="")
     if (i + 1) % 4 == 0:  # 2 pairs (4 values) per row
         print()
 print()
@@ -30,7 +30,7 @@ RANDOM_COUNT = 256
 randoms = generate_randoms(RANDOM_COUNT)
 print(f"Cellular noise randoms [{RANDOM_COUNT * 2}]:")
 for i, (gx, gy) in enumerate(randoms):
-    print(f" {gx:.17f}, {gy:.17f},", end="")
+    print(f" {gx:.7f}f, {gy:.7f}f,", end="")
     if (i + 1) % 4 == 0:  # 2 pairs (8 values) per row
         print()
 print()

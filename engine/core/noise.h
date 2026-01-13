@@ -27,22 +27,22 @@ namespace cyb::noise2
     /**
      * @brief Generate single octave 2D Perlin noise.
      */
-    [[nodiscard]] double PerlinNoise2D(int seed, double x, double y);
+    [[nodiscard]] float PerlinNoise2D(int seed, float x, float y);
 
     /**
      * @brief Generate fractal brownian motion (FBM) 2D Perlin noise.
      */
-    [[nodiscard]] double PerlinNoise2D_FBM(const PerlinNoiseParams& param, double x, double y);
+    [[nodiscard]] float PerlinNoise2D_FBM(const PerlinNoiseParams& param, float x, float y);
     
     /**
      * @brief Generate single octave 2D Cellular (Worley) noise.
      */
-    [[nodiscard]] double CellularNoise2D(uint32_t seed, double jitterModifier, double x, double y);
+    [[nodiscard]] float CellularNoise2D(uint32_t seed, float jitterModifier, float x, float y);
     
     /**
      * @brief Generate fractal brownian motion (FBM) 2D Cellular (Worley) noise.
      */
-    [[nodiscard]] double CellularNoise2D_FBM(const CellularNoiseParams& param, double x, double y);
+    [[nodiscard]] float CellularNoise2D_FBM(const CellularNoiseParams& param, float x, float y);
 
     struct NoiseImageDimensions
     {
@@ -91,7 +91,7 @@ namespace cyb::noise2
     {
         NoiseImageDimensions size;
         NoiseImageOffset offset;
-        double freqScale{ 1.0 };
+        float freqScale{ 1.0f };
 
         virtual float GetValue(float x, float y) const { return 0.0f; }
     };

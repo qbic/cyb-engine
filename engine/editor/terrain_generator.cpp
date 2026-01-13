@@ -13,8 +13,6 @@
 #include "json.hpp"
 #include "imgui_internal.h"
 
-#define PREVIEW_RESOLUTION      128         // increase for higher quality, but slower to update preview
-#define PREVIEW_FREQ_SCALE      8.0         // higher value shows more terrain, but might get noisy
 #define MULTITHREADED_PREVIEW   1
 #define PREVIEW_GEN_GROUP_SIZE  32          // rows per thread group when multithreading
 
@@ -176,7 +174,7 @@ namespace cyb::editor
 
     void SelectNode::DisplayContent()
     {
-        auto onChange = [=] () { ModifiedFlag = true; };
+        auto onChange = [&] () { ModifiedFlag = true; };
 
         ui::SliderFloat("Threshold", &m_threshold, onChange, 0.0f, 1.0f);
         ui::SliderFloat("Edge Falloff", &m_edgeFalloff, onChange, 0.0f, 1.0f);
@@ -198,7 +196,10 @@ namespace cyb::editor
     PreviewNode::PreviewNode() :
         NG_Node(typeString, 256.0f)
     {
-        m_inputPin = AddInputPin<float(float, float)>("Input");
+        m_inputPin = AddInputPin<Signature>("Input");
+        AddOutputPin<Signature>("Passthrough", [&] (float x, float y) -> float {
+            return m_inputPin->Invoke(x, y);
+        });
     }
 
     void PreviewNode::UpdatePreview()
@@ -283,9 +284,7 @@ namespace cyb::editor
     GenerateMeshNode::GenerateMeshNode() :
         NG_Node(typeString)
     {
-        //AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
-        //    m_input = from.value_or(nullptr);
-        //});
+        m_input = AddInputPin<Signature>("Input");
 
         m_biomeColorBand = {
             { ImColor(173, 137,  59), 0.000f },
@@ -357,7 +356,7 @@ namespace cyb::editor
             }
         }
 
-        // Loop though all indices and seperate ground from rock indices
+        // Loop though all indices and separate ground from rock indices
         std::vector<uint32_t> groundIndices;
         std::vector<uint32_t> rockIndices;
         groundIndices.resize(mesh->indices.size());
@@ -608,12 +607,7 @@ namespace cyb::editor
         }
     }
 
-
-    ////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////
-
+#if 0
 
     static const std::unordered_map<HeightmapStrataOp, std::string> g_strataFuncCombo = {
         { HeightmapStrataOp::None,              "None"          },
@@ -1178,4 +1172,5 @@ namespace cyb::editor
             }
         });
     }
+#endif
 }

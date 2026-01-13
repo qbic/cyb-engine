@@ -148,7 +148,6 @@ namespace cyb::editor
         float m_lastPreviewGenerationTime = 0.0f;
         float m_freqScale = 8.0f;
         rhi::Texture m_texture;
-        noise2::NoiseNode* m_input = nullptr;
     };
 
     class GenerateMeshNode : public ui::NG_Node
@@ -193,6 +192,7 @@ namespace cyb::editor
             }
         };
 
+        ImageGenInputPin m_input;
         int m_chunkExpand{ 2 };
         int m_chunkSize{ 256 };             // Chunk size in meters
         float m_maxError{ 0.004f };
@@ -202,7 +202,6 @@ namespace cyb::editor
 
         jobsystem::Context m_jobContext;
         ecs::Entity m_terrainGroupID{ ecs::INVALID_ENTITY };
-        noise2::NoiseNode* m_input{ nullptr };
     };
 
     class NoiseNode_Factory : public ui::NG_Factory
@@ -226,10 +225,7 @@ namespace cyb::editor
         std::map<Category, std::vector<std::string>> m_categories;
     };
 
-    ////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////
+#if 0
 
     struct TerrainMeshDesc
     {
@@ -288,7 +284,7 @@ namespace cyb::editor
             scene::Scene scene;
         };
 
-        // have a seperate preview generation jobsystem to be able to wait for
+        // have a separate preview generation jobsystem to be able to wait for
         // previous preview update without stalling other jobsystems
         jobsystem::Context m_updatePreviewCtx;
         XMINT2 m_previewOffset = XMINT2(0, 0);
@@ -307,4 +303,5 @@ namespace cyb::editor
         ecs::Entity groundMateral = ecs::INVALID_ENTITY;
         ecs::Entity rockMatereal = ecs::INVALID_ENTITY;
     };
+#endif
 }

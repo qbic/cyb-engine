@@ -3,138 +3,7 @@
 
 namespace cyb::editor
 {
-    static float StrataValue(float value, HeightmapStrataOp op, float strength)
-    {
-        switch (op)
-        {
-        case HeightmapStrataOp::SharpSub: {
-            const float steps = -std::abs(std::sin(value * strength * g_PI) * (0.1f / strength * g_PI));
-            value = (value + steps) * 0.5f;
-        } break;
-        case HeightmapStrataOp::SharpAdd: {
-            const float steps = std::abs(std::sin(value * strength * g_PI) * (0.1f / strength * g_PI));
-            value = (value + steps) * 0.5f;
-        } break;
-        case HeightmapStrataOp::Quantize: {
-            const float strata = strength * 2.0f;
-            value = int(value * strata) * 1.0f / strata;
-        } break;
-        case HeightmapStrataOp::Smooth: {
-            const float strata = strength * 2.0f;
-            const float steps = std::sin(value * strata * g_PI) * (0.1f / strata * g_PI);
-            value = (value + steps) * 0.5f;
-        } break;
-        default:
-            break;
-        }
-
-        return value;
-    }
-
-    static float CombineValues(float valueA, float valueB, HeightmapCombineOp op, float strength)
-    {
-        switch (op)
-        {
-        case HeightmapCombineOp::Add:    return valueA + valueB;
-        case HeightmapCombineOp::Sub:    return valueA - valueB;
-        case HeightmapCombineOp::Mul:    return valueA * valueB;
-        case HeightmapCombineOp::Lerp:   return Lerp(valueA, valueB, strength);
-        }
-
-        assert(0);
-        return 0.0f;
-    }
-
-    void HeightmapGenerator::UnlockMinMax()
-    {
-        m_minHeight = 0.0f;
-        m_maxHeight = 0.1f;
-        m_lockedMinMax = false;
-    }
-
-    void HeightmapGenerator::LockMinMax()
-    {
-        m_lockedMinMax = true;
-
-        // calculate a scale value that will try to put values
-        // in a [0..1] range
-        const float scale = 1.0f / (m_maxHeight - m_minHeight);
-    }
-
-    float HeightmapGenerator::GetValue(float x, float y) const
-    {
-        // zero input gets zero output
-        if (inputList.empty())
-            return 0.0f;
-
-        auto calcValue = [x, y] (const Input& input) {
-            cyb::noise::Generator noise(input.noise);
-            float value = noise.GetValue(x, y);
-            value = StrataValue(value, input.strataOp, input.strata);
-            value = std::pow(Max(0.0f, value), input.exponent);
-            return value;
-        };
-
-        float valueA = calcValue(inputList[0]);
-        float valueB = 0;
-        for (size_t i = 0; i < inputList.size(); i++)
-        {
-            bool hasValueB = ((i + 1) < inputList.size());
-            if (hasValueB)
-            {
-                valueB = calcValue(inputList[i + 1]);
-                valueA = CombineValues(valueA, valueB, inputList[i].combineOp, inputList[i].mixing);
-            }
-        }
-
-        // if minmax is locked, that means we're returning raw values and we just update
-        // the minmax, else we try to scale values to [0..1] range
-        if (!m_lockedMinMax)
-        {
-            m_minHeight = Min(m_minHeight, valueA);
-            m_maxHeight = Max(m_maxHeight, valueA);
-        }
-
-        return (valueA - GetMinHeight()) * m_scale;
-    }
-
-    float HeightmapGenerator::GetHeightAt(const XMINT2& p) const
-    {
-        return GetValue(static_cast<float>(p.x) / 512.0f, static_cast<float>(p.y) / 512.0f);
-    }
-
-    std::vector<HeightmapGenerator::Input> GetDefaultInputs()
-    {
-        std::vector<HeightmapGenerator::Input> inputs;
-        HeightmapGenerator::Input desc;
-
-        desc.noise.type = noise::Type::Perlin;
-        desc.noise.seed = 0;
-        desc.noise.frequency = 0.989f;
-        desc.noise.octaves = 3;
-        desc.strataOp = HeightmapStrataOp::Smooth;
-        desc.strata = 5.0f;
-        desc.exponent = 1.8f;
-        desc.mixing = 0.4f;
-        inputs.push_back(desc);
-
-        desc.noise.type = noise::Type::Cellular;
-        desc.noise.frequency = 0.56f;
-        desc.noise.octaves = 4;
-        desc.strataOp = HeightmapStrataOp::None;
-        desc.strata = 12.0f;
-        desc.exponent = 1.8f;
-        inputs.push_back(desc);
-
-        return inputs;
-    }
-
-    static XMINT2 Add(const XMINT2& a, const XMINT2& b)
-    {
-        return XMINT2(a.x + b.x, a.y + b.y);
-    }
-
-    std::pair<XMINT2, float> HeightmapGenerator::FindCandidate(uint32_t width, uint32_t height, const XMINT2& offset, const XMINT2& p0, const XMINT2& p1, const XMINT2& p2) const
+    std::pair<XMINT2, float> FindCandidate(const noise2::NoiseImageDesc* imageDesc, uint32_t width, uint32_t height, const XMINT2& offset, const XMINT2& p0, const XMINT2& p1, const XMINT2& p2)
     {
         auto edge = [] (const XMINT2& a, const XMINT2& b, const XMINT2& c) -> uint32_t {
             return (b.x - c.x) * (a.y - c.y) - (b.y - c.y) * (a.x - c.x);
@@ -142,6 +11,10 @@ namespace cyb::editor
 
         auto computeStartingOffset = [] (int32_t w, const int32_t edgeValue, const int32_t delta) -> int32_t {
             return (edgeValue < 0 && delta != 0) ? Max(0, -edgeValue / delta) : 0;
+        };
+
+        auto getHeightAt = [&] (const XMINT2& p) -> float {
+            return imageDesc->GetValue(p.x + offset.x, p.y + offset.y);
         };
 
         // triangle bounding box
@@ -161,9 +34,9 @@ namespace cyb::editor
 
         // Pre-multiplied z values at vertices
         const float triangleArea = static_cast<float>(edge(p0, p1, p2));
-        const float z0 = GetHeightAt(p0 + offset) / triangleArea;
-        const float z1 = GetHeightAt(p1 + offset) / triangleArea;
-        const float z2 = GetHeightAt(p2 + offset) / triangleArea;
+        const float z0 = getHeightAt(p0 + offset) / triangleArea;
+        const float z1 = getHeightAt(p1 + offset) / triangleArea;
+        const float z2 = getHeightAt(p2 + offset) / triangleArea;
 
         // Iterate over pixels in bounding box
         float maxError = 0;
@@ -190,7 +63,7 @@ namespace cyb::editor
 
                     // compute z using barycentric coordinates
                     const float z = z0 * w0 + z1 * w1 + z2 * w2;
-                    const float dz = std::abs(z - GetHeightAt(XMINT2(x, y) + offset));
+                    const float dz = std::abs(z - getHeightAt(XMINT2(x, y) + offset));
                     if (dz > maxError)
                     {
                         maxError = dz;
@@ -222,29 +95,13 @@ namespace cyb::editor
         return std::make_pair(maxPoint, maxError);
     }
 
-    void CreateHeightmapImage(std::vector<float>& output, int width, int height, const HeightmapGenerator& generator, int offsetX, int offsetY, float freqScale)
-    {
-        output.clear();
-        output.resize(width * height);
-        for (int32_t y = 0; y < height; y++)
-        {
-            for (int32_t x = 0; x < width; x++)
-            {
-                const float scale = (1.0f / (float)width) * freqScale;
-                const XMINT2 p = XMINT2((int)std::round((float)(x + offsetX) * scale),
-                                        (int)std::round((float)(y + offsetY) * scale));
-                output[y * width + x] = generator.GetHeightAt(p);
-            }
-        }
-    }
-
     void HeightmapTriangulator::Run(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints)
     {
         // add points at all four corners
         const int32_t x0 = 0;
         const int32_t y0 = 0;
-        const int32_t x1 = m_Width;
-        const int32_t y1 = m_Height;
+        const int32_t x1 = m_width;
+        const int32_t y1 = m_height;
         const int32_t p0 = AddPoint(XMINT2(x0, y0));
         const int32_t p1 = AddPoint(XMINT2(x1, y0));
         const int32_t p2 = AddPoint(XMINT2(x0, y1));
@@ -269,13 +126,14 @@ namespace cyb::editor
     std::vector<XMFLOAT3> HeightmapTriangulator::GetPoints() const
     {
         std::vector<XMFLOAT3> points;
-        points.reserve(m_Points.size());
-        for (const XMINT2& p : m_Points)
+        points.reserve(m_points.size());
+        for (const XMINT2& p : m_points)
         {
+            const float height = m_heightmap->GetValue(p.x + m_offset.x, p.y + m_offset.y);
             points.emplace_back(
-                static_cast<float>(p.x) / static_cast<float>(m_Width),
-                m_Heightmap->GetHeightAt(p + m_Offset),
-                static_cast<float>(p.y) / static_cast<float>(m_Height));
+                static_cast<float>(p.x) / static_cast<float>(m_width),
+                height,
+                static_cast<float>(p.y) / static_cast<float>(m_height));
         }
         return points;
     }
@@ -299,16 +157,17 @@ namespace cyb::editor
         for (const int t : m_pending)
         {
             // rasterize triangle to find maximum pixel error
-            const auto pair = m_Heightmap->FindCandidate(
-                m_Width, m_Height,
-                m_Offset,
-                m_Points[m_triangles[t * 3 + 0]],
-                m_Points[m_triangles[t * 3 + 1]],
-                m_Points[m_triangles[t * 3 + 2]]);
+            const auto pair = FindCandidate(
+                m_heightmap,
+                m_width, m_height,
+                m_offset,
+                m_points[m_triangles[t * 3 + 0]],
+                m_points[m_triangles[t * 3 + 1]],
+                m_points[m_triangles[t * 3 + 2]]);
 
             // update metadata
-            m_Candidates[t] = pair.first;
-            m_Errors[t] = pair.second;
+            m_candidates[t] = pair.first;
+            m_errors[t] = pair.second;
 
             // add triangle to priority queue
             QueuePush(t);
@@ -330,10 +189,10 @@ namespace cyb::editor
         const int p1 = m_triangles[e1];
         const int p2 = m_triangles[e2];
 
-        const XMINT2 a = m_Points[p0];
-        const XMINT2 b = m_Points[p1];
-        const XMINT2 c = m_Points[p2];
-        const XMINT2 p = m_Candidates[t];
+        const XMINT2 a = m_points[p0];
+        const XMINT2 b = m_points[p1];
+        const XMINT2 c = m_points[p2];
+        const XMINT2 p = m_candidates[t];
 
         const int pn = AddPoint(p);
 
@@ -348,10 +207,10 @@ namespace cyb::editor
             const int p0 = m_triangles[ar];
             const int pr = m_triangles[a];
             const int pl = m_triangles[al];
-            const int hal = m_Halfedges[al];
-            const int har = m_Halfedges[ar];
+            const int hal = m_halfedges[al];
+            const int har = m_halfedges[ar];
 
-            const int b = m_Halfedges[a];
+            const int b = m_halfedges[a];
 
             if (b < 0)
             {
@@ -366,8 +225,8 @@ namespace cyb::editor
             const int bl = b0 + (b + 2) % 3;
             const int br = b0 + (b + 1) % 3;
             const int p1 = m_triangles[bl];
-            const int hbl = m_Halfedges[bl];
-            const int hbr = m_Halfedges[br];
+            const int hbl = m_halfedges[bl];
+            const int hbr = m_halfedges[br];
 
             QueueRemove(b / 3);
 
@@ -396,9 +255,9 @@ namespace cyb::editor
         }
         else
         {
-            const int h0 = m_Halfedges[e0];
-            const int h1 = m_Halfedges[e1];
-            const int h2 = m_Halfedges[e2];
+            const int h0 = m_halfedges[e0];
+            const int h1 = m_halfedges[e1];
+            const int h2 = m_halfedges[e2];
 
             const int t0 = AddTriangle(p0, p1, pn, h0, -1, -1, e0);
             const int t1 = AddTriangle(p1, p2, pn, h1, -1, t0 + 1, -1);
@@ -414,9 +273,9 @@ namespace cyb::editor
 
     uint32_t HeightmapTriangulator::AddPoint(const XMINT2 point)
     {
-        m_Points.push_back(point);
-        assert(m_Points.size() < std::numeric_limits<uint32_t>::max());
-        return (uint32_t)m_Points.size() - 1;
+        m_points.push_back(point);
+        assert(m_points.size() < std::numeric_limits<uint32_t>::max());
+        return (uint32_t)m_points.size() - 1;
     }
 
     int HeightmapTriangulator::AddTriangle(
@@ -433,12 +292,12 @@ namespace cyb::editor
             m_triangles.push_back(b);
             m_triangles.push_back(c);
             // add triangle halfedges
-            m_Halfedges.push_back(ab);
-            m_Halfedges.push_back(bc);
-            m_Halfedges.push_back(ca);
+            m_halfedges.push_back(ab);
+            m_halfedges.push_back(bc);
+            m_halfedges.push_back(ca);
             // add triangle metadata
-            m_Candidates.emplace_back(0, 0);
-            m_Errors.push_back(0);
+            m_candidates.emplace_back(0, 0);
+            m_errors.push_back(0);
             m_queueIndexes.push_back(-1);
         }
         else
@@ -448,18 +307,18 @@ namespace cyb::editor
             m_triangles[e + 1] = b;
             m_triangles[e + 2] = c;
             // set triangle halfedges
-            m_Halfedges[e + 0] = ab;
-            m_Halfedges[e + 1] = bc;
-            m_Halfedges[e + 2] = ca;
+            m_halfedges[e + 0] = ab;
+            m_halfedges[e + 1] = bc;
+            m_halfedges[e + 2] = ca;
         }
 
         // link neighboring halfedges
         if (ab >= 0)
-            m_Halfedges[ab] = e + 0;
+            m_halfedges[ab] = e + 0;
         if (bc >= 0)
-            m_Halfedges[bc] = e + 1;
+            m_halfedges[bc] = e + 1;
         if (ca >= 0)
-            m_Halfedges[ca] = e + 2;
+            m_halfedges[ca] = e + 2;
 
         // add triangle to pending queue for later rasterization
         const int t = e / 3;
@@ -498,7 +357,7 @@ namespace cyb::editor
             return dx * (ey * cp - bp * fy) - dy * (ex * cp - bp * fx) + ap * (ex * fy - ey * fx) < 0;
         };
 
-        const int b = m_Halfedges[a];
+        const int b = m_halfedges[a];
         if (b == -1)
             return;
 
@@ -513,13 +372,13 @@ namespace cyb::editor
         const int pl = m_triangles[al];
         const int p1 = m_triangles[bl];
 
-        if (!inCircle(m_Points[p0], m_Points[pr], m_Points[pl], m_Points[p1]))
+        if (!inCircle(m_points[p0], m_points[pr], m_points[pl], m_points[p1]))
             return;
 
-        const int hal = m_Halfedges[al];
-        const int har = m_Halfedges[ar];
-        const int hbl = m_Halfedges[bl];
-        const int hbr = m_Halfedges[br];
+        const int hal = m_halfedges[al];
+        const int har = m_halfedges[ar];
+        const int hbl = m_halfedges[bl];
+        const int hbr = m_halfedges[br];
 
         QueueRemove(a / 3);
         QueueRemove(b / 3);
@@ -579,7 +438,7 @@ namespace cyb::editor
 
     bool HeightmapTriangulator::QueueLess(const size_t i, const size_t j) const
     {
-        return -m_Errors[m_queue[i]] < -m_Errors[m_queue[j]];
+        return -m_errors[m_queue[i]] < -m_errors[m_queue[j]];
     }
 
     void HeightmapTriangulator::QueueSwap(const size_t i, const size_t j)

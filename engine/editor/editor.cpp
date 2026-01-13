@@ -28,7 +28,6 @@ using namespace std::string_literals;
 
 extern ImFont* imguiBigFont;    // from imgui_backend.cpp
 
-
 namespace cyb::editor
 {
     CVar<bool> e_autoremoveLinkedEntities{ "e_autoremoveLinkedEntities", true, CVarFlag::GuiBit, "On entity delete, also delete linked entities that isn't beeing used." };
@@ -595,13 +594,13 @@ namespace cyb::editor
 
     /**
      * @brief Add a unique digit to prefix baseStr with to make it unique in the scene.
-     * If we cant find a unique name with thegiven digits, highest possible num will be used.
+     * If we cant find a unique name with the given digits, highest possible num will be used.
      */
     [[nodiscard]] static std::string CreateUniqueEntityName(const scene::Scene& scene, const char* baseStr, uint32_t digits)
     {
-        uint32_t num = 0;
+        uint32_t num{ 0 };
         std::string name{};
-        bool nameMatch = false;
+        bool nameMatch{ false };
 
         do {
             name = std::format("{}{:0{}}", baseStr, num, digits);
@@ -1025,30 +1024,10 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    class Tool_TerrainGeneration : public ToolWindow, private NonCopyable
+    class Tool_TerrainGenerator : public ToolWindow, private NonCopyable
     {
     public:
-        TerrainGenerator generator;
-
-        Tool_TerrainGeneration(const std::string& windowTitle) :
-            ToolWindow(windowTitle, false, ImGuiWindowFlags_MenuBar)
-        {
-        }
-
-        void WindowContent() override
-        {
-            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z))
-                ui::GetUndoManager().Undo();
-            if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y))
-                ui::GetUndoManager().Redo();
-            generator.DrawGui(scenegraphView.GetSelectedEntity());
-        }
-    };
-
-    class Tool_TerrainGenerator2 : public ToolWindow, private NonCopyable
-    {
-    public:
-        Tool_TerrainGenerator2(const std::string& windowTitle) :
+        Tool_TerrainGenerator(const std::string& windowTitle) :
             ToolWindow(windowTitle, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)
         {
             m_canvas.Factory = std::make_unique<NoiseNode_Factory>();
@@ -1485,8 +1464,7 @@ namespace cyb::editor
     {
         // Attach built-in tools
         AttachToolToMenu(std::make_unique<Tool_Scenegraph>("Scenegraph & Components"));
-        AttachToolToMenu(std::make_unique<Tool_TerrainGeneration>("Terrain Generator"));
-        AttachToolToMenu(std::make_unique<Tool_TerrainGenerator2>("Terrain Generator 2"));
+        AttachToolToMenu(std::make_unique<Tool_TerrainGenerator>("Terrain Generator"));
         AttachToolToMenu(std::make_unique<Tool_ContentBrowser>("Scene Content Browser"));
         AttachToolToMenu(std::make_unique<Tool_Profiler>("Profiler"));
         AttachToolToMenu(std::make_unique<Tool_CVarViewer>("CVar viewer"));

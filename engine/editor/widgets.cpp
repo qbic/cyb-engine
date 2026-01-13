@@ -840,7 +840,6 @@ void detail::NG_InputPinBase::SetConnection(std::shared_ptr<NG_Connection>& con)
     Connection = con;
     auto outputPin = con->OutputPin;
     outputPin->ParentNode->ModifiedFlag = true;
-    OnConnect(outputPin);
 }
 
 void NG_Node::PushWindowWorkRect(const NG_Canvas& canvas)
@@ -956,7 +955,7 @@ bool NG_Canvas::NodeHasValidState(const NG_Node* node) const
         if (!inputPin)
             return false;
 
-        const auto connection = inputPin->Connection.lock();
+        const auto connection = inputPin->Connection;
         if (!connection)
             return false;
 

@@ -140,7 +140,7 @@ namespace cyb::noise2
         return xd * perlinGradients2D[index] + yd * perlinGradients2D[index + 1];
     }
 
-    [[nodiscard]] static double PerlinNoise2D(int seed, double x, double y)
+    double PerlinNoise2D(int seed, double x, double y)
     {
         const int x0 = static_cast<int>(std::floor(x)) * primeX;
         const int y0 = static_cast<int>(std::floor(y)) * primeY;
@@ -168,7 +168,30 @@ namespace cyb::noise2
         return (1.0 + result * 1.6409504127933312) * 0.5;
     }
 
-    [[nodiscard]] static double CellularNoise2D(uint32_t seed, double jitterModifier, double x, double y)
+    double PerlinNoise2D_FBM(const PerlinNoiseParams& param, double x, double y)
+    {
+        double value = 0.0;
+        double amplitude = 1.0;
+        double amplitudeSum = 0.0;
+        double frequency = param.frequency;
+
+        for (uint32_t i = 0; i < param.octaves; i++)
+        {
+            const double signal = PerlinNoise2D(
+                (param.seed + i) & 0xffffffff,
+                MakeInt32Range(x * frequency),
+                MakeInt32Range(y * frequency));
+            value += signal * amplitude;
+            amplitudeSum += amplitude;
+            amplitude *= param.persistence;
+            frequency *= param.lacunarity;
+        }
+
+        const double fractalBounding = 1.0 / std::sqrt(amplitudeSum);
+        return value * fractalBounding;
+    }
+
+    double CellularNoise2D(uint32_t seed, double jitterModifier, double x, double y)
     {
         const int xr = static_cast<int>(std::lround(x));
         const int yr = static_cast<int>(std::lround(y));
@@ -210,6 +233,28 @@ namespace cyb::noise2
 
         // try to map the output to a [0..1] range
         return (distance0 * 1.15);
+    }
+
+    double CellularNoise2D_FBM(const CellularNoiseParams& param, double x, double y)
+    {
+        double value = 0.0;
+        double amplitude = 1.0;
+        double frequency = param.frequency;
+
+        for (uint32_t i = 0; i < param.octaves; i++)
+        {
+            const double signal = CellularNoise2D(
+                (param.seed + i) & 0xffffffff,
+                param.jitterModifier,
+                MakeInt32Range(x * frequency),
+                MakeInt32Range(y * frequency));
+            
+            value += signal * amplitude;
+            amplitude *= param.persistence;
+            frequency *= param.lacunarity;
+        }
+
+        return value;
     }
 
     double NoiseNode_Perlin::GetValue(double x, double y) const
@@ -357,7 +402,7 @@ namespace cyb::noise2
 
     void RenderNoiseImageRows(
         NoiseImage& image,
-        const NoiseImageDesc& desc,
+        const NoiseImageDesc* desc,
         uint32_t rowStart, uint32_t rowCount)
     {
         assert(rowCount > 0);
@@ -371,11 +416,11 @@ namespace cyb::noise2
         for (uint32_t y = rowStart; y < rowStart + rowCount; ++y)
         {
             NoiseImage::Color* dest = image.GetPtr(y);
-            for (uint32_t x = 0; x < desc.size.width; ++x)
+            for (uint32_t x = 0; x < desc->size.width; ++x)
             {
-                const double value = desc.input->GetValue(
-                    (double(x + desc.offset.x) * desc.freqScale) * 0.002,
-                    (double(y + desc.offset.y) * desc.freqScale) * 0.002);
+                const double value = (double)desc->GetValue(
+                    float(x + desc->offset.x) * (float)desc->freqScale * 0.002f,
+                    float(y + desc->offset.y) * (float)desc->freqScale * 0.002f);
                 dest[x] = mapToColor(value);
             }
         }
@@ -388,7 +433,7 @@ namespace cyb::noise2
         assert(desc.size.height > 0);
 
         auto image = std::make_shared<NoiseImage>(desc.size);
-        RenderNoiseImageRows(*image.get(), desc, 0, image->GetHeight());
+        RenderNoiseImageRows(*image.get(), &desc, 0, image->GetHeight());
         return image;
     }
 }

@@ -170,8 +170,7 @@ namespace cyb::ui
      *      * You can not connect input to input, or output to output.
      * 
      * Bugs / Todo:
-     *      * Input pin Invoke() function go get value on demand instead of on connect.
-     *      * Preprocessor flag for enabling style editor window (CYB_NG_STYLE_EDITOR)
+     *      * Pin Signature checking when creating connections.
      *      
      *------------------------------------------------------------------------------*/
 
@@ -195,8 +194,10 @@ namespace cyb::ui
 
     namespace detail
     {
-        template <typename T>
+        template <typename Sig>
         struct NG_OutputPin;
+        template <typename Sig>
+        struct NG_InputPin;
 
         enum class NG_PinType
         {
@@ -216,42 +217,6 @@ namespace cyb::ui
 
             virtual ~NG_Pin() = default;
             [[nodiscard]] virtual bool IsConnected() const = 0;
-            virtual void OnConnect(detail::NG_Pin*) = 0;
-        };
-
-        struct NG_InputPinBase : detail::NG_Pin
-        {
-            std::weak_ptr<NG_Connection> Connection;
-
-            virtual ~NG_InputPinBase() = default;
-            void SetConnection(std::shared_ptr<NG_Connection>& con);
-
-            void DeleteConnection()
-            {
-                Connection.reset();
-                OnConnect(nullptr);
-            }
-
-            [[nodiscard]] bool IsConnected() const override
-            {
-                return !Connection.expired();
-            }
-        };
-
-        template <typename T>
-        struct NG_InputPin : NG_InputPinBase
-        {
-            using CallbackType = std::function<void(std::optional<T>)>;
-            CallbackType Callback;
-
-            void OnConnect(detail::NG_Pin* from) override
-            {
-                auto* out = dynamic_cast<NG_OutputPin<T>*>(from);
-                if (out && out->Callback)
-                    Callback(out->Callback());
-                else
-                    Callback(std::nullopt);
-            }
         };
 
         struct NG_OutputPinBase : detail::NG_Pin
@@ -273,23 +238,53 @@ namespace cyb::ui
 
             [[nodiscard]] bool IsConnected() const override
             {
-                return Connections.empty() == false;
+                return !Connections.empty();
             }
         };
 
-        template <typename T>
-        struct NG_OutputPin : NG_OutputPinBase
+        template <typename R, typename... Args>
+        struct NG_OutputPin<R(Args...)> : NG_OutputPinBase
         {
-            using CallbackType = std::function<T()>;
+            using CallbackType = std::function<R(Args...)>;
             CallbackType Callback;
 
-            void OnConnect(detail::NG_Pin*) override
+            R Invoke(Args... args) const
             {
-                // Only connect from InputPin!
-                assert(0);
+                assert(Callback && "Output pin callback not set");
+                return Callback(std::forward<Args>(args)...);
             }
         };
 
+        struct NG_InputPinBase : detail::NG_Pin
+        {
+            std::shared_ptr<NG_Connection> Connection;
+
+            virtual ~NG_InputPinBase() = default;
+            void SetConnection(std::shared_ptr<NG_Connection>& con);
+
+            void DeleteConnection()
+            {
+                Connection.reset();
+            }
+
+            [[nodiscard]] bool IsConnected() const override
+            {
+                return Connection.use_count() > 0;
+            }
+        };
+
+        template <typename R, typename... Args>
+        struct NG_InputPin<R(Args...)> : NG_InputPinBase
+        {
+            using CallbackType = std::function<R(Args...)>;
+            CallbackType Callback;
+
+            R Invoke(Args... args) const
+            {
+                const auto outputPin = static_cast<NG_OutputPin<R(Args...)>*>(Connection->OutputPin);
+                return outputPin->Invoke(std::forward<Args>(args)...);
+            }
+        };
     } // namespace detail
 
     struct NG_Connection
@@ -359,21 +354,22 @@ namespace cyb::ui
          */
         virtual void Update() {}
 
-        template <typename T>
-        void AddInputPin(const std::string& label, detail::NG_InputPin<T>::CallbackType cb = {})
+        template <typename Sig>
+        [[nodiscard]] std::shared_ptr<detail::NG_InputPin<Sig>> AddInputPin(const std::string& label, typename detail::NG_InputPin<Sig>::CallbackType cb = {})
         {
-            auto pin = std::make_shared<detail::NG_InputPin<T>>();
+            auto pin = std::make_shared<detail::NG_InputPin<Sig>>();
             pin->Label = label;
             pin->Type = detail::NG_PinType::Input;
             pin->ParentNode = this;
             pin->Callback = std::move(cb);
-            Inputs.push_back(std::move(pin));
+            Inputs.push_back(pin);
+            return pin;
         }
 
-        template <typename T>
-        void AddOutputPin(const std::string& label, detail::NG_OutputPin<T>::CallbackType cb = {})
+        template <typename Sig>
+        void AddOutputPin(const std::string& label, typename detail::NG_OutputPin<Sig>::CallbackType cb = {})
         {
-            auto pin = std::make_shared<detail::NG_OutputPin<T>>();
+            auto pin = std::make_shared<detail::NG_OutputPin<Sig>>();
             pin->Label = label;
             pin->Type = detail::NG_PinType::Output;
             pin->ParentNode = this;

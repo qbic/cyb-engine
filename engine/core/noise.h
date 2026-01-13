@@ -5,6 +5,30 @@
 
 namespace cyb::noise2
 {
+    struct PerlinNoiseParams
+    {
+        int seed{ 0 };
+        float frequency{ 5.0 };
+        uint32_t octaves{ 4 };
+        float lacunarity{ 2.0 };
+        float persistence{ 0.5 };
+    };
+
+    struct CellularNoiseParams
+    {
+        uint32_t seed{ 0 };
+        float frequency{ 5.0 };
+        float jitterModifier{ 1.0 };
+        uint32_t octaves{ 4 };
+        float lacunarity{ 2.0 };
+        float persistence{ 0.5 };
+    };
+
+    [[nodiscard]] double PerlinNoise2D(int seed, double x, double y);
+    [[nodiscard]] double PerlinNoise2D_FBM(const PerlinNoiseParams& param, double x, double y);
+    [[nodiscard]] double CellularNoise2D(uint32_t seed, double jitterModifier, double x, double y);
+    [[nodiscard]] double CellularNoise2D_FBM(const CellularNoiseParams& param, double x, double y);
+
     class NoiseNode
     {
     public:
@@ -77,7 +101,6 @@ namespace cyb::noise2
         uint32_t m_octaves{ 4 };
         double m_lacunarity{ 2.0 };
         double m_persistence{ 0.5 };
-        double m_varianceCorrection{ 0.0 };
     };
 
     /**
@@ -264,10 +287,12 @@ namespace cyb::noise2
         NoiseImageDimensions size;
         NoiseImageOffset offset;
         double freqScale{ 1.0 };
+
+        virtual float GetValue(float x, float y) const { return 0.0f; }
     };
 
     void RenderNoiseImageRows(NoiseImage& image,
-                              const NoiseImageDesc& desc,
+                              const NoiseImageDesc* desc,
                               uint32_t rowStart, uint32_t rowCount);
     std::shared_ptr<NoiseImage> RenderNoiseImage(const NoiseImageDesc& desc);
 }

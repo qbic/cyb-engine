@@ -5,113 +5,135 @@
 
 namespace cyb::editor
 {
+    using ImageGenPinSignature = float(float, float);
+    using ImageGenInputPin = std::shared_ptr<ui::detail::NG_InputPin<ImageGenPinSignature>>;
+
     class PerlinNode : public ui::NG_Node
     {
     public:
         static constexpr std::string_view typeString = "Perlin Noise";
+        using Signature = ImageGenPinSignature;
 
         PerlinNode();
         virtual ~PerlinNode() = default;
         void DisplayContent() override;
 
     private:
-        noise2::NoiseNode_Perlin m_noise;
+        noise2::PerlinNoiseParams m_param{};
     };
 
     class CellularNode : public ui::NG_Node
     {
     public:
         static constexpr std::string_view typeString = "Cellular Noise";
+        using Signature = ImageGenPinSignature;
 
         CellularNode();
         virtual ~CellularNode() = default;
         void DisplayContent() override;
 
     private:
-        noise2::NoiseNode_Cellular m_noise;
+        noise2::CellularNoiseParams m_param{};
     };
 
     class ConstNode : public ui::NG_Node
     {
     public:
         static constexpr std::string_view typeString = "Const Value";
+        using Signature = ImageGenPinSignature;
 
         ConstNode();
         virtual ~ConstNode() = default;
         void DisplayContent() override;
 
     private:
-        noise2::NoiseNode_Const m_const;
+        float m_value{ 1.0f };
     };
 
     class BlendNode : public ui::NG_Node
     {
     public:
         static constexpr std::string_view typeString = "Blend";
+        using Signature = ImageGenPinSignature;
 
         BlendNode();
         virtual ~BlendNode() = default;
         void DisplayContent() override;
 
     private:
-        noise2::NoiseNode_Blend m_blend;
+        ImageGenInputPin m_inputA;
+        ImageGenInputPin m_inputB;
+        float m_alpha{ 0.5f };
     };
 
     class InvertNode : public ui::NG_Node
     {
     public:
         static constexpr std::string_view typeString = "Invert";
+        using Signature = ImageGenPinSignature;
 
         InvertNode();
         virtual ~InvertNode() = default;
 
     private:
-        noise2::NoiseNode_Invert m_inv;
+        ImageGenInputPin m_input;
     };
 
     class ScaleBiasNode : public ui::NG_Node
     {
     public:
         static constexpr std::string_view typeString = "ScaleBias";
+        using Signature = ImageGenPinSignature;
 
         ScaleBiasNode();
         virtual ~ScaleBiasNode() = default;
         void DisplayContent() override;
 
     private:
-        noise2::NoiseNode_ScaleBias m_scaleBias;
+        ImageGenInputPin m_input;
+        float m_scale{ 1.0f };
+        float m_bias{ 0.0f };
     };
 
     class StrataNode : public ui::NG_Node
     {
     public:
         static constexpr std::string_view typeString = "Strata";
+        using Signature = ImageGenPinSignature;
 
         StrataNode();
         virtual ~StrataNode() = default;
         void DisplayContent() override;
 
     private:
-        noise2::NoiseNode_Strata m_strata;
+        ImageGenInputPin m_input;
+        float m_strata{ 5.0f };
     };
 
     class SelectNode : public ui::NG_Node
     {
     public:
         static constexpr std::string_view typeString = "Select";
+        using Signature = ImageGenPinSignature;
 
         SelectNode();
         virtual ~SelectNode() = default;
         void DisplayContent() override;
 
     private:
-        noise2::NoiseNode_Select m_select;
+        ImageGenInputPin m_inputA;
+        ImageGenInputPin m_inputB;
+        ImageGenInputPin m_inputControl;
+        float m_threshold{ 0.5 };
+        float m_edgeFalloff{ 0.0 };
+
     };
 
     class PreviewNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "Preivew";
+        static constexpr std::string_view typeString = "Preview";
+        using Signature = ImageGenPinSignature;
 
         PreviewNode();
         virtual ~PreviewNode() = default;
@@ -120,6 +142,7 @@ namespace cyb::editor
         void DisplayContent() override;
 
     private:
+        ImageGenInputPin m_inputPin;
         bool m_autoUpdate = true;
         uint32_t m_previewSize = 128;   // Used as both width and height
         float m_lastPreviewGenerationTime = 0.0f;
@@ -132,6 +155,7 @@ namespace cyb::editor
     {
     public:
         static constexpr std::string_view typeString = "Generate Mesh";
+        using Signature = ImageGenPinSignature;
 
         GenerateMeshNode();
         virtual ~GenerateMeshNode() = default;

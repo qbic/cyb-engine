@@ -16,206 +16,200 @@
 #define PREVIEW_RESOLUTION      128         // increase for higher quality, but slower to update preview
 #define PREVIEW_FREQ_SCALE      8.0         // higher value shows more terrain, but might get noisy
 #define MULTITHREADED_PREVIEW   1
-#define PREVIEW_GEN_GROUP_SIZE  32
+#define PREVIEW_GEN_GROUP_SIZE  32          // rows per thread group when multithreading
 
 namespace cyb::editor
 {
     PerlinNode::PerlinNode() :
         NG_Node(typeString, 240.0f)
     {
-        AddOutputPin<noise2::NoiseNode*>("Output", [=] () { return &m_noise; });
+        AddOutputPin<Signature>("Output", [&] (float x, float y) -> float { 
+            return noise2::PerlinNoise2D_FBM(m_param, x, y);
+        });
     }
 
     void PerlinNode::DisplayContent()
     {
-        auto onChange = [=] () { ModifiedFlag = true; };
+        auto onChange = [&] () { ModifiedFlag = true; };
 
-        uint32_t iTemp = m_noise.GetSeed();
-        if (ui::SliderInt("Seed", (int*)&iTemp, onChange, 0, std::numeric_limits<int>::max() / 2))
-            m_noise.SetSeed(iTemp);
-
-        float fTemp = m_noise.GetFrequency();
-        if (ui::SliderFloat("Frequency", &fTemp, onChange, 0.1f, 8.0f))
-            m_noise.SetFrequency(fTemp);
-
-        iTemp = m_noise.GetOctaves();
-        if (ui::SliderInt("Octaves", (int*)&iTemp, onChange, 1, 6))
-            m_noise.SetOctaves(iTemp);
-
-        fTemp = m_noise.GetLacunarity();
-        if (ui::SliderFloat("Lacunarity", &fTemp, onChange, 0.0f, 4.0f))
-            m_noise.SetLacunarity(fTemp);
-
-        fTemp = m_noise.GetPersistence();
-        if (ui::SliderFloat("Persistence", &fTemp, onChange, 0.0f, 4.0f))
-            m_noise.SetPersistence(fTemp);
+        ui::SliderInt("Seed", (int*)&m_param.seed, onChange, 0, std::numeric_limits<int>::max() / 2);
+        ui::SliderFloat("Frequency", &m_param.frequency, onChange, 0.1f, 8.0f);
+        ui::SliderInt("Octaves", (int*)&m_param.octaves, onChange, 1, 6);
+        ui::SliderFloat("Lacunarity", &m_param.lacunarity, onChange, 0.0f, 4.0f);
+        ui::SliderFloat("Persistence", &m_param.persistence, onChange, 0.0f, 4.0f);
     }
 
     CellularNode::CellularNode() :
         NG_Node(typeString, 240.0f)
     {
-        AddOutputPin<noise2::NoiseNode*>("Output", [=] () { return &m_noise; });
+        AddOutputPin<Signature>("Output", [&] (float x, float y) -> float {
+            return noise2::CellularNoise2D_FBM(m_param, x, y);
+        });
     }
 
     void CellularNode::DisplayContent()
     {
-        auto onChange = [=] () { ModifiedFlag = true; };
+        auto onChange = [&] () { ModifiedFlag = true; };
 
-        uint32_t iTemp = m_noise.GetSeed();
-        if (ui::SliderInt("Seed", (int*)&iTemp, onChange, 0, std::numeric_limits<int>::max() / 2))
-            m_noise.SetSeed(iTemp);
-
-        float fTemp = m_noise.GetFrequency();
-        if (ui::SliderFloat("Frequency", &fTemp, onChange, 0.1f, 8.0f))
-            m_noise.SetFrequency(fTemp);
-
-        fTemp = m_noise.GetJitterModifier();
-        if (ui::SliderFloat("Jitter", &fTemp, onChange, 0.0f, 2.0f))
-            m_noise.SetJitterModifier(fTemp);
-
-        iTemp = m_noise.GetOctaves();
-        if (ui::SliderInt("Octaves", (int*)&iTemp, onChange, 1, 6))
-            m_noise.SetOctaves(iTemp);
-
-        fTemp = m_noise.GetLacunarity();
-        if (ui::SliderFloat("Lacunarity", &fTemp, onChange, 0.0f, 4.0f))
-            m_noise.SetLacunarity(fTemp);
-
-        fTemp = m_noise.GetPersistence();
-        if (ui::SliderFloat("Persistence", &fTemp, onChange, 0.0f, 4.0f))
-            m_noise.SetPersistence(fTemp);
+        ui::SliderInt("Seed", (int*)&m_param.seed, onChange, 0, std::numeric_limits<int>::max() / 2);
+        ui::SliderFloat("Frequency", &m_param.frequency, onChange, 0.1f, 8.0f);
+        ui::SliderFloat("Jitter", &m_param.jitterModifier, onChange, 0.0f, 2.0f);
+        ui::SliderInt("Octaves", (int*)&m_param.octaves, onChange, 1, 6);
+        ui::SliderFloat("Lacunarity", &m_param.lacunarity, onChange, 0.0f, 4.0f);
+        ui::SliderFloat("Persistence", &m_param.persistence, onChange, 0.0f, 4.0f);
     }
 
     ConstNode::ConstNode() :
         NG_Node(typeString, 160.0f)
     {
-        AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_const; });
+        AddOutputPin<float(float, float)>("Output", [&] (float x, float y) -> float {
+            return m_value;
+        });
     }
 
     void ConstNode::DisplayContent()
     {
-        auto onChange = [=] () { ModifiedFlag = true; };
+        auto onChange = [&] () { ModifiedFlag = true; };
 
-        float fTemp = m_const.GetConstValue();
-        if (ui::SliderFloat("Value", &fTemp, onChange, 0.0f, 1.0f))
-            m_const.SetConstValue(fTemp);
+        ui::SliderFloat("Value", &m_value, onChange, 0.0f, 1.0f);
     }
 
     BlendNode::BlendNode() :
         NG_Node(typeString, 160.0f)
     {
-        AddInputPin<noise2::NoiseNode*>("Input A", [&] (std::optional<noise2::NoiseNode*> from) {
-            m_blend.SetInput(0, from.value_or(nullptr));
+        m_inputA = AddInputPin<Signature>("Input A");
+        m_inputB = AddInputPin<Signature>("Input B");
+        AddOutputPin<Signature>("Lerp", [&] (float x, float y) -> float {
+            const float valueA = m_inputA->Invoke(x, y);
+            const float valueB = m_inputB->Invoke(x, y);
+            return Lerp(valueA, valueB, m_alpha);
         });
-        AddInputPin<noise2::NoiseNode*>("Input B", [&] (std::optional<noise2::NoiseNode*> from) {
-            m_blend.SetInput(1, from.value_or(nullptr));
+        AddOutputPin<Signature>("Mul", [&] (float x, float y) -> float {
+            const float valueA = m_inputA->Invoke(x, y);
+            const float valueB = m_inputB->Invoke(x, y);
+            return valueA * valueB;
         });
-        AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_blend; });
     }
 
     void BlendNode::DisplayContent()
     {
-        auto onChange = [=] () { ModifiedFlag = true; };
+        auto onChange = [&] () { ModifiedFlag = true; };
 
-        float fTemp = m_blend.GetAlpha();
-        if (ui::SliderFloat("Alpha", &fTemp, onChange, 0.0f, 1.0f))
-            m_blend.SetAlpha(fTemp);
+        ui::SliderFloat("Alpha", &m_alpha, onChange, 0.0f, 1.0f);
     }
 
     InvertNode::InvertNode() :
         NG_Node(typeString)
     {
-        AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
-            m_inv.SetInput(0, from.value_or(nullptr));
+        m_input = AddInputPin<Signature>("Input");
+        AddOutputPin<Signature>("Output", [&] (float x, float y) {
+            return 1.0f - m_input->Invoke(x, y); 
         });
-        AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_inv; });
     }
 
     ScaleBiasNode::ScaleBiasNode() :
         NG_Node(typeString, 160.0f)
     {
-        AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
-            m_scaleBias.SetInput(0, from.value_or(nullptr));
+        m_input = AddInputPin<Signature>("Input");
+        AddOutputPin<Signature>("Output", [&] (float x, float y) -> float {
+            return m_input->Invoke(x, y) * m_scale + m_bias;
         });
-        AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_scaleBias; });
     }
 
     void ScaleBiasNode::DisplayContent()
     {
-        auto onChange = [=] () { ModifiedFlag = true; };
+        auto onChange = [&] () { ModifiedFlag = true; };
 
-        float fTemp = m_scaleBias.GetScale();
-        if (ui::SliderFloat("Scale", &fTemp, onChange, 0.0f, 2.0f))
-            m_scaleBias.SetScale(fTemp);
-
-        fTemp = m_scaleBias.GetBias();
-        if (ui::SliderFloat("Bias", &fTemp, onChange, 0.0f, 1.0f))
-            m_scaleBias.SetBias(fTemp);
+        ui::SliderFloat("Scale", &m_scale, onChange, 0.0f, 2.0f);
+        ui::SliderFloat("Bias", &m_bias, onChange, 0.0f, 1.0f);
     }
 
     StrataNode::StrataNode() :
         NG_Node(typeString, 160.0f)
     {
-        AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
-            m_strata.SetInput(0, from.value_or(nullptr));
+        m_input = AddInputPin<Signature>("Input");
+        AddOutputPin<Signature>("Output", [&] (float x, float y) -> float {
+            const float value = m_input->Invoke(x, y);
+            const float step = std::floor(value * m_strata) / m_strata;
+            const float alpha = CubicSmoothStep((value * m_strata) - std::floor(value * m_strata));
+            return Lerp(step, value, alpha);
         });
-        AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_strata; });
     }
 
     void StrataNode::DisplayContent()
     {
-        auto onChange = [=] () { ModifiedFlag = true; };
+        auto onChange = [&] () { ModifiedFlag = true; };
 
-        float fTemp = m_strata.GetStrata();
-        if (ui::SliderFloat("Strata", &fTemp, onChange, 2.0f, 12.0f))
-            m_strata.SetStrata(fTemp);
+        ui::SliderFloat("Strata", &m_strata, onChange, 2.0f, 12.0f);
     }
 
     SelectNode::SelectNode() :
         NG_Node(typeString, 160.0f)
     {
-        AddInputPin<noise2::NoiseNode*>("Input A", [&] (std::optional<noise2::NoiseNode*> from) {
-            m_select.SetInput(0, from.value_or(nullptr));
+        m_inputA = AddInputPin<Signature>("Input A");
+        m_inputB = AddInputPin<Signature>("Input B");
+        m_inputControl = AddInputPin<Signature>("Control");
+        AddOutputPin<Signature>("Output", [&] (float x, float y) -> float {
+            const float valueA = m_inputA->Invoke(x, y);
+            const float valueB = m_inputB->Invoke(x, y);
+            const float controlValue = m_inputControl->Invoke(x, y);
+
+            if (m_edgeFalloff > 0.0f)
+            {
+                const float lower = m_threshold - m_edgeFalloff;
+                const float upper = m_threshold + m_edgeFalloff;
+
+                if (controlValue < lower)
+                    return valueA;
+                else if (controlValue > upper)
+                    return valueB;
+                else
+                {
+                    const float alpha = CubicSmoothStep((controlValue - lower) / (2.0f * m_edgeFalloff));
+                    return Lerp(valueA, valueB, alpha);
+                }
+            }
+
+            return  (controlValue < m_threshold) ? valueA : valueB;
         });
-        AddInputPin<noise2::NoiseNode*>("Input B", [&] (std::optional<noise2::NoiseNode*> from) {
-            m_select.SetInput(1, from.value_or(nullptr));
-        });
-        AddInputPin<noise2::NoiseNode*>("Control", [&] (std::optional<noise2::NoiseNode*> from) {
-            m_select.SetInput(2, from.value_or(nullptr));
-        });
-        AddOutputPin<noise2::NoiseNode*>("Output", [&] () { return &m_select; });
     }
 
     void SelectNode::DisplayContent()
     {
         auto onChange = [=] () { ModifiedFlag = true; };
 
-        float fTemp = m_select.GetThreshold();
-        if (ui::SliderFloat("Threshold", &fTemp, onChange, 0.0f, 1.0f))
-            m_select.SetThreshold(fTemp);
-
-        fTemp = m_select.GetEdgeFalloff();
-        if (ui::SliderFloat("Edge Falloff", &fTemp, onChange, 0.0f, 1.0f))
-            m_select.SetEdgeFalloff(fTemp);
+        ui::SliderFloat("Threshold", &m_threshold, onChange, 0.0f, 1.0f);
+        ui::SliderFloat("Edge Falloff", &m_edgeFalloff, onChange, 0.0f, 1.0f);
     }
+
+    struct NoiseNodeImageDesc : noise2::NoiseImageDesc
+    {
+        ImageGenInputPin inputPin;
+
+        float GetValue(float x, float y) const override
+        {
+            if (!inputPin)
+                return 0.0f;
+            float v = inputPin->Invoke(x, y);
+            return v;
+        }
+    };
 
     PreviewNode::PreviewNode() :
         NG_Node(typeString, 256.0f)
     {
-        AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
-            m_input = from.value_or(nullptr);
-        });
+        m_inputPin = AddInputPin<float(float, float)>("Input");
     }
 
     void PreviewNode::UpdatePreview()
     {
-        if (!m_input || !ValidState)
+        if (!ValidState)
             return;
 
         Timer timer;
 
-        noise2::NoiseImageDesc imageDesc{};
-        imageDesc.input = m_input;
+        NoiseNodeImageDesc imageDesc{};
+        imageDesc.inputPin = m_inputPin;
         imageDesc.size = { m_previewSize, m_previewSize };
         imageDesc.freqScale = m_freqScale / (m_previewSize / 128.0f);
 
@@ -225,7 +219,7 @@ namespace cyb::editor
         const uint32_t groupSize = PREVIEW_GEN_GROUP_SIZE;
         jobsystem::Dispatch(ctx, imageDesc.size.height, groupSize, [&] (jobsystem::JobArgs args) {
             const uint32_t rowStart = args.jobIndex;
-            noise2::RenderNoiseImageRows(image, imageDesc, rowStart, 1);
+            noise2::RenderNoiseImageRows(image, &imageDesc, rowStart, 1);
         });
 #else
         noise2::RenderNoiseImageRows(image, imageDesc, 0, imageDesc.size.height);
@@ -266,7 +260,7 @@ namespace cyb::editor
         const float imageWidth = window->WorkRect.GetWidth();
         const ImVec2 imageSize{ imageWidth, imageWidth };
         ImGui::Text("Size: %f", imageWidth);
-        if (m_input && ValidState && m_texture.IsValid())
+        if (ValidState && m_texture.IsValid())
         {
             ImGui::Image((ImTextureID)&m_texture, imageSize);
         }
@@ -289,9 +283,9 @@ namespace cyb::editor
     GenerateMeshNode::GenerateMeshNode() :
         NG_Node(typeString)
     {
-        AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
-            m_input = from.value_or(nullptr);
-        });
+        //AddInputPin<noise2::NoiseNode*>("Input", [&] (std::optional<noise2::NoiseNode*> from) {
+        //    m_input = from.value_or(nullptr);
+        //});
 
         m_biomeColorBand = {
             { ImColor(173, 137,  59), 0.000f },

@@ -17,14 +17,17 @@ namespace cyb::editor
 
         void Run(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints);
 
-        uint32_t NumPoints() const { return (uint32_t)m_points.size(); }
-        uint32_t NumTriangles() const { return (uint32_t)m_queue.size(); }
-        float Error() const { return m_errors[m_queue[0]]; }
+        [[nodiscard]] uint32_t NumPoints() const { return (uint32_t)m_points.size(); }
+        [[nodiscard]] uint32_t NumTriangles() const { return (uint32_t)m_queue.size(); }
+        [[nodiscard]] float Error() const { return m_errors[m_queue[0]]; }
 
-        std::vector<XMFLOAT3> GetPoints() const;
-        std::vector<XMINT3> GetTriangles() const;
+        [[nodiscard]] std::vector<XMFLOAT3> GetPoints() const;
+        [[nodiscard]] std::vector<XMINT3> GetTriangles() const;
 
     private:
+        std::pair<XMINT2, float> FindCandidate(const XMINT2& p0, const XMINT2& p1, const XMINT2& p2);
+        void BuildHeightCache();
+        float HeightAt(const XMINT2& point) const;
         void Flush();
         void Step();
         uint32_t AddPoint(const XMINT2 point);
@@ -43,6 +46,7 @@ namespace cyb::editor
         bool QueueDown(const size_t i0, const size_t n);
 
         const noise2::NoiseImageDesc* m_heightmap;
+        std::vector<float> m_heightCache;
         XMINT2 m_offset;
         uint32_t m_width;
         uint32_t m_height;

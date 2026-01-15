@@ -424,7 +424,8 @@ void Scene::ComponentAttach(ecs::Entity entity, ecs::Entity parentEntity)
     HierarchyComponent& component = hierarchy.Create(entity);
     component.parentID = parentEntity;
 
-    const TransformComponent* parent = transforms.GetComponent(parentEntity);
+    TransformComponent* parent = transforms.GetComponent(parentEntity);
+    parent->UpdateTransform();  // ensure parent's world matrix is up to date
     TransformComponent* child = transforms.GetComponent(entity);
     if (parent != nullptr && child != nullptr)
     {

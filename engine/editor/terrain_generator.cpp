@@ -267,6 +267,7 @@ namespace cyb::editor
         }
         else
         {
+            // Display a geay box when no image is available
             const ImGuiWindow* window = ImGui::GetCurrentWindow();
             const ImRect bb(window->DC.CursorPos, window->DC.CursorPos + imageSize);
             ImGui::ItemSize(bb);
@@ -314,7 +315,7 @@ namespace cyb::editor
         {
             if (ImGui::Button("Generate Mesh", ImVec2(-1.0f, 0.0f)))
             {
-                //GenerateTerrainMesh();
+                GenerateTerrainMesh();
             }
         }
         else
@@ -324,6 +325,9 @@ namespace cyb::editor
                 //cancelTerrainGen.store(true);
             }
         }
+
+        if (m_generationTime > 0.0f)
+            ImGui::Text("Generated in %.2fms", m_generationTime);
     }
 
     // Colorize vertical faces with rock color.
@@ -407,6 +411,8 @@ namespace cyb::editor
         scene::Scene& scene = scene::GetScene();
         scene.RemoveEntity(m_terrainGroupID, true, true);
 
+        Timer timer;
+
         std::unordered_map<Chunk, ChunkData, ChunkHash> chunks;
         Chunk centerChunk = {};
 
@@ -414,15 +420,20 @@ namespace cyb::editor
         m_terrainGroupID = scene.CreateGroup("Terrain");
 
         // create terrain materials
-        ecs::Entity groundMateralID = scene.CreateMaterial("TerrainGround_Material");
-        scene::MaterialComponent* material = scene.materials.GetComponent(groundMateralID);
+        ecs::Entity groundMaterialID = scene.CreateMaterial("TerrainGround_Material");
+        scene::MaterialComponent* material = scene.materials.GetComponent(groundMaterialID);
         material->roughness = 0.85;
         material->metalness = 0.04;
 
-        ecs::Entity rockMaterealID = scene.CreateMaterial("TerrainRock_Material");
-        material = scene.materials.GetComponent(rockMaterealID);
+        ecs::Entity rockMaterialID = scene.CreateMaterial("TerrainRock_Material");
+        material = scene.materials.GetComponent(rockMaterialID);
         material->roughness = 0.95;
         material->metalness = 0.215;
+
+        // Setup noise image descriptor
+        NoiseNodeImageDesc heightmap{};
+        heightmap.inputPin = m_input;
+        heightmap.size = { 512 , 512 };
 
         auto requestChunk = [&] (int32_t xOffset, int32_t zOffset) {
             Chunk chunk = { centerChunk.x + xOffset, centerChunk.z + zOffset };
@@ -445,20 +456,20 @@ namespace cyb::editor
 
             // generate triangulated heightmap mesh
             XMINT2 heightmapOffset = XMINT2(xOffset * m_chunkSize, zOffset * m_chunkSize);
-            //HeightmapTriangulator triangulator(&heightmap, m_meshDesc.size, m_meshDesc.size, heightmapOffset);
-            //triangulator.Run(m_meshDesc.maxError, m_meshDesc.maxVertices, m_meshDesc.maxTriangles);
+            HeightmapTriangulator triangulator(&heightmap, m_chunkSize, m_chunkSize, heightmapOffset);
+            triangulator.Run(m_maxError, 0, 0);
 
             jobsystem::Context ctx;
             ctx.allowWorkOnMainThread = false;
 
             std::vector<XMFLOAT3> points;
             jobsystem::Execute(ctx, [&] (jobsystem::JobArgs args) {
-                //points = triangulator.GetPoints();
+                points = triangulator.GetPoints();
             });
 
             std::vector<XMINT3> triangles;
             jobsystem::Execute(ctx, [&] (jobsystem::JobArgs args) {
-                //triangles = triangulator.GetTriangles();
+                triangles = triangulator.GetTriangles();
             });
 
             jobsystem::Wait(ctx);
@@ -485,7 +496,7 @@ namespace cyb::editor
                 mesh->indices[(index * 3) + 2] = triangles[index].y;
             });
 
-            // seperate rock surfaces from ground to enable them
+            // separate rock surfaces from ground to enable them
             // to have different materials
             jobsystem::Wait(ctx);
             uint32_t groundIndices = ColorizeMountains(mesh);
@@ -494,13 +505,13 @@ namespace cyb::editor
             scene::MeshComponent::MeshSubset subset;
             subset.indexOffset = 0;
             subset.indexCount = (uint32_t)groundIndices;
-            subset.materialID = groundMateralID;
+            subset.materialID = groundMaterialID;
             mesh->subsets.push_back(subset);
 
             // setup subset using rock material
             subset.indexOffset = groundIndices;
             subset.indexCount = (uint32_t)mesh->indices.size() - groundIndices;
-            subset.materialID = rockMaterealID;
+            subset.materialID = rockMaterialID;
             mesh->subsets.push_back(subset);
 
             mesh->ComputeSmoothNormals();
@@ -508,65 +519,50 @@ namespace cyb::editor
         };
 
         auto mergeChunks = [&] (int x, int z) {
-            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [&] (uint64_t) {
-                Chunk chunk = { centerChunk.x + x, centerChunk.z + z };
-                auto it = chunks.find(chunk);
-                ChunkData& chunkData = it->second;
+            Chunk chunk = { centerChunk.x + x, centerChunk.z + z };
+            auto it = chunks.find(chunk);
+            ChunkData& chunkData = it->second;
 
-                scene::Scene& scene = scene::GetScene();
-                scene.Merge(chunkData.scene);
-                scene.ComponentAttach(chunkData.entity, m_terrainGroupID);
-            });
+            scene::Scene& scene = scene::GetScene();
+            scene.Merge(chunkData.scene);
+            scene.ComponentAttach(chunkData.entity, m_terrainGroupID);
         };
 
-        std::atomic_bool cancelTerrainGen{ false };
+        requestChunk(0, 0);
+        mergeChunks(0, 0);
 
-        m_jobContext.allowWorkOnMainThread = false;
-        jobsystem::Execute(m_jobContext, [&] (jobsystem::JobArgs) {
-            requestChunk(0, 0);
-            mergeChunks(0, 0);
-            if (cancelTerrainGen.load())
-                return;
-
-            for (int32_t growth = 0; growth < m_chunkExpand; growth++)
+        for (int32_t growth = 0; growth < m_chunkExpand; growth++)
+        {
+            const int side = 2 * (growth + 1);
+            int x = -growth - 1;
+            int z = -growth - 1;
+            for (int i = 0; i < side; ++i)
             {
-                const int side = 2 * (growth + 1);
-                int x = -growth - 1;
-                int z = -growth - 1;
-                for (int i = 0; i < side; ++i)
-                {
-                    requestChunk(x, z);
-                    mergeChunks(x, z);
-                    if (cancelTerrainGen.load())
-                        return;
-                    x++;
-                }
-                for (int i = 0; i < side; ++i)
-                {
-                    requestChunk(x, z);
-                    mergeChunks(x, z);
-                    if (cancelTerrainGen.load())
-                        return;
-                    z++;
-                }
-                for (int i = 0; i < side; ++i)
-                {
-                    requestChunk(x, z);
-                    mergeChunks(x, z);
-                    if (cancelTerrainGen.load())
-                        return;
-                    x--;
-                }
-                for (int i = 0; i < side; ++i)
-                {
-                    requestChunk(x, z);
-                    mergeChunks(x, z);
-                    if (cancelTerrainGen.load())
-                        return;
-                    z--;
-                }
+                requestChunk(x, z);
+                mergeChunks(x, z);
+                x++;
             }
-        });
+            for (int i = 0; i < side; ++i)
+            {
+                requestChunk(x, z);
+                mergeChunks(x, z);
+                z++;
+            }
+            for (int i = 0; i < side; ++i)
+            {
+                requestChunk(x, z);
+                mergeChunks(x, z);
+                x--;
+            }
+            for (int i = 0; i < side; ++i)
+            {
+                requestChunk(x, z);
+                mergeChunks(x, z);
+                z--;
+            }
+        }
+
+        m_generationTime = timer.ElapsedMilliseconds();
     }
 
     NoiseNode_Factory::NoiseNode_Factory()

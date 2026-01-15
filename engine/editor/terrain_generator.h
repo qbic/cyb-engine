@@ -193,6 +193,7 @@ namespace cyb::editor
         };
 
         ImageGenInputPin m_input;
+        float m_generationTime{ 0.0f };
         int m_chunkExpand{ 2 };
         int m_chunkSize{ 256 };             // Chunk size in meters
         float m_maxError{ 0.004f };

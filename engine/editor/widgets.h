@@ -171,7 +171,7 @@ namespace cyb::ui
      * 
      * Bugs / Todo:
      *      * Pin Signature checking when creating connections.
-     *      
+     *      * Serialization / Deserialization of canvas.
      *------------------------------------------------------------------------------*/
 
     // Comment out to enable feature

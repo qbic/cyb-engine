@@ -1,9 +1,11 @@
 #include "systems/profiler.h"
 #include "editor/heightmap.h"
 
+#include <map>
+
 namespace cyb::editor
 {
-    std::pair<XMINT2, float> FindCandidate(const noise2::NoiseImageDesc* imageDesc, uint32_t width, uint32_t height, const XMINT2& offset, const XMINT2& p0, const XMINT2& p1, const XMINT2& p2)
+    std::pair<XMINT2, float> HeightmapTriangulator::FindCandidate(const XMINT2& p0, const XMINT2& p1, const XMINT2& p2)
     {
         auto edge = [] (const XMINT2& a, const XMINT2& b, const XMINT2& c) -> uint32_t {
             return (b.x - c.x) * (a.y - c.y) - (b.y - c.y) * (a.x - c.x);
@@ -11,10 +13,6 @@ namespace cyb::editor
 
         auto computeStartingOffset = [] (int32_t w, const int32_t edgeValue, const int32_t delta) -> int32_t {
             return (edgeValue < 0 && delta != 0) ? Max(0, -edgeValue / delta) : 0;
-        };
-
-        auto getHeightAt = [&] (const XMINT2& p) -> float {
-            return imageDesc->GetValue(p.x + offset.x, p.y + offset.y);
         };
 
         // triangle bounding box
@@ -33,14 +31,16 @@ namespace cyb::editor
         const int32_t b20 = p2.x - p0.x;
 
         // Pre-multiplied z values at vertices
-        const float triangleArea = static_cast<float>(edge(p0, p1, p2));
-        const float z0 = getHeightAt(p0 + offset) / triangleArea;
-        const float z1 = getHeightAt(p1 + offset) / triangleArea;
-        const float z2 = getHeightAt(p2 + offset) / triangleArea;
+        const uint32_t area = edge(p0, p1, p2);
+        if (area == 0)
+            return { p0, 0.0f }; // degenerate triangle
+        const float z0 = HeightAt(p0) / static_cast<float>(area);
+        const float z1 = HeightAt(p1) / static_cast<float>(area);
+        const float z2 = HeightAt(p2) / static_cast<float>(area);
 
         // Iterate over pixels in bounding box
-        float maxError = 0;
-        XMINT2 maxPoint(0, 0);
+        float bestError = 0;
+        XMINT2 bestPoint(0, 0);
         for (int32_t y = bbMin.y; y <= bbMax.y; y++)
         {
             // compute starting offset
@@ -56,18 +56,21 @@ namespace cyb::editor
             bool wasInside = false;
             for (int32_t x = bbMin.x + dx; x <= bbMax.x; x++)
             {
-                // check if inside triangle
+                const XMINT2 point{ x, y };
+
+                // Check if point is inside triangle
                 if (w0 >= 0 && w1 >= 0 && w2 >= 0)
                 {
                     wasInside = true;
 
-                    // compute z using barycentric coordinates
-                    const float z = z0 * w0 + z1 * w1 + z2 * w2;
-                    const float dz = std::abs(z - getHeightAt(XMINT2(x, y) + offset));
-                    if (dz > maxError)
+                    // Compute height error at this point
+                    const float z = z0 * (float)w0 + z1 * (float)w1 + z2 * (float)w2;
+                    const float actual = HeightAt(point);
+                    const float err = std::abs(z - actual);
+                    if (err > bestError)
                     {
-                        maxError = dz;
-                        maxPoint = XMINT2(x, y);
+                        bestError = err;
+                        bestPoint = point;
                     }
                 }
                 else if (wasInside)
@@ -85,19 +88,49 @@ namespace cyb::editor
             w02 += b01;
         }
 
-        if ((maxPoint.x == p0.x && maxPoint.y == p0.y) ||
-            (maxPoint.x == p1.x && maxPoint.y == p1.y) ||
-            (maxPoint.x == p2.x && maxPoint.y == p2.y))
+        // Do not return a vertex as candidate (meaning no interior point found)
+        if ((bestPoint.x == p0.x && bestPoint.y == p0.y) ||
+            (bestPoint.x == p1.x && bestPoint.y == p1.y) ||
+            (bestPoint.x == p2.x && bestPoint.y == p2.y))
         {
-            maxError = 0.0f;
+            bestError = 0.0f;
         }
 
-        return std::make_pair(maxPoint, maxError);
+        return { bestPoint, bestError };
+    }
+
+    void HeightmapTriangulator::BuildHeightCache()
+    {
+        const uint32_t cols{ m_width + 1 };
+        const uint32_t rows{ m_height + 1 };
+
+        m_heightCache.clear();
+        m_heightCache.resize(static_cast<size_t>(cols) * static_cast<size_t>(rows));
+
+        for (uint32_t y = 0; y <= m_height; ++y)
+        {
+            for (uint32_t x = 0; x <= m_width; ++x)
+            {
+                const XMINT2 p{ static_cast<int>(x), static_cast<int>(y) };
+                const float u = float(p.x + m_offset.x) / float(m_heightmap->size.width);
+                const float v = float(p.y + m_offset.y) / float(m_heightmap->size.height);
+                m_heightCache[static_cast<size_t>(y) * cols + x] = m_heightmap->GetValue(u, v);
+            }
+        }
+    }
+
+    float HeightmapTriangulator::HeightAt(const XMINT2& point) const
+    {
+        const uint32_t cols{ m_width + 1 };
+        const size_t idx = static_cast<size_t>(point.y) * cols + static_cast<size_t>(point.x);
+        return m_heightCache[idx];
     }
 
     void HeightmapTriangulator::Run(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints)
     {
-        // add points at all four corners
+        BuildHeightCache();
+
+        // Add points at all four corners
         const int32_t x0 = 0;
         const int32_t y0 = 0;
         const int32_t x1 = m_width;
@@ -107,7 +140,7 @@ namespace cyb::editor
         const int32_t p2 = AddPoint(XMINT2(x0, y1));
         const int32_t p3 = AddPoint(XMINT2(x1, y1));
 
-        // add initial two triangles
+        // Add initial two triangles
         const int t0 = AddTriangle(p3, p0, p2, -1, -1, -1, -1);
         AddTriangle(p0, p3, p1, t0, -1, -1, -1);
         Flush();
@@ -127,14 +160,13 @@ namespace cyb::editor
     {
         std::vector<XMFLOAT3> points;
         points.reserve(m_points.size());
+
         for (const XMINT2& p : m_points)
-        {
-            const float height = m_heightmap->GetValue(p.x + m_offset.x, p.y + m_offset.y);
             points.emplace_back(
                 static_cast<float>(p.x) / static_cast<float>(m_width),
-                height,
+                HeightAt(p),
                 static_cast<float>(p.y) / static_cast<float>(m_height));
-        }
+
         return points;
     }
 
@@ -142,13 +174,13 @@ namespace cyb::editor
     {
         std::vector<XMINT3> triangles;
         triangles.reserve(m_queue.size());
+
         for (const auto i : m_queue)
-        {
             triangles.emplace_back(
                 m_triangles[i * 3 + 0],
                 m_triangles[i * 3 + 1],
                 m_triangles[i * 3 + 2]);
-        }
+
         return triangles;
     }
 
@@ -158,9 +190,6 @@ namespace cyb::editor
         {
             // rasterize triangle to find maximum pixel error
             const auto pair = FindCandidate(
-                m_heightmap,
-                m_width, m_height,
-                m_offset,
                 m_points[m_triangles[t * 3 + 0]],
                 m_points[m_triangles[t * 3 + 1]],
                 m_points[m_triangles[t * 3 + 2]]);

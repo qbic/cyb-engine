@@ -2,6 +2,7 @@
 #include "game.h"
 
 #include "graphics/display.h"
+
 using namespace cyb;
 
 void Game::Load()

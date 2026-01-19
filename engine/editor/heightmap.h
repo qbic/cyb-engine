@@ -4,32 +4,45 @@
 
 namespace cyb::editor
 {
-    class HeightmapTriangulator
+    class Heightmap
     {
     public:
-        HeightmapTriangulator(const noise2::NoiseImageDesc* imageDesc, uint32_t width, uint32_t height, const XMINT2& offset) :
-            m_heightmap(imageDesc),
-            m_offset(offset),
+        explicit Heightmap(
+            const noise2::NoiseImageDesc* imageDesc,
+            int32_t width,
+            int32_t height,
+            XMINT2 offset = { 0, 0 });
+        [[nodiscard]] float Sample(int32_t x, int32_t y) const noexcept;
+
+    protected:
+        std::vector<float> m_data{};
+        int32_t m_width{ 0 };
+        int32_t m_height{ 0 };
+    };
+
+
+    class DelaunayTriangulator
+    {
+    public:
+        DelaunayTriangulator(const Heightmap& hm, uint32_t width, uint32_t height) :
+            m_heightmap(hm),
             m_width(width),
             m_height(height)
         {
         }
 
-        void Run(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints);
+        void Triangulate(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints);
 
-        [[nodiscard]] uint32_t NumPoints() const { return (uint32_t)m_points.size(); }
-        [[nodiscard]] uint32_t NumTriangles() const { return (uint32_t)m_queue.size(); }
+        [[nodiscard]] uint32_t NumPoints() const noexcept { return (uint32_t)m_points.size(); }
+        [[nodiscard]] uint32_t NumTriangles() const noexcept { return (uint32_t)m_queue.size(); }
         [[nodiscard]] float Error() const { return m_errors[m_queue[0]]; }
 
         [[nodiscard]] std::vector<XMFLOAT3> GetPoints() const;
         [[nodiscard]] std::vector<XMINT3> GetTriangles() const;
 
     private:
-        std::pair<XMINT2, float> FindCandidate(const XMINT2& p0, const XMINT2& p1, const XMINT2& p2);
-        void BuildHeightCache();
-        float HeightAt(const XMINT2& point) const;
         void Flush();
-        void Step();
+        void SplitTriangle(int t);
         uint32_t AddPoint(const XMINT2 point);
         int AddTriangle(
             const int a, const int b, const int c,
@@ -45,9 +58,7 @@ namespace cyb::editor
         void QueueUp(const size_t j0);
         bool QueueDown(const size_t i0, const size_t n);
 
-        const noise2::NoiseImageDesc* m_heightmap;
-        std::vector<float> m_heightCache;
-        XMINT2 m_offset;
+        const Heightmap& m_heightmap;
         uint32_t m_width;
         uint32_t m_height;
         std::vector<XMINT2> m_points;
@@ -60,4 +71,6 @@ namespace cyb::editor
         std::vector<uint32_t> m_queue;
         std::vector<uint32_t> m_pending;
     };
+
+
 }

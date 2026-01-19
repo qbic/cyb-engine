@@ -95,14 +95,14 @@ namespace cyb::editor
         float m_bias{ 0.0f };
     };
 
-    class StrataNode : public ui::NG_Node
+    class ModulateNode : public ui::NG_Node
     {
     public:
         static constexpr std::string_view typeString = "Strata";
         using Signature = ImageGenPinSignature;
 
-        StrataNode();
-        virtual ~StrataNode() = default;
+        ModulateNode();
+        virtual ~ModulateNode() = default;
         void DisplayContent() override;
 
     private:

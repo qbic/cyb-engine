@@ -87,6 +87,11 @@ namespace cyb::editor
             const float valueB = m_inputB->Invoke(x, y);
             return valueA * valueB;
         });
+        AddOutputPin<Signature>("Add", [&] (float x, float y) -> float {
+            const float valueA = m_inputA->Invoke(x, y);
+            const float valueB = m_inputB->Invoke(x, y);
+            return valueA + valueB;
+        });
     }
 
     void BlendNode::DisplayContent()
@@ -122,7 +127,7 @@ namespace cyb::editor
         ui::SliderFloat("Bias", &m_bias, onChange, 0.0f, 1.0f);
     }
 
-    StrataNode::StrataNode() :
+    ModulateNode::ModulateNode() :
         NG_Node(typeString, 160.0f)
     {
         m_input = AddInputPin<Signature>("Input");
@@ -134,7 +139,7 @@ namespace cyb::editor
         });
     }
 
-    void StrataNode::DisplayContent()
+    void ModulateNode::DisplayContent()
     {
         auto onChange = [&] () { ModifiedFlag = true; };
 
@@ -267,7 +272,7 @@ namespace cyb::editor
         }
         else
         {
-            // Display a geay box when no image is available
+            // Display a gray box when no image is available
             const ImGuiWindow* window = ImGui::GetCurrentWindow();
             const ImRect bb(window->DC.CursorPos, window->DC.CursorPos + imageSize);
             ImGui::ItemSize(bb);
@@ -455,9 +460,10 @@ namespace cyb::editor
             object->meshID = chunkData.entity;
 
             // generate triangulated heightmap mesh
-            XMINT2 heightmapOffset = XMINT2(xOffset * m_chunkSize, zOffset * m_chunkSize);
-            HeightmapTriangulator triangulator(&heightmap, m_chunkSize, m_chunkSize, heightmapOffset);
-            triangulator.Run(m_maxError, 0, 0);
+            const XMINT2 heightmapOffset = XMINT2(xOffset * m_chunkSize, zOffset * m_chunkSize);
+            const Heightmap hm{ &heightmap, m_chunkSize, m_chunkSize, heightmapOffset };
+            DelaunayTriangulator triangulator{ hm, m_chunkSize, m_chunkSize };
+            triangulator.Triangulate(m_maxError, 0, 0);
 
             jobsystem::Context ctx;
             ctx.allowWorkOnMainThread = false;
@@ -577,7 +583,7 @@ namespace cyb::editor
         RegisterNodeType<InvertNode>(InvertNode::typeString, Category::Modifier);
         RegisterNodeType<ScaleBiasNode>(ScaleBiasNode::typeString, Category::Modifier);
         RegisterNodeType<SelectNode>(SelectNode::typeString, Category::Modifier);
-        RegisterNodeType<StrataNode>(StrataNode::typeString, Category::Modifier);
+        RegisterNodeType<ModulateNode>(ModulateNode::typeString, Category::Modifier);
 
         // Consumer node types
         RegisterNodeType<GenerateMeshNode>(GenerateMeshNode::typeString, Category::Consumer);

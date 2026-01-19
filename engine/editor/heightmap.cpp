@@ -1,18 +1,47 @@
 #include "systems/profiler.h"
 #include "editor/heightmap.h"
 
-#include <map>
-
 namespace cyb::editor
 {
-    std::pair<XMINT2, float> HeightmapTriangulator::FindCandidate(const XMINT2& p0, const XMINT2& p1, const XMINT2& p2)
+    Heightmap::Heightmap(
+        const noise2::NoiseImageDesc* imageDesc,
+        int32_t width,
+        int32_t height,
+        XMINT2 offset) :
+        m_width{ width + 1 },
+        m_height{ height + 1 }
     {
-        auto edge = [] (const XMINT2& a, const XMINT2& b, const XMINT2& c) -> uint32_t {
+        m_data.resize(static_cast<size_t>(m_width) * static_cast<size_t>(m_height));
+
+        for (int32_t y = 0; y < m_height; ++y)
+        {
+            for (int32_t x = 0; x < m_width; ++x)
+            {
+                const XMINT2 p{ static_cast<int>(x), static_cast<int>(y) };
+                const float u = float(p.x + offset.x) / float(imageDesc->size.width);
+                const float v = float(p.y + offset.y) / float(imageDesc->size.height);
+                m_data[static_cast<size_t>(y) * m_width + x] = imageDesc->GetValue(u, v);
+            }
+        }
+    }
+
+    float Heightmap::Sample(int32_t x, int32_t y) const noexcept
+    {
+        return m_data[static_cast<size_t>(y) * m_width + static_cast<size_t>(x)];
+    }
+
+    [[nodiscard]] static std::pair<XMINT2, float> FindCandidate(
+        const Heightmap& hm,
+        const XMINT2& p0,
+        const XMINT2& p1,
+        const XMINT2& p2)
+    {
+        auto edge = [] (const XMINT2& a, const XMINT2& b, const XMINT2& c) -> int32_t {
             return (b.x - c.x) * (a.y - c.y) - (b.y - c.y) * (a.x - c.x);
         };
 
-        auto computeStartingOffset = [] (int32_t w, const int32_t edgeValue, const int32_t delta) -> int32_t {
-            return (edgeValue < 0 && delta != 0) ? Max(0, -edgeValue / delta) : 0;
+        auto computeOffset = [] (const int32_t edgeValue, const int32_t delta) -> int32_t {
+            return (edgeValue < 0 && delta != 0) ? std::max(0, (-edgeValue + (delta - 1)) / delta) : 0;
         };
 
         // triangle bounding box
@@ -34,20 +63,20 @@ namespace cyb::editor
         const uint32_t area = edge(p0, p1, p2);
         if (area == 0)
             return { p0, 0.0f }; // degenerate triangle
-        const float z0 = HeightAt(p0) / static_cast<float>(area);
-        const float z1 = HeightAt(p1) / static_cast<float>(area);
-        const float z2 = HeightAt(p2) / static_cast<float>(area);
+        const float z0 = hm.Sample(p0.x, p0.y) / static_cast<float>(area);
+        const float z1 = hm.Sample(p1.x, p1.y) / static_cast<float>(area);
+        const float z2 = hm.Sample(p2.x, p2.y) / static_cast<float>(area);
 
         // Iterate over pixels in bounding box
-        float bestError = 0;
-        XMINT2 bestPoint(0, 0);
+        float bestError = 0.0f;
+        XMINT2 bestPoint{ 0, 0 };
         for (int32_t y = bbMin.y; y <= bbMax.y; y++)
         {
             // compute starting offset
-            int32_t dx = 0;
-            dx = computeStartingOffset(dx, w00, a12);
-            dx = computeStartingOffset(dx, w01, a20);
-            dx = computeStartingOffset(dx, w02, a01);
+            int32_t dx = std::max({
+                computeOffset(w00, a12),
+                computeOffset(w01, a20),
+                computeOffset(w02, a01) });
 
             int32_t w0 = w00 + a12 * dx;
             int32_t w1 = w01 + a20 * dx;
@@ -65,7 +94,7 @@ namespace cyb::editor
 
                     // Compute height error at this point
                     const float z = z0 * (float)w0 + z1 * (float)w1 + z2 * (float)w2;
-                    const float actual = HeightAt(point);
+                    const float actual = hm.Sample(point.x, point.y);
                     const float err = std::abs(z - actual);
                     if (err > bestError)
                     {
@@ -75,6 +104,7 @@ namespace cyb::editor
                 }
                 else if (wasInside)
                 {
+                    // Move to next row if we have exited the triangle
                     break;
                 }
 
@@ -99,48 +129,14 @@ namespace cyb::editor
         return { bestPoint, bestError };
     }
 
-    void HeightmapTriangulator::BuildHeightCache()
+    void DelaunayTriangulator::Triangulate(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints)
     {
-        const uint32_t cols{ m_width + 1 };
-        const uint32_t rows{ m_height + 1 };
-
-        m_heightCache.clear();
-        m_heightCache.resize(static_cast<size_t>(cols) * static_cast<size_t>(rows));
-
-        for (uint32_t y = 0; y <= m_height; ++y)
-        {
-            for (uint32_t x = 0; x <= m_width; ++x)
-            {
-                const XMINT2 p{ static_cast<int>(x), static_cast<int>(y) };
-                const float u = float(p.x + m_offset.x) / float(m_heightmap->size.width);
-                const float v = float(p.y + m_offset.y) / float(m_heightmap->size.height);
-                m_heightCache[static_cast<size_t>(y) * cols + x] = m_heightmap->GetValue(u, v);
-            }
-        }
-    }
-
-    float HeightmapTriangulator::HeightAt(const XMINT2& point) const
-    {
-        const uint32_t cols{ m_width + 1 };
-        const size_t idx = static_cast<size_t>(point.y) * cols + static_cast<size_t>(point.x);
-        return m_heightCache[idx];
-    }
-
-    void HeightmapTriangulator::Run(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints)
-    {
-        BuildHeightCache();
-
-        // Add points at all four corners
-        const int32_t x0 = 0;
-        const int32_t y0 = 0;
-        const int32_t x1 = m_width;
-        const int32_t y1 = m_height;
-        const int32_t p0 = AddPoint(XMINT2(x0, y0));
-        const int32_t p1 = AddPoint(XMINT2(x1, y0));
-        const int32_t p2 = AddPoint(XMINT2(x0, y1));
-        const int32_t p3 = AddPoint(XMINT2(x1, y1));
-
-        // Add initial two triangles
+        // Create an initial quad to start triangulation from
+        const int32_t p0 = AddPoint({ 0,        0        });
+        const int32_t p1 = AddPoint({ (int32_t)m_width,  0        });
+        const int32_t p2 = AddPoint({ 0,        (int32_t)m_height });
+        const int32_t p3 = AddPoint({ (int32_t)m_width, (int32_t)m_height  });
+        
         const int t0 = AddTriangle(p3, p0, p2, -1, -1, -1, -1);
         AddTriangle(p0, p3, p1, t0, -1, -1, -1);
         Flush();
@@ -153,24 +149,32 @@ namespace cyb::editor
         };
 
         while (!done())
-            Step();
+        {
+            // pop triangle with highest error from priority queue
+            const int t = QueuePop();
+
+            SplitTriangle(t);
+        }
     }
 
-    std::vector<XMFLOAT3> HeightmapTriangulator::GetPoints() const
+    std::vector<XMFLOAT3> DelaunayTriangulator::GetPoints() const
     {
         std::vector<XMFLOAT3> points;
         points.reserve(m_points.size());
 
+        const float invW = 1.0f / static_cast<float>(m_width);
+        const float invH = 1.0f / static_cast<float>(m_height);
+
         for (const XMINT2& p : m_points)
             points.emplace_back(
-                static_cast<float>(p.x) / static_cast<float>(m_width),
-                HeightAt(p),
-                static_cast<float>(p.y) / static_cast<float>(m_height));
+                static_cast<float>(p.x) * invW,
+                m_heightmap.Sample(p.x, p.y),
+                static_cast<float>(p.y) * invH);
 
         return points;
     }
 
-    std::vector<XMINT3> HeightmapTriangulator::GetTriangles() const
+    std::vector<XMINT3> DelaunayTriangulator::GetTriangles() const
     {
         std::vector<XMINT3> triangles;
         triangles.reserve(m_queue.size());
@@ -184,12 +188,13 @@ namespace cyb::editor
         return triangles;
     }
 
-    void HeightmapTriangulator::Flush()
+    void DelaunayTriangulator::Flush()
     {
         for (const int t : m_pending)
         {
             // rasterize triangle to find maximum pixel error
             const auto pair = FindCandidate(
+                m_heightmap,
                 m_points[m_triangles[t * 3 + 0]],
                 m_points[m_triangles[t * 3 + 1]],
                 m_points[m_triangles[t * 3 + 2]]);
@@ -205,11 +210,8 @@ namespace cyb::editor
         m_pending.clear();
     }
 
-    void HeightmapTriangulator::Step()
+    void DelaunayTriangulator::SplitTriangle(int t)
     {
-        // pop triangle with highest error from priority queue
-        const int t = QueuePop();
-
         const int e0 = t * 3 + 0;
         const int e1 = t * 3 + 1;
         const int e2 = t * 3 + 2;
@@ -300,14 +302,14 @@ namespace cyb::editor
         Flush();
     }
 
-    uint32_t HeightmapTriangulator::AddPoint(const XMINT2 point)
+    uint32_t DelaunayTriangulator::AddPoint(const XMINT2 point)
     {
         m_points.push_back(point);
         assert(m_points.size() < std::numeric_limits<uint32_t>::max());
         return (uint32_t)m_points.size() - 1;
     }
 
-    int HeightmapTriangulator::AddTriangle(
+    int DelaunayTriangulator::AddTriangle(
         const int a, const int b, const int c,
         const int ab, const int bc, const int ca,
         int32_t e)
@@ -357,7 +359,7 @@ namespace cyb::editor
         return e;
     }
 
-    void HeightmapTriangulator::Legalize(const int a)
+    void DelaunayTriangulator::Legalize(const int a)
     {
         // if the pair of triangles doesn't satisfy the Delaunay condition
         // (p1 is inside the circumcircle of [p0, pl, pr]), flip them,
@@ -373,17 +375,20 @@ namespace cyb::editor
         //       ar\ || /br             b\    /br
         //          \||/                  \  /
         //           pr                    pr
-        const auto inCircle = [] (const XMINT2& a, const XMINT2& b, const XMINT2& c, const XMINT2& p) {
-            const int32_t dx = a.x - p.x;
-            const int32_t dy = a.y - p.y;
-            const int32_t ex = b.x - p.x;
-            const int32_t ey = b.y - p.y;
-            const int32_t fx = c.x - p.x;
-            const int32_t fy = c.y - p.y;
-            const int64_t ap = dx * dx + dy * dy;
-            const int64_t bp = ex * ex + ey * ey;
-            const int64_t cp = fx * fx + fy * fy;
-            return dx * (ey * cp - bp * fy) - dy * (ex * cp - bp * fx) + ap * (ex * fy - ey * fx) < 0;
+        auto inCircle = [] (const XMINT2& a, const XMINT2& b, const XMINT2& c, const XMINT2& d) {
+            
+            const int32_t ax = a.x - d.x;
+            const int32_t ay = a.y - d.y;
+            const int32_t bx = b.x - d.x;
+            const int32_t by = b.y - d.y;
+            const int32_t cx = c.x - d.x;
+            const int32_t cy = c.y - d.y;
+
+            const int64_t det =
+                (ax * ax + ay * ay) * (bx * cy - cx * by) -
+                (bx * bx + by * by) * (ax * cy - cx * ay) +
+                (cx * cx + cy * cy) * (ax * by - bx * ay);
+            return det < 0;
         };
 
         const int b = m_halfedges[a];
@@ -419,7 +424,7 @@ namespace cyb::editor
         Legalize(t1 + 2);
     }
 
-    void HeightmapTriangulator::QueuePush(const int t)
+    void DelaunayTriangulator::QueuePush(const int t)
     {
         const uint32_t i = (uint32_t)m_queue.size();
         m_queueIndexes[t] = i;
@@ -427,7 +432,7 @@ namespace cyb::editor
         QueueUp(i);
     }
 
-    int HeightmapTriangulator::QueuePop()
+    int DelaunayTriangulator::QueuePop()
     {
         const uint32_t n = (uint32_t)m_queue.size() - 1;
         QueueSwap(0, n);
@@ -435,7 +440,7 @@ namespace cyb::editor
         return QueuePopBack();
     }
 
-    int HeightmapTriangulator::QueuePopBack()
+    int DelaunayTriangulator::QueuePopBack()
     {
         const uint32_t t = m_queue.back();
         m_queue.pop_back();
@@ -443,7 +448,7 @@ namespace cyb::editor
         return t;
     }
 
-    void HeightmapTriangulator::QueueRemove(const int t)
+    void DelaunayTriangulator::QueueRemove(const int t)
     {
         const size_t i = m_queueIndexes[t];
         if (i == ~0)
@@ -465,12 +470,12 @@ namespace cyb::editor
         QueuePopBack();
     }
 
-    bool HeightmapTriangulator::QueueLess(const size_t i, const size_t j) const
+    bool DelaunayTriangulator::QueueLess(const size_t i, const size_t j) const
     {
-        return -m_errors[m_queue[i]] < -m_errors[m_queue[j]];
+        return m_errors[m_queue[i]] > m_errors[m_queue[j]];
     }
 
-    void HeightmapTriangulator::QueueSwap(const size_t i, const size_t j)
+    void DelaunayTriangulator::QueueSwap(const size_t i, const size_t j)
     {
         const int pi = m_queue[i];
         const int pj = m_queue[j];
@@ -480,7 +485,7 @@ namespace cyb::editor
         m_queueIndexes[pj] = i;
     }
 
-    void HeightmapTriangulator::QueueUp(const size_t j0)
+    void DelaunayTriangulator::QueueUp(const size_t j0)
     {
         size_t j = j0;
         while (1)
@@ -493,7 +498,7 @@ namespace cyb::editor
         }
     }
 
-    bool HeightmapTriangulator::QueueDown(const size_t i0, const size_t n)
+    bool DelaunayTriangulator::QueueDown(const size_t i0, const size_t n)
     {
         size_t i = i0;
         while (1)

@@ -8,6 +8,8 @@
 #include "core/hash.h"
 #include "imgui.h"
 
+#include "third_party/json.hpp"
+
 namespace cyb::ui
 {
     //------------------------------------------------------------------------------
@@ -136,9 +138,9 @@ namespace cyb::ui
 
     struct PlotLineDesc
     {
-        std::string_view Label;
-        ImU32 Color = 0;
-        std::span<const float> Values = {};
+        std::string_view Label{};
+        ImU32 Color{ 0 };
+        std::span<const float> Values{};
     };
 
     void PlotMultiLines(
@@ -171,7 +173,7 @@ namespace cyb::ui
      * 
      * Bugs / Todo:
      *      * Pin Signature checking when creating connections.
-     *      * Serialization / Deserialization of canvas.
+     *      * Button background frame size isn't always correct.
      *------------------------------------------------------------------------------*/
 
     // Comment out to enable feature
@@ -182,10 +184,13 @@ namespace cyb::ui
 
     enum NG_CanvasFlags
     {
-        NG_CanvasFlags_None = 0,
-        NG_CanvasFlags_DisplayGrid = 1 << 0,
-        NG_CanvasFlags_DisplayState = 1 << 1,
-        NG_CanvasFlags_Default = NG_CanvasFlags_DisplayGrid
+        NG_CanvasFlags_None             = 0,
+        NG_CanvasFlags_NoGrid           = 1 << 0,
+        NG_CanvasFlags_NoStateText      = 1 << 1,
+        NG_CanvasFlags_NoClearButton    = 1 << 2,
+        NG_CanvasFlags_NoLoadButton     = 1 << 3,
+        NG_CanvasFlags_NoSaveButton     = 1 << 4,
+        NG_CanvasFlags_NoButtons = NG_CanvasFlags_NoClearButton | NG_CanvasFlags_NoLoadButton | NG_CanvasFlags_NoSaveButton,
     };
 
     struct NG_Node;
@@ -319,10 +324,12 @@ namespace cyb::ui
         ImColor ConnectionColor{ 255, 255, 255 };
         ImColor ConnectionHoverColor{ 66, 158, 245 };
         ImColor ConnectionDragColor{ 200, 200, 100 };
+        ImColor ButtonsFrameColor{ 222, 247, 57, 141 };
     };
 
     struct NG_Node
     {
+        using json_type = nlohmann::ordered_json;
         ImVec2 Pos{ 0, 0 };             // Position, relative to cavas
         ImVec2 Size{ 1, 1 };
         std::vector<std::shared_ptr<detail::NG_Pin>> Inputs;
@@ -345,6 +352,9 @@ namespace cyb::ui
 
         // This may be implemented in derived class for displaying custom items.
         virtual void DisplayContent() {}
+
+        virtual void SerializeToJson(json_type& json) const {}
+        virtual void SerializeFromJson(const json_type& json) {}
 
         /**
          * @brief Node type user implemented update function.
@@ -445,10 +455,12 @@ namespace cyb::ui
 
     struct NG_Canvas
     {
+        static constexpr float OffsetLimit{ 15000.0f };
+
         ImVec2 Pos{ 0.0f, 0.0f };
         ImVec2 Offset{ 0.0f, 0.0f };                    // Canvas scrolling offset
         float Zoom{ 1.0f };
-        uint32_t Flags{ NG_CanvasFlags_Default };
+        uint32_t Flags{ NG_CanvasFlags_None };
         NG_Style Style;
         std::unique_ptr<NG_Factory> Factory;            // Can be overwritten by custom user defined factory.
         std::vector<std::unique_ptr<NG_Node>> Nodes;    // Nodes, sorted in display order, back to front.
@@ -487,6 +499,8 @@ namespace cyb::ui
          */
         [[nodiscard]] bool NodeHasValidState(const NG_Node* node) const;
 
+        void AddConnection(std::shared_ptr<NG_Connection> connection);
+
         /**
          * @brief Remove connection from canvas and update pin connection states.
          */
@@ -508,6 +522,11 @@ namespace cyb::ui
             }
             return old_size - Connections.size();
         }
+
+        /**
+         * @brief Clear all nodes and connections from canvas.
+         */
+        void Clear();
 
         /**
          * @brief Send an update signal calling NG_Node::Update() to all parents connected to node.
@@ -532,6 +551,16 @@ namespace cyb::ui
          * @brief Find node by node id and bring it to the front.
          */
         void BringNodeToDisplayFront(ImGuiID node_id);
+
+        /**
+         * @brief Serialize canvas to a json object.
+         */
+        void SerializeToJson(NG_Node::json_type& json) const;
+
+        /**
+         * @brief Serialize canvas from a json object.
+         */
+        void SerializeFromJson(const NG_Node::json_type& json);
     };
 
     bool NodeGraph(NG_Canvas& canvas);

@@ -10,6 +10,7 @@
 #include "config.h"
 
 #include "editor/imgui_backend.h"
+#include "editor/filedialog.h"
 
 using namespace cyb::rhi;
 
@@ -125,6 +126,9 @@ namespace cyb::hli
     void Application::SetWindow(WindowHandle window)
     {
         this->window = window;
+
+        // this should probably be handled by the editor separately
+        SetFileDialogParentWindow(window);
 
         if (graphicsDevice == nullptr)
         {

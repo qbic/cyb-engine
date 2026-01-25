@@ -8,6 +8,7 @@
 #include "systems/event_system.h"
 #include "systems/profiler.h"
 #include "editor/editor.h"
+#include "editor/heightmap.h"
 #include "editor/terrain_generator.h"
 #include "editor/undo_manager.h"
 #include "json.hpp"
@@ -37,6 +38,24 @@ namespace cyb::editor
         ui::SliderFloat("Persistence", &m_param.persistence, onChange, 0.0f, 4.0f);
     }
 
+    void PerlinNode::SerializeToJson(json_type& json) const
+    {
+        json["seed"] = m_param.seed;
+        json["frequency"] = m_param.frequency;
+        json["octaves"] = m_param.octaves;
+        json["lacunarity"] = m_param.lacunarity;
+        json["persistence"] = m_param.persistence;
+    }
+
+    void PerlinNode::SerializeFromJson(const json_type& json)
+    {
+        m_param.seed = json.value("seed", m_param.seed);
+        m_param.frequency = json.value("frequency", m_param.frequency);
+        m_param.octaves = json.value("octaves", m_param.octaves);
+        m_param.lacunarity = json.value("lacunarity", m_param.lacunarity);
+        m_param.persistence = json.value("persistence", m_param.persistence);
+    }
+
     CellularNode::CellularNode() :
         NG_Node(typeString, 240.0f)
     {
@@ -57,6 +76,26 @@ namespace cyb::editor
         ui::SliderFloat("Persistence", &m_param.persistence, onChange, 0.0f, 4.0f);
     }
 
+    void CellularNode::SerializeToJson(json_type& json) const
+    {
+        json["seed"] = m_param.seed;
+        json["frequency"] = m_param.frequency;
+        json["jitter_modifier"] = m_param.jitterModifier;
+        json["octaves"] = m_param.octaves;
+        json["lacunarity"] = m_param.lacunarity;
+        json["persistence"] = m_param.persistence;
+    }
+
+    void CellularNode::SerializeFromJson(const json_type& json)
+    {
+        m_param.seed = json["seed"];
+        m_param.frequency = json["frequency"];
+        m_param.jitterModifier = json["jitter_modifier"];
+        m_param.octaves = json["octaves"];
+        m_param.lacunarity = json["lacunarity"];
+        m_param.persistence = json["persistence"];
+    }
+
     ConstNode::ConstNode() :
         NG_Node(typeString, 160.0f)
     {
@@ -70,6 +109,16 @@ namespace cyb::editor
         auto onChange = [&] () { ModifiedFlag = true; };
 
         ui::SliderFloat("Value", &m_value, onChange, 0.0f, 1.0f);
+    }
+
+    void ConstNode::SerializeToJson(json_type& json) const
+    {
+        json["value"] = m_value;
+    }
+
+    void ConstNode::SerializeFromJson(const json_type& json)
+    {
+        m_value = json["value"];
     }
 
     BlendNode::BlendNode() :
@@ -101,6 +150,16 @@ namespace cyb::editor
         ui::SliderFloat("Alpha", &m_alpha, onChange, 0.0f, 1.0f);
     }
 
+    void BlendNode::SerializeToJson(json_type& json) const
+    {
+        json["alpha"] = m_alpha;
+    }
+
+    void BlendNode::SerializeFromJson(const json_type& json)
+    {
+        m_alpha = json["alpha"];
+    }
+
     InvertNode::InvertNode() :
         NG_Node(typeString)
     {
@@ -127,7 +186,19 @@ namespace cyb::editor
         ui::SliderFloat("Bias", &m_bias, onChange, 0.0f, 1.0f);
     }
 
-    ModulateNode::ModulateNode() :
+    void ScaleBiasNode::SerializeToJson(json_type& json) const
+    {
+        json["scale"] = m_scale;
+        json["bias"] = m_bias;
+    }
+
+    void ScaleBiasNode::SerializeFromJson(const json_type& json)
+    {
+        m_scale = json["scale"];
+        m_bias = json["bias"];
+    }
+
+    StrataNode::StrataNode() :
         NG_Node(typeString, 160.0f)
     {
         m_input = AddInputPin<Signature>("Input");
@@ -139,11 +210,21 @@ namespace cyb::editor
         });
     }
 
-    void ModulateNode::DisplayContent()
+    void StrataNode::DisplayContent()
     {
         auto onChange = [&] () { ModifiedFlag = true; };
 
         ui::SliderFloat("Strata", &m_strata, onChange, 2.0f, 12.0f);
+    }
+
+    void StrataNode::SerializeToJson(json_type& json) const
+    {
+        json["strata"] = m_strata;
+    }
+
+    void StrataNode::SerializeFromJson(const json_type& json)
+    {
+        m_strata = json["strata"];
     }
 
     SelectNode::SelectNode() :
@@ -183,6 +264,18 @@ namespace cyb::editor
 
         ui::SliderFloat("Threshold", &m_threshold, onChange, 0.0f, 1.0f);
         ui::SliderFloat("Edge Falloff", &m_edgeFalloff, onChange, 0.0f, 1.0f);
+    }
+
+    void SelectNode::SerializeToJson(json_type& json) const
+    {
+        json["threshold"] = m_threshold;
+        json["edge_falloff"] = m_edgeFalloff;
+    }
+
+    void SelectNode::SerializeFromJson(const json_type& json)
+    {
+        m_threshold = json["threshold"];
+        m_edgeFalloff = json["edge_falloff"];
     }
 
     struct NoiseNodeImageDesc : noise2::NoiseImageDesc
@@ -287,6 +380,20 @@ namespace cyb::editor
             Update();
     }
 
+    void PreviewNode::SerializeToJson(json_type& json) const
+    {
+        json["auto_update"] = m_autoUpdate;
+        json["preview_size"] = m_previewSize;
+        json["freq_scale"] = m_freqScale;
+    }
+
+    void PreviewNode::SerializeFromJson(const json_type& json)
+    {
+        m_autoUpdate = json["auto_update"];
+        m_previewSize = json["preview_size"];
+        m_freqScale = json["freq_scale"];
+    }
+
     GenerateMeshNode::GenerateMeshNode() :
         NG_Node(typeString)
     {
@@ -307,7 +414,7 @@ namespace cyb::editor
     void GenerateMeshNode::DisplayContent()
     {
         ui::SliderInt("ChunkExpand", (int*)&m_chunkExpand, nullptr, 0, 24);
-        ui::DragInt("ChunkSize", &m_chunkSize, 1, 1, 2000, "%dm");
+        ui::DragInt("ChunkSize", (int*)&m_chunkSize, 1, 1, 2000, "%dm");
         ui::DragFloat("Min Altitude", &m_minMeshAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
         ui::DragFloat("Max Altitude", &m_maxMeshAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
         ui::SliderFloat("Max Error", &m_maxError, nullptr, 0.0001f, 0.01f, "%.4f");
@@ -333,6 +440,26 @@ namespace cyb::editor
 
         if (m_generationTime > 0.0f)
             ImGui::Text("Generated in %.2fms", m_generationTime);
+    }
+
+    void GenerateMeshNode::SerializeToJson(json_type& json) const
+    {
+        json["chunk_expand"] = m_chunkExpand;
+        json["chunk_size"] = m_chunkSize;
+        json["max_error"] = m_maxError;
+        json["min_mesh_altitude"] = m_minMeshAltitude;
+        json["max_mesh_altitude"] = m_maxMeshAltitude;
+        //json["biome_color_band"] = m_biomeColorBand;
+    }
+
+    void GenerateMeshNode::SerializeFromJson(const json_type& json)
+    {
+        m_chunkExpand = json["chunk_expand"];
+        m_chunkSize = json["chunk_size"];
+        m_maxError = json["max_error"];
+        m_minMeshAltitude = json["min_mesh_altitude"];
+        m_maxMeshAltitude = json["max_mesh_altitude"];
+        //m_biomeColorBand = json["biome_color_band"];
     }
 
     // Colorize vertical faces with rock color.
@@ -460,7 +587,7 @@ namespace cyb::editor
             object->meshID = chunkData.entity;
 
             // generate triangulated heightmap mesh
-            const XMINT2 heightmapOffset = XMINT2(xOffset * m_chunkSize, zOffset * m_chunkSize);
+            const XMINT2 heightmapOffset{ xOffset * int32_t(m_chunkSize), zOffset * int32_t(m_chunkSize) };
             const Heightmap hm{ &heightmap, m_chunkSize, m_chunkSize, heightmapOffset };
             DelaunayTriangulator triangulator{ hm, m_chunkSize, m_chunkSize };
             triangulator.Triangulate(m_maxError, 0, 0);
@@ -583,7 +710,7 @@ namespace cyb::editor
         RegisterNodeType<InvertNode>(InvertNode::typeString, Category::Modifier);
         RegisterNodeType<ScaleBiasNode>(ScaleBiasNode::typeString, Category::Modifier);
         RegisterNodeType<SelectNode>(SelectNode::typeString, Category::Modifier);
-        RegisterNodeType<ModulateNode>(ModulateNode::typeString, Category::Modifier);
+        RegisterNodeType<StrataNode>(StrataNode::typeString, Category::Modifier);
 
         // Consumer node types
         RegisterNodeType<GenerateMeshNode>(GenerateMeshNode::typeString, Category::Consumer);
@@ -608,571 +735,4 @@ namespace cyb::editor
                 ImGui::Separator();
         }
     }
-
-#if 0
-
-    static const std::unordered_map<HeightmapStrataOp, std::string> g_strataFuncCombo = {
-        { HeightmapStrataOp::None,              "None"          },
-        { HeightmapStrataOp::SharpSub,          "SharpSub"      },
-        { HeightmapStrataOp::SharpAdd,          "SharpAdd"      },
-        { HeightmapStrataOp::Quantize,          "Quantize"      },
-        { HeightmapStrataOp::Smooth,            "Smooth"        }
-    };
-
-    static const std::unordered_map<noise::Type, std::string> g_noiseTypeCombo = {
-        { noise::Type::Perlin,                  "Perlin"        },
-        { noise::Type::Cellular,                "Cellular"      }
-    };
-
-    static const std::unordered_map<HeightmapCombineOp, std::string> g_mixOpCombo = {
-        { HeightmapCombineOp::Add,              "Add"           },
-        { HeightmapCombineOp::Sub,              "Sub"           },
-        { HeightmapCombineOp::Mul,              "Mul"           },
-        { HeightmapCombineOp::Lerp,             "Lerp"          }
-    };
-
-    static const std::unordered_map<noise::CellularReturn, std::string> g_cellularReturnTypeCombo = {
-        { noise::CellularReturn::CellValue,     "CellValue"     },
-        { noise::CellularReturn::Distance,      "Distance"      },
-        { noise::CellularReturn::Distance2,     "Distance2"     },
-        { noise::CellularReturn::Distance2Add,  "Distance2Add"  },
-        { noise::CellularReturn::Distance2Sub,  "Distance2Sub"  },
-        { noise::CellularReturn::Distance2Mul,  "Distance2Mul"  },
-        { noise::CellularReturn::Distance2Div,  "Distance2Div"  }
-    };
-
-    TerrainGenerator::TerrainGenerator()
-    {
-        m_biomeColorBand = {
-            { ImColor(173, 137,  59), 0.000f },
-            { ImColor( 78,  62,  27), 0.100f },
-            { ImColor(173, 137,  59), 0.142f },
-            { ImColor( 25, 125,  48), 0.185f },
-            { ImColor( 51, 170,  28), 0.312f },
-            { ImColor( 25, 153,  40), 0.559f },
-            { ImColor(106, 166,  31), 0.798f },
-            { ImColor(255, 255, 255), 0.921f }
-        };
-
-        SetDefaultHeightmapValues();
-        UpdatePreview();
-    }
-
-    void TerrainGenerator::SetDefaultHeightmapValues()
-    {
-        heightmap.inputList = GetDefaultInputs();
-    }
-
-    void TerrainGenerator::DrawGui(ecs::Entity selectedEntity)
-    {
-        static const uint32_t settingsPandelWidth = 340;
-#if 0
-        if (ImGui::BeginMenuBar())
-        {
-            if (ImGui::BeginMenu("File"))
-            {
-                if (ImGui::MenuItem("Save Settings", ""))
-                {
-                    filesystem::SaveDialog("JSON (*.json)\0*.json\0", [&](std::string filename) {
-                        nlohmann::ordered_json json;
-                        auto& terrain = json["terrain_settings"];
-                        terrain["mesh"]["size"] = m_meshDesc.size;
-                        terrain["mesh"]["maxAltitude"] = m_meshDesc.maxAltitude;
-                        terrain["mesh"]["minAltitude"] = m_meshDesc.minAltitude;
-                        terrain["mesh"]["numChunks"] = m_meshDesc.numChunks;
-                        terrain["mesh"]["maxError"] = m_meshDesc.maxError;
-
-                        terrain["heightmap"]["width"] = m_heightmapDesc.width;
-                        terrain["heightmap"]["height"] = m_heightmapDesc.height;
-                        terrain["heightmap"]["combineType"] = m_heightmapDesc.combineType;
-                        terrain["heightmap"]["combineStrength"] = m_heightmapDesc.combineStrength;
-                        terrain["heightmap"]["exponent"] = m_heightmapDesc.exponent;
-
-                        auto& input1 = terrain["heightmap"]["input1"];
-                        input1["noise"]["type"] = m_heightmapDesc.device1.noise.type;
-                        input1["noise"]["seed"] = m_heightmapDesc.device1.noise.seed;
-                        input1["noise"]["frequency"] = m_heightmapDesc.device1.noise.frequency;
-                        input1["noise"]["octaves"] = m_heightmapDesc.device1.noise.octaves;
-                        input1["noise"]["lacunarity"] = m_heightmapDesc.device1.noise.lacunarity;
-                        input1["noise"]["gain"] = m_heightmapDesc.device1.noise.gain;
-                        input1["noise"]["cellularReturnType"] = m_heightmapDesc.device1.noise.cellularReturnType;
-                        input1["noise"]["cellularJitterModifier"] = m_heightmapDesc.device1.noise.cellularJitterModifier;
-                        input1["strataOp"] = m_heightmapDesc.device1.strataOp;
-                        input1["strata"] = m_heightmapDesc.device1.strata;
-                        input1["blur"] = m_heightmapDesc.device1.blur;
-
-                        auto& input2 = terrain["heightmap"]["input2"];
-                        input2["noise"]["type"] = m_heightmapDesc.device2.noise.type;
-                        input2["noise"]["seed"] = m_heightmapDesc.device2.noise.seed;
-                        input2["noise"]["frequency"] = m_heightmapDesc.device2.noise.frequency;
-                        input2["noise"]["octaves"] = m_heightmapDesc.device2.noise.octaves;
-                        input2["noise"]["lacunarity"] = m_heightmapDesc.device2.noise.lacunarity;
-                        input2["noise"]["gain"] = m_heightmapDesc.device2.noise.gain;
-                        input2["noise"]["cellularReturnType"] = m_heightmapDesc.device2.noise.cellularReturnType;
-                        input2["noise"]["cellularJitterModifier"] = m_heightmapDesc.device2.noise.cellularJitterModifier;
-                        input2["strataOp"] = m_heightmapDesc.device2.strataOp;
-                        input2["strata"] = m_heightmapDesc.device2.strata;
-                        input2["blur"] = m_heightmapDesc.device2.blur;
-
-                        if (!filesystem::HasExtension(filename, "json"))
-                            filename += ".json";
-
-                        std::ofstream o(filename);
-                        o << std::setw(4) << json << std::endl;
-                        });
-                }
-                if (ImGui::MenuItem("Load Settings", ""))
-                {
-                    filesystem::OpenDialog("JSON (*.json)\0*.json\0", [&](std::string filename) {
-                        std::ifstream f(filename);
-
-                        nlohmann::json json = nlohmann::json::parse(f);
-
-                        auto& terrain = json["terrain_settings"];
-                        m_meshDesc.size = terrain["mesh"]["size"];
-                        m_meshDesc.maxAltitude = terrain["mesh"]["maxAltitude"];
-                        m_meshDesc.minAltitude = terrain["mesh"]["minAltitude"];
-                        m_meshDesc.numChunks = terrain["mesh"]["numChunks"];
-                        m_meshDesc.maxError = terrain["mesh"]["maxError"];
-                        m_heightmapDesc.width = terrain["heightmap"]["width"];
-                        m_heightmapDesc.height = terrain["heightmap"]["height"];
-                        m_heightmapDesc.combineType = terrain["heightmap"]["combineType"];
-                        m_heightmapDesc.combineStrength = terrain["heightmap"]["combineStrength"];
-                        m_heightmapDesc.exponent = terrain["heightmap"]["exponent"];
-
-                        auto& input1 = terrain["heightmap"]["input1"];
-                        m_heightmapDesc.device1.noise.type = input1["noise"]["type"];
-                        m_heightmapDesc.device1.noise.seed = input1["noise"]["seed"];
-                        m_heightmapDesc.device1.noise.frequency = input1["noise"]["frequency"];
-                        m_heightmapDesc.device1.noise.octaves = input1["noise"]["octaves"];
-                        m_heightmapDesc.device1.noise.lacunarity = input1["noise"]["lacunarity"];
-                        m_heightmapDesc.device1.noise.gain = input1["noise"]["gain"];
-                        m_heightmapDesc.device1.noise.cellularReturnType = input1["noise"]["cellularReturnType"];
-                        m_heightmapDesc.device1.noise.cellularJitterModifier = input1["noise"]["cellularJitterModifier"];
-                        m_heightmapDesc.device1.strataOp = input1["strataOp"];
-                        m_heightmapDesc.device1.strata = input1["strata"];
-                        m_heightmapDesc.device1.blur = input1["blur"];
-
-                        auto& input2 = terrain["heightmap"]["input2"];
-                        m_heightmapDesc.device2.noise.type = input2["noise"]["type"];
-                        m_heightmapDesc.device2.noise.seed = input2["noise"]["seed"];
-                        m_heightmapDesc.device2.noise.frequency = input2["noise"]["frequency"];
-                        m_heightmapDesc.device2.noise.octaves = input2["noise"]["octaves"];
-                        m_heightmapDesc.device2.noise.lacunarity = input2["noise"]["lacunarity"];
-                        m_heightmapDesc.device2.noise.gain = input2["noise"]["gain"];
-                        m_heightmapDesc.device2.noise.cellularReturnType = input2["noise"]["cellularReturnType"];
-                        m_heightmapDesc.device2.noise.cellularJitterModifier = input2["noise"]["cellularJitterModifier"];
-                        m_heightmapDesc.device2.strataOp = input2["strataOp"];
-                        m_heightmapDesc.device2.strata = input2["strata"];
-                        m_heightmapDesc.device2.blur = input2["blur"];
-
-                        UpdatePreview();
-                        ui::GetUndoManager().ClearHistory();
-                        });
-                }
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Edit"))
-            {
-                if (ImGui::MenuItem("Undo", "CTRL+Z"))
-                    ui::GetUndoManager().Undo();
-                if (ImGui::MenuItem("Redo", "CTRL+Y"))
-                    ui::GetUndoManager().Redo();
-                ImGui::EndMenu();
-            }
-
-            ImGui::EndMenuBar();
-        }
-#endif
-
-        const auto updatePreviewCb = std::bind(&TerrainGenerator::UpdatePreview, this);
-
-        if (ImGui::BeginTable("TerrainGenerator", 2, ImGuiTableFlags_SizingFixedFit))
-        {
-            ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_NoClip);
-            ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch);
-
-            // begin drawing of the settings panel
-            ImGui::TableNextColumn();
-            ImGui::BeginChild("Settings panel", ImVec2(settingsPandelWidth, 680), ImGuiChildFlags_Border);
-            ImGui::PushItemWidth(-1);
-
-            if (ImGui::CollapsingHeader("Mesh Settings"))
-            {
-                ui::DragInt("ChunkSize", &m_meshDesc.size, 1, 1, 2000, "%dm");
-                ui::SliderInt("Expand", (int*)&m_meshDesc.chunkExpand, nullptr, 0, 24);
-                ui::DragFloat("Min Altitude", &m_meshDesc.minAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
-                ui::DragFloat("Max Altitude", &m_meshDesc.maxAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
-                ui::SliderFloat("Max Error", &m_meshDesc.maxError, nullptr, 0.0001f, 0.01f, "%.4f");
-            }
-
-            if (ImGui::CollapsingHeader("Heightmap Settings", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                for (size_t i = 0; i < heightmap.inputList.size(); i++)
-                {
-                    HeightmapGenerator::Input& input = heightmap.inputList[i];
-
-                    const ui::PushID idGuard((void*)&input);
-                    ui::ComboBox("NoiseType", input.noise.type, g_noiseTypeCombo, updatePreviewCb);
-                    if (input.noise.type == noise::Type::Cellular)
-                        ui::ComboBox("CelReturn", input.noise.cellularReturnType, g_cellularReturnTypeCombo, updatePreviewCb);
-
-                    ui::SliderInt("Seed", (int*)&input.noise.seed, updatePreviewCb, 0, std::numeric_limits<int>::max() / 2);
-                    ui::SliderFloat("Frequency", &input.noise.frequency, updatePreviewCb, 0.0f, 10.0f);
-                    ui::ComboBox("HeightmapStrataOp", input.strataOp, g_strataFuncCombo, updatePreviewCb);
-                    if (input.strataOp != HeightmapStrataOp::None)
-                        ui::SliderFloat("Strata", &input.strata, updatePreviewCb, 1.0f, 15.0f);
-                    ui::SliderFloat("Exponent", &input.exponent, updatePreviewCb, 0.0f, 4.0f);
-
-                    if (ImGui::TreeNode("FBM"))
-                    {
-                        ui::SliderInt("Octaves", (int*)&input.noise.octaves, updatePreviewCb, 1, 8);
-                        ui::SliderFloat("Lacunarity", &input.noise.lacunarity, updatePreviewCb, 0.0f, 4.0f);
-                        ui::SliderFloat("Gain", &input.noise.gain, updatePreviewCb, 0.0f, 4.0f);
-                        ImGui::TreePop();
-                    }
-
-                    // only show combine options if there is an additional input after
-                    if (i + 1 < heightmap.inputList.size())
-                    {
-                        ui::ComboBox("HeightmapCombineOp", input.combineOp, g_mixOpCombo, updatePreviewCb);
-                        if (input.combineOp == HeightmapCombineOp::Lerp)
-                            ui::SliderFloat("Mix", &input.mixing, updatePreviewCb, 0.0f, 1.0f);
-                    }
-
-                    ImGui::Separator();
-                }
-            }
-
-            //ImGui::Spacing();
-            //if (ui::GradientButton("ColorBand", &m_biomeColorBand))
-            //    UpdatePreview();
-
-            ImGui::PopItemWidth();
-            ImGui::EndChild();
-            ImGui::BeginChild("Settings buttons", ImVec2(settingsPandelWidth, 130), ImGuiChildFlags_Border);
-
-            if (ImGui::Button("Set Default Params", ImVec2(-1, 0)))
-            {
-                SetDefaultHeightmapValues();
-                UpdatePreview();
-            }
-
-            if (ImGui::Button("Random seed", ImVec2(-1, 0)))
-            {
-                for (auto& input : heightmap.inputList)
-                    input.noise.seed = random::GetNumber<uint32_t>(0, std::numeric_limits<int>::max());
-
-                UpdatePreview();
-            }
-
-            if (!jobsystem::IsBusy(jobContext))
-            {
-                if (ImGui::Button("Generate terrain mesh", ImVec2(-1, 0)))
-                    GenerateTerrainMesh();
-            }
-            else 
-            {
-                if (ImGui::Button("[Cancel generation]", ImVec2(-1, 0)))
-                    cancelTerrainGen.store(true);
-            }
-
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Generated on the selected entity objects mesh. Old data is cleared");
-
-            ImGui::EndChild();
-
-            // in the second column, display a preview of the terrain as an image
-            ImGui::TableNextColumn();
-            if (m_preview.IsValid())
-            {
-                ImGui::PushItemWidth(300);
-                const ImVec2 available = ImGui::GetContentRegionAvail();
-                const float size = Max(200.0f, Min(available.x - 4, available.y - 4));
-                const ImVec2 p0 = ImGui::GetCursorScreenPos();
-                const ImVec2 p1 = ImVec2(p0.x + size, p0.y + size);
-
-                ImGui::InvisibleButton("##HeightPreviewImage", ImVec2(size, size));
-                ImDrawList* drawList = ImGui::GetWindowDrawList();
-                drawList->AddImage((ImTextureID)&m_preview, p0, p1);
-                const std::string info = std::format("offset ({}, {}), use left mouse button to drag", m_previewOffset.x, m_previewOffset.y);
-                drawList->AddText(ImVec2(p0.x + 8, p0.y + 8), 0xFFFFFFFF, info.c_str());
-
-                if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-                {
-                    ImGuiIO& io = ImGui::GetIO();
-                    m_previewOffset.x -= static_cast<int>(io.MouseDelta.x);
-                    m_previewOffset.y -= static_cast<int>(io.MouseDelta.y);
-                    updatePreviewCb();
-                }
-                ImGui::PopItemWidth();
-            }
-
-            ImGui::EndTable();
-        }
-    }
-
-    // generate preview texture aswell as generating some min
-    // max values in heightmap generator for psuedo normalization
-    void TerrainGenerator::UpdatePreview() {
-        jobsystem::Wait(m_updatePreviewCtx);
-       // jobsystem::Execute(m_updatePreviewCtx, [&](jobsystem::JobArgs) {
-#if 0
-            std::vector<float> image;
-
-            heightmap.UnlockMinMax();
-            CreateHeightmapImage(image, PREVIEW_RESOLUTION, PREVIEW_RESOLUTION, heightmap, m_previewOffset.x, m_previewOffset.y, PREVIEW_FREQ_SCALE);
-            heightmap.LockMinMax();
-            //CYB_TRACE("MIN={} MAX={}", heightmap.minHeight, heightmap.maxHeight);
-
-            // normalize preview image values to 0.0f - 1.0f range
-            const float invHeight = 1.0f / (heightmap.GetMaxHeight() - heightmap.GetMinHeight());
-            for (uint32_t i = 0; i < PREVIEW_RESOLUTION * PREVIEW_RESOLUTION; ++i) {
-                image[i] = (image[i] - heightmap.GetMinHeight()) * invHeight;
-            }
-
-            // create a one channel float texture with all components
-            // swizzled for easy grayscale viewing
-            rhi::TextureDesc desc{};
-            desc.width = PREVIEW_RESOLUTION;
-            desc.height = PREVIEW_RESOLUTION;
-            desc.format = rhi::Format::R32_FLOAT;
-            desc.swizzle.r = rhi::ComponentSwizzle::R;
-            desc.swizzle.g = rhi::ComponentSwizzle::R;
-            desc.swizzle.b = rhi::ComponentSwizzle::R;
-
-            const rhi::FormatInfo& formatInfo = rhi::GetFormatInfo(desc.format);
-            rhi::SubresourceData subresourceData;
-            subresourceData.mem      = image.data();
-            subresourceData.rowPitch = desc.width * formatInfo.bytesPerBlock;
-
-            rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &m_preview);
-#else
-        
-            {
-                auto ground = noise2::NoiseNode_Perlin()
-                    .SetSeed(33)
-                    .SetFrequency(0.8)
-                    .SetOctaves(3);
-                auto groundScaled = noise2::NoiseNode_ScaleBias()
-                    .SetInput(0, &ground)
-                    .SetScale(0.225);
-
-                auto mountain = noise2::NoiseNode_Perlin()
-                    .SetSeed(heightmap.inputList[0].noise.seed)
-                    .SetFrequency(heightmap.inputList[0].noise.frequency)
-                    .SetOctaves(heightmap.inputList[0].noise.octaves);
-                auto mountainStrat = noise2::NoiseNode_Strata()
-                    .SetInput(0, &mountain)
-                    .SetStrata(6);
-
-                auto control = noise2::NoiseNode_Perlin()
-                    .SetSeed(553)
-                    .SetFrequency(0.7)
-                    .SetOctaves(4)
-                    .SetPersistence(0.25);
-
-                auto finalTerrain = noise2::NoiseNode_Select()
-                    .SetInput(0, &groundScaled)
-                    .SetInput(1, &mountainStrat)
-                    .SetInput(2, &control)
-                    .SetThreshold(0.72)
-                    .SetEdgeFalloff(0.125);
-
-                noise2::NoiseImageDesc imageDesc{};
-                imageDesc.input = &finalTerrain;
-                imageDesc.size = { PREVIEW_RESOLUTION, PREVIEW_RESOLUTION };
-                imageDesc.offset = { m_previewOffset.x, m_previewOffset.y };
-                imageDesc.freqScale = PREVIEW_FREQ_SCALE;
-                auto image = RenderNoiseImage(imageDesc);
-
-                rhi::TextureDesc desc{};
-                desc.width = PREVIEW_RESOLUTION;
-                desc.height = PREVIEW_RESOLUTION;
-                desc.format = rhi::Format::RGBA8_UNORM;
-
-                const rhi::FormatInfo& formatInfo = rhi::GetFormatInfo(desc.format);
-                rhi::SubresourceData subresourceData;
-                subresourceData.mem = image->GetConstPtr(0);
-                subresourceData.rowPitch = desc.width * formatInfo.bytesPerBlock;
-
-                rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &m_preview);
-            }
-#endif
-        //});
-    }
-    
-    void TerrainGenerator::RemoveTerrainData()
-    {
-        scene::Scene& scene = scene::GetScene();
-        chunks.clear();
-        scene.RemoveEntity(terrainEntity, true, true);
-    }
-
-    void TerrainGenerator::GenerateTerrainMesh()
-    {
-        RemoveTerrainData();
-
-        auto requestChunk = [&](int32_t xOffset, int32_t zOffset) {
-            Chunk chunk = { centerChunk.x + xOffset, centerChunk.z + zOffset };
-            auto it = chunks.find(chunk);
-            if (it != chunks.end() && it->second.entity != ecs::INVALID_ENTITY)
-                return;
-
-            // generate a new chunk
-            ChunkData& chunkData = chunks[chunk];
-            scene::Scene& chunkScene = chunkData.scene;
-            chunkData.entity = chunkScene.CreateObject(std::format("Chunk_{}_{}", xOffset, zOffset));
-            scene::ObjectComponent* object = chunkScene.objects.GetComponent(chunkData.entity);
-
-            scene::TransformComponent* transform = chunkScene.transforms.GetComponent(chunkData.entity);
-            transform->Translate(XMFLOAT3((float)(xOffset * m_meshDesc.size), 0, static_cast<float>(zOffset * m_meshDesc.size)));
-            transform->UpdateTransform();
-
-            scene::MeshComponent* mesh = &chunkScene.meshes.Create(chunkData.entity);
-            object->meshID = chunkData.entity;
-
-            // generate triangulated heightmap mesh
-            XMINT2 heightmapOffset = XMINT2(xOffset * m_meshDesc.size, zOffset * m_meshDesc.size);
-            HeightmapTriangulator triangulator(&heightmap, m_meshDesc.size, m_meshDesc.size, heightmapOffset);
-            triangulator.Run(m_meshDesc.maxError, m_meshDesc.maxVertices, m_meshDesc.maxTriangles);
-
-            jobsystem::Context ctx;
-            ctx.allowWorkOnMainThread = false;
-
-            std::vector<XMFLOAT3> points;
-            jobsystem::Execute(ctx, [&](jobsystem::JobArgs args) {
-                points = triangulator.GetPoints();
-            });
-
-            std::vector<XMINT3> triangles;
-            jobsystem::Execute(ctx, [&](jobsystem::JobArgs args) {
-                triangles = triangulator.GetTriangles();
-            });
-
-            jobsystem::Wait(ctx);
-
-            // load mesh vertices
-            const XMFLOAT3 offsetToCenter = XMFLOAT3(-(m_meshDesc.size * 0.5f), 0.0f, -(m_meshDesc.size * 0.5f));
-            mesh->vertex_positions.resize(points.size());
-            mesh->vertex_colors.resize(points.size());
-            jobsystem::Dispatch(ctx, (uint32_t)points.size(), 512, [&](jobsystem::JobArgs args) {
-                const uint32_t index = args.jobIndex;
-                mesh->vertex_positions[index] = XMFLOAT3(
-                    offsetToCenter.x + points[index].x * m_meshDesc.size,
-                    offsetToCenter.y + Lerp(m_meshDesc.minAltitude, m_meshDesc.maxAltitude, points[index].y),
-                    offsetToCenter.z + points[index].z * m_meshDesc.size);
-                mesh->vertex_colors[index] = m_biomeColorBand.GetColorAt(points[index].y);
-            });
-
-            // load mesh indexes
-            mesh->indices.resize(triangles.size() * 3);
-            jobsystem::Dispatch(ctx, (uint32_t)triangles.size(), 512, [&](jobsystem::JobArgs args) {
-                const uint32_t index = args.jobIndex;
-                mesh->indices[(index * 3) + 0] = triangles[index].x;
-                mesh->indices[(index * 3) + 1] = triangles[index].z;
-                mesh->indices[(index * 3) + 2] = triangles[index].y;
-            });
-
-            // seperate rock surfaces from ground to enable them
-            // to have different materials
-            jobsystem::Wait(ctx);
-            uint32_t groundIndices = ColorizeMountains(mesh);
-
-            // setup a subset using ground material
-            scene::MeshComponent::MeshSubset subset;
-            subset.indexOffset = 0;
-            subset.indexCount = (uint32_t)groundIndices;
-            subset.materialID = groundMateral;
-            mesh->subsets.push_back(subset);
-
-            // setup subset using rock material
-            subset.indexOffset = groundIndices;
-            subset.indexCount = (uint32_t)mesh->indices.size() - groundIndices;
-            subset.materialID = rockMatereal;
-            mesh->subsets.push_back(subset);
-
-            mesh->ComputeSmoothNormals();
-            mesh->CreateRenderData();
-        };
-
-        scene::Scene& scene = scene::GetScene();
-
-        // create terrain group entity
-        terrainEntity = scene.CreateGroup("Terrain");
-
-        // create terrain materials
-        groundMateral = scene.CreateMaterial("TerrainGround_Material");
-        scene::MaterialComponent* material = scene.materials.GetComponent(groundMateral);
-        material->roughness = 0.85;
-        material->metalness = 0.04;
-
-        rockMatereal = scene.CreateMaterial("TerrainRock_Material");
-        material = scene.materials.GetComponent(rockMatereal);
-        material->roughness = 0.95;
-        material->metalness = 0.215;
-
-        auto mergeChunks = [&](int x, int z)
-        {
-            eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
-                Chunk chunk = { centerChunk.x + x, centerChunk.z + z };
-                auto it = chunks.find(chunk);
-                ChunkData& chunkData = it->second;
-
-                scene::Scene& scene = scene::GetScene();
-                scene.Merge(chunkData.scene);
-                scene.ComponentAttach(chunkData.entity, terrainEntity);
-            });
-        };
-
-        cancelTerrainGen.store(false);
-
-        jobContext.allowWorkOnMainThread = false;
-        jobsystem::Execute(jobContext, [=](jobsystem::JobArgs) {
-            requestChunk(0, 0);
-            mergeChunks(0, 0);
-            if (cancelTerrainGen.load()) 
-                return;
-
-            for (int32_t growth = 0; growth < m_meshDesc.chunkExpand; growth++)
-            {
-                const int side = 2 * (growth + 1);
-                int x = -growth - 1;
-                int z = -growth - 1;
-                for (int i = 0; i < side; ++i)
-                {
-                    requestChunk(x, z);
-                    mergeChunks(x, z);
-                    if (cancelTerrainGen.load())
-                        return;
-                    x++;
-                }
-                for (int i = 0; i < side; ++i)
-                {
-                    requestChunk(x, z);
-                    mergeChunks(x, z);
-                    if (cancelTerrainGen.load())
-                        return;
-                    z++;
-                }
-                for (int i = 0; i < side; ++i)
-                {
-                    requestChunk(x, z);
-                    mergeChunks(x, z);
-                    if (cancelTerrainGen.load())
-                        return;
-                    x--;
-                }
-                for (int i = 0; i < side; ++i)
-                {
-                    requestChunk(x, z);
-                    mergeChunks(x, z);
-                    if (cancelTerrainGen.load())
-                        return;
-                    z--;
-                }
-            }
-        });
-    }
-#endif
 }

@@ -650,7 +650,7 @@ namespace cyb::editor
     void OpenDialog_Open()
     {
         const std::vector<FileDialogFilter> filters = { FILE_FILTER_SCD, FILE_FILTER_ALL };
-        OpenLoadFileDialog(filters, [](const std::string& filename) {
+        OpenLoadFileDialogAsync(filters, [](const std::string& filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=](uint64_t) {
                 Timer timer;
 
@@ -674,7 +674,7 @@ namespace cyb::editor
     void OpenDialog_ImportGLTF(const std::string filter)
     {
         const std::vector<FileDialogFilter> filters = { FILE_FILTER_GLTF,  FILE_FILTER_ALL };
-        OpenLoadFileDialog(filters, [] (const std::string& filename) {
+        OpenLoadFileDialogAsync(filters, [] (const std::string& filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
                 const std::string extension = filesystem::GetExtension(filename);
                 if (filesystem::HasExtension(filename, "glb") || filesystem::HasExtension(filename, "gltf"))
@@ -689,7 +689,7 @@ namespace cyb::editor
     void OpenDialog_ImportCSD(const std::string filter)
     {
         const std::vector<FileDialogFilter> filters = { FILE_FILTER_SCD,  FILE_FILTER_ALL };
-        OpenLoadFileDialog(filters, [] (const std::string& filename) {
+        OpenLoadFileDialogAsync(filters, [] (const std::string& filename) {
             eventsystem::Subscribe_Once(eventsystem::Event_ThreadSafePoint, [=] (uint64_t) {
                 const std::string extension = filesystem::GetExtension(filename);
                 if (filesystem::HasExtension(filename, "csd"))
@@ -704,7 +704,7 @@ namespace cyb::editor
     void OpenDialog_SaveAs()
     {
         const std::vector<FileDialogFilter> filters = { FILE_FILTER_SCD };
-        OpenSaveFileDialog(filters, [] (const std::string& filename) {
+        OpenSaveFileDialogAsync(filters, [] (const std::string& filename) {
             std::string path = filename;
             if (!filesystem::HasExtension(path, "csd"))
                 path += ".csd";
@@ -1031,8 +1031,6 @@ namespace cyb::editor
             ToolWindow(windowTitle, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)
         {
             m_canvas.Factory = std::make_unique<NoiseNode_Factory>();
-            m_canvas.Flags = ui::NG_CanvasFlags_DisplayGrid;
-            m_canvas.Flags |= ui::NG_CanvasFlags_DisplayState;
         }
 
         void WindowContent() override

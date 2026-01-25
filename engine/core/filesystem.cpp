@@ -47,10 +47,8 @@ namespace cyb::filesystem
         return true;
     }
 
-    bool WriteFile(const std::string& filename, std::span<const uint8_t> data)
+    bool WriteFile(const std::string& filename, std::span<const std::byte> data)
     {
-        assert(!data.empty());
-
         std::ofstream file(filename, std::ios::binary | std::ios::trunc);
         if (!file.is_open())
         {
@@ -58,8 +56,11 @@ namespace cyb::filesystem
             return false;
         }
 
-        file.write((const char*)data.data(), data.size());
-        return true;
+        file.write(
+            reinterpret_cast<const char*>(data.data()),
+            static_cast<std::streamsize>(data.size()));
+
+        return file.good();
     }
 
     std::string FixFilePath(const std::string& path)

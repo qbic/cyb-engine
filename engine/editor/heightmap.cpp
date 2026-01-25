@@ -5,17 +5,17 @@ namespace cyb::editor
 {
     Heightmap::Heightmap(
         const noise2::NoiseImageDesc* imageDesc,
-        int32_t width,
-        int32_t height,
+        uint32_t width,
+        uint32_t height,
         XMINT2 offset) :
         m_width{ width + 1 },
         m_height{ height + 1 }
     {
         m_data.resize(static_cast<size_t>(m_width) * static_cast<size_t>(m_height));
 
-        for (int32_t y = 0; y < m_height; ++y)
+        for (uint32_t y = 0; y < m_height; ++y)
         {
-            for (int32_t x = 0; x < m_width; ++x)
+            for (uint32_t x = 0; x < m_width; ++x)
             {
                 const XMINT2 p{ static_cast<int>(x), static_cast<int>(y) };
                 const float u = float(p.x + offset.x) / float(imageDesc->size.width);
@@ -25,7 +25,7 @@ namespace cyb::editor
         }
     }
 
-    float Heightmap::Sample(int32_t x, int32_t y) const noexcept
+    float Heightmap::Sample(uint32_t x, uint32_t y) const noexcept
     {
         return m_data[static_cast<size_t>(y) * m_width + static_cast<size_t>(x)];
     }
@@ -45,8 +45,8 @@ namespace cyb::editor
         };
 
         // triangle bounding box
-        const XMINT2 bbMin = Min(Min(p0, p1), p2);
-        const XMINT2 bbMax = Max(Max(p0, p1), p2);
+        const XMINT2 bbMin{ std::min({ p0.x, p1.x, p2.x }), std::min({ p0.y, p1.y, p2.y }) };
+        const XMINT2 bbMax{ std::max({ p0.x, p1.x, p2.x }), std::max({ p0.y, p1.y, p2.y }) };
 
         // forward differencing variables
         int32_t w00 = edge(p1, p2, bbMin);
@@ -61,8 +61,6 @@ namespace cyb::editor
 
         // Pre-multiplied z values at vertices
         const uint32_t area = edge(p0, p1, p2);
-        if (area == 0)
-            return { p0, 0.0f }; // degenerate triangle
         const float z0 = hm.Sample(p0.x, p0.y) / static_cast<float>(area);
         const float z1 = hm.Sample(p1.x, p1.y) / static_cast<float>(area);
         const float z2 = hm.Sample(p2.x, p2.y) / static_cast<float>(area);
@@ -132,10 +130,12 @@ namespace cyb::editor
     void DelaunayTriangulator::Triangulate(const float maxError, const uint32_t maxTriangles, const uint32_t maxPoints)
     {
         // Create an initial quad to start triangulation from
-        const int32_t p0 = AddPoint({ 0,        0        });
-        const int32_t p1 = AddPoint({ (int32_t)m_width,  0        });
-        const int32_t p2 = AddPoint({ 0,        (int32_t)m_height });
-        const int32_t p3 = AddPoint({ (int32_t)m_width, (int32_t)m_height  });
+        const int32_t x1{ static_cast<int32_t>(m_width) };
+        const int32_t y1{ static_cast<int32_t>(m_height) };
+        const int32_t p0 = AddPoint({ 0,  0  });
+        const int32_t p1 = AddPoint({ x1, 0  });
+        const int32_t p2 = AddPoint({ 0,  y1 });
+        const int32_t p3 = AddPoint({ x1, y1 });
         
         const int t0 = AddTriangle(p3, p0, p2, -1, -1, -1, -1);
         AddTriangle(p0, p3, p1, t0, -1, -1, -1);
@@ -508,7 +508,7 @@ namespace cyb::editor
                 break;
             const size_t j2 = j1 + 1;
             size_t j = j1;
-            if (j2 < n&& QueueLess(j2, j1))
+            if (j2 < n && QueueLess(j2, j1))
                 j = j2;
             if (!QueueLess(j, i))
                 break;

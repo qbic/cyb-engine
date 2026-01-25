@@ -138,7 +138,7 @@ namespace cyb::jobsystem
 
 #if defined(_WIN32)
             HANDLE handle = (HANDLE)worker.native_handle();
-            std::wstring wthreadname = std::format(L"cyb::thread_{}", threadID);
+            std::wstring wthreadname = std::format(L"cyb_worker_{}", threadID);
             HRESULT hr = SetThreadDescription(handle, wthreadname.c_str());
             assert(SUCCEEDED(hr));
 

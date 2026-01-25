@@ -1,6 +1,6 @@
 #pragma once
+#include "core/noise.h"
 #include "systems/scene.h"
-#include "editor/heightmap.h"
 #include "editor/widgets.h"
 
 namespace cyb::editor
@@ -11,12 +11,14 @@ namespace cyb::editor
     class PerlinNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "Perlin Noise";
+        static constexpr std::string_view typeString{ "Perlin Noise" };
         using Signature = ImageGenPinSignature;
 
         PerlinNode();
         virtual ~PerlinNode() = default;
         void DisplayContent() override;
+        void SerializeToJson(json_type& json) const override;
+        void SerializeFromJson(const json_type& json) override;
 
     private:
         noise2::PerlinNoiseParams m_param{};
@@ -31,6 +33,8 @@ namespace cyb::editor
         CellularNode();
         virtual ~CellularNode() = default;
         void DisplayContent() override;
+        void SerializeToJson(json_type& json) const override;
+        void SerializeFromJson(const json_type& json) override;
 
     private:
         noise2::CellularNoiseParams m_param{};
@@ -45,6 +49,8 @@ namespace cyb::editor
         ConstNode();
         virtual ~ConstNode() = default;
         void DisplayContent() override;
+        void SerializeToJson(json_type& json) const override;
+        void SerializeFromJson(const json_type& json) override;
 
     private:
         float m_value{ 1.0f };
@@ -59,6 +65,8 @@ namespace cyb::editor
         BlendNode();
         virtual ~BlendNode() = default;
         void DisplayContent() override;
+        void SerializeToJson(json_type& json) const override;
+        void SerializeFromJson(const json_type& json) override;
 
     private:
         ImageGenInputPin m_inputA;
@@ -88,6 +96,8 @@ namespace cyb::editor
         ScaleBiasNode();
         virtual ~ScaleBiasNode() = default;
         void DisplayContent() override;
+        void SerializeToJson(json_type& json) const override;
+        void SerializeFromJson(const json_type& json) override;
 
     private:
         ImageGenInputPin m_input;
@@ -95,15 +105,17 @@ namespace cyb::editor
         float m_bias{ 0.0f };
     };
 
-    class ModulateNode : public ui::NG_Node
+    class StrataNode : public ui::NG_Node
     {
     public:
         static constexpr std::string_view typeString = "Strata";
         using Signature = ImageGenPinSignature;
 
-        ModulateNode();
-        virtual ~ModulateNode() = default;
+        StrataNode();
+        virtual ~StrataNode() = default;
         void DisplayContent() override;
+        void SerializeToJson(json_type& json) const override;
+        void SerializeFromJson(const json_type& json) override;
 
     private:
         ImageGenInputPin m_input;
@@ -119,6 +131,8 @@ namespace cyb::editor
         SelectNode();
         virtual ~SelectNode() = default;
         void DisplayContent() override;
+        void SerializeToJson(json_type& json) const override;
+        void SerializeFromJson(const json_type& json) override;
 
     private:
         ImageGenInputPin m_inputA;
@@ -140,6 +154,8 @@ namespace cyb::editor
         void UpdatePreview();
         void Update() override;
         void DisplayContent() override;
+        void SerializeToJson(json_type& json) const override;
+        void SerializeFromJson(const json_type& json) override;
 
     private:
         ImageGenInputPin m_inputPin;
@@ -159,6 +175,8 @@ namespace cyb::editor
         GenerateMeshNode();
         virtual ~GenerateMeshNode() = default;
         void DisplayContent() override;
+        void SerializeToJson(json_type& json) const override;
+        void SerializeFromJson(const json_type& json) override;
 
         void GenerateTerrainMesh();
 
@@ -194,8 +212,8 @@ namespace cyb::editor
 
         ImageGenInputPin m_input;
         float m_generationTime{ 0.0f };
-        int m_chunkExpand{ 2 };
-        int m_chunkSize{ 256 };             // Chunk size in meters
+        uint32_t m_chunkExpand{ 2 };
+        uint32_t m_chunkSize{ 256 };        // Chunk size in meters
         float m_maxError{ 0.004f };
         float m_minMeshAltitude{ -22.0f };  // Min altidude in meters
         float m_maxMeshAltitude{ 200.0f };  // Max altitude in meters
@@ -213,7 +231,12 @@ namespace cyb::editor
         void DrawMenuContent(ui::NG_Canvas& canvas, const ImVec2& popupPos) override;
 
     private:
-        enum class Category { Producer, Modifier, Consumer };
+        enum class Category
+        {
+            Producer,
+            Modifier,
+            Consumer
+        };
 
         template <typename T>
         void RegisterNodeType(const std::string_view& name, Category category)

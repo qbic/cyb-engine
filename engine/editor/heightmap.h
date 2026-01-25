@@ -9,17 +9,16 @@ namespace cyb::editor
     public:
         explicit Heightmap(
             const noise2::NoiseImageDesc* imageDesc,
-            int32_t width,
-            int32_t height,
+            uint32_t width,
+            uint32_t height,
             XMINT2 offset = { 0, 0 });
-        [[nodiscard]] float Sample(int32_t x, int32_t y) const noexcept;
+        [[nodiscard]] float Sample(uint32_t x, uint32_t y) const noexcept;
 
     protected:
         std::vector<float> m_data{};
-        int32_t m_width{ 0 };
-        int32_t m_height{ 0 };
+        uint32_t m_width{ 0 };
+        uint32_t m_height{ 0 };
     };
-
 
     class DelaunayTriangulator
     {
@@ -71,6 +70,4 @@ namespace cyb::editor
         std::vector<uint32_t> m_queue;
         std::vector<uint32_t> m_pending;
     };
-
-
 }

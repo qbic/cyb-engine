@@ -4,6 +4,13 @@
 
 namespace cyb
 {
+    static WindowHandle g_parentWindow{ nullptr };
+
+    void SetFileDialogParentWindow(WindowHandle window)
+    {
+        g_parentWindow = window;
+    }
+
     [[nodiscard]] static std::string BuildFilterString(const std::vector<FileDialogFilter>& filters)
     {
         std::string filterStr;
@@ -39,51 +46,72 @@ namespace cyb
         return filterStr;
     }
 
-    void OpenLoadFileDialog(const std::vector<FileDialogFilter>& filters, FileDialogCallback callback)
+
+    std::optional<std::string> OpenLoadFileDialog(const std::vector<FileDialogFilter>& filters)
+    {
+        OPENFILENAMEA ofn{ 0 };
+        CHAR szFile[MAX_PATH]{ 0 };
+
+        const std::string filter = BuildFilterString(filters);
+
+        ofn.lStructSize = sizeof(ofn);
+        ofn.hwndOwner = g_parentWindow;
+        ofn.lpstrFile = szFile;
+        ofn.nMaxFile = sizeof(szFile);
+        ofn.lpstrFilter = filter.c_str();
+        ofn.nFilterIndex = 1;
+        ofn.lpstrFileTitle = nullptr;
+        ofn.nMaxFileTitle = 0;
+        ofn.lpstrInitialDir = nullptr;
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+
+        if (GetOpenFileNameA(&ofn) == FALSE)
+            return std::nullopt;
+
+        return std::string(ofn.lpstrFile);
+    }
+
+    void OpenLoadFileDialogAsync(const std::vector<FileDialogFilter>& filters, FileDialogCallback callback)
     {
         std::thread([=] {
-            OPENFILENAMEA ofn{ 0 };
-            CHAR szFile[MAX_PATH]{ 0 };
-
-            const std::string filter = BuildFilterString(filters);
-
-            ofn.lStructSize = sizeof(ofn);
-            ofn.hwndOwner = nullptr;
-            ofn.lpstrFile = szFile;
-            ofn.nMaxFile = sizeof(szFile);
-            ofn.lpstrFilter = filter.c_str();
-            ofn.nFilterIndex = 1;
-            ofn.lpstrFileTitle = nullptr;
-            ofn.nMaxFileTitle = 0;
-            ofn.lpstrInitialDir = nullptr;
-            ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
-
-            if (GetOpenFileNameA(&ofn) == TRUE)
-                callback(ofn.lpstrFile);
+            auto res = OpenLoadFileDialog(filters);
+            if (res.has_value())
+                callback(res.value());
         }).detach();
     }
 
-    void OpenSaveFileDialog(const std::vector<FileDialogFilter>& filters, FileDialogCallback callback)
+    std::optional<std::string> OpenSaveFileDialog(const std::vector<FileDialogFilter>& filters)
+    {
+        CHAR szFile[MAX_PATH]{ 0 };
+
+        const std::string filter = BuildFilterString(filters);
+
+        OPENFILENAMEA ofn{ 0 };
+        ofn.lStructSize = sizeof(ofn);
+        ofn.hwndOwner = g_parentWindow;
+        ofn.lpstrFile = szFile;
+        ofn.nMaxFile = sizeof(szFile);
+        ofn.lpstrFilter = filter.c_str();
+        ofn.nFilterIndex = 1;
+        ofn.lpstrDefExt = "fu";
+        ofn.lpstrFileTitle = nullptr;
+        ofn.nMaxFileTitle = 0;
+        ofn.lpstrInitialDir = nullptr;
+        ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+
+        if (GetSaveFileNameA(&ofn) == FALSE)
+            return std::nullopt;
+
+        return std::string(ofn.lpstrFile);
+    }
+
+    void OpenSaveFileDialogAsync(const std::vector<FileDialogFilter>& filters, FileDialogCallback callback)
     {
         std::thread([=] {
-            OPENFILENAMEA ofn{ 0 };
-            CHAR szFile[MAX_PATH]{ 0 };
-
-            const std::string filter = BuildFilterString(filters);
-
-            ofn.lStructSize = sizeof(ofn);
-            ofn.hwndOwner = nullptr;
-            ofn.lpstrFile = szFile;
-            ofn.nMaxFile = sizeof(szFile);
-            ofn.lpstrFilter = filter.c_str();
-            ofn.nFilterIndex = 1;
-            ofn.lpstrFileTitle = nullptr;
-            ofn.nMaxFileTitle = 0;
-            ofn.lpstrInitialDir = nullptr;
-            ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
-
-            if (GetSaveFileNameA(&ofn) == TRUE)
-                callback(ofn.lpstrFile);
+            auto res = OpenSaveFileDialog(filters);
+            if (res.has_value())
+                callback(res.value());
         }).detach();
     }
+
 } // namespace cyb

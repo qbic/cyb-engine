@@ -6,6 +6,8 @@
 #include <unordered_set>
 #include <cmath>
 #define IMGUI_DEFINE_MATH_OPERATORS
+#include "core/filesystem.h"
+#include "editor/filedialog.h"
 #include "editor/undo_manager.h"
 #include "editor/widgets.h"
 #include "editor/icons_font_awesome6.h"
@@ -972,6 +974,15 @@ bool NG_Canvas::NodeHasValidState(const NG_Node* node) const
     return true;
 }
 
+void NG_Canvas::AddConnection(std::shared_ptr<NG_Connection> connection)
+{
+    Connections.push_back(connection);
+    auto inputPin = dynamic_cast<detail::NG_InputPinBase*>((connection)->InputPin);
+    inputPin->SetConnection(connection);
+    auto outputPin = dynamic_cast<detail::NG_OutputPinBase*>((connection)->OutputPin);
+    outputPin->AddConnection(connection);
+}
+
 NG_Canvas::const_connection_iterator NG_Canvas::RemoveConnection(NG_Canvas::const_connection_iterator it)
 {
     auto inputPin = dynamic_cast<detail::NG_InputPinBase*>((*it)->InputPin);
@@ -983,6 +994,17 @@ NG_Canvas::const_connection_iterator NG_Canvas::RemoveConnection(NG_Canvas::cons
     outputPin->DeleteExpiredConnections();
 
     return next;
+}
+
+void NG_Canvas::Clear()
+{
+    Connections.clear();
+
+    // Nodes are deleted in a deferred manner to avoid invalidating 
+    // potential texture references during rendering.
+    for (auto& node : Nodes)
+        node->MarkedForDeletion = true;
+    HoveredNode = nullptr;
 }
 
 void NG_Canvas::SendUpdateSignalFrom(NG_Node* node)
@@ -1230,6 +1252,7 @@ bool NodeGraph(NG_Canvas& canvas)
     ImGuiIO& io = ImGui::GetIO();
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     ImGuiWindow* window = ImGui::GetCurrentWindow();
+    const ImGuiStyle& imgui_style = ImGui::GetStyle();
     NG_Style& style = canvas.Style;
     if (!ImGui::ItemAdd(window->ContentRegionRect, canvas_id))
     {
@@ -1242,8 +1265,13 @@ bool NodeGraph(NG_Canvas& canvas)
     const ImVec2 canvas_sz = ImGui::GetContentRegionAvail();
 
     // Handle panning with middle mouse button
+    // Clamp the offset to maxExactFloat to avoid precision issues at high zoom levels
     if (canvas.HasMouseFocus && ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
+    {
         canvas.Offset += io.MouseDelta;
+        canvas.Offset.x = std::clamp(canvas.Offset.x, -NG_Canvas::OffsetLimit, NG_Canvas::OffsetLimit);
+        canvas.Offset.y = std::clamp(canvas.Offset.y, -NG_Canvas::OffsetLimit, NG_Canvas::OffsetLimit);
+    }
 
     // Handle zoom with mouse wheel
     if (canvas.HasMouseFocus && io.MouseWheel != 0.0f)
@@ -1276,7 +1304,7 @@ bool NodeGraph(NG_Canvas& canvas)
 #endif // CYB_NG_STYLE_EDITOR
 
     // Display background, grid and a frame
-    if (canvas.Flags & NG_CanvasFlags_DisplayGrid)
+    if (!(canvas.Flags & NG_CanvasFlags_NoGrid))
     {
         draw_list->AddRectFilled(canvas.Pos, canvas.Pos + canvas_sz, IM_COL32(30, 30, 30, 255));
         const float grid_step = GRID_SIZE * canvas.Zoom;
@@ -1333,16 +1361,7 @@ bool NodeGraph(NG_Canvas& canvas)
                         return c->InputPin == connection->InputPin;
                     });
 
-                    canvas.Connections.push_back(connection);
-
-                    // Update connected nodes and send update signal
-                    auto inputPin = dynamic_cast<detail::NG_InputPinBase*>(connection->InputPin);
-                    inputPin->SetConnection(connection);
-                    inputPin->ParentNode->ValidState = canvas.NodeHasValidState(inputPin->ParentNode);
-
-                    auto outputPin = dynamic_cast<detail::NG_OutputPinBase*>(connection->OutputPin);
-                    outputPin->AddConnection(connection);
-                    outputPin->ParentNode->ValidState = canvas.NodeHasValidState(outputPin->ParentNode);
+                    canvas.AddConnection(connection);
 
                     // TODO: Only update affected nodes
                     canvas.UpdateAllValidStates();
@@ -1441,11 +1460,105 @@ bool NodeGraph(NG_Canvas& canvas)
         ImGui::EndPopup();
     }
 
+    // Clear active ID if mouse click was consumed
     if (ImGui::GetActiveID() == canvas_id)
         ImGui::ClearActiveID();
 
+    // Display action buttons
+    if ((canvas.Flags & NG_CanvasFlags_NoButtons) != NG_CanvasFlags_NoButtons)
+    {
+        auto calcButtonWidth = [&] (const char* label) -> float {
+            ImVec2 sz = ImGui::CalcTextSize(label);
+            return sz.x + imgui_style.FramePadding.x * 2.0f;
+        };
+
+        struct ButtonInfo
+        {
+            const char* label{ nullptr };
+            float size{ 0.0f };
+            bool draw{ true };
+        };
+
+        const ButtonInfo buttons[] = {
+            { ICON_FA_SHEET_PLASTIC, calcButtonWidth(ICON_FA_SHEET_PLASTIC), !(canvas.Flags & NG_CanvasFlags_NoClearButton) },
+            { ICON_FA_FILE_IMPORT,   calcButtonWidth(ICON_FA_FILE_IMPORT)  , !(canvas.Flags & NG_CanvasFlags_NoLoadButton)  },
+            { ICON_FA_FLOPPY_DISK,   calcButtonWidth(ICON_FA_FLOPPY_DISK)  , !(canvas.Flags & NG_CanvasFlags_NoSaveButton)  },
+        };
+
+        ImVec2 button_sz{ imgui_style.ItemSpacing.x * 2.0f, ImGui::GetTextLineHeight() };
+        for (const auto& button : buttons)
+            button_sz.x += button.draw ? button.size : 0.0f;
+
+        const ImVec2 buttons_start{ canvas.Pos.x + canvas_sz.x - style.NodeWindowPadding.x - button_sz.x,
+                                    canvas.Pos.y + style.NodeWindowPadding.y };
+
+        const ImRect buttons_frame{
+            buttons_start - ImVec2(imgui_style.FramePadding.x, imgui_style.FramePadding.y),
+            buttons_start + button_sz + ImVec2(imgui_style.FramePadding.x, imgui_style.FramePadding.y * 3.0f)
+        };
+        draw_list->AddRectFilled(buttons_frame.Min, buttons_frame.Max,
+            style.ButtonsFrameColor, style.NodeFrameRounding);
+
+        ImGui::SetCursorScreenPos(buttons_start);
+
+        // Clear canvas button
+        if (buttons[0].draw)
+        {
+            if (ImGui::Button(buttons[0].label))
+                canvas.Clear(); // FIXME: Clearing here will crash, imgui backend is already sent
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Clear canvas");
+            ImGui::SameLine();
+        }
+
+        // Load canvas button
+        if (buttons[1].draw)
+        {
+            if (ImGui::Button(buttons[1].label))
+            {
+                auto res = OpenLoadFileDialog({
+                    { "Json (*.json)", "json" },
+                    { "All Files", "*" } });
+                if (res.has_value())
+                {
+                    std::vector<uint8_t> data{};
+                    if (filesystem::ReadFile(res.value(), data))
+                    {
+                        nlohmann::json json = nlohmann::json::parse(data);
+                        canvas.SerializeFromJson(json);
+                    }
+                }
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Load canvas");
+            ImGui::SameLine();
+        }
+
+        // Save canvas button
+        if (buttons[2].draw)
+        {
+            if (ImGui::Button(buttons[2].label))
+            {
+                auto res = OpenSaveFileDialog({
+                    { "Json (*.json)", "json" },
+                    { "All Files", "*" } });
+                if (res.has_value())
+                {
+                    NG_Node::json_type json{};
+                    canvas.SerializeToJson(json);
+
+                    const auto s = json.dump(4);
+                    filesystem::WriteFile(res.value(), std::span{ s });
+                }
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Save canvas");
+        }
+    }
+
+    // Display canvas state
 #ifndef CYB_NG_DEBUG_CANVAS_STATE
-    const bool display_state = (canvas.Flags & NG_CanvasFlags_DisplayState);
+    const bool display_state = !(canvas.Flags & NG_CanvasFlags_NoStateText);
 #else
     const bool display_state = true;
 #endif
@@ -1476,6 +1589,112 @@ bool NodeGraph(NG_Canvas& canvas)
     return true;
 }
 
+void NG_Canvas::SerializeToJson(NG_Node::json_type& json) const
+{
+    json["hash"] = Factory->GetHash();
+    json["offset_x"] = Offset.x;
+    json["offset_y"] = Offset.y;
+    json["zoom"] = Zoom;
+    json["nodes"] = nlohmann::json::array();
+
+    std::unordered_map<uintptr_t, size_t> pin_lookup;
+    size_t i = 0;
+    for (auto& node : Nodes)
+    {
+        nlohmann::ordered_json json_node;
+        size_t node_hash = Factory->GetHash();
+        HashCombine(node_hash, node->GetLabel());
+        HashCombine(node_hash, i++);
+        json_node["type"] = node->GetLabel();
+        json_node["pos_x"] = node->Pos.x;
+        json_node["pos_y"] = node->Pos.y;
+        node->SerializeToJson(json_node);
+
+        json_node["input_pins"] = nlohmann::ordered_json::array();
+        for (auto& pin : node->Inputs)
+        {
+            size_t pin_hash = node_hash;
+            HashCombine(pin_hash, pin->Label);
+            assert(pin_lookup.find(uintptr_t(pin.get())) == pin_lookup.end() && "Non unique pin");
+            pin_lookup[uintptr_t(pin.get())] = pin_hash;
+            json_node["input_pins"].push_back(pin_hash);
+        }
+
+        json_node["output_pins"] = nlohmann::ordered_json::array();
+        for (auto& pin : node->Outputs)
+        {
+            size_t pin_hash = node_hash;
+            HashCombine(pin_hash, pin->Label);
+            assert(pin_lookup.find(uintptr_t(pin.get())) == pin_lookup.end() && "Non unique pin");
+            pin_lookup[uintptr_t(pin.get())] = pin_hash;
+            json_node["output_pins"].push_back(pin_hash);
+        }
+
+        json["nodes"].push_back(json_node);
+    }
+
+    json["connections"] = nlohmann::ordered_json::array();
+    for (auto& connection : Connections)
+    {
+        nlohmann::json json_connection;
+        size_t input_pin_hash = pin_lookup[uintptr_t(connection->InputPin)];
+        size_t output_pin_hash = pin_lookup[uintptr_t(connection->OutputPin)];
+        json_connection["input_pin"] = input_pin_hash;
+        json_connection["output_pin"] = output_pin_hash;
+        json["connections"].push_back(json_connection);
+    }
+}
+
+void NG_Canvas::SerializeFromJson(const NG_Node::json_type& json)
+{
+    Clear();
+
+    Offset.x = json["offset_x"];
+    Offset.y = json["offset_y"];
+    Zoom = json["zoom"];
+
+    std::unordered_map<size_t, std::shared_ptr<detail::NG_Pin>> pin_lookup;
+    
+    for (const auto& json_node : json["nodes"])
+    {
+        const std::string type = json_node["type"];
+        
+        auto node = Factory->CreateNode(type);
+        node->Pos.x = json_node["pos_x"];
+        node->Pos.y = json_node["pos_y"];
+        node->SerializeFromJson(json_node);
+
+        const auto& input_pins = json_node["input_pins"];
+        for (size_t i = 0; i < input_pins.size(); ++i)
+        {
+            size_t pin_hash = input_pins[i];
+            pin_lookup[pin_hash] = node->Inputs[i];
+        }
+
+        const auto& output_pins = json_node["output_pins"];
+        for (size_t i = 0; i < output_pins.size(); ++i)
+        {
+            size_t pin_hash = output_pins[i];
+            pin_lookup[pin_hash] = node->Outputs[i];
+        }
+
+        Nodes.push_back(std::move(node));
+    }
+
+    for (const auto& json_connection : json["connections"])
+    {
+        size_t input_hash = json_connection["input_pin"];
+        size_t output_hash = json_connection["output_pin"];
+
+        auto input_pin = pin_lookup[input_hash];
+        auto output_pin = pin_lookup[output_hash];
+
+        AddConnection(std::make_shared<NG_Connection>(input_pin, output_pin));
+    }
+
+    UpdateAllValidStates();
+}
+
 #ifdef CYB_NG_STYLE_EDITOR
 void NodeGraphStyleEditor(NG_Canvas& canvas)
 {
@@ -1498,6 +1717,7 @@ void NodeGraphStyleEditor(NG_Canvas& canvas)
         ImGui::ColorEdit4("ConnectionColor", (float*)&style.ConnectionColor);
         ImGui::ColorEdit4("ConnectionHoverColor", (float*)&style.ConnectionHoverColor);
         ImGui::ColorEdit4("ConnectionDragColor", (float*)&style.ConnectionDragColor);
+        ImGui::ColorEdit4("ButtonsFrameColor", (float*)&style.ButtonsFrameColor);
         ImGui::SliderFloat("NodeConnectionTension", &style.NodeConnectionTension, 0.0f, 1.0f);
 
         if (ImGui::Button("Set To Defaults"))

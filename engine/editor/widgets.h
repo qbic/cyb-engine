@@ -455,6 +455,9 @@ namespace cyb::ui
 
     struct NG_Canvas
     {
+        using json_type = NG_Node::json_type;
+        using const_connection_iterator = const std::vector<std::shared_ptr<NG_Connection>>::iterator;
+
         static constexpr float OffsetLimit{ 15000.0f };
 
         ImVec2 Pos{ 0.0f, 0.0f };
@@ -474,7 +477,6 @@ namespace cyb::ui
         bool DisplayStyleEditor{ false };
 #endif // CYB_NG_STYLE_EDITOR
 
-        using const_connection_iterator = const std::vector<std::shared_ptr<NG_Connection>>::iterator;
 
         NG_Canvas();
         ~NG_Canvas() = default;
@@ -555,12 +557,12 @@ namespace cyb::ui
         /**
          * @brief Serialize canvas to a json object.
          */
-        void SerializeToJson(NG_Node::json_type& json) const;
+        void SerializeToJson(json_type& json) const;
 
         /**
          * @brief Serialize canvas from a json object.
          */
-        void SerializeFromJson(const NG_Node::json_type& json);
+        void SerializeFromJson(const json_type& json);
     };
 
     bool NodeGraph(NG_Canvas& canvas);

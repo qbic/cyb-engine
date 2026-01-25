@@ -126,14 +126,18 @@ namespace cyb
     } // namespace cyb::detail
 
     template<typename T>
-    concept IsCVarNumber = std::same_as<T, int32_t> || std::same_as<T, uint32_t> || std::same_as<T, float>;
+    concept ValidCVarNumber = 
+        std::same_as<T, int32_t>  ||
+        std::same_as<T, uint32_t> ||
+        std::same_as<T, float>;
 
     /**
      * @brief CVar of number family type implementation.
      *
      * Numerical cvars may use optional min and max values.
      */
-    template<IsCVarNumber T>
+    template<typename T>
+    requires ValidCVarNumber<T>
     class CVar<T> : public detail::CVarCommon<T>
     {
     public:

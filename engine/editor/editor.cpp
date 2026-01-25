@@ -671,7 +671,7 @@ namespace cyb::editor
 
     // Import a new model to the scene, once the loading is complete
     // it will be automatically selected in the scene graph view.
-    void OpenDialog_ImportGLTF(const std::string filter)
+    void OpenDialog_ImportGLTF()
     {
         const std::vector<FileDialogFilter> filters = { FILE_FILTER_GLTF,  FILE_FILTER_ALL };
         OpenLoadFileDialogAsync(filters, [] (const std::string& filename) {
@@ -1244,10 +1244,10 @@ namespace cyb::editor
 
                 if (ImGui::BeginMenu("Import"))
                 {
-                    /*if (ImGui::MenuItem("CybSceneData (.csd)"))
-                        OpenDialog_ImportCSD(FILE_FILTER_SCD);
+                    //if (ImGui::MenuItem("CybSceneData (.csd)"))
+                    //    OpenDialog_ImportCSD(FILE_FILTER_SCD);
                     if (ImGui::MenuItem("glTF 2.0 (.gltf/.glb)"))
-                        OpenDialog_ImportGLTF(FILE_FILTER_GLTF);*/
+                        OpenDialog_ImportGLTF();
 
                     ImGui::EndMenu();
                 }

@@ -1589,7 +1589,7 @@ bool NodeGraph(NG_Canvas& canvas)
     return true;
 }
 
-void NG_Canvas::SerializeToJson(NG_Node::json_type& json) const
+void NG_Canvas::SerializeToJson(json_type& json) const
 {
     json["hash"] = Factory->GetHash();
     json["offset_x"] = Offset.x;
@@ -1597,11 +1597,11 @@ void NG_Canvas::SerializeToJson(NG_Node::json_type& json) const
     json["zoom"] = Zoom;
     json["nodes"] = nlohmann::json::array();
 
-    std::unordered_map<uintptr_t, size_t> pin_lookup;
-    size_t i = 0;
+    std::unordered_map<uintptr_t, size_t> pin_lookup{};
+    size_t i{ 0 };
     for (auto& node : Nodes)
     {
-        nlohmann::ordered_json json_node;
+        json_type json_node{};
         size_t node_hash = Factory->GetHash();
         HashCombine(node_hash, node->GetLabel());
         HashCombine(node_hash, i++);
@@ -1610,20 +1610,20 @@ void NG_Canvas::SerializeToJson(NG_Node::json_type& json) const
         json_node["pos_y"] = node->Pos.y;
         node->SerializeToJson(json_node);
 
-        json_node["input_pins"] = nlohmann::ordered_json::array();
+        json_node["input_pins"] = json_type::array();
         for (auto& pin : node->Inputs)
         {
-            size_t pin_hash = node_hash;
+            size_t pin_hash{ node_hash };
             HashCombine(pin_hash, pin->Label);
             assert(pin_lookup.find(uintptr_t(pin.get())) == pin_lookup.end() && "Non unique pin");
             pin_lookup[uintptr_t(pin.get())] = pin_hash;
             json_node["input_pins"].push_back(pin_hash);
         }
 
-        json_node["output_pins"] = nlohmann::ordered_json::array();
+        json_node["output_pins"] = json_type::array();
         for (auto& pin : node->Outputs)
         {
-            size_t pin_hash = node_hash;
+            size_t pin_hash{ node_hash };
             HashCombine(pin_hash, pin->Label);
             assert(pin_lookup.find(uintptr_t(pin.get())) == pin_lookup.end() && "Non unique pin");
             pin_lookup[uintptr_t(pin.get())] = pin_hash;
@@ -1633,19 +1633,19 @@ void NG_Canvas::SerializeToJson(NG_Node::json_type& json) const
         json["nodes"].push_back(json_node);
     }
 
-    json["connections"] = nlohmann::ordered_json::array();
+    json["connections"] = json_type::array();
     for (auto& connection : Connections)
     {
-        nlohmann::json json_connection;
-        size_t input_pin_hash = pin_lookup[uintptr_t(connection->InputPin)];
-        size_t output_pin_hash = pin_lookup[uintptr_t(connection->OutputPin)];
+        json_type json_connection{};
+        const size_t input_pin_hash{ pin_lookup[uintptr_t(connection->InputPin)] };
+        const size_t output_pin_hash{ pin_lookup[uintptr_t(connection->OutputPin)] };
         json_connection["input_pin"] = input_pin_hash;
         json_connection["output_pin"] = output_pin_hash;
         json["connections"].push_back(json_connection);
     }
 }
 
-void NG_Canvas::SerializeFromJson(const NG_Node::json_type& json)
+void NG_Canvas::SerializeFromJson(const json_type& json)
 {
     Clear();
 

@@ -13,7 +13,7 @@ namespace cyb
 
     [[nodiscard]] static std::string BuildFilterString(const std::vector<FileDialogFilter>& filters)
     {
-        std::string filterStr;
+        std::string filterStr{};
         filterStr.reserve(64);
 
         for (const auto& filter : filters)
@@ -22,7 +22,9 @@ namespace cyb
             filterStr.push_back('\0');
 
             const std::string_view& ext = filter.extensions;
-            size_t start = 0;
+            size_t start{ 0 };
+            std::string patternList{};
+            bool first{ true };
 
             for (size_t pos = 0; pos != std::string_view::npos; )
             {
@@ -32,20 +34,29 @@ namespace cyb
                     ? ext.size() - start
                     : pos - start;
 
-                filterStr.append("*.");
-                filterStr.append(ext.substr(start, len));
-                filterStr.push_back('\0');
+                if (len > 0)
+                {
+                    if (!first)
+                        patternList.push_back(';');
+
+                    patternList.append("*.");
+                    patternList.append(ext.substr(start, len));
+                    first = false;
+                }
 
                 start = (pos == std::string_view::npos)
                     ? ext.size()
                     : pos + 1;
             }
+
+            filterStr.append(patternList);
+            filterStr.push_back('\0');
         }
 
-        filterStr.push_back('\0'); // Double null terminate
+        // Double null terminate
+        filterStr.push_back('\0'); 
         return filterStr;
     }
-
 
     std::optional<std::string> OpenLoadFileDialog(const std::vector<FileDialogFilter>& filters)
     {

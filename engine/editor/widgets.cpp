@@ -877,24 +877,24 @@ void NG_Node::PopWindowWorkRect()
 
 void NG_Factory::DrawMenuContent(NG_Canvas& canvas, const ImVec2& popupPos)
 {
-    for (auto& [type_str, createCallback] : m_availableNodeTypesMap)
+    for (auto& [type_str, createCallback] : m_factoryLookup)
     {
         if (ImGui::MenuItem(type_str.data()))
             canvas.AddNode(std::move(CreateNode(type_str.data(), popupPos)));
     }
 }
 
-std::unique_ptr<NG_Node> NG_Factory::CreateNode(const std::string_view& node_type, const ImVec2& pos) const
+std::unique_ptr<NG_Node> NG_Factory::CreateNode(const std::string_view& type_string, const ImVec2& pos) const
 {
-    auto it = m_availableNodeTypesMap.find(node_type);
-    if (it != m_availableNodeTypesMap.end())
+    auto it = m_factoryLookup.find(type_string);
+    if (it != m_factoryLookup.end())
     {
         auto newNode = it->second();
         newNode->Pos = pos;
         return newNode;
     }
 
-    assert(0);
+    assert(0 && "Unknown node type_string");
     return nullptr;
 }
 
@@ -1507,7 +1507,7 @@ bool NodeGraph(NG_Canvas& canvas)
             if (ImGui::Button(buttons[0].label))
                 canvas.Clear(); // FIXME: Clearing here will crash, imgui backend is already sent
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Clear canvas");
+                ImGui::SetTooltip("Clear canvas (unsaved data will be lost)");
             ImGui::SameLine();
         }
 
@@ -1530,7 +1530,7 @@ bool NodeGraph(NG_Canvas& canvas)
                 }
             }
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Load canvas");
+                ImGui::SetTooltip("Load canvas (unsaved data will be lost)");
             ImGui::SameLine();
         }
 
@@ -1595,7 +1595,7 @@ void NG_Canvas::SerializeToJson(json_type& json) const
     json["offset_x"] = Offset.x;
     json["offset_y"] = Offset.y;
     json["zoom"] = Zoom;
-    json["nodes"] = nlohmann::json::array();
+    json["nodes"] = json_type::array();
 
     std::unordered_map<uintptr_t, size_t> pin_lookup{};
     size_t i{ 0 };

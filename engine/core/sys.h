@@ -35,4 +35,17 @@ namespace cyb
      * For windows, this will post a WM_QUIT message.
      */
     void Exit(int code = 0);
+
+#ifdef _WIN32
+    /**
+     * @brief Convert a UTF-8 string to wide string.
+     */
+    [[nodiscard]] std::wstring Utf8ToWide(const std::string& s);
+
+    /**
+     * @brief Convert a wide string to UTF-8 string.
+     */
+    [[nodiscard]] std::string WideToUtf8(const std::wstring& w);
+
+#endif // _WIN32
 } // namespace cyb

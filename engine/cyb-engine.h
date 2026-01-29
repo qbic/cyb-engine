@@ -4,6 +4,7 @@
 #include "core/serializer.h"
 #include "core/mathlib.h"
 #include "core/timer.h"
+#include "core/sys.h"
 #include "core/noise.h"
 
 #include "input/input.h"

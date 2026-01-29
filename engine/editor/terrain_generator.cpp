@@ -20,7 +20,7 @@
 namespace cyb::editor
 {
     PerlinNode::PerlinNode() :
-        NG_Node(typeString, 240.0f)
+        NG_Node(type_string, 240.0f)
     {
         AddOutputPin<Signature>("Output", [&] (float x, float y) -> float { 
             return noise2::PerlinNoise2D_FBM(m_param, x, y);
@@ -57,7 +57,7 @@ namespace cyb::editor
     }
 
     CellularNode::CellularNode() :
-        NG_Node(typeString, 240.0f)
+        NG_Node(type_string, 240.0f)
     {
         AddOutputPin<Signature>("Output", [&] (float x, float y) -> float {
             return noise2::CellularNoise2D_FBM(m_param, x, y);
@@ -97,7 +97,7 @@ namespace cyb::editor
     }
 
     ConstNode::ConstNode() :
-        NG_Node(typeString, 160.0f)
+        NG_Node(type_string, 160.0f)
     {
         AddOutputPin<float(float, float)>("Output", [&] (float x, float y) -> float {
             return m_value;
@@ -122,7 +122,7 @@ namespace cyb::editor
     }
 
     BlendNode::BlendNode() :
-        NG_Node(typeString, 160.0f)
+        NG_Node(type_string, 160.0f)
     {
         m_inputA = AddInputPin<Signature>("Input A");
         m_inputB = AddInputPin<Signature>("Input B");
@@ -161,7 +161,7 @@ namespace cyb::editor
     }
 
     InvertNode::InvertNode() :
-        NG_Node(typeString)
+        NG_Node(type_string)
     {
         m_input = AddInputPin<Signature>("Input");
         AddOutputPin<Signature>("Output", [&] (float x, float y) {
@@ -170,7 +170,7 @@ namespace cyb::editor
     }
 
     ScaleBiasNode::ScaleBiasNode() :
-        NG_Node(typeString, 160.0f)
+        NG_Node(type_string, 160.0f)
     {
         m_input = AddInputPin<Signature>("Input");
         AddOutputPin<Signature>("Output", [&] (float x, float y) -> float {
@@ -199,7 +199,7 @@ namespace cyb::editor
     }
 
     StrataNode::StrataNode() :
-        NG_Node(typeString, 160.0f)
+        NG_Node(type_string, 160.0f)
     {
         m_input = AddInputPin<Signature>("Input");
         AddOutputPin<Signature>("Output", [&] (float x, float y) -> float {
@@ -228,7 +228,7 @@ namespace cyb::editor
     }
 
     SelectNode::SelectNode() :
-        NG_Node(typeString, 160.0f)
+        NG_Node(type_string, 160.0f)
     {
         m_inputA = AddInputPin<Signature>("Input A");
         m_inputB = AddInputPin<Signature>("Input B");
@@ -292,7 +292,7 @@ namespace cyb::editor
     };
 
     PreviewNode::PreviewNode() :
-        NG_Node(typeString, 256.0f)
+        NG_Node(type_string, 256.0f)
     {
         m_inputPin = AddInputPin<Signature>("Input");
         AddOutputPin<Signature>("Passthrough", [&] (float x, float y) -> float {
@@ -395,7 +395,7 @@ namespace cyb::editor
     }
 
     GenerateMeshNode::GenerateMeshNode() :
-        NG_Node(typeString)
+        NG_Node(type_string)
     {
         m_input = AddInputPin<Signature>("Input");
 
@@ -701,26 +701,26 @@ namespace cyb::editor
     NoiseNode_Factory::NoiseNode_Factory()
     {
         // Producer node types
-        RegisterNodeType<CellularNode>(CellularNode::typeString, Category::Producer);
-        RegisterNodeType<ConstNode>(ConstNode::typeString, Category::Producer);
-        RegisterNodeType<PerlinNode>(PerlinNode::typeString, Category::Producer);
+        RegisterNodeType<CellularNode>(CellularNode::type_string, Category::Producer);
+        RegisterNodeType<ConstNode>(ConstNode::type_string, Category::Producer);
+        RegisterNodeType<PerlinNode>(PerlinNode::type_string, Category::Producer);
 
         // Modifier node types
-        RegisterNodeType<BlendNode>(BlendNode::typeString, Category::Modifier);
-        RegisterNodeType<InvertNode>(InvertNode::typeString, Category::Modifier);
-        RegisterNodeType<ScaleBiasNode>(ScaleBiasNode::typeString, Category::Modifier);
-        RegisterNodeType<SelectNode>(SelectNode::typeString, Category::Modifier);
-        RegisterNodeType<StrataNode>(StrataNode::typeString, Category::Modifier);
+        RegisterNodeType<BlendNode>(BlendNode::type_string, Category::Modifier);
+        RegisterNodeType<InvertNode>(InvertNode::type_string, Category::Modifier);
+        RegisterNodeType<ScaleBiasNode>(ScaleBiasNode::type_string, Category::Modifier);
+        RegisterNodeType<SelectNode>(SelectNode::type_string, Category::Modifier);
+        RegisterNodeType<StrataNode>(StrataNode::type_string, Category::Modifier);
 
         // Consumer node types
-        RegisterNodeType<GenerateMeshNode>(GenerateMeshNode::typeString, Category::Consumer);
-        RegisterNodeType<PreviewNode>(PreviewNode::typeString, Category::Consumer);
+        RegisterNodeType<GenerateMeshNode>(GenerateMeshNode::type_string, Category::Consumer);
+        RegisterNodeType<PreviewNode>(PreviewNode::type_string, Category::Consumer);
     }
 
     void NoiseNode_Factory::DrawMenuContent(ui::NG_Canvas& canvas, const ImVec2& popupPos)
     {
         const size_t total = m_categories.size();
-        size_t count = 0;
+        size_t count{ 0 };
 
         for (auto& [category, types] : m_categories)
         {

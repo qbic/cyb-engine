@@ -159,21 +159,28 @@ namespace cyb::ui
      *      * Scroll wheel to zoom canvas.
      *      * Drag with middle mouse button to scroll canvas.
      *      * Press 'R' to reset scroll, position and zoom.
-     *      * Press 'S' to open style editor window. (when compiled with CYB_NG_STYLE_EDITOR)
+     *      * Press 'S' to open style editor window. (if compiled with CYB_NG_STYLE_EDITOR)
      *      * Drag with left mouse button from pin to pin to create connection.
      *      * Right-click connection to remove.
-     *
-     * Connection rules:
-     *      * Only one connection per input pin.
-     *        Previous connection will be removed if new is created.
-     *      * Output pins can have multiple connections.
-     *      * You can not connect an output to an input in the same node.
-     *      * You can not create cyclic (infinite) loop connections.
-     *      * You can not connect input to input, or output to output.
+     * 
+     *  API Notes:
+     *      * Connection rules:
+     *          - Only one connection per input pin.
+     *            Previous connection will be removed if new is created.
+     *          - Output pins can have multiple connections.
+     *          - You can not connect an output to an input in the same node.
+     *          - You can not create cyclic (infinite) loop connections.
+     *          - You can not connect input to input, or output to output.
+     *      * NG_Node::Update() will only get called when node is in a valid state.
+     *      * A node is considered valid if:
+     *          - All input pins are connected.
+     *          - All connected input nodes are in a valid state.
+     *          - The top-most node in the connection chain is a producer node (no input pins).
      * 
      * Bugs / Todo:
      *      * Pin Signature checking when creating connections.
      *      * Button background frame size isn't always correct.
+     *      * Verify factory hash when loading canvas.
      *------------------------------------------------------------------------------*/
 
     // Comment out to enable feature
@@ -212,7 +219,7 @@ namespace cyb::ui
 
         struct NG_Pin
         {
-            std::string Label;
+            std::string Label{};
 
             // Internal data (don't manually set)
             bool Hovered{ false };
@@ -226,7 +233,7 @@ namespace cyb::ui
 
         struct NG_OutputPinBase : detail::NG_Pin
         {
-            std::vector<std::weak_ptr<NG_Connection>> Connections;
+            std::vector<std::weak_ptr<NG_Connection>> Connections{};
 
             void AddConnection(std::shared_ptr<NG_Connection> con)
             {
@@ -250,8 +257,8 @@ namespace cyb::ui
         template <typename R, typename... Args>
         struct NG_OutputPin<R(Args...)> : NG_OutputPinBase
         {
-            using CallbackType = std::function<R(Args...)>;
-            CallbackType Callback;
+            using callback_type = std::function<R(Args...)>;
+            callback_type Callback{};
 
             R Invoke(Args... args) const
             {
@@ -262,7 +269,7 @@ namespace cyb::ui
 
         struct NG_InputPinBase : detail::NG_Pin
         {
-            std::shared_ptr<NG_Connection> Connection;
+            std::shared_ptr<NG_Connection> Connection{};
 
             virtual ~NG_InputPinBase() = default;
             void SetConnection(std::shared_ptr<NG_Connection>& con);
@@ -281,8 +288,8 @@ namespace cyb::ui
         template <typename R, typename... Args>
         struct NG_InputPin<R(Args...)> : NG_InputPinBase
         {
-            using CallbackType = std::function<R(Args...)>;
-            CallbackType Callback;
+            using callback_type = std::function<R(Args...)>;
+            callback_type Callback{};
 
             R Invoke(Args... args) const
             {
@@ -330,10 +337,11 @@ namespace cyb::ui
     struct NG_Node
     {
         using json_type = nlohmann::ordered_json;
+
         ImVec2 Pos{ 0, 0 };             // Position, relative to cavas
         ImVec2 Size{ 1, 1 };
-        std::vector<std::shared_ptr<detail::NG_Pin>> Inputs;
-        std::vector<std::shared_ptr<detail::NG_Pin>> Outputs;
+        std::vector<std::shared_ptr<detail::NG_Pin>> Inputs{};
+        std::vector<std::shared_ptr<detail::NG_Pin>> Outputs{};
         bool ValidState{ false };
         bool ModifiedFlag{ false };
         bool MarkedForDeletion{ false };
@@ -365,7 +373,7 @@ namespace cyb::ui
         virtual void Update() {}
 
         template <typename Sig>
-        [[nodiscard]] std::shared_ptr<detail::NG_InputPin<Sig>> AddInputPin(const std::string& label, typename detail::NG_InputPin<Sig>::CallbackType cb = {})
+        [[nodiscard]] std::shared_ptr<detail::NG_InputPin<Sig>> AddInputPin(const std::string& label, typename detail::NG_InputPin<Sig>::callback_type cb = {})
         {
             auto pin = std::make_shared<detail::NG_InputPin<Sig>>();
             pin->Label = label;
@@ -377,7 +385,7 @@ namespace cyb::ui
         }
 
         template <typename Sig>
-        void AddOutputPin(const std::string& label, typename detail::NG_OutputPin<Sig>::CallbackType cb = {})
+        void AddOutputPin(const std::string& label, typename detail::NG_OutputPin<Sig>::callback_type cb = {})
         {
             auto pin = std::make_shared<detail::NG_OutputPin<Sig>>();
             pin->Label = label;
@@ -415,8 +423,9 @@ namespace cyb::ui
     class NG_Factory
     {
     public:
-        using CreateNodeCallbackType = std::function<std::unique_ptr<NG_Node>()>;
-        using NameToCallbackMap = std::map<const std::string_view, CreateNodeCallbackType>;
+        using map_key_type      = const std::string_view;
+        using map_value_type    = std::function<std::unique_ptr<NG_Node>()>;
+        using map_type          = std::map<map_key_type, map_value_type>;
 
         NG_Factory() = default;
         virtual ~NG_Factory() = default;
@@ -432,25 +441,25 @@ namespace cyb::ui
         virtual void DrawMenuContent(NG_Canvas& canvas, const ImVec2& popupPos);
 
         /**
-         * @brief Register a node of type T named `node_type`.
+         * @brief Register a node of type T named `type_string`.
          */
         template <typename T>
             requires std::derived_from<T, NG_Node>
-        void RegisterFactoryFunction(const std::string_view& node_type)
+        void RegisterFactoryFunction(const std::string_view& type_string)
         {
             auto lambda = [] () { return std::make_unique<T>(); };
-            m_availableNodeTypesMap[node_type] = std::move(lambda);
-            HashCombine(m_hash, node_type);
+            m_factoryLookup[type_string] = std::move(lambda);
+            HashCombine(m_hash, type_string);
         }
 
         /**
          * @brief Create a new node using registered type name factory function.
          */
-        std::unique_ptr<NG_Node> CreateNode(const std::string_view& node_type, const ImVec2& pos = { 0, 0 }) const;
+        std::unique_ptr<NG_Node> CreateNode(const std::string_view& type_string, const ImVec2& pos = { 0, 0 }) const;
 
     private:
         uint64_t m_hash{ 0 };
-        NameToCallbackMap m_availableNodeTypesMap;
+        map_type m_factoryLookup{};
     };
 
     struct NG_Canvas
@@ -464,7 +473,7 @@ namespace cyb::ui
         ImVec2 Offset{ 0.0f, 0.0f };                    // Canvas scrolling offset
         float Zoom{ 1.0f };
         uint32_t Flags{ NG_CanvasFlags_None };
-        NG_Style Style;
+        NG_Style Style{};
         std::unique_ptr<NG_Factory> Factory;            // Can be overwritten by custom user defined factory.
         std::vector<std::unique_ptr<NG_Node>> Nodes;    // Nodes, sorted in display order, back to front.
         std::vector<std::shared_ptr<NG_Connection>> Connections;
@@ -476,7 +485,6 @@ namespace cyb::ui
 #ifdef CYB_NG_STYLE_EDITOR
         bool DisplayStyleEditor{ false };
 #endif // CYB_NG_STYLE_EDITOR
-
 
         NG_Canvas();
         ~NG_Canvas() = default;

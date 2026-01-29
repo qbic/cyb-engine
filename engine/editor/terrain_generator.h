@@ -1,4 +1,5 @@
 #pragma once
+#include "core/hash.h"
 #include "core/noise.h"
 #include "systems/scene.h"
 #include "editor/widgets.h"
@@ -11,7 +12,7 @@ namespace cyb::editor
     class PerlinNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString{ "Perlin Noise" };
+        static constexpr std::string_view type_string{ "Perlin Noise" };
         using Signature = ImageGenPinSignature;
 
         PerlinNode();
@@ -27,7 +28,7 @@ namespace cyb::editor
     class CellularNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "Cellular Noise";
+        static constexpr std::string_view type_string{ "Cellular Noise" };
         using Signature = ImageGenPinSignature;
 
         CellularNode();
@@ -43,7 +44,7 @@ namespace cyb::editor
     class ConstNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "Const Value";
+        static constexpr std::string_view type_string{ "Const Value" };
         using Signature = ImageGenPinSignature;
 
         ConstNode();
@@ -59,7 +60,7 @@ namespace cyb::editor
     class BlendNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "Blend";
+        static constexpr std::string_view type_string{ "Blend" };
         using Signature = ImageGenPinSignature;
 
         BlendNode();
@@ -77,7 +78,7 @@ namespace cyb::editor
     class InvertNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "Invert";
+        static constexpr std::string_view type_string{ "Invert" };
         using Signature = ImageGenPinSignature;
 
         InvertNode();
@@ -90,7 +91,7 @@ namespace cyb::editor
     class ScaleBiasNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "ScaleBias";
+        static constexpr std::string_view type_string{ "ScaleBias" };
         using Signature = ImageGenPinSignature;
 
         ScaleBiasNode();
@@ -108,7 +109,7 @@ namespace cyb::editor
     class StrataNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "Strata";
+        static constexpr std::string_view type_string{ "Strata" };
         using Signature = ImageGenPinSignature;
 
         StrataNode();
@@ -125,7 +126,7 @@ namespace cyb::editor
     class SelectNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "Select";
+        static constexpr std::string_view type_string{ "Select" };
         using Signature = ImageGenPinSignature;
 
         SelectNode();
@@ -146,7 +147,7 @@ namespace cyb::editor
     class PreviewNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "Preview";
+        static constexpr std::string_view type_string{ "Preview" };
         using Signature = ImageGenPinSignature;
 
         PreviewNode();
@@ -169,7 +170,7 @@ namespace cyb::editor
     class GenerateMeshNode : public ui::NG_Node
     {
     public:
-        static constexpr std::string_view typeString = "Generate Mesh";
+        static constexpr std::string_view type_string{ "Generate Mesh" };
         using Signature = ImageGenPinSignature;
 
         GenerateMeshNode();

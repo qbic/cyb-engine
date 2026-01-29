@@ -60,11 +60,10 @@ namespace cyb
 
     std::optional<std::string> OpenLoadFileDialog(const std::vector<FileDialogFilter>& filters)
     {
-        OPENFILENAMEA ofn{ 0 };
-        CHAR szFile[MAX_PATH]{ 0 };
-
-        const std::string filter = BuildFilterString(filters);
-
+        WCHAR szFile[MAX_PATH]{ 0 };
+        const std::wstring filter = Utf8ToWide(BuildFilterString(filters));
+        
+        OPENFILENAMEW ofn{ 0 };
         ofn.lStructSize = sizeof(ofn);
         ofn.hwndOwner = g_parentWindow;
         ofn.lpstrFile = szFile;
@@ -76,10 +75,10 @@ namespace cyb
         ofn.lpstrInitialDir = nullptr;
         ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
 
-        if (GetOpenFileNameA(&ofn) == FALSE)
+        if (GetOpenFileNameW(&ofn) == FALSE)
             return std::nullopt;
 
-        return std::string(ofn.lpstrFile);
+        return WideToUtf8(ofn.lpstrFile);
     }
 
     void OpenLoadFileDialogAsync(const std::vector<FileDialogFilter>& filters, FileDialogCallback callback)
@@ -93,27 +92,26 @@ namespace cyb
 
     std::optional<std::string> OpenSaveFileDialog(const std::vector<FileDialogFilter>& filters)
     {
-        CHAR szFile[MAX_PATH]{ 0 };
+        WCHAR szFile[MAX_PATH]{ 0 };
+        const std::wstring filter = Utf8ToWide(BuildFilterString(filters));
 
-        const std::string filter = BuildFilterString(filters);
-
-        OPENFILENAMEA ofn{ 0 };
+        OPENFILENAMEW ofn{ 0 };
         ofn.lStructSize = sizeof(ofn);
         ofn.hwndOwner = g_parentWindow;
         ofn.lpstrFile = szFile;
         ofn.nMaxFile = sizeof(szFile);
         ofn.lpstrFilter = filter.c_str();
         ofn.nFilterIndex = 1;
-        ofn.lpstrDefExt = "fu";
+        ofn.lpstrDefExt = L"fu";
         ofn.lpstrFileTitle = nullptr;
         ofn.nMaxFileTitle = 0;
         ofn.lpstrInitialDir = nullptr;
         ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
 
-        if (GetSaveFileNameA(&ofn) == FALSE)
+        if (GetSaveFileNameW(&ofn) == FALSE)
             return std::nullopt;
 
-        return std::string(ofn.lpstrFile);
+        return WideToUtf8(ofn.lpstrFile);
     }
 
     void OpenSaveFileDialogAsync(const std::vector<FileDialogFilter>& filters, FileDialogCallback callback)

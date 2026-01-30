@@ -1518,7 +1518,7 @@ bool NodeGraph(NG_Canvas& canvas)
             {
                 auto res = OpenLoadFileDialog({
                     { "Json (*.json)", "json" },
-                    { "All Files", "*" } });
+                    { "All Files (*.*)", "*" } });
                 if (res.has_value())
                 {
                     std::vector<uint8_t> data{};
@@ -1541,7 +1541,7 @@ bool NodeGraph(NG_Canvas& canvas)
             {
                 auto res = OpenSaveFileDialog({
                     { "Json (*.json)", "json" },
-                    { "All Files", "*" } });
+                    { "All Files (*.*)", "*" } });
                 if (res.has_value())
                 {
                     NG_Node::json_type json{};

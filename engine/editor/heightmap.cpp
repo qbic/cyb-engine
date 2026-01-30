@@ -7,7 +7,7 @@ namespace cyb::editor
         const noise2::NoiseImageDesc* imageDesc,
         uint32_t width,
         uint32_t height,
-        XMINT2 offset) :
+        Vector2i offset) :
         m_width{ width + 1 },
         m_height{ height + 1 }
     {
@@ -17,7 +17,7 @@ namespace cyb::editor
         {
             for (uint32_t x = 0; x < m_width; ++x)
             {
-                const XMINT2 p{ static_cast<int>(x), static_cast<int>(y) };
+                const Vector2i p{ static_cast<int>(x), static_cast<int>(y) };
                 const float u = float(p.x + offset.x) / float(imageDesc->size.width);
                 const float v = float(p.y + offset.y) / float(imageDesc->size.height);
                 m_data[static_cast<size_t>(y) * m_width + x] = imageDesc->GetValue(u, v);
@@ -30,13 +30,13 @@ namespace cyb::editor
         return m_data[static_cast<size_t>(y) * m_width + static_cast<size_t>(x)];
     }
 
-    [[nodiscard]] static std::pair<XMINT2, float> FindCandidate(
+    [[nodiscard]] static std::pair<Vector2i, float> FindCandidate(
         const Heightmap& hm,
-        const XMINT2& p0,
-        const XMINT2& p1,
-        const XMINT2& p2)
+        const Vector2i& p0,
+        const Vector2i& p1,
+        const Vector2i& p2)
     {
-        auto edge = [] (const XMINT2& a, const XMINT2& b, const XMINT2& c) -> int32_t {
+        auto edge = [] (const Vector2i& a, const Vector2i& b, const Vector2i& c) -> int32_t {
             return (b.x - c.x) * (a.y - c.y) - (b.y - c.y) * (a.x - c.x);
         };
 
@@ -45,8 +45,8 @@ namespace cyb::editor
         };
 
         // triangle bounding box
-        const XMINT2 bbMin{ std::min({ p0.x, p1.x, p2.x }), std::min({ p0.y, p1.y, p2.y }) };
-        const XMINT2 bbMax{ std::max({ p0.x, p1.x, p2.x }), std::max({ p0.y, p1.y, p2.y }) };
+        const Vector2i bbMin{ Min(Min(p0, p1), p2) };
+        const Vector2i bbMax{ Max(Max(p0, p1), p2) };
 
         // forward differencing variables
         int32_t w00 = edge(p1, p2, bbMin);
@@ -67,7 +67,7 @@ namespace cyb::editor
 
         // Iterate over pixels in bounding box
         float bestError = 0.0f;
-        XMINT2 bestPoint{ 0, 0 };
+        Vector2i bestPoint{ 0, 0 };
         for (int32_t y = bbMin.y; y <= bbMax.y; y++)
         {
             // compute starting offset
@@ -83,7 +83,7 @@ namespace cyb::editor
             bool wasInside = false;
             for (int32_t x = bbMin.x + dx; x <= bbMax.x; x++)
             {
-                const XMINT2 point{ x, y };
+                const Vector2i point{ x, y };
 
                 // Check if point is inside triangle
                 if (w0 >= 0 && w1 >= 0 && w2 >= 0)
@@ -165,7 +165,7 @@ namespace cyb::editor
         const float invW = 1.0f / static_cast<float>(m_width);
         const float invH = 1.0f / static_cast<float>(m_height);
 
-        for (const XMINT2& p : m_points)
+        for (const Vector2i& p : m_points)
             points.emplace_back(
                 static_cast<float>(p.x) * invW,
                 m_heightmap.Sample(p.x, p.y),
@@ -220,14 +220,14 @@ namespace cyb::editor
         const int p1 = m_triangles[e1];
         const int p2 = m_triangles[e2];
 
-        const XMINT2 a = m_points[p0];
-        const XMINT2 b = m_points[p1];
-        const XMINT2 c = m_points[p2];
-        const XMINT2 p = m_candidates[t];
+        const Vector2i a = m_points[p0];
+        const Vector2i b = m_points[p1];
+        const Vector2i c = m_points[p2];
+        const Vector2i p = m_candidates[t];
 
         const int pn = AddPoint(p);
 
-        const auto collinear = [] (const XMINT2& p0, const XMINT2& p1, const XMINT2& p2) {
+        const auto collinear = [] (const Vector2i& p0, const Vector2i& p1, const Vector2i& p2) {
             return (p1.y - p0.y) * (p2.x - p1.x) == (p2.y - p1.y) * (p1.x - p0.x);
         };
 
@@ -302,7 +302,7 @@ namespace cyb::editor
         Flush();
     }
 
-    uint32_t DelaunayTriangulator::AddPoint(const XMINT2 point)
+    uint32_t DelaunayTriangulator::AddPoint(const Vector2i& point)
     {
         m_points.push_back(point);
         assert(m_points.size() < std::numeric_limits<uint32_t>::max());
@@ -375,22 +375,6 @@ namespace cyb::editor
         //       ar\ || /br             b\    /br
         //          \||/                  \  /
         //           pr                    pr
-        auto inCircle = [] (const XMINT2& a, const XMINT2& b, const XMINT2& c, const XMINT2& d) {
-            
-            const int32_t ax = a.x - d.x;
-            const int32_t ay = a.y - d.y;
-            const int32_t bx = b.x - d.x;
-            const int32_t by = b.y - d.y;
-            const int32_t cx = c.x - d.x;
-            const int32_t cy = c.y - d.y;
-
-            const int64_t det =
-                (ax * ax + ay * ay) * (bx * cy - cx * by) -
-                (bx * bx + by * by) * (ax * cy - cx * ay) +
-                (cx * cx + cy * cy) * (ax * by - bx * ay);
-            return det < 0;
-        };
-
         const int b = m_halfedges[a];
         if (b == -1)
             return;
@@ -406,7 +390,7 @@ namespace cyb::editor
         const int pl = m_triangles[al];
         const int p1 = m_triangles[bl];
 
-        if (!inCircle(m_points[p0], m_points[pr], m_points[pl], m_points[p1]))
+        if (!IsPointInCircumcircle(m_points[p0], m_points[pr], m_points[pl], m_points[p1]))
             return;
 
         const int hal = m_halfedges[al];

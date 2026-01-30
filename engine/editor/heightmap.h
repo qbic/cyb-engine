@@ -11,7 +11,7 @@ namespace cyb::editor
             const noise2::NoiseImageDesc* imageDesc,
             uint32_t width,
             uint32_t height,
-            XMINT2 offset = { 0, 0 });
+            Vector2i offset = { 0, 0 });
         [[nodiscard]] float Sample(uint32_t x, uint32_t y) const noexcept;
 
     protected:
@@ -42,7 +42,7 @@ namespace cyb::editor
     private:
         void Flush();
         void SplitTriangle(int t);
-        uint32_t AddPoint(const XMINT2 point);
+        uint32_t AddPoint(const Vector2i& point);
         int AddTriangle(
             const int a, const int b, const int c,
             const int ab, const int bc, const int ca,
@@ -60,10 +60,10 @@ namespace cyb::editor
         const Heightmap& m_heightmap;
         uint32_t m_width;
         uint32_t m_height;
-        std::vector<XMINT2> m_points;
+        std::vector<Vector2i> m_points;
         std::vector<uint32_t> m_triangles;      // triangle indexes
         std::vector<int> m_halfedges;
-        std::vector<XMINT2> m_candidates;
+        std::vector<Vector2i> m_candidates;
         std::vector<float> m_errors;
 
         std::vector<size_t> m_queueIndexes;

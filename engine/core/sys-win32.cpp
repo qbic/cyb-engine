@@ -6,6 +6,7 @@ namespace cyb
     void Panic(const std::string& message)
     {
         CYB_ERROR("Panic: {}", message);
+        CYB_DEBUGBREAK();
         MessageBoxA(GetActiveWindow(), message.c_str(), "Panic", MB_OK);
         ExitProcess(-1);
     }

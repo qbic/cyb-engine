@@ -1,16 +1,11 @@
 #pragma once
 #include <concepts>
 #include <type_traits>
-#include <format>
+#include <algorithm>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
 
 using namespace DirectX;
-
-[[nodiscard]] constexpr XMINT2 operator+(const XMINT2& a, const XMINT2& b) noexcept
-{
-    return XMINT2(a.x + b.x, a.y + b.y);
-}
 
 namespace cyb
 {
@@ -29,7 +24,7 @@ namespace cyb
     concept IsFloatingPoint = std::is_floating_point_v<std::remove_cvref_t<T>>;
 
     template <typename T>
-    concept IsInteger = std::numeric_limits<std::remove_cvref_t<T>>::is_integer;
+    concept IsInteger = std::integral<std::remove_cvref_t<T>>;
 
     template <typename T>
     concept IsVector2Compatable = requires(T t) {
@@ -45,20 +40,70 @@ namespace cyb
         T y{};
 
         Vector2() = default;
-        Vector2(const Vector2&) = default;
-        Vector2(Vector2&&) = default;
         constexpr Vector2(T _x, T _y) noexcept : x(_x), y(_y) {}
 
-        Vector2& operator=(const Vector2&) = default;
-        Vector2& operator=(Vector2&&) = default;
-        Vector2 operator+(const Vector2& rhs) const { return Vector2{ x + rhs.x, y + rhs.y }; }
-        Vector2 operator-(const Vector2& rhs) const { return Vector2{ x - rhs.x, y - rhs.y }; }
-        Vector2& operator+=(const Vector2& rhs) { x += rhs.x; y += rhs.y; return *this; }
-        Vector2& operator-=(const Vector2& rhs) { x -= rhs.x; y -= rhs.y; return *this; }
+        constexpr Vector2 operator+(const Vector2& rhs) const noexcept { return Vector2{ x + rhs.x, y + rhs.y }; }
+        constexpr Vector2 operator-(const Vector2& rhs) const noexcept { return Vector2{ x - rhs.x, y - rhs.y }; }
+        constexpr Vector2 operator*(T s) const noexcept { return { x * s, y * s }; }
+        constexpr Vector2 operator/(T s) const noexcept { return { x / s, y / s }; }
+
+        constexpr Vector2& operator+=(const Vector2& rhs) noexcept { x += rhs.x; y += rhs.y; return *this; }
+        constexpr Vector2& operator-=(const Vector2& rhs) noexcept { x -= rhs.x; y -= rhs.y; return *this; }
+        constexpr Vector2& operator*=(T s) noexcept { x *= s; y *= s; return *this; }
+        constexpr Vector2& operator/=(T s) noexcept { x /= s; y /= s; return *this; }
+
+        constexpr auto operator<=>(const Vector2&) const = default;
     };
 
     using Vector2f = Vector2<float>;
     using Vector2i = Vector2<int32_t>;
+
+    /**
+     * @brief Component-wise minimum [x, y] of two 2D vectors.
+     */
+    template<IsVector2Compatable T>
+    [[nodiscard]] constexpr T Min(const T& a, const T& b) noexcept
+    {
+        return T(std::min(a.x, b.x), std::min(a.y, b.y));
+    }
+
+    /**
+     * @brief Component-wise maximum [x, y] of two 2D vectors.
+     */
+    template<IsVector2Compatable T>
+    [[nodiscard]] constexpr T Max(const T& a, const T& b) noexcept
+    {
+        return T(std::max(a.x, b.x), std::max(a.y, b.y));
+    }
+
+    /**
+     * @brief Check if a point is inside the circumcircle of a triangle.
+     *
+     * @param a First vertex of the triangle.
+     * @param b Second vertex of the triangle.
+     * @param c Third vertex of the triangle.
+     * @param point The point to test.
+     * @return true if the point is inside the circumcircle, false otherwise.
+     */
+    template <IsArithmetic T>
+    [[nodiscard]] inline bool IsPointInCircumcircle(
+        const Vector2<T>& a,
+        const Vector2<T>& b,
+        const Vector2<T>& c,
+        const Vector2<T>& point) noexcept
+    {
+        const T ax = a.x - point.x;
+        const T ay = a.y - point.y;
+        const T bx = b.x - point.x;
+        const T by = b.y - point.y;
+        const T cx = c.x - point.x;
+        const T cy = c.y - point.y;
+        const T det =
+            (ax * ax + ay * ay) * (bx * cy - cx * by) -
+            (bx * bx + by * by) * (ax * cy - cx * ay) +
+            (cx * cx + cy * cy) * (ax * by - bx * ay);
+        return det < T(0);
+    }
 
     /**
      * @brief Convert angle from degrees to radians.
@@ -94,24 +139,6 @@ namespace cyb
     [[nodiscard]] constexpr T Max(const T a, const T b) noexcept
     {
         return a > b ? a : b;
-    }
-
-    /**
-     * @brief Get the lowest [x, y] values of two 2d vectors.
-     */
-    template<IsVector2Compatable T>
-    [[nodiscard]] constexpr T Min(const T& a, const T& b) noexcept
-    {
-        return T(Min(a.x, b.x), Min(a.y, b.y));
-    }
-
-    /**
-     * @brief Get the highest [x, y] values of two 2d vectors.
-     */
-    template<IsVector2Compatable T>
-    [[nodiscard]] constexpr T Max(const T& a, const T& b) noexcept
-    {
-        return T(Max(a.x, b.x), Max(a.y, b.y));
     }
 
     /**

@@ -67,13 +67,13 @@ namespace cyb
         ofn.lStructSize = sizeof(ofn);
         ofn.hwndOwner = g_parentWindow;
         ofn.lpstrFile = szFile;
-        ofn.nMaxFile = sizeof(szFile);
+        ofn.nMaxFile = std::size(szFile);
         ofn.lpstrFilter = filter.c_str();
         ofn.nFilterIndex = 1;
         ofn.lpstrFileTitle = nullptr;
         ofn.nMaxFileTitle = 0;
         ofn.lpstrInitialDir = nullptr;
-        ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR | OFN_EXPLORER;
 
         if (GetOpenFileNameW(&ofn) == FALSE)
             return std::nullopt;
@@ -99,14 +99,14 @@ namespace cyb
         ofn.lStructSize = sizeof(ofn);
         ofn.hwndOwner = g_parentWindow;
         ofn.lpstrFile = szFile;
-        ofn.nMaxFile = sizeof(szFile);
+        ofn.nMaxFile = std::size(szFile);
         ofn.lpstrFilter = filter.c_str();
         ofn.nFilterIndex = 1;
         ofn.lpstrDefExt = L"fu";
         ofn.lpstrFileTitle = nullptr;
         ofn.nMaxFileTitle = 0;
         ofn.lpstrInitialDir = nullptr;
-        ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+        ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR | OFN_EXPLORER;
 
         if (GetSaveFileNameW(&ofn) == FALSE)
             return std::nullopt;

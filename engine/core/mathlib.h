@@ -18,22 +18,10 @@ namespace cyb
     inline constexpr XMFLOAT4 g_float4OneW { 0, 0, 0, 1 };
 
     template <typename T>
-    concept IsArithmetic = std::is_arithmetic_v<std::remove_cvref_t<T>>;
+    concept arithmetic_type = (std::integral<std::remove_cvref_t<T>> || std::floating_point<std::remove_cvref_t<T>>) &&
+                              !std::same_as<std::remove_cvref_t<T>, bool>;
 
-    template <typename T>
-    concept IsFloatingPoint = std::is_floating_point_v<std::remove_cvref_t<T>>;
-
-    template <typename T>
-    concept IsInteger = std::integral<std::remove_cvref_t<T>>;
-
-    template <typename T>
-    concept IsVector2Compatable = requires(T t) {
-        { t.x } -> IsArithmetic;
-        { t.y } -> IsArithmetic;
-        requires std::same_as<decltype(t.x), decltype(t.y)>;
-    };
-
-    template <IsArithmetic T>
+    template <arithmetic_type T>
     struct Vector2
     {
         T x{};
@@ -58,10 +46,17 @@ namespace cyb
     using Vector2f = Vector2<float>;
     using Vector2i = Vector2<int32_t>;
 
+    template <typename T>
+    concept vector2_compatible = requires(T t) {
+        { t.x } -> arithmetic_type;
+        { t.y } -> arithmetic_type;
+            requires std::same_as<decltype(t.x), decltype(t.y)>;
+    };
+
     /**
      * @brief Component-wise minimum [x, y] of two 2D vectors.
      */
-    template<IsVector2Compatable T>
+    template<vector2_compatible T>
     [[nodiscard]] constexpr T Min(const T& a, const T& b) noexcept
     {
         return T(std::min(a.x, b.x), std::min(a.y, b.y));
@@ -70,7 +65,7 @@ namespace cyb
     /**
      * @brief Component-wise maximum [x, y] of two 2D vectors.
      */
-    template<IsVector2Compatable T>
+    template<vector2_compatible T>
     [[nodiscard]] constexpr T Max(const T& a, const T& b) noexcept
     {
         return T(std::max(a.x, b.x), std::max(a.y, b.y));
@@ -85,7 +80,7 @@ namespace cyb
      * @param point The point to test.
      * @return true if the point is inside the circumcircle, false otherwise.
      */
-    template <IsArithmetic T>
+    template <arithmetic_type T>
     [[nodiscard]] inline bool IsPointInCircumcircle(
         const Vector2<T>& a,
         const Vector2<T>& b,
@@ -106,9 +101,27 @@ namespace cyb
     }
 
     /**
+     * @brief Check if three points are collinear.
+     */
+    template <arithmetic_type T>
+    [[nodiscard]] bool IsPointsCollinear(const Vector2<T>& p0, const Vector2<T>& p1, const Vector2<T>& p2) noexcept
+    {
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            const T area = (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y);
+            const T scale = std::max(
+                std::max(std::abs(p1.x - p0.x), std::abs(p1.y - p0.y)),
+                std::max(std::abs(p2.x - p0.x), std::abs(p2.y - p0.y)));
+            return std::abs(area) <= std::numeric_limits<T>::epsilon() * scale * scale;
+        }
+        else
+            return (p1.y - p0.y) * (p2.x - p1.x) == (p2.y - p1.y) * (p1.x - p0.x);
+    }
+
+    /**
      * @brief Convert angle from degrees to radians.
      */
-    template <IsFloatingPoint T>
+    template <std::floating_point T>
     [[nodiscard]] constexpr T ToRadians(const T degrees) noexcept
     {
         return (degrees * g_PI) / T(180);
@@ -117,7 +130,7 @@ namespace cyb
     /**
      * @brief Convert angle from radians to degrees.
      */
-    template <IsFloatingPoint T>
+    template <std::floating_point T>
     [[nodiscard]] constexpr T ToDegrees(const T radians) noexcept
     {
         return (radians * T(180)) / g_PI;
@@ -126,7 +139,7 @@ namespace cyb
     /**
      * @brief Get the lowest value of two numbers.
      */
-    template<IsArithmetic T>
+    template<arithmetic_type T>
     [[nodiscard]] constexpr T Min(const T a, const T b) noexcept
     {
         return a < b ? a : b;
@@ -135,16 +148,25 @@ namespace cyb
     /**
      * @brief Get the highest value of two numbers.
      */
-    template<IsArithmetic T>
+    template<arithmetic_type T>
     [[nodiscard]] constexpr T Max(const T a, const T b) noexcept
     {
         return a > b ? a : b;
     }
 
     /**
+     * @brief Get the num ensuring it's within the low and high boundaries.
+     */
+    template <arithmetic_type T>
+    [[nodiscard]] constexpr T Clamp(T num, T low, T high)
+    {
+        return Min(Max(num, low), high);
+    }
+
+    /**
      * @brief Get the largest integer number not larger than num.
      */
-    template <IsFloatingPoint T>
+    template <std::floating_point T>
     [[nodiscard]] constexpr int Floor(T num) noexcept
     {
         return num >= 0 ? (int)num : (int)num - 1;
@@ -153,31 +175,22 @@ namespace cyb
     /**
      * @brief Get the nearest integer value for num.
      */
-    template <IsFloatingPoint T>
+    template <std::floating_point T>
     [[nodiscard]] constexpr int Round(T num) noexcept
     {
         return num >= 0 ? (int)(num + 0.5f) : (int)(num - 0.5f);
     }
 
     /**
-     * @brief Get the num ensuring it's within the low and high boundaries.
-     */
-    template <IsArithmetic T>
-    [[nodiscard]] constexpr T Clamp(T num, T low, T high)
-    {
-        return Min(Max(num, low), high);
-    }
-
-    /**
      * @brief Clamp num to min 0, max 1.
      */
-    template <IsFloatingPoint T>
+    template <std::floating_point T>
     [[nodiscard]] constexpr T Saturate(T x) noexcept
     {
         return Clamp(x, T(0), T(1));
     }
 
-    template <IsInteger T>
+    template <std::integral T>
     [[nodiscard]] constexpr T NextPowerOfTwo(T x) noexcept
     {
         --x;
@@ -200,15 +213,16 @@ namespace cyb
         return num + (divisor - bits);
     }
 
-    template <IsFloatingPoint T>
+    template <std::floating_point T>
     [[nodiscard]] constexpr T Lerp(const T a, const T b, const T t) noexcept
     {
         return a + (b - a) * t;
     }
 
-    [[nodiscard]] constexpr float CubicLerp(float a, float b, float c, float d, float t) noexcept
+    template <std::floating_point T>
+    [[nodiscard]] constexpr float CubicLerp(T a, T b, T c, T d, T t) noexcept
     {
-        float p = (d - c) - (a - b);
+        const T p{ (d - c) - (a - b) };
         return t * t * t * p + t * t * ((a - b) - p) + t * (c - a) + b;
     }
 
@@ -217,7 +231,7 @@ namespace cyb
      *
      * f(t) = t^2 * (3 - 2 t)
      */
-    template <IsFloatingPoint T>
+    template <std::floating_point T>
     [[nodiscard]] constexpr T CubicSmoothStep(T t) noexcept
     {
         return t * t * (T(3.0) - T(2.0) * t);
@@ -228,7 +242,7 @@ namespace cyb
      *
      * f(t) = t^3 * (t * (6 t - 15) + 10)
      */
-    template <IsFloatingPoint T>
+    template <std::floating_point T>
     [[nodiscard]] constexpr T QuinticSmoothStep(T t) noexcept
     {
         return t * t * t * (t * (t * T(6.0) - T(15.0)) + T(10.0));
@@ -239,7 +253,7 @@ namespace cyb
      *
      * f(t) = t^4 * (35 - 84 t + 70 t^2 - 20 t^3)
      */
-    template <IsFloatingPoint T>
+    template <std::floating_point T>
     [[nodiscard]] constexpr T SepticSmoothStep(T t) noexcept
     {
         const T t2 = t * t;

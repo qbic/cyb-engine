@@ -227,10 +227,6 @@ namespace cyb::editor
 
         const int pn = AddPoint(p);
 
-        const auto collinear = [] (const Vector2i& p0, const Vector2i& p1, const Vector2i& p2) {
-            return (p1.y - p0.y) * (p2.x - p1.x) == (p2.y - p1.y) * (p1.x - p0.x);
-        };
-
         const auto handleCollinear = [this] (const int pn, const int a) {
             const int a0 = a - a % 3;
             const int al = a0 + (a + 1) % 3;
@@ -272,15 +268,15 @@ namespace cyb::editor
             Legalize(t3);
         };
 
-        if (collinear(a, b, p))
+        if (IsPointsCollinear(a, b, p))
         {
             handleCollinear(pn, e0);
         }
-        else if (collinear(b, c, p))
+        else if (IsPointsCollinear(b, c, p))
         {
             handleCollinear(pn, e1);
         }
-        else if (collinear(c, a, p))
+        else if (IsPointsCollinear(c, a, p))
         {
             handleCollinear(pn, e2);
         }

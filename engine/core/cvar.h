@@ -126,7 +126,7 @@ namespace cyb
     } // namespace cyb::detail
 
     template<typename T>
-    concept ValidCVarNumber = 
+    concept cvar_number_type = 
         std::same_as<T, int32_t>  ||
         std::same_as<T, uint32_t> ||
         std::same_as<T, float>;
@@ -136,8 +136,7 @@ namespace cyb
      *
      * Numerical cvars may use optional min and max values.
      */
-    template<typename T>
-    requires ValidCVarNumber<T>
+    template<cvar_number_type T>
     class CVar<T> : public detail::CVarCommon<T>
     {
     public:

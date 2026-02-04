@@ -1031,6 +1031,7 @@ namespace cyb::editor
             ToolWindow(windowTitle, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)
         {
             m_canvas.Factory = std::make_unique<NoiseNode_Factory>();
+            //m_canvas.Flags |= ui::NG_CanvasFlags_NoClearButton;
         }
 
         void WindowContent() override

@@ -158,7 +158,7 @@ namespace cyb
      * @brief Get the num ensuring it's within the low and high boundaries.
      */
     template <arithmetic_type T>
-    [[nodiscard]] constexpr T Clamp(T num, T low, T high)
+    [[nodiscard]] constexpr T Clamp(T num, T low, T high) noexcept
     {
         return Min(Max(num, low), high);
     }

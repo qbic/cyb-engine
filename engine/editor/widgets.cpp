@@ -1350,10 +1350,15 @@ bool NodeGraph(NG_Canvas& canvas)
 
                 const bool sameType = connection->InputPin->Type == connection->OutputPin->Type;
                 const bool createsCycle = canvas.WouldCreateCycle(connection);
+                const bool signatureMismatch =  (connection->InputPin->SignatureHash == 0) ||
+                                                (connection->OutputPin->SignatureHash == 0) ||
+                                                (connection->InputPin->SignatureHash != connection->OutputPin->SignatureHash);
                 if (sameType)
                     CYB_WARNING("Dropping node connection: {}", "Not an input -> output connection");
                 else if (createsCycle)
                     CYB_WARNING("Dropping node connection: {}", "Creates cycles");
+                else if (signatureMismatch)
+                    CYB_WARNING("Dropping node connection: {}", "Signature mismatch");
                 else
                 {
                     // Drop any previous connection to input pin
@@ -1474,47 +1479,45 @@ bool NodeGraph(NG_Canvas& canvas)
 
         struct ButtonInfo
         {
-            const char* label{ nullptr };
-            float size{ 0.0f };
-            bool draw{ true };
+            const char* Label{ nullptr };
+            bool Draw{ true };
         };
 
         const ButtonInfo buttons[] = {
-            { ICON_FA_SHEET_PLASTIC, calcButtonWidth(ICON_FA_SHEET_PLASTIC), !(canvas.Flags & NG_CanvasFlags_NoClearButton) },
-            { ICON_FA_FILE_IMPORT,   calcButtonWidth(ICON_FA_FILE_IMPORT)  , !(canvas.Flags & NG_CanvasFlags_NoLoadButton)  },
-            { ICON_FA_FLOPPY_DISK,   calcButtonWidth(ICON_FA_FLOPPY_DISK)  , !(canvas.Flags & NG_CanvasFlags_NoSaveButton)  },
+            { ICON_FA_SHEET_PLASTIC, (canvas.Flags & NG_CanvasFlags_NoClearButton) != NG_CanvasFlags_NoClearButton },
+            { ICON_FA_FILE_IMPORT,   (canvas.Flags & NG_CanvasFlags_NoLoadButton)  != NG_CanvasFlags_NoLoadButton  },
+            { ICON_FA_FLOPPY_DISK,   (canvas.Flags & NG_CanvasFlags_NoSaveButton)  != NG_CanvasFlags_NoSaveButton  },
         };
 
         ImVec2 button_sz{ imgui_style.ItemSpacing.x * 2.0f, ImGui::GetTextLineHeight() };
         for (const auto& button : buttons)
-            button_sz.x += button.draw ? button.size : 0.0f;
+            button_sz.x += button.Draw ? calcButtonWidth(button.Label) : 0.0f;
 
-        const ImVec2 buttons_start{ canvas.Pos.x + canvas_sz.x - style.NodeWindowPadding.x - button_sz.x,
-                                    canvas.Pos.y + style.NodeWindowPadding.y };
-
-        const ImRect buttons_frame{
-            buttons_start - ImVec2(imgui_style.FramePadding.x, imgui_style.FramePadding.y),
-            buttons_start + button_sz + ImVec2(imgui_style.FramePadding.x, imgui_style.FramePadding.y * 3.0f)
-        };
-        draw_list->AddRectFilled(buttons_frame.Min, buttons_frame.Max,
-            style.ButtonsFrameColor, style.NodeFrameRounding);
+        const ImVec2 buttons_corner_offset{ 4.0f, 4.0f };
+        const ImVec2 buttons_start{ canvas.Pos.x + canvas_sz.x - style.NodeFramePadding.x - button_sz.x - buttons_corner_offset.x,
+                                    canvas.Pos.y + style.NodeFramePadding.y + buttons_corner_offset.y };
 
         ImGui::SetCursorScreenPos(buttons_start);
+        ImGui::BeginGroup();
+        draw_list->ChannelsSplit(2);
+        draw_list->ChannelsSetCurrent(1);
 
         // Clear canvas button
-        if (buttons[0].draw)
+        const auto& clear_button = buttons[0];
+        if (clear_button.Draw)
         {
-            if (ImGui::Button(buttons[0].label))
-                canvas.Clear(); // FIXME: Clearing here will crash, imgui backend is already sent
+            if (ImGui::Button(clear_button.Label))
+                canvas.Clear();
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Clear canvas (unsaved data will be lost)");
             ImGui::SameLine();
         }
 
         // Load canvas button
-        if (buttons[1].draw)
+        const auto& load_button = buttons[1];
+        if (load_button.Draw)
         {
-            if (ImGui::Button(buttons[1].label))
+            if (ImGui::Button(load_button.Label))
             {
                 auto res = OpenLoadFileDialog({
                     { "Json (*.json)", "json" },
@@ -1524,8 +1527,22 @@ bool NodeGraph(NG_Canvas& canvas)
                     std::vector<uint8_t> data{};
                     if (filesystem::ReadFile(res.value(), data))
                     {
-                        nlohmann::json json = nlohmann::json::parse(data);
-                        canvas.SerializeFromJson(json);
+                        try
+                        {
+                            nlohmann::json json = nlohmann::json::parse(data);
+                            uint64_t factory_hash = json["hash"];
+                            if (factory_hash != canvas.Factory->GetHash())
+                            {
+                                CYB_ERROR("Failed to load canvas: Factory hash mismatch (file: {}, canvas: {})",
+                                    factory_hash, canvas.Factory->GetHash());
+                            }
+                            else
+                                canvas.SerializeFromJson(json);
+                        }
+                        catch (const nlohmann::json::parse_error& e)
+                        {
+                            CYB_ERROR("Failed to load canvas: JSON parse error at byte {}: {}", e.byte, e.what());
+                        }
                     }
                 }
             }
@@ -1535,9 +1552,10 @@ bool NodeGraph(NG_Canvas& canvas)
         }
 
         // Save canvas button
-        if (buttons[2].draw)
+        const auto& save_button = buttons[2];
+        if (save_button.Draw)
         {
-            if (ImGui::Button(buttons[2].label))
+            if (ImGui::Button(save_button.Label))
             {
                 auto res = OpenSaveFileDialog({
                     { "Json (*.json)", "json" },
@@ -1554,6 +1572,18 @@ bool NodeGraph(NG_Canvas& canvas)
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Save canvas");
         }
+
+        // Draw the button background
+        ImGui::EndGroup();
+        const ImVec2 buttons_end = ImGui::GetItemRectMax();
+        draw_list->ChannelsSetCurrent(0);
+
+        draw_list->AddRectFilled(
+            buttons_start - style.NodeFramePadding,
+            buttons_end + style.NodeFramePadding,
+            style.ButtonsFrameColor, style.NodeFrameRounding);
+
+        draw_list->ChannelsMerge();
     }
 
     // Display canvas state

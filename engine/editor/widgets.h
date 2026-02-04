@@ -3,6 +3,7 @@
 #include <memory>
 #include <unordered_map>
 #include <map>
+#include <typeindex>
 #include <functional>
 #include <variant>
 #include "core/hash.h"
@@ -177,10 +178,6 @@ namespace cyb::ui
      *          - All connected input nodes are in a valid state.
      *          - The top-most node in the connection chain is a producer node (no input pins).
      * 
-     * Bugs / Todo:
-     *      * Pin Signature checking when creating connections.
-     *      * Button background frame size isn't always correct.
-     *      * Verify factory hash when loading canvas.
      *------------------------------------------------------------------------------*/
 
     // Comment out to enable feature
@@ -189,7 +186,7 @@ namespace cyb::ui
 //#define CYB_NG_DEBUG_CANVAS_STATE
 #define CYB_NG_STYLE_EDITOR
 
-    enum NG_CanvasFlags
+    enum NG_CanvasFlags : uint32_t
     {
         NG_CanvasFlags_None             = 0,
         NG_CanvasFlags_NoGrid           = 1 << 0,
@@ -226,9 +223,15 @@ namespace cyb::ui
             NG_PinType Type{ NG_PinType::Input };
             NG_Node* ParentNode{ nullptr };
             ImVec2 Pos{ 0, 0 };
+            uint64_t SignatureHash{ 0 };
 
             virtual ~NG_Pin() = default;
             [[nodiscard]] virtual bool IsConnected() const = 0;
+
+            [[nodiscard]] uint64_t SignatureHashFromType(const std::type_info& ti) const noexcept
+            {
+                return std::type_index(ti).hash_code();
+            }
         };
 
         struct NG_OutputPinBase : detail::NG_Pin
@@ -260,6 +263,11 @@ namespace cyb::ui
             using callback_type = std::function<R(Args...)>;
             callback_type Callback{};
 
+            NG_OutputPin()
+            {
+                SignatureHash = SignatureHashFromType(typeid(R(Args...)));
+            }
+
             R Invoke(Args... args) const
             {
                 assert(Callback && "Output pin callback not set");
@@ -290,6 +298,11 @@ namespace cyb::ui
         {
             using callback_type = std::function<R(Args...)>;
             callback_type Callback{};
+
+            NG_InputPin()
+            {
+                SignatureHash = SignatureHashFromType(typeid(R(Args...)));
+            }
 
             R Invoke(Args... args) const
             {

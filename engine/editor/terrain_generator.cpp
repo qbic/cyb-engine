@@ -418,7 +418,7 @@ namespace cyb::editor
         ui::DragFloat("Min Altitude", &m_minMeshAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
         ui::DragFloat("Max Altitude", &m_maxMeshAltitude, 0.5f, -500.0f, 500.0f, "%.2fm");
         ui::SliderFloat("Max Error", &m_maxError, nullptr, 0.0001f, 0.01f, "%.4f");
-        //ui::GradientButton("ColorBand", &m_biomeColorBand);
+        ui::GradientButton("ColorBand", m_biomeColorBand);
         
         ImGui::Spacing();
         ImGui::Spacing();

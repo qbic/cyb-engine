@@ -107,35 +107,63 @@ namespace cyb::ui
 
     bool ListBox(const char* label, int* selectedIndex, std::vector<std::string_view>& values);
 
-    struct GradientMark {
-        ImColor color;
-        float position = 0.0f;      // [0..1] range
+    void SolidRect(ImU32 color, const ImVec2& size, const ImVec2& offset = ImVec2(0, 0), bool border = false);
+
+    /*-----------------------------------------------------------------------------
+     * Gradient editor based on:
+     * David Gallardo's https://gist.github.com/galloscript/8a5d179e432e062550972afcd1ecf112
+     * 
+     * Usage:
+     *      * Click on the gradient bar to add a new mark.
+     *      * Drag a mark to change its position.
+     *      * You can drag a color from color picker to a mark to change its color.
+     *      * Right-Click a mark to remove it.
+     * 
+     * Bugs/Todo:
+     *      * Serialization to/from json
+     *      * Gradient marks sizes scale bad.
+     *-----------------------------------------------------------------------------*/
+
+    inline constexpr float CYB_GRADIENT_BAR_WIDGET_HEIGHT{ 25.0f };
+    inline constexpr float CYB_GRADIENT_BAR_EDITOR_HEIGHT{ 40.0f };
+
+    enum GradientFlags : uint32_t
+    {
+        GradientFlags_None = 0,
+        GradientFlags_Smooth = 1 << 0,  // Interpolate color smoothly to the next mark
     };
 
-    struct Gradient {
-        std::list<GradientMark*> markList;
-        GradientMark* draggingMark = nullptr;
-        GradientMark* selectedMark = nullptr;
+    struct GradientMark
+    {
+        ImColor Color{ 0 };
+        float Position{ 0.0f };         // [0..1] range
+    };
 
-        Gradient();
-        Gradient(std::initializer_list<GradientMark> il);
-        ~Gradient();
+    struct Gradient
+    {
+        std::list<std::shared_ptr<GradientMark>> MarkList{};
+        std::shared_ptr<GradientMark> DraggingMark{};
+        std::shared_ptr<GradientMark> SelectedMark{};
+        uint32_t Flags{ GradientFlags_None };
 
-        ImColor GetColorAt(float position) const;
-        GradientMark*& AddMark(float position, ImColor const color);
-        void RemoveMark(GradientMark* mark);
-        void Clear();
-        void SortMarks();
+        Gradient(uint32_t flags = 0);
+        Gradient(std::initializer_list<GradientMark> il, uint32_t flags = 0);
+        Gradient(const Gradient& a);
+        ~Gradient() = default;
+
+        ImColor GetColorAt(float position) const noexcept;
+        std::shared_ptr<GradientMark> AddMark(float position, ImColor const color);
+        void RemoveMark(std::shared_ptr<GradientMark> mark) noexcept;
+        void Clear() noexcept;
+        void SortMarks() noexcept;
         Gradient& operator=(const Gradient& a);
     };
 
-    bool GradientButton(const char* label, Gradient* gradient);
+    bool GradientButton(const char* label, Gradient& gradient);
 
-    void SolidRect(ImU32 color, const ImVec2& size, const ImVec2& offset = ImVec2(0, 0), bool border = false);
-
-    //------------------------------------------------------------------------------
-    // Plotting functions, supporting mutiple plot lines on a single frame
-    //------------------------------------------------------------------------------
+    /*-----------------------------------------------------------------------------
+     * Plotting functions, supporting multiple plot lines on a single frame
+     *-----------------------------------------------------------------------------*/
 
     struct PlotLineDesc
     {
@@ -172,13 +200,14 @@ namespace cyb::ui
      *          - You can not connect an output to an input in the same node.
      *          - You can not create cyclic (infinite) loop connections.
      *          - You can not connect input to input, or output to output.
+     *          - Connection pins must have matching function signatures.
      *      * NG_Node::Update() will only get called when node is in a valid state.
      *      * A node is considered valid if:
      *          - All input pins are connected.
      *          - All connected input nodes are in a valid state.
      *          - The top-most node in the connection chain is a producer node (no input pins).
      * 
-     *------------------------------------------------------------------------------*/
+     *-----------------------------------------------------------------------------*/
 
     // Comment out to enable feature
 //#define CYB_NG_DEBUG_RECTS
@@ -371,10 +400,19 @@ namespace cyb::ui
         const std::string& GetLabel() const { return m_Label; }
         ImGuiID GetID() const { return m_ID; }
 
-        // This may be implemented in derived class for displaying custom items.
+        /**
+         * @brief Optional user implemented node content display function.
+         */
         virtual void DisplayContent() {}
 
+        /**
+         * @brief Optional user implemented node serialization to json.
+         */
         virtual void SerializeToJson(json_type& json) const {}
+        
+        /**
+         * @brief Optional user implemented node deserialization from json.
+         */
         virtual void SerializeFromJson(const json_type& json) {}
 
         /**

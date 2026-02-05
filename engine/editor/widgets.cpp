@@ -1,7 +1,3 @@
-/*
- * Gradient editor based on:
- * David Gallardo's https://gist.github.com/galloscript/8a5d179e432e062550972afcd1ecf112
- */
 #include <memory>
 #include <unordered_set>
 #include <cmath>
@@ -13,8 +9,8 @@
 #include "editor/icons_font_awesome6.h"
 #include "imgui_internal.h"
 
-namespace cyb::ui {
-
+namespace cyb::ui
+{
 StyleVarSet::StyleVarSet(std::initializer_list<std::pair<ImGuiStyleVar, VarValue>> list)
 {
     for (const auto& [key, val] : list)
@@ -333,353 +329,341 @@ bool ListBox(const char* label, int* selectedIndex, std::vector<std::string_view
     return change;
 }
 
-#define GRADIENT_BAR_EDITOR_HEIGHT      40
-#define GRADIENT_MARK_DELETE_DIFFY      40
+void SolidRect(ImU32 color, const ImVec2& size, const ImVec2& offset, bool border)
+{
+    ImGuiContext& g = *GImGui;
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems)
+        return;
 
-Gradient::Gradient()
+    const ImGuiStyle& style = g.Style;
+    const ImVec2 frame_size = ImGui::CalcItemSize(size, ImGui::CalcItemWidth(), style.FramePadding.y * 2.0f);
+    const ImRect frame_bb(window->DC.CursorPos + offset, window->DC.CursorPos + offset + frame_size);
+    const ImRect inner_bb(frame_bb.Min + style.FramePadding, frame_bb.Max - style.FramePadding);
+    const ImRect total_bb(frame_bb.Min, frame_bb.Max);
+    ImGui::ItemSize(total_bb, style.FramePadding.y);
+    if (!ImGui::ItemAdd(total_bb, 0, &frame_bb))
+        return;
+
+    ImGui::RenderFrame(frame_bb.Min, frame_bb.Max, color, border, 0);
+}
+
+//------------------------------------------------------------------------------
+
+Gradient::Gradient(uint32_t flags) :
+    Flags(flags)
 {
     AddMark(0.0f, ImColor(0.0f, 0.0f, 0.0f));
     AddMark(1.0f, ImColor(1.0f, 1.0f, 1.0f));
 }
 
-Gradient::Gradient(std::initializer_list<GradientMark> il)
+Gradient::Gradient(std::initializer_list<GradientMark> il, uint32_t flags) :
+    Flags(flags)
 {
     for (const auto& x : il)
-        AddMark(x.position, x.color);
+        AddMark(x.Position, x.Color);
 }
 
-Gradient::~Gradient()
+Gradient::Gradient(const Gradient& a)
 {
-    for (GradientMark* mark : markList)
-        delete mark;
+    for (const auto& mark : a.MarkList)
+        AddMark(mark->Position, mark->Color);
 }
 
-ImColor Gradient::GetColorAt(float position) const
+ImColor Gradient::GetColorAt(float position) const noexcept
 {
     position = ImClamp(position, 0.0f, 1.0f);
 
-    GradientMark* lower = nullptr;
-    for (GradientMark* mark : markList)
+    std::shared_ptr<GradientMark> lower{};
+    for (const auto& mark : MarkList)
     {
-        assert(mark);
-        if (mark->position <= position)
+        if (mark->Position <= position)
         {
-            if (!lower || lower->position < mark->position)
-            {
+            if (!lower || lower->Position < mark->Position)
                 lower = mark;
-            }
         }
 
-        if (mark->position > position)
+        if (mark->Position > position)
             break;
     }
 
-    if (lower == nullptr)
-        return ImColor(0);
-
-    return lower->color;
+    return lower ? lower->Color : ImColor{ 0 };
 }
 
-GradientMark*& Gradient::AddMark(float position, ImColor const color)
+std::shared_ptr<GradientMark> Gradient::AddMark(float position, ImColor const color)
 {
     position = ImClamp(position, 0.0f, 1.0f);
-    GradientMark* newMark = new GradientMark();
-    newMark->position = position;
-    newMark->color = color;
-    markList.push_back(newMark);
-    GradientMark*& ret = markList.back();
+    auto mark = MarkList.emplace_back(std::make_shared<GradientMark>());
+    mark->Position = position;
+    mark->Color = color;
     SortMarks();
 
-    return ret;
+    return mark;
 }
 
-void Gradient::RemoveMark(GradientMark* mark)
+void Gradient::RemoveMark(std::shared_ptr<GradientMark> mark) noexcept
 {
-    markList.remove(mark);
+    if (DraggingMark == mark)
+        DraggingMark.reset();
+    if (SelectedMark == mark)
+        SelectedMark.reset();
+
+    MarkList.remove(mark);
 }
 
-void Gradient::Clear()
+void Gradient::Clear() noexcept
 {
-    markList.clear();
-    draggingMark = nullptr;
-    selectedMark = nullptr;
+    MarkList.clear();
+    DraggingMark.reset();
+    SelectedMark.reset();
 }
 
-void Gradient::SortMarks()
+void Gradient::SortMarks() noexcept
 {
-    markList.sort([] (const GradientMark* a, const GradientMark* b) {
-        return a->position < b->position;
+    MarkList.sort([] (std::shared_ptr<const GradientMark> a, std::shared_ptr<const GradientMark> b) {
+        return a->Position < b->Position;
     });
 }
 
 Gradient& Gradient::operator=(const Gradient& a)
 {
     Clear();
-    for (const auto& mark : a.markList)
-        AddMark(mark->position, mark->color);
+    for (const auto& mark : a.MarkList)
+        AddMark(mark->Position, mark->Color);
 
     return *this;
 }
 
-static bool DrawGradientBar(Gradient* gradient, const ImVec2& barPos, float maxWidth, float height)
+static void DrawGradientBar(
+    const Gradient& gradient,
+    const ImVec2& bar_pos,
+    float max_width,
+    float height)
 {
-    bool modified = false;
-    ImDrawList* DrawList = ImGui::GetWindowDrawList();
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    const ImGuiStyle& style = ImGui::GetStyle();
 
-    const float barBottom = barPos.y + height;
-    DrawList->AddRectFilled(ImVec2(barPos.x - 2, barPos.y - 2),
-        ImVec2(barPos.x + maxWidth + 2, barBottom + 2),
-        IM_COL32(100, 100, 100, 255));
+    const float bar_bottom = bar_pos.y + height;
 
-    if (gradient->markList.size() == 0)
+    draw_list->AddRectFilled(ImVec2{ bar_pos.x - 2.0f, bar_pos.y - 2.0f },
+        ImVec2{ bar_pos.x + max_width + 2.0f, bar_bottom + 2.0f },
+        ImGui::GetColorU32(ImGuiCol_FrameBg));
+
+    if (gradient.MarkList.empty())
     {
-        DrawList->AddRectFilled(ImVec2(barPos.x, barPos.y),
-            ImVec2(barPos.x + maxWidth, barBottom),
-            IM_COL32(255, 255, 255, 255));
+        draw_list->AddRectFilled(
+            bar_pos, 
+            ImVec2{ bar_pos.x + max_width, bar_bottom },
+            ImGui::GetColorU32(ImGuiCol_Text));
     }
 
-    ImColor color = ImColor(1, 1, 1);
-    float prevX = barPos.x;
-    const GradientMark* prevMark = nullptr;
+    ImColor color_a{ 1.0f, 1.0f, 1.0f };
+    ImColor color_b{ 1.0f, 1.0f, 1.0f };
+    float prev_x = bar_pos.x;
+    std::shared_ptr<GradientMark> prev_mark{};
 
-    for (const auto& mark : gradient->markList)
+    for (const auto& mark : gradient.MarkList)
     {
-        assert(mark);
-        const float from = prevX;
-        const float to = prevX = barPos.x + mark->position * maxWidth;
-        color = (prevMark == nullptr) ? mark->color : color = prevMark->color;
+        const float from = prev_x;
+        const float to = prev_x = bar_pos.x + mark->Position * max_width;
+        
+        color_a = (prev_mark == nullptr) ? mark->Color : prev_mark->Color;
+        color_b = mark->Color;
 
-        if (mark->position > 0.0)
+        if (mark->Position > 0.0f)
         {
-            DrawList->AddRectFilled(
-                ImVec2(from, barPos.y),
-                ImVec2(to, barBottom),
-                color);
+            if ((gradient.Flags & GradientFlags_Smooth) == GradientFlags_Smooth)
+                draw_list->AddRectFilledMultiColor(
+                    ImVec2{ from, bar_pos.y },
+                    ImVec2{ to, bar_bottom },
+                    color_a, color_b, color_b, color_a);
+            else
+                draw_list->AddRectFilled(
+                    ImVec2{ from, bar_pos.y },
+                    ImVec2{ to, bar_bottom },
+                    color_a);
         }
 
-        prevMark = mark;
+        prev_mark = mark;
     }
 
-    if (prevMark && prevMark->position < 1.0)
-    {
-        DrawList->AddRectFilled(
-            ImVec2(prevX, barPos.y),
-            ImVec2(barPos.x + maxWidth, barBottom),
-            gradient->markList.back()->color);
-    }
+    if (prev_mark && prev_mark->Position < 1.0f)
+        draw_list->AddRectFilled(ImVec2{ prev_x, bar_pos.y },
+                                 ImVec2{ bar_pos.x + max_width, bar_bottom },
+                                 color_b);
 
-    // Drag and dropping gradient to copy:
-    const char* dragAndDropID = "_DragGradient";
-    if (ImGui::BeginDragDropSource())
-    {
-        ImGui::SetDragDropPayload(dragAndDropID, &gradient, sizeof(Gradient**));
-        ImGui::Text("Move to another gradient to copy");
-        ImGui::EndDragDropSource();
-    }
-    if (ImGui::BeginDragDropTarget())
-    {
-        const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(dragAndDropID);
-        if (payload)
-        {
-            assert(payload->DataSize == sizeof(Gradient*));
-            Gradient* draggedGradient = *((Gradient**)payload->Data);
-            *gradient = *draggedGradient;
-            modified |= true;
-        }
-
-        ImGui::EndDragDropTarget();
-    }
-
-    return modified;
+    ImGui::SetCursorScreenPos(ImVec2{ bar_pos.x, bar_pos.y + height + 10.0f });
 }
 
-static bool DrawGradientMarks(Gradient* gradient,
-    ImVec2 const& bar_pos,
+static std::shared_ptr<GradientMark> DrawGradientMarks(
+    Gradient& gradient,
+    const ImVec2& bar_pos,
     float maxWidth,
     float height)
 {
-    bool modified = false;  // for color drag and drop
-    ImGuiContext& g = *GImGui;
-    float barBottom = bar_pos.y + height;
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    GradientMark*& draggingMark = gradient->draggingMark;
-    GradientMark*& selectedMark = gradient->selectedMark;
+    std::shared_ptr<GradientMark> hovered_mark{};
+    const float bar_bottom{ bar_pos.y + height };
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
-    for (const auto& mark : gradient->markList)
+    for (auto& mark : gradient.MarkList)
     {
-        assert(mark);
-        if (!selectedMark)
-        {
-            selectedMark = mark;
-            g.ColorPickerRef = selectedMark->color;
-        }
+        if (!gradient.SelectedMark)
+            gradient.SelectedMark = mark;
 
-        float to = bar_pos.x + mark->position * maxWidth;
+        const float to{ bar_pos.x + mark->Position * maxWidth };
 
-        drawList->AddTriangleFilled(ImVec2(to, bar_pos.y + (height - 6)),
-            ImVec2(to - 6, barBottom),
-            ImVec2(to + 6, barBottom), IM_COL32(100, 100, 100, 255));
+        draw_list->AddTriangleFilled(
+            ImVec2{ to, bar_pos.y + (height - 6.0f) },
+            ImVec2{ to - 6.0f, bar_bottom },
+            ImVec2{ to + 6.0f, bar_bottom },
+            IM_COL32(100, 100, 100, 255));
 
-        drawList->AddRectFilled(ImVec2(to - 6, barBottom),
-            ImVec2(to + 6, bar_pos.y + (height + 12)),
+        draw_list->AddRectFilled(
+            ImVec2{ to - 6.0f, bar_bottom },
+            ImVec2{ to + 6.0f, bar_pos.y + (height + 12) },
             IM_COL32(100, 100, 100, 255), 1.0f);
 
-        drawList->AddRectFilled(ImVec2(to - 5, bar_pos.y + (height + 1)),
-            ImVec2(to + 5, bar_pos.y + (height + 11)),
+        draw_list->AddRectFilled(
+            ImVec2{ to - 5.0f, bar_pos.y + (height + 1.0f) },
+            ImVec2{ to + 5.0f, bar_pos.y + (height + 11.0f) },
             IM_COL32(0, 0, 0, 255), 1.0f);
 
-        if (selectedMark == mark)
+        if (gradient.SelectedMark == mark)
         {
             const ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_Text);
-            drawList->AddTriangleFilled(ImVec2(to, bar_pos.y + (height - 3)),
-                ImVec2(to - 4, barBottom + 1),
-                ImVec2(to + 4, barBottom + 1), frameColor);
+            draw_list->AddTriangleFilled(
+                ImVec2{ to, bar_pos.y + (height - 3.0f) },
+                ImVec2{ to - 4.0f, bar_bottom + 1.0f },
+                ImVec2{ to + 4.0f, bar_bottom + 1.0f }, frameColor);
 
-            drawList->AddRect(ImVec2(to - 5, bar_pos.y + (height + 1)),
-                ImVec2(to + 5, bar_pos.y + (height + 11)),
+            draw_list->AddRect(
+                ImVec2{ to - 5.0f, bar_pos.y + (height + 1.0f) },
+                ImVec2{ to + 5.0f, bar_pos.y + (height + 11.0f) },
                 frameColor, 1.0f);
         }
 
-        drawList->AddRectFilled(ImVec2(to - 3, bar_pos.y + (height + 3)),
-            ImVec2(to + 3, bar_pos.y + (height + 9)),
-            mark->color);
+        draw_list->AddRectFilled(
+            ImVec2{ to - 3.0f, bar_pos.y + (height + 3.0f) },
+            ImVec2{ to + 3.0f, bar_pos.y + (height + 9.0f) },
+            mark->Color);
 
-
-        ImGui::SetCursorScreenPos(ImVec2(to - 6, barBottom));
-        ImGui::InvisibleButton("mark", ImVec2(12, 12));
+        ImGui::SetCursorScreenPos(ImVec2{ to - 6.0f, bar_bottom });
+        ImGui::PushID(mark.get());
+        ImGui::InvisibleButton("mark", ImVec2{ 12.0f, 12.0f });
+        ImGui::PopID();
 
         if (ImGui::BeginDragDropTarget())
         {
-            ImVec4 col = {};
             const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F);
             if (payload)
             {
-                memcpy(&col.x, payload->Data, sizeof(float) * 4);
-                mark->color = ImGui::ColorConvertFloat4ToU32(col);
-                modified |= true;
+                ImVec4 color{};
+                memcpy(&color, payload->Data, sizeof(float) * 4);
+                mark->Color = ImGui::ColorConvertFloat4ToU32(color);
             }
 
             ImGui::EndDragDropTarget();
         }
 
-        const bool isHovered = ImGui::IsItemHovered();
-        if (isHovered)
-        {
-            if (ImGui::IsMouseClicked(0))
-            {
-                selectedMark = mark;
-                draggingMark = mark;
-                g.ColorPickerRef = selectedMark->color;
-            }
-        }
+        const bool is_hovered = ImGui::IsItemHovered();
+        const bool is_dragging = (ImGui::IsMouseDragging(ImGuiMouseButton_Left) && (gradient.DraggingMark == mark));
 
-        const bool isDraggingMark = (ImGui::IsMouseDragging(0) && (draggingMark == mark));
-        if (isHovered || isDraggingMark)
-        {
-            ImGui::BeginTooltip();
-            ImGui::Text("pos: %f", mark->position);
-            ImGui::EndTooltip();
-        }
+        if (is_hovered)
+            hovered_mark = mark;
+
+        if (is_hovered || is_dragging)
+            ImGui::SetTooltip("Pos: %.3f\nRight-Click to remove", mark->Position);
     }
 
     ImGui::SetCursorScreenPos(ImVec2(bar_pos.x, bar_pos.y + height + 20.0f));
-    return modified;
+    return hovered_mark;
 }
 
-static bool GradientEditor(Gradient* gradient)
+static bool GradientEditor(Gradient& gradient)
 {
-    bool modified = false;
+    const ImVec2 bar_pos = ImGui::GetCursorScreenPos() + ImVec2{ 10.0f, 0.0f };
+    const float max_width = ImGui::GetContentRegionAvail().x - 20;
 
-    ImGuiContext& g = *GImGui;
-    ImVec2 bar_pos = ImGui::GetCursorScreenPos();
-    bar_pos.x += 10;
-    float maxWidth = ImGui::GetContentRegionAvail().x - 20;
-    float barBottom = bar_pos.y + GRADIENT_BAR_EDITOR_HEIGHT;
-    GradientMark*& draggingMark = gradient->draggingMark;
-    GradientMark*& selectedMark = gradient->selectedMark;
-
-    ImGui::InvisibleButton("gradient_editor_bar", ImVec2(maxWidth, GRADIENT_BAR_EDITOR_HEIGHT));
+    ImGui::InvisibleButton("gradient_editor_bar", ImVec2(max_width, CYB_GRADIENT_BAR_EDITOR_HEIGHT));
     if (ImGui::IsItemHovered())
-    {
-        ImGui::BeginTooltip();
-        ImGui::TextUnformatted("Left-Click to add new mark");
-        ImGui::EndTooltip();
-    }
+        ImGui::SetTooltip("Left-Click to add new mark");
 
     // Create new mark on left mouse click
-    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
+    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-        float pos = (ImGui::GetIO().MousePos.x - bar_pos.x) / maxWidth;
-        ImColor newMarkColor = gradient->GetColorAt(pos);
+        float pos = (ImGui::GetIO().MousePos.x - bar_pos.x) / max_width;
+        ImColor newMarkColor = gradient.GetColorAt(pos);
 
-        gradient->selectedMark = gradient->AddMark(pos, newMarkColor);
-        g.ColorPickerRef = selectedMark->color;
+        gradient.SelectedMark = gradient.AddMark(pos, newMarkColor);
     }
 
-    modified |= DrawGradientBar(gradient, bar_pos, maxWidth, GRADIENT_BAR_EDITOR_HEIGHT);
-    modified |= DrawGradientMarks(gradient, bar_pos, maxWidth, GRADIENT_BAR_EDITOR_HEIGHT);
+    DrawGradientBar(gradient, bar_pos, max_width, CYB_GRADIENT_BAR_EDITOR_HEIGHT);
+    auto hovered_mark = DrawGradientMarks(gradient, bar_pos, max_width, CYB_GRADIENT_BAR_EDITOR_HEIGHT);
 
-    if (!ImGui::IsMouseDown(0) && gradient->draggingMark)
-        gradient->draggingMark = nullptr;
-
-    if (ImGui::IsMouseDragging(0) && gradient->draggingMark)
+    if (hovered_mark && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-        float increment = ImGui::GetIO().MouseDelta.x / maxWidth;
-        bool insideZone = (ImGui::GetIO().MousePos.x > bar_pos.x) &&
-            (ImGui::GetIO().MousePos.x < bar_pos.x + maxWidth);
+        gradient.SelectedMark = hovered_mark;
+        gradient.DraggingMark = hovered_mark;
+    }
 
-        if (increment != 0.0f && insideZone)
+    if (hovered_mark && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+    {
+        gradient.RemoveMark(hovered_mark);
+        gradient.SelectedMark.reset();
+        gradient.DraggingMark.reset();
+    }
+
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left) && gradient.DraggingMark)
+        gradient.DraggingMark.reset();
+
+    bool modified = false;
+    if (ImGui::IsMouseDragging(ImGuiMouseButton_Left) && gradient.DraggingMark)
+    {
+        const float increment = ImGui::GetIO().MouseDelta.x / max_width;
+        const bool inside_zone = (ImGui::GetIO().MousePos.x > bar_pos.x) &&
+            (ImGui::GetIO().MousePos.x < bar_pos.x + max_width);
+
+        if (increment != 0.0f && inside_zone)
         {
-            draggingMark->position += increment;
-            draggingMark->position = ImClamp(draggingMark->position, 0.0f, 1.0f);
-            gradient->SortMarks();
-            modified |= true;
-        }
-
-        float diffY = ImGui::GetIO().MousePos.y - barBottom;
-
-        if (diffY >= GRADIENT_MARK_DELETE_DIFFY)
-        {
-            gradient->RemoveMark(draggingMark);
-            draggingMark = nullptr;
-            selectedMark = nullptr;
+            gradient.DraggingMark->Position += increment;
+            gradient.DraggingMark->Position = ImClamp(gradient.DraggingMark->Position, 0.0f, 1.0f);
+            gradient.SortMarks();
             modified |= true;
         }
     }
 
-    if (!selectedMark && gradient->markList.size() > 0)
-        selectedMark = gradient->markList.front();
+    if (!gradient.SelectedMark && gradient.MarkList.size() > 0)
+        gradient.SelectedMark = gradient.MarkList.front();
 
-    if (selectedMark)
-        modified |= ImGui::ColorPicker4("color", &selectedMark->color.Value.x, ImGuiColorEditFlags_NoAlpha, &g.ColorPickerRef.x);
+    if (gradient.SelectedMark)
+        modified |= ImGui::ColorPicker4("color", &gradient.SelectedMark->Color.Value.x, ImGuiColorEditFlags_NoAlpha);
 
     return modified;
 }
 
-bool GradientButtonImpl(Gradient* gradient)
+bool GradientButton(const char* label, Gradient& gradient)
 {
-    assert(gradient);
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    COMMON_WIDGET_CODE(label);
+    
+    const ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems)
         return false;
 
-    ImGuiContext& g = *GImGui;
-    const ImGuiStyle& style = g.Style;
+    // Disallow empty MarkList
+    if (gradient.MarkList.empty())
+        gradient.AddMark(0.0f, ImColor{ 0.0f, 0.0f, 0.0f });
 
-    ImVec2 pos = window->DC.CursorPos;
-    ImVec2 size = ImGui::CalcItemSize(ImVec2(-1, ImGui::GetFrameHeight()), style.FramePadding.x * 2.0f, style.FramePadding.y * 2.0f);
+    const ImVec2 widget_pos = ImGui::GetCursorScreenPos();
+    const ImVec2 widget_size{ ImGui::CalcItemWidth(), ImGui::GetFrameHeight() };
+    const bool clicked = ImGui::InvisibleButton("gradient_bar", widget_size);
+    DrawGradientBar(gradient, widget_pos, widget_size.x, widget_size.y);
 
-    const ImRect bb(pos, pos + size);
-    ImGui::ItemSize(size, style.FramePadding.y);
-    if (!ImGui::ItemAdd(bb, ImGui::GetID(gradient)))
-        return false;
+    // Open gradient editor on click
+    if (clicked)
+        ImGui::OpenPopup("grad_editor");
 
-    const float frameHeight = size.y - style.FramePadding.y;
-    if (ImGui::ButtonBehavior(bb, ImGui::GetItemID(), nullptr, nullptr))
-        ImGui::OpenPopup("grad_edit");
-    bool modified = DrawGradientBar(gradient, bb.Min, bb.GetWidth(), frameHeight);
-
-    if (ImGui::BeginPopup("grad_edit"))
+    bool modified = false;
+    if (ImGui::BeginPopup("grad_editor"))
     {
         modified |= GradientEditor(gradient);
         ImGui::EndPopup();
@@ -688,35 +672,6 @@ bool GradientButtonImpl(Gradient* gradient)
     return modified;
 }
 
-bool GradientButton(const char* label, Gradient* gradient)
-{
-    COMMON_WIDGET_CODE(label);
-    return GradientButtonImpl(gradient);
-}
-
-using namespace ImGui;
-
-void SolidRect(ImU32 color, const ImVec2& size, const ImVec2& offset, bool border)
-{
-    ImGuiContext& g = *GImGui;
-    ImGuiWindow* window = GetCurrentWindow();
-    if (window->SkipItems)
-        return;
-
-    const ImGuiStyle& style = g.Style;
-    const ImVec2 frame_size = CalcItemSize(size, CalcItemWidth(), style.FramePadding.y * 2.0f);
-    const ImRect frame_bb(window->DC.CursorPos + offset, window->DC.CursorPos + offset + frame_size);
-    const ImRect inner_bb(frame_bb.Min + style.FramePadding, frame_bb.Max - style.FramePadding);
-    const ImRect total_bb(frame_bb.Min, frame_bb.Max);
-    ItemSize(total_bb, style.FramePadding.y);
-    if (!ItemAdd(total_bb, 0, &frame_bb))
-        return;
-
-    RenderFrame(frame_bb.Min, frame_bb.Max, color, border, 0);
-}
-
-//------------------------------------------------------------------------------
-// Plotting functions
 //------------------------------------------------------------------------------
 
 void PlotMultiLines(
@@ -728,21 +683,21 @@ void PlotMultiLines(
     ImVec2 graph_size)
 {
     ImGuiContext& g = *GImGui;
-    ImGuiWindow* window = GetCurrentWindow();
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems)
         return;
 
     const ImGuiStyle& style = g.Style;
     const ImGuiID id = window->GetID(label);
 
-    const ImVec2 label_size = CalcTextSize(label, NULL, true);
-    const ImVec2 frame_size = CalcItemSize(graph_size, CalcItemWidth(), label_size.y + style.FramePadding.y * 2.0f);
+    const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
+    const ImVec2 frame_size = ImGui::CalcItemSize(graph_size, ImGui::CalcItemWidth(), label_size.y + style.FramePadding.y * 2.0f);
 
     const ImRect frame_bb(window->DC.CursorPos, window->DC.CursorPos + frame_size);
     const ImRect inner_bb(frame_bb.Min + style.FramePadding, frame_bb.Max - style.FramePadding);
     const ImRect total_bb(frame_bb.Min, frame_bb.Max + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0));
-    ItemSize(total_bb, style.FramePadding.y);
-    if (!ItemAdd(total_bb, 0, &frame_bb, ImGuiItemFlags_NoNav))
+    ImGui::ItemSize(total_bb, style.FramePadding.y);
+    if (!ImGui::ItemAdd(total_bb, 0, &frame_bb, ImGuiItemFlags_NoNav))
         return;
 
     // Determine scale from values if not specified
@@ -766,7 +721,7 @@ void PlotMultiLines(
         }
     }
 
-    RenderFrame(frame_bb.Min, frame_bb.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
+    ImGui::RenderFrame(frame_bb.Min, frame_bb.Max, ImGui::GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
 
     const int values_count_min = 2;
     for (const auto& line : lines)
@@ -811,20 +766,20 @@ void PlotMultiLines(
         ImVec2 rect_size = ImVec2(12, 12);
 
         int HACK_RECT_ALIGN = 4;
-        RenderFrame(ImVec2(pos.x, pos.y + HACK_RECT_ALIGN), ImVec2(pos.x + rect_size.x, pos.y + rect_size.y + HACK_RECT_ALIGN), line.Color, false);
+        ImGui::RenderFrame(ImVec2(pos.x, pos.y + HACK_RECT_ALIGN), ImVec2(pos.x + rect_size.x, pos.y + rect_size.y + HACK_RECT_ALIGN), line.Color, false);
 
         ImVec2 text_pos = ImVec2(pos.x + rect_size.x + style.FramePadding.x, pos.y);
-        RenderTextClipped(text_pos, frame_bb.Max, line.Label.data(), NULL, NULL);
+        ImGui::RenderTextClipped(text_pos, frame_bb.Max, line.Label.data(), NULL, NULL);
 
         y_offset += rect_size.y + style.FramePadding.y;
     }
 
     // Text overlay
     if (overlay_text)
-        RenderTextClipped(ImVec2(frame_bb.Min.x, frame_bb.Min.y + style.FramePadding.y), frame_bb.Max, overlay_text, NULL, NULL, ImVec2(0.5f, 0.0f));
+        ImGui::RenderTextClipped(ImVec2(frame_bb.Min.x, frame_bb.Min.y + style.FramePadding.y), frame_bb.Max, overlay_text, NULL, NULL, ImVec2(0.5f, 0.0f));
 
     if (label_size.x > 0.0f)
-        RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, inner_bb.Min.y), label);
+        ImGui::RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, inner_bb.Min.y), label);
 }
 
 //------------------------------------------------------------------------------
@@ -1085,9 +1040,10 @@ static void DrawNode(NG_Node& node, const NG_Canvas& canvas)
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
     bool item_hovered = false;
-
+    const bool is_front_node = node.GetID() == canvas.Nodes.back()->GetID();
+    const bool is_disabled = !canvas.IsNodeHovered(node.GetID()) && !is_front_node;
     ImGui::PushID(node.GetID());
-    ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !canvas.IsNodeHovered(node.GetID()));
+    ImGui::PushItemFlag(ImGuiItemFlags_Disabled, is_disabled);
 
     // 0 = Background, 1 = Foreground
     draw_list->ChannelsSplit(2);
@@ -1131,6 +1087,8 @@ static void DrawNode(NG_Node& node, const NG_Canvas& canvas)
     ImGui::Text("ID: %u", node.GetID());
     ImGui::Text("Hovered: %s", canvas.IsNodeHovered(node.GetID()) ? "true" : "false");
     ImGui::Text("Active: %s", ImGui::GetActiveID() == node.GetID() ? "true" : "false");
+    ImGui::Text("Front: %s", is_front_node ? "true" : "false");
+    ImGui::Text("Disabled: %s", is_disabled ? "true" : "false");
     ImGui::Text("Pos: [%.1f, %.1f]", node.Pos.x, node.Pos.y);
     ImGui::Text("Size: [%.1f, %.1f]", node.Size.x, node.Size.y);
 #endif
@@ -1176,10 +1134,10 @@ static void DrawNode(NG_Node& node, const NG_Canvas& canvas)
             ImVec2(node_start.x + node_width, y_pos);
         const ImRect pin_bb{ pin->Pos - ImVec2(pin_radius, pin_radius),
                              pin->Pos + ImVec2(pin_radius, pin_radius) };
-        if (ImGui::ItemAdd(pin_bb, ImGui::GetID(&pin)))
+        if (ImGui::ItemAdd(pin_bb, ImGui::GetID(pin)))
         {
             DRAW_DEBUG_RECT();
-            pin->Hovered = ImGui::ItemHoverable(pin_bb, ImGui::GetID(&pin), 0);
+            pin->Hovered = ImGui::ItemHoverable(pin_bb, ImGui::GetID(pin), 0);
             const bool connected = pin->IsConnected();
             const ImColor pin_col = pin->Hovered ? style.PinHoverColor : connected ? style.PinConnectedColor : style.PinUnConnectedColor;
             draw_list->AddCircleFilled(pin->Pos, pin_radius, pin_col);
@@ -1640,16 +1598,6 @@ void NG_Canvas::SerializeToJson(json_type& json) const
         json_node["pos_y"] = node->Pos.y;
         node->SerializeToJson(json_node);
 
-        json_node["input_pins"] = json_type::array();
-        for (auto& pin : node->Inputs)
-        {
-            size_t pin_hash{ node_hash };
-            HashCombine(pin_hash, pin->Label);
-            assert(pin_lookup.find(uintptr_t(pin.get())) == pin_lookup.end() && "Non unique pin");
-            pin_lookup[uintptr_t(pin.get())] = pin_hash;
-            json_node["input_pins"].push_back(pin_hash);
-        }
-
         json_node["output_pins"] = json_type::array();
         for (auto& pin : node->Outputs)
         {
@@ -1658,6 +1606,16 @@ void NG_Canvas::SerializeToJson(json_type& json) const
             assert(pin_lookup.find(uintptr_t(pin.get())) == pin_lookup.end() && "Non unique pin");
             pin_lookup[uintptr_t(pin.get())] = pin_hash;
             json_node["output_pins"].push_back(pin_hash);
+        }
+
+        json_node["input_pins"] = json_type::array();
+        for (auto& pin : node->Inputs)
+        {
+            size_t pin_hash{ node_hash };
+            HashCombine(pin_hash, pin->Label);
+            assert(pin_lookup.find(uintptr_t(pin.get())) == pin_lookup.end() && "Non unique pin");
+            pin_lookup[uintptr_t(pin.get())] = pin_hash;
+            json_node["input_pins"].push_back(pin_hash);
         }
 
         json["nodes"].push_back(json_node);

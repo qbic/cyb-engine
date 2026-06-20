@@ -641,7 +641,7 @@ namespace cyb::rhi
             device->SetFenceName(cmd.fence, "CopyAllocator::fence");
 
             GPUBufferDesc uploaddesc;
-            uploaddesc.size = Max(NextPowerOfTwo(staging_size), uint64_t(65536));
+            uploaddesc.size = std::max(NextPowerOfTwo(staging_size), 65536ull);
             uploaddesc.cpuAccess = CpuAccessMode::Read;
             bool uploadSuccess = device->CreateBuffer(&uploaddesc, nullptr, &cmd.uploadBuffer);
             assert(uploadSuccess);

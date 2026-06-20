@@ -139,8 +139,8 @@ namespace cyb::noise2
         const float xd1 = xd0 - 1.0;
         const float yd1 = yd0 - 1.0;
 
-        const float xs = QuinticSmoothStep(xd0);
-        const float ys = QuinticSmoothStep(yd0);
+        const float xs = QuinticSmoothstep(xd0);
+        const float ys = QuinticSmoothstep(yd0);
 
         const float n00 = GradCoord(seed, x0, y0, xd0, yd0);
         const float n10 = GradCoord(seed, x1, y0, xd1, yd0);

@@ -780,7 +780,7 @@ namespace cyb::rhi
             if (buffer == nullptr || data == nullptr)
                 return;
 
-            size = Min(buffer->desc.size, size);
+            size = std::min(buffer->desc.size, size);
             if (size == 0)
                 return;
             GPUAllocation allocation = AllocateGPU(size, cmd);

@@ -205,7 +205,7 @@ namespace cyb::editor
         AddOutputPin<Signature>("Output", [&] (float x, float y) -> float {
             const float value = m_input->Invoke(x, y);
             const float step = std::floor(value * m_strata) / m_strata;
-            const float alpha = CubicSmoothStep((value * m_strata) - std::floor(value * m_strata));
+            const float alpha = CubicSmoothstep((value * m_strata) - std::floor(value * m_strata));
             return Lerp(step, value, alpha);
         });
     }
@@ -249,7 +249,7 @@ namespace cyb::editor
                     return valueB;
                 else
                 {
-                    const float alpha = CubicSmoothStep((controlValue - lower) / (2.0f * m_edgeFalloff));
+                    const float alpha = CubicSmoothstep((controlValue - lower) / (2.0f * m_edgeFalloff));
                     return Lerp(valueA, valueB, alpha);
                 }
             }
@@ -587,7 +587,7 @@ namespace cyb::editor
             object->meshID = chunkData.entity;
 
             // generate triangulated heightmap mesh
-            const Vector2i heightmapOffset{ xOffset * int32_t(m_chunkSize), zOffset * int32_t(m_chunkSize) };
+            const IVec2 heightmapOffset{ xOffset * int32_t(m_chunkSize), zOffset * int32_t(m_chunkSize) };
             const Heightmap hm{ &heightmap, m_chunkSize, m_chunkSize, heightmapOffset };
             DelaunayTriangulator triangulator{ hm, m_chunkSize, m_chunkSize };
             triangulator.Triangulate(m_maxError, 0, 0);

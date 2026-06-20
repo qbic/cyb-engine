@@ -1069,7 +1069,7 @@ namespace cyb::editor
             ImGui::EndChild();
 
             ImGui::Text("Components:");
-            const float componentChildHeight = Max(300.0f, ImGui::GetContentRegionAvail().y);
+            const float componentChildHeight = std::max(300.0f, ImGui::GetContentRegionAvail().y);
             ImGui::BeginChild("Components", ImVec2(0, componentChildHeight), ImGuiChildFlags_Border);
             EditEntityComponents(scenegraphView.GetSelectedEntity());
             ImGui::EndChild();

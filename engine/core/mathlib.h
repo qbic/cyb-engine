@@ -9,7 +9,7 @@ using namespace DirectX;
 
 namespace cyb
 {
-    inline constexpr float g_PI = 3.141592653589793f;
+    inline constexpr float PI = 3.141592653589793f;
     inline constexpr XMFLOAT3 g_float3Zero { 0, 0, 0 };
     inline constexpr XMFLOAT3 g_float3One  { 1, 1, 1 };
     inline constexpr XMFLOAT3 g_float3OneX { 1, 0, 0 };
@@ -17,62 +17,47 @@ namespace cyb
     inline constexpr XMFLOAT3 g_float3OneZ { 0, 0, 1 };
     inline constexpr XMFLOAT4 g_float4OneW { 0, 0, 0, 1 };
 
+    // Check if a type is an arithmetic type (integral or floating point, but not bool).
     template <typename T>
-    concept arithmetic_type = (std::integral<std::remove_cvref_t<T>> || std::floating_point<std::remove_cvref_t<T>>) &&
-                              !std::same_as<std::remove_cvref_t<T>, bool>;
+    concept arithmetic = (std::integral<std::remove_cvref_t<T>> || std::floating_point<std::remove_cvref_t<T>>) &&
+                         !std::same_as<std::remove_cvref_t<T>, bool>;
 
-    template <arithmetic_type T>
-    struct Vector2
+    /** A 2D vector with arithmetic components. */
+    template <arithmetic T>
+    struct TVec2
     {
         T x{};
         T y{};
 
-        Vector2() = default;
-        constexpr Vector2(T _x, T _y) noexcept : x(_x), y(_y) {}
+        TVec2() = default;
+        constexpr TVec2(T _x, T _y) noexcept : x(_x), y(_y) {}
+        constexpr TVec2(T v) noexcept : x(v), y(v) {}
+        constexpr TVec2(const TVec2& other)  noexcept = default;
+        constexpr TVec2& operator=(const TVec2& other) noexcept = default;
 
-        constexpr Vector2 operator+(const Vector2& rhs) const noexcept { return Vector2{ x + rhs.x, y + rhs.y }; }
-        constexpr Vector2 operator-(const Vector2& rhs) const noexcept { return Vector2{ x - rhs.x, y - rhs.y }; }
-        constexpr Vector2 operator*(T s) const noexcept { return { x * s, y * s }; }
-        constexpr Vector2 operator/(T s) const noexcept { return { x / s, y / s }; }
+        [[nodiscard]] constexpr TVec2 operator+(const TVec2& rhs) const noexcept { return TVec2{ x + rhs.x, y + rhs.y }; }
+        [[nodiscard]] constexpr TVec2 operator-(const TVec2& rhs) const noexcept { return TVec2{ x - rhs.x, y - rhs.y }; }
+        [[nodiscard]] constexpr TVec2 operator*(T s) const noexcept { return { x * s, y * s }; }
+        [[nodiscard]] constexpr TVec2 operator/(T s) const noexcept { return { x / s, y / s }; }
+        constexpr TVec2& operator+=(const TVec2& rhs) noexcept { x += rhs.x; y += rhs.y; return *this; }
+        constexpr TVec2& operator-=(const TVec2& rhs) noexcept { x -= rhs.x; y -= rhs.y; return *this; }
+        constexpr TVec2& operator*=(T s) noexcept { x *= s; y *= s; return *this; }
+        constexpr TVec2& operator/=(T s) noexcept { x /= s; y /= s; return *this; }
+        constexpr auto operator<=>(const TVec2&) const = default;
 
-        constexpr Vector2& operator+=(const Vector2& rhs) noexcept { x += rhs.x; y += rhs.y; return *this; }
-        constexpr Vector2& operator-=(const Vector2& rhs) noexcept { x -= rhs.x; y -= rhs.y; return *this; }
-        constexpr Vector2& operator*=(T s) noexcept { x *= s; y *= s; return *this; }
-        constexpr Vector2& operator/=(T s) noexcept { x /= s; y /= s; return *this; }
+        [[nodiscard]] constexpr TVec2 ComponentMin(const TVec2& rhs) const noexcept { return TVec2{ std::min(x, rhs.x), std::min(y, rhs.y) }; }
+        [[nodiscard]] constexpr TVec2 ComponentMax(const TVec2& rhs) const noexcept { return TVec2{ std::max(x, rhs.x), std::max(y, rhs.y) }; }
 
-        constexpr auto operator<=>(const Vector2&) const = default;
+        [[nodiscard]] T Cross(const TVec2& rhs) const noexcept { return x * rhs.y - y * rhs.x; }
     };
 
-    using Vector2f = Vector2<float>;
-    using Vector2i = Vector2<int32_t>;
-
-    template <typename T>
-    concept vector2_compatible = requires(T t) {
-        { t.x } -> arithmetic_type;
-        { t.y } -> arithmetic_type;
-            requires std::same_as<decltype(t.x), decltype(t.y)>;
-    };
+    using Vec2 = TVec2<float>;
+    using DVec2 = TVec2<double>;
+    using IVec2 = TVec2<int32_t>;
+    using UVec2 = TVec2<uint32_t>;
 
     /**
-     * @brief Component-wise minimum [x, y] of two 2D vectors.
-     */
-    template<vector2_compatible T>
-    [[nodiscard]] constexpr T Min(const T& a, const T& b) noexcept
-    {
-        return T(std::min(a.x, b.x), std::min(a.y, b.y));
-    }
-
-    /**
-     * @brief Component-wise maximum [x, y] of two 2D vectors.
-     */
-    template<vector2_compatible T>
-    [[nodiscard]] constexpr T Max(const T& a, const T& b) noexcept
-    {
-        return T(std::max(a.x, b.x), std::max(a.y, b.y));
-    }
-
-    /**
-     * @brief Check if a point is inside the circumcircle of a triangle.
+     * Check if a point is inside the circumcircle of a triangle.
      *
      * @param a First vertex of the triangle.
      * @param b Second vertex of the triangle.
@@ -80,12 +65,12 @@ namespace cyb
      * @param point The point to test.
      * @return true if the point is inside the circumcircle, false otherwise.
      */
-    template <arithmetic_type T>
+    template <arithmetic T>
     [[nodiscard]] inline bool IsPointInCircumcircle(
-        const Vector2<T>& a,
-        const Vector2<T>& b,
-        const Vector2<T>& c,
-        const Vector2<T>& point) noexcept
+        const TVec2<T>& a,
+        const TVec2<T>& b,
+        const TVec2<T>& c,
+        const TVec2<T>& point) noexcept
     {
         const T ax = a.x - point.x;
         const T ay = a.y - point.y;
@@ -100,11 +85,9 @@ namespace cyb
         return det < T(0);
     }
 
-    /**
-     * @brief Check if three points are collinear.
-     */
-    template <arithmetic_type T>
-    [[nodiscard]] bool IsPointsCollinear(const Vector2<T>& p0, const Vector2<T>& p1, const Vector2<T>& p2) noexcept
+    /** Check if three points are collinear. */
+    template <arithmetic T>
+    [[nodiscard]] bool IsPointsCollinear(const TVec2<T>& p0, const TVec2<T>& p1, const TVec2<T>& p2) noexcept
     {
         if constexpr (std::is_floating_point_v<T>)
         {
@@ -118,78 +101,28 @@ namespace cyb
             return (p1.y - p0.y) * (p2.x - p1.x) == (p2.y - p1.y) * (p1.x - p0.x);
     }
 
-    /**
-     * @brief Convert angle from degrees to radians.
-     */
+    /** Convert angle from degrees to radians. */
     template <std::floating_point T>
     [[nodiscard]] constexpr T ToRadians(const T degrees) noexcept
     {
-        return (degrees * g_PI) / T(180);
+        return (degrees * PI) / T(180);
     }
 
-    /**
-     * @brief Convert angle from radians to degrees.
-     */
+    /** Convert angle from radians to degrees. */
     template <std::floating_point T>
     [[nodiscard]] constexpr T ToDegrees(const T radians) noexcept
     {
-        return (radians * T(180)) / g_PI;
+        return (radians * T(180)) / PI;
     }
 
-    /**
-     * @brief Get the lowest value of two numbers.
-     */
-    template<arithmetic_type T>
-    [[nodiscard]] constexpr T Min(const T a, const T b) noexcept
-    {
-        return a < b ? a : b;
-    }
-
-    /**
-     * @brief Get the highest value of two numbers.
-     */
-    template<arithmetic_type T>
-    [[nodiscard]] constexpr T Max(const T a, const T b) noexcept
-    {
-        return a > b ? a : b;
-    }
-
-    /**
-     * @brief Get the num ensuring it's within the low and high boundaries.
-     */
-    template <arithmetic_type T>
-    [[nodiscard]] constexpr T Clamp(T num, T low, T high) noexcept
-    {
-        return Min(Max(num, low), high);
-    }
-
-    /**
-     * @brief Get the largest integer number not larger than num.
-     */
-    template <std::floating_point T>
-    [[nodiscard]] constexpr int Floor(T num) noexcept
-    {
-        return num >= 0 ? (int)num : (int)num - 1;
-    }
-
-    /**
-     * @brief Get the nearest integer value for num.
-     */
-    template <std::floating_point T>
-    [[nodiscard]] constexpr int Round(T num) noexcept
-    {
-        return num >= 0 ? (int)(num + 0.5f) : (int)(num - 0.5f);
-    }
-
-    /**
-     * @brief Clamp num to min 0, max 1.
-     */
+    /** Clamp num to min 0, max 1. */
     template <std::floating_point T>
     [[nodiscard]] constexpr T Saturate(T x) noexcept
     {
-        return Clamp(x, T(0), T(1));
+        return std::min(std::max(x, T(0)), T(1));
     }
 
+    /** Round up to the next power of two. */
     template <std::integral T>
     [[nodiscard]] constexpr T NextPowerOfTwo(T x) noexcept
     {
@@ -204,6 +137,7 @@ namespace cyb
         return ++x;
     }
 
+    /** Round up to the next multiple of divisor. Divisor must be a power of two. */
     [[nodiscard]] constexpr uint32_t NextDivisible(uint32_t num, uint32_t divisor) noexcept
     {
         int bits = num & (divisor - 1);
@@ -213,12 +147,14 @@ namespace cyb
         return num + (divisor - bits);
     }
 
+    /** Linear interpolation between a and b by t. */
     template <std::floating_point T>
     [[nodiscard]] constexpr T Lerp(const T a, const T b, const T t) noexcept
     {
         return a + (b - a) * t;
     }
 
+    /** Cubic interpolation between a, b, c, and d by t. */
     template <std::floating_point T>
     [[nodiscard]] constexpr float CubicLerp(T a, T b, T c, T d, T t) noexcept
     {
@@ -226,35 +162,23 @@ namespace cyb
         return t * t * t * p + t * t * ((a - b) - p) + t * (c - a) + b;
     }
 
-    /**
-     * @brief 3rd-degree Hermite-style smoothstep
-     *
-     * f(t) = t^2 * (3 - 2 t)
-     */
+    /** Cubic smoothstep function. */
     template <std::floating_point T>
-    [[nodiscard]] constexpr T CubicSmoothStep(T t) noexcept
+    [[nodiscard]] constexpr T CubicSmoothstep(T t) noexcept
     {
         return t * t * (T(3.0) - T(2.0) * t);
     }
 
-    /**
-     * @brief 5th-degree Hermite-style smoothstep
-     *
-     * f(t) = t^3 * (t * (6 t - 15) + 10)
-     */
+    /** Quintic smoothstep function. */
     template <std::floating_point T>
-    [[nodiscard]] constexpr T QuinticSmoothStep(T t) noexcept
+    [[nodiscard]] constexpr T QuinticSmoothstep(T t) noexcept
     {
         return t * t * t * (t * (t * T(6.0) - T(15.0)) + T(10.0));
     }
 
-    /**
-     * @brief 7th-degree Hermite-style smoothstep
-     *
-     * f(t) = t^4 * (35 - 84 t + 70 t^2 - 20 t^3)
-     */
+    /** Septic smoothstep function. */
     template <std::floating_point T>
-    [[nodiscard]] constexpr T SepticSmoothStep(T t) noexcept
+    [[nodiscard]] constexpr T SepticSmoothstep(T t) noexcept
     {
         const T t2 = t * t;
         const T t3 = t2 * t;

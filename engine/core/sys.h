@@ -15,14 +15,18 @@
 
 namespace cyb
 {
+#ifdef _WIN32
+    extern LRESULT(CALLBACK* g_WindowProc)(HWND, UINT, WPARAM, LPARAM);
+#endif // _WIN32
+
     /**
-     * @brief Causes a panic in the application with the given message.
+     * Causes a panic in the application with the given message.
      * Panic message will be logged and then the application will be terminated.
      */
     void Panic(const std::string& message);
 
     /**
-     * @brief \see Panic
+     * \see Panic
      */
     template <typename... Args>
     void Panicf(std::format_string<Args...> fmt, Args&&... args)
@@ -31,21 +35,16 @@ namespace cyb
     }
 
     /**
-     * @brief Tries to exit the application gracefully.
+     * Tries to exit the application gracefully.
      * For windows, this will post a WM_QUIT message.
      */
     void Exit(int code = 0);
 
 #ifdef _WIN32
-    /**
-     * @brief Convert a UTF-8 string to wide string.
-     */
-    [[nodiscard]] std::wstring Utf8ToWide(const std::string& s);
+    /** Convert a UTF-8 string to wide string. */
+    [[nodiscard]] std::wstring Utf8ToWide(const std::string_view s);
 
-    /**
-     * @brief Convert a wide string to UTF-8 string.
-     */
-    [[nodiscard]] std::string WideToUtf8(const std::wstring& w);
-
+    /** Convert a wide string to UTF-8 string. */
+    [[nodiscard]] std::string WideToUtf8(const std::wstring_view w);
 #endif // _WIN32
 } // namespace cyb

@@ -2,23 +2,10 @@
 #include <cassert>
 #include <vector>
 #include "core/non_copyable.h"
+#include "core/mathlib.h"
 
 namespace cyb
 {
-    template <typename T>
-    [[nodiscard]] T AlignPow2(const T value, const T align) noexcept
-    {
-        T result = (value + (align - 1)) & (~(align - 1));
-        return result;
-    }
-
-    template <typename T>
-    [[nodiscard]] constexpr bool IsPow2(T value) noexcept
-    {
-        const bool result = ((value & ~(value - 1)) == value);
-        return result;
-    }
-
     class ArenaAllocator : private NonCopyable
     {
     private:
@@ -26,7 +13,7 @@ namespace cyb
 
         struct Page
         {
-            uint8_t* base;
+            std::byte* base;
             size_t capacity;
             size_t size;
         };
@@ -38,6 +25,7 @@ namespace cyb
             m_minPageSize(minPageSize),
             m_alignment(alignment)
         {
+            m_minPageSize = m_minPageSize ? m_minPageSize : defaultPageSize;
         }
 
         ~ArenaAllocator()
@@ -49,22 +37,37 @@ namespace cyb
         void SetPageSizeAndAlignment(size_t minPageSize, size_t alignment)
         {
             assert(m_pages.empty());
-            m_minPageSize = minPageSize;
+            m_minPageSize = m_minPageSize ? m_minPageSize : defaultPageSize;
             m_alignment = alignment;
         }
 
-        [[nodiscard]] uint8_t* Allocate(size_t size)
+        [[nodiscard]] std::byte* Allocate(size_t size)
         {
             assert(m_alignment <= 128);
-            assert(IsPow2(m_alignment));
 
             const size_t alignedSize = AlignPow2(size, m_alignment);
-            Page& page = GetPageForAllocation(alignedSize);
-            uint8_t* result = page.base + page.size;
-            page.size += alignedSize;
+            Page* page = FindPageForAllocation(alignedSize);
+            if (!page)
+            {
+                // No page has enough room, so create a new one
+                page = &m_pages.emplace_back();
+                page->capacity = std::max(alignedSize, m_minPageSize);
+                page->size = 0;
+
+#if defined(_MSC_VER)
+                page->base = static_cast<std::byte*>(_aligned_malloc(page->capacity, m_alignment));
+#else
+                page->base = static_cast<std::byte*>(std::aligned_alloc(m_alignment, page->capacity));
+#endif
+                if (!page->base)
+                    throw std::bad_alloc{};
+            }
+
+            std::byte* result = page->base + page->size;
+            page->size += alignedSize;
 
             // Update the LRU cache
-            m_lastUsedPage = &page;
+            m_lastUsedPage = page;
 
             return result;
         }
@@ -83,20 +86,19 @@ namespace cyb
         void Clear()
         {
             for (auto& page : m_pages)
+            {
+#if defined(_MSC_VER)
                 _aligned_free(page.base);
+#else
+                std::free(page.base);
+#endif
+            }
 
             m_pages.clear();
+            m_lastUsedPage = nullptr;
         }
 
     private:
-        [[nodiscard]] Page& GetPageForAllocation(size_t allocationSize)
-        {
-            Page* page = FindPageForAllocation(allocationSize);
-            if (page != nullptr)
-                return *page;
-            return PushNewPage(allocationSize);
-        }
-
         [[nodiscard]] bool PageHasRoomForAllocation(const Page& page, size_t allocationSize) const
         {
             return (page.size + allocationSize) < page.capacity;
@@ -116,19 +118,6 @@ namespace cyb
             }
 
             return nullptr;
-        }
-
-        Page& PushNewPage(size_t blockSize)
-        {
-            if (!m_minPageSize)
-                m_minPageSize = defaultPageSize;
-
-            Page& page = m_pages.emplace_back();
-            page.capacity = std::max(blockSize, m_minPageSize);
-            page.size = 0;
-            page.base = (uint8_t*)_aligned_malloc(page.capacity, m_alignment);
-
-            return m_pages.back();
         }
 
     private:

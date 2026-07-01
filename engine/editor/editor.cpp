@@ -47,7 +47,7 @@ namespace cyb::editor
 
     ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
     SceneGraphView scenegraphView;
-    std::vector<DisplayMode> displayModeList;
+    std::vector<VideoMode> displayModeList;
 
     // fps counter data
     std::array<double, 100> deltatimes{};
@@ -1486,7 +1486,7 @@ namespace cyb::editor
 #endif
 
         // Grab available fullscreen resolutions
-        displayModeList = GetFullscreenDisplayModes();
+        displayModeList = EnumeratePrimaryDisplayVideoModes();
 
         initialized = true;
     }

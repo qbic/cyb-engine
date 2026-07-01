@@ -5,18 +5,17 @@
 #include "resource.h"
 #include "../build/config.h"
 
+#include "graphics/window.h"
+
 #pragma comment(lib, "dwmapi.lib")
 
 #define MAX_LOADSTRING 100
 
-WCHAR szTitle[MAX_LOADSTRING];
-WCHAR szWindowClass[MAX_LOADSTRING];
-WCHAR szTextlogFile[MAX_LOADSTRING];
 
 extern LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 ATOM RegisterWindowClass(HINSTANCE hInstance);
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow);
+HWND InitInstance(HINSTANCE hInstance, int nCmdShow);
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 std::string GetLastErrorMessage();
 
@@ -24,15 +23,15 @@ GameApplication application;
 
 bool EnterFullscreenMode(uint64_t modeIndex)
 {
-    auto modeList = cyb::GetFullscreenDisplayModes();
-    cyb::DisplayMode& mode = modeList[modeIndex];
+    auto modeList = cyb::EnumeratePrimaryDisplayVideoModes();
+    cyb::VideoMode& mode = modeList[modeIndex];
 
     DEVMODE fullscreenSettings{};
     fullscreenSettings.dmSize = sizeof(fullscreenSettings);
     EnumDisplaySettings(NULL, 0, &fullscreenSettings);
     fullscreenSettings.dmPelsWidth = mode.width;
     fullscreenSettings.dmPelsHeight = mode.height;
-    fullscreenSettings.dmBitsPerPel = mode.bitsPerPixel;
+    fullscreenSettings.dmBitsPerPel = 32;
     fullscreenSettings.dmDisplayFrequency = mode.refreshRate;
     fullscreenSettings.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL | DM_DISPLAYFREQUENCY;
 
@@ -47,53 +46,31 @@ bool EnterFullscreenMode(uint64_t modeIndex)
     return isChangeSuccessful;
 }
 
-int WINAPI WinMain(_In_ HINSTANCE hInstance,
-    _In_opt_ HINSTANCE /* hPrevInstance */,
-    _In_ LPSTR /* lpCmdLine */,
-    _In_ int nShowCmd)
-{
-    // load resource strings
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_CYBGAME, szWindowClass, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDS_TEXTLOG, szTextlogFile, MAX_LOADSTRING);
-
-    // setup engine logger output modules
-    cyb::RegisterLogOutputModule<cyb::LogOutputModule_VisualStudio>();
-    cyb::RegisterLogOutputModule<cyb::LogOutputModule_File>(szTextlogFile);
-
-    // configure asset search paths
-    cyb::resourcemanager::AddSearchPath("assets/");
-    cyb::resourcemanager::AddSearchPath("../assets/");
-
-    BOOL dpiSuccess = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    assert(dpiSuccess);
-
-    RegisterWindowClass(hInstance);
-    if (!InitInstance(hInstance, nShowCmd))
-    {
-        CYB_ERROR("Failed to initialize instance: {}", GetLastErrorMessage());
-        return FALSE;
-    }
-
-    static auto fullscreenEvent = cyb::eventsystem::Subscribe(cyb::eventsystem::Event_SetFullScreen, EnterFullscreenMode);
-
-    MSG msg = { 0 };
-    while (msg.message != WM_QUIT)
-    {
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-        else
-        {
-            application.Run();
-        }
-    }
-
-    return (int)msg.wParam;
-}
-
+//int WINAPI WinMain(_In_ HINSTANCE hInstance,
+//    _In_opt_ HINSTANCE /* hPrevInstance */,
+//    _In_ LPSTR /* lpCmdLine */,
+//    _In_ int nShowCmd)
+//{
+//    // load resource strings
+//    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+//    LoadStringW(hInstance, IDC_CYBGAME, szWindowClass, MAX_LOADSTRING);
+//    LoadStringW(hInstance, IDS_TEXTLOG, szTextlogFile, MAX_LOADSTRING);
+//
+//    // setup engine logger output modules
+//    cyb::RegisterLogOutputModule<cyb::LogOutputModule_VisualStudio>();
+//    cyb::RegisterLogOutputModule<cyb::LogOutputModule_File>(szTextlogFile);
+//
+//    // configure asset search paths
+//    cyb::resourcemanager::AddSearchPath("assets/");
+//    cyb::resourcemanager::AddSearchPath("../assets/");
+//
+//
+//    application.Init();
+//    application.UpdateLoop();
+//
+//    return 0;
+//}
+#if 0
 std::string GetLastErrorMessage()
 {
     LPSTR s = 0;
@@ -120,7 +97,7 @@ ATOM RegisterWindowClass(HINSTANCE hInstance)
     return RegisterClassW(&wc);
 }
 
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
+HWND InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
     CONST LONG width = 1920;
     CONST LONG height = 1080;
@@ -150,7 +127,20 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
 
-    return TRUE;
+    return hWnd;
+}
+
+[[nodiscard]] bool SystemIsUsingDarkMode()
+{
+    HKEY hKey;
+    DWORD value = 1; // Default to light mode (1 = light, 0 = dark)
+    DWORD dataSize = sizeof(value);
+    if (RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+    {
+        RegQueryValueEx(hKey, L"AppsUseLightTheme", NULL, NULL, (LPBYTE)&value, &dataSize);
+        RegCloseKey(hKey);
+    }
+    return value == 0;
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -162,48 +152,45 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     switch (message)
     {
+    case WM_NCCREATE:
+    {
+        EnableNonClientDpiScaling(hWnd);
+    }
+    break;
+
     case WM_CREATE:
         application.SetWindow(hWnd);
         break;
-    case WM_SIZE:
+
+    case WM_SETTINGCHANGE: [[fallthrough]];
+    case WM_DWMCOMPOSITIONCHANGED:
+    {
+        BOOL darkmode = SystemIsUsingDarkMode();
+        DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &darkmode, sizeof(darkmode));
+    }
+    break;
+
+    case WM_SIZE: [[fallthrough]];
     case WM_DPICHANGED:
+    {
         if (application.IsWindowActive())
             application.SetWindow(hWnd);
-        break;
+    }
+    break;
+
     case WM_KILLFOCUS:
         application.KillWindowFocus();
         break;
     case WM_SETFOCUS:
         application.SetWindowFocus();
         break;
-    case WM_CLOSE:
+    case WM_CLOSE: [[fallthrough]];
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
-
-    case WM_INPUT:
-        cyb::input::rawinput::ParseMessage((HRAWINPUT)lParam);
-        break;
-
-    case WM_SETTINGCHANGE:
-    {
-        // Change window theme dark mode based on system setting:
-        HKEY hKey;
-        DWORD value = 1; // Default to light mode (1 = light, 0 = dark)
-        DWORD dataSize = sizeof(value);
-        if (RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
-        {
-            RegQueryValueEx(hKey, L"AppsUseLightTheme", NULL, NULL, (LPBYTE)&value, &dataSize);
-            RegCloseKey(hKey);
-        }
-        BOOL darkmode = value == 0;
-        DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &darkmode, sizeof(darkmode));
-    }
-    break;
-
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
     }
 
-    return 0;
+    return DefWindowProc(hWnd, message, wParam, lParam);
 }
+
+#endif

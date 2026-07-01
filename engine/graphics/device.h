@@ -624,12 +624,6 @@ namespace cyb::rhi
         std::array<Sampler, DESCRIPTORBINDER_SAMPLER_COUNT> SAM{};
     };
 
-    template <typename T>
-    constexpr T AlignTo(T value, T alignment)
-    {
-        return ((value + alignment - T(1)) / alignment) * alignment;
-    }
-
     class GraphicsDevice
     {
     protected:
@@ -754,7 +748,7 @@ namespace cyb::rhi
                 desc.cpuAccess = CpuAccessMode::Read;
                 desc.usage = BufferUsage::ConstantBufferBit | BufferUsage::VertexBufferBit | BufferUsage::IndexBufferBit;
                 allocator.alignment = GetMinOffsetAlignment(&desc);
-                desc.size = AlignTo((allocator.buffer.desc.size + dataSize) * 2, allocator.alignment);
+                desc.size = AlignPow2((allocator.buffer.desc.size + dataSize) * 2, allocator.alignment);
                 CreateBuffer(&desc, nullptr, &allocator.buffer);
                 SetName(&allocator.buffer, "FrameAllocationBuffer");
                 allocator.offset = 0;
@@ -766,7 +760,7 @@ namespace cyb::rhi
             allocation.offset = allocator.offset;
             allocation.data = (void*)((size_t)allocator.buffer.mappedData + allocator.offset);
 
-            allocator.offset += AlignTo(dataSize, allocator.alignment);
+            allocator.offset += AlignPow2(dataSize, allocator.alignment);
 
             assert(allocation.IsValid());
             return allocation;

@@ -1,7 +1,10 @@
 #pragma once
 #include <concepts>
+#include <cmath>
+#include <numbers>
 #include <type_traits>
 #include <algorithm>
+#include <format>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
 
@@ -9,13 +12,12 @@ using namespace DirectX;
 
 namespace cyb
 {
-    inline constexpr float PI = 3.141592653589793f;
-    inline constexpr XMFLOAT3 g_float3Zero { 0, 0, 0 };
-    inline constexpr XMFLOAT3 g_float3One  { 1, 1, 1 };
-    inline constexpr XMFLOAT3 g_float3OneX { 1, 0, 0 };
-    inline constexpr XMFLOAT3 g_float3OneY { 0, 1, 0 };
-    inline constexpr XMFLOAT3 g_float3OneZ { 0, 0, 1 };
-    inline constexpr XMFLOAT4 g_float4OneW { 0, 0, 0, 1 };
+    inline constexpr XMFLOAT3 g_float3Zero{ 0, 0, 0 };
+    inline constexpr XMFLOAT3 g_float3One{ 1, 1, 1 };
+    inline constexpr XMFLOAT3 g_float3OneX{ 1, 0, 0 };
+    inline constexpr XMFLOAT3 g_float3OneY{ 0, 1, 0 };
+    inline constexpr XMFLOAT3 g_float3OneZ{ 0, 0, 1 };
+    inline constexpr XMFLOAT4 g_float4OneW{ 0, 0, 0, 1 };
 
     // Check if a type is an arithmetic type (integral or floating point, but not bool).
     template <typename T>
@@ -45,10 +47,17 @@ namespace cyb
         constexpr TVec2& operator/=(T s) noexcept { x /= s; y /= s; return *this; }
         constexpr auto operator<=>(const TVec2&) const = default;
 
-        [[nodiscard]] constexpr TVec2 ComponentMin(const TVec2& rhs) const noexcept { return TVec2{ std::min(x, rhs.x), std::min(y, rhs.y) }; }
-        [[nodiscard]] constexpr TVec2 ComponentMax(const TVec2& rhs) const noexcept { return TVec2{ std::max(x, rhs.x), std::max(y, rhs.y) }; }
+        [[nodiscard]] constexpr TVec2 Min(const TVec2& rhs) const noexcept { return TVec2{ std::min(x, rhs.x), std::min(y, rhs.y) }; }
+        [[nodiscard]] constexpr TVec2 Max(const TVec2& rhs) const noexcept { return TVec2{ std::max(x, rhs.x), std::max(y, rhs.y) }; }
+        [[nodiscard]] constexpr T MaxComponent() const noexcept { return std::max(x, y); }
+        [[nodiscard]] constexpr T MinComponent() const noexcept { return std::min(x, y); }
+        [[nodiscard]] constexpr TVec2 Abs() const noexcept { return TVec2{ std::abs(x), std::abs(y) }; }
 
+        [[nodiscard]] T Dot(const TVec2& rhs) const noexcept { return x * rhs.x + y * rhs.y; }
         [[nodiscard]] T Cross(const TVec2& rhs) const noexcept { return x * rhs.y - y * rhs.x; }
+
+        [[nodiscard]] T LengthSq() const noexcept { return x * x + y * y; }
+        [[nodiscard]] T Length() const noexcept { return std::sqrt(LengthSq()); }
     };
 
     using Vec2 = TVec2<float>;
@@ -72,16 +81,12 @@ namespace cyb
         const TVec2<T>& c,
         const TVec2<T>& point) noexcept
     {
-        const T ax = a.x - point.x;
-        const T ay = a.y - point.y;
-        const T bx = b.x - point.x;
-        const T by = b.y - point.y;
-        const T cx = c.x - point.x;
-        const T cy = c.y - point.y;
-        const T det =
-            (ax * ax + ay * ay) * (bx * cy - cx * by) -
-            (bx * bx + by * by) * (ax * cy - cx * ay) +
-            (cx * cx + cy * cy) * (ax * by - bx * ay);
+        const TVec2<T> pa = a - point;
+        const TVec2<T> pb = b - point;
+        const TVec2<T> pc = c - point;
+        const T det = pa.LengthSq() * pb.Cross(pc) -
+                      pb.LengthSq() * pa.Cross(pc) +
+                      pc.LengthSq() * pa.Cross(pb);
         return det < T(0);
     }
 
@@ -91,10 +96,10 @@ namespace cyb
     {
         if constexpr (std::is_floating_point_v<T>)
         {
-            const T area = (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y);
-            const T scale = std::max(
-                std::max(std::abs(p1.x - p0.x), std::abs(p1.y - p0.y)),
-                std::max(std::abs(p2.x - p0.x), std::abs(p2.y - p0.y)));
+            const TVec2<T> v0 = p1 - p0;
+            const TVec2<T> v1 = p2 - p0;
+            const T area = v0.Cross(v1);
+            const T scale = std::max(v0.Abs().MaxComponent(), v1.Abs().MaxComponent());
             return std::abs(area) <= std::numeric_limits<T>::epsilon() * scale * scale;
         }
         else
@@ -105,21 +110,28 @@ namespace cyb
     template <std::floating_point T>
     [[nodiscard]] constexpr T ToRadians(const T degrees) noexcept
     {
-        return (degrees * PI) / T(180);
+        return (degrees * std::numbers::pi_v<T>) / T(180);
     }
 
     /** Convert angle from radians to degrees. */
     template <std::floating_point T>
     [[nodiscard]] constexpr T ToDegrees(const T radians) noexcept
     {
-        return (radians * T(180)) / PI;
+        return (radians * T(180)) / std::numbers::pi_v<T>;
     }
 
     /** Clamp num to min 0, max 1. */
     template <std::floating_point T>
-    [[nodiscard]] constexpr T Saturate(T x) noexcept
+    [[nodiscard]] constexpr T Clamp01(T x) noexcept
     {
-        return std::min(std::max(x, T(0)), T(1));
+        return std::clamp(x, T(0), T(1));
+    }
+
+    /** Check if two floating-point values are approximately equal. */
+    template <std::floating_point T>
+    [[nodiscard]] constexpr T ApproxEqual(T a, T b, T epsilon = std::numeric_limits<T>::epsilon()) noexcept
+    {
+        return std::abs(a - b) <= epsilon;
     }
 
     /** Round up to the next power of two. */
@@ -137,14 +149,35 @@ namespace cyb
         return ++x;
     }
 
+    /** Check if a value is a power of two. */
+    [[nodiscard]] constexpr bool IsPow2(size_t value) noexcept
+    {
+        return (value != 0) && ((value & (value - 1)) == 0);
+    }
+
     /** Round up to the next multiple of divisor. Divisor must be a power of two. */
     [[nodiscard]] constexpr uint32_t NextDivisible(uint32_t num, uint32_t divisor) noexcept
     {
+        assert(IsPow2(divisor));
         int bits = num & (divisor - 1);
         if (bits == 0)
             return num;
 
         return num + (divisor - bits);
+    }
+
+    /** Align value to the next power of two. */
+    [[nodiscard]] constexpr size_t AlignPow2(size_t value, size_t align) noexcept
+    {
+        assert(IsPow2(align));
+        return (value + align - 1) & ~(align - 1);
+    }
+
+    /** Align pointer to the next power of two. */
+    [[nodiscard]] constexpr void* AlignPow2(void* const ptr, size_t align) noexcept
+    {
+        assert(IsPow2(align));
+        return (void*)(((uintptr_t)ptr + align - 1) & ~(align - 1));
     }
 
     /** Linear interpolation between a and b by t. */
@@ -198,19 +231,19 @@ namespace cyb
 
     [[nodiscard]] inline uint32_t StoreColor_RGB(const XMFLOAT3& color) noexcept
     {
-        return (uint32_t)((uint8_t)(Saturate(color.x) * 255.0f) << 0) |
-               (uint32_t)((uint8_t)(Saturate(color.y) * 255.0f) << 8) |
-               (uint32_t)((uint8_t)(Saturate(color.z) * 255.0f) << 16);
+        return (uint32_t)((uint8_t)(Clamp01(color.x) * 255.0f) << 0) |
+               (uint32_t)((uint8_t)(Clamp01(color.y) * 255.0f) << 8) |
+               (uint32_t)((uint8_t)(Clamp01(color.z) * 255.0f) << 16);
     }
 
     [[nodiscard]] inline uint32_t StoreColor_RGBA(const XMFLOAT4& color) noexcept
     {
         uint32_t retval = 0;
 
-        retval |= (uint32_t)((uint8_t)(Saturate(color.x) * 255.0f) << 0);
-        retval |= (uint32_t)((uint8_t)(Saturate(color.y) * 255.0f) << 8);
-        retval |= (uint32_t)((uint8_t)(Saturate(color.z) * 255.0f) << 16);
-        retval |= (uint32_t)((uint8_t)(Saturate(color.w) * 255.0f) << 24);
+        retval |= (uint32_t)((uint8_t)(Clamp01(color.x) * 255.0f) << 0);
+        retval |= (uint32_t)((uint8_t)(Clamp01(color.y) * 255.0f) << 8);
+        retval |= (uint32_t)((uint8_t)(Clamp01(color.z) * 255.0f) << 16);
+        retval |= (uint32_t)((uint8_t)(Clamp01(color.w) * 255.0f) << 24);
 
         return retval;
     }
@@ -319,4 +352,13 @@ namespace cyb
 
         return true;
     }
-}
+} // namespace cyb
+
+template <cyb::arithmetic T>
+struct std::formatter<cyb::TVec2<T>> : std::formatter<T>
+{
+    auto format(const cyb::TVec2<T>& vec, std::format_context& ctx) const
+    {
+        return std::format_to(ctx.out(), "({}x{})", vec.x, vec.y);
+    }
+};

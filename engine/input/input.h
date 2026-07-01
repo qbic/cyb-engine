@@ -83,65 +83,41 @@ namespace cyb::input
         MouseButton buttons[2]{ MouseButton::None };
         MouseButton currentButtonState{ MouseButton::None };
         uint8_t activeButtonIndex{ 0 };
-        XMFLOAT2 pointerPosition{ 0, 0 };
-        XMFLOAT2 pointerDelta{ 0, 0 };
-        float wheelDelta{ 0 };
+        Vec2 pointerPosition{ 0.0f, 0.0f };
+        Vec2 pointerDelta{ 0.0f, 0.0f };
+        float wheelDelta{ 0.0f };
     };
 
-    /**
-     * @brief Initialize all the needed subsystem used by input.
-     */
-    void Initialize(WindowHandle window);
+    /** Initialize all the needed subsystem used by input. */
+    void Initialize(WindowHandle window) noexcept;
 
-    /*
-     * @brief Update the states of all input devices.
-     *
+    /**
+     * Update the states of all input devices.
      * Call this once per frame (before processing new input events).
      */
-    void Update(WindowHandle window);
+    void Update(WindowHandle window) noexcept;
 
-    /**
-     * @brief Get a const reference to the raw keyboard state.
-     */
-    [[nodiscard]] const KeyboardState& GetKeyboardState();
+    /** Check if a keyboard key is current down. */
+    [[nodiscard]] bool KeyDown(uint32_t key) noexcept;
 
-    /**
-     * @brief Get a const reference to the raw mouse state.
-     */
-    [[nodiscard]] const MouseState& GetMouseState();
+    /** Check if a keyboard key is currently up. */
+    [[nodiscard]] bool KeyUp(uint32_t key) noexcept;
 
-    /**
-     * @brief Check if a keyboard key is current down.
-     */
-    [[nodiscard]] bool KeyDown(uint32_t key);
+    /** Check if a keystate changed to 'down' from previous frame. */
+    [[nodiscard]] bool KeyPressed(uint32_t key) noexcept;
 
-    /**
-     * @brief Check if a keyboard key is currently up.
-     */
-    [[nodiscard]] bool KeyUp(uint32_t key);
+    /** Check if a keystate changed to 'up' from previous frame. */
+    [[nodiscard]] bool KeyReleased(uint32_t key) noexcept;
 
-    /**
-     * @brief Check if a keystate changed to 'down' from previous frame.
-     */
-    [[nodiscard]] bool KeyPressed(uint32_t key);
+    /** Get the delta position of the mouse pointer. */
+    [[nodiscard]] Vec2 GetMousePointerDelta() noexcept;
 
-    /**
-     * @brief Check if a keystate changed to 'up' from previous frame.
-     */
-    [[nodiscard]] bool KeyReleased(uint32_t key);
+    /** Get a bitmask of the mouse button states. */
+    [[nodiscard]] MouseButton MouseButtons() noexcept;
 
-    /**
-     * @brief Get a bitmask of the mouse button states.
-     */
-    [[nodiscard]] MouseButton MouseButtons();
+    /** Get a bitmask of mouse buttonstates that changed to 'down' from previous frame. */
+    [[nodiscard]] MouseButton MouseButtonsPressed() noexcept;
 
-    /**
-     * @brief Get a bitmask of mouse buttonstates that changed to 'down' from previous frame.
-     */
-    [[nodiscard]] MouseButton MouseButtonsPressed();
-
-    /**
-     * @brief Get a bitmask of mouse buttonstates that changed to 'up' from previous frame.
-     */
-    [[nodiscard]] MouseButton MouseButtonsReleased();
+    /** Get a bitmask of mouse buttonstates that changed to 'up' from previous frame. */
+    [[nodiscard]] MouseButton MouseButtonsReleased() noexcept;
 }

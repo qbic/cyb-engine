@@ -45,8 +45,8 @@ namespace cyb::editor
         };
 
         // triangle bounding box
-        const IVec2 bbMin = p0.ComponentMin(p1).ComponentMin(p2);
-        const IVec2 bbMax = p0.ComponentMax(p1).ComponentMax(p2);
+        const IVec2 bbMin = p0.Min(p1).Min(p2);
+        const IVec2 bbMax = p0.Max(p1).Max(p2);
 
         // forward differencing variables
         int32_t w00 = edge(p1, p2, bbMin);

@@ -2007,7 +2007,7 @@ namespace cyb::rhi
                     }
 
                     copyOffset += dstSlicePitch * depth;
-                    copyOffset = AlignTo(copyOffset, VkDeviceSize(4));
+                    copyOffset = AlignPow2(copyOffset, VkDeviceSize(4));
                     width = std::max(1u, width / 2);
                     height = std::max(1u, height / 2);
                     depth = std::max(1u, depth / 2);

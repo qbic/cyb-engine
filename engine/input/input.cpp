@@ -4,9 +4,9 @@
 
 namespace cyb::input
 {
-    KeyboardState keyboard;
-    MouseState mouse;
-    std::atomic_bool initialized{ false };
+    KeyboardState g_keyboard{};
+    MouseState g_mouse{};
+    static std::atomic_bool initialized{ false };
 
     void KeyboardState::Update(bool ignoreInput)
     {
@@ -56,85 +56,81 @@ namespace cyb::input
         activeButtonIndex ^= 1;
     }
 
-    void Initialize(WindowHandle window)
+    void Initialize(WindowHandle window) noexcept
     {
         Timer timer;
 
 #ifdef _WIN32
-        rawinput::Initialize(window);
+        rawinput::Init(window);
 #endif
 
         CYB_INFO("Input system initialized in {:.2f}ms", timer.ElapsedMilliseconds());
         initialized.store(true);
     }
 
-    void Update(WindowHandle window)
+    void Update(WindowHandle window) noexcept
     {
-        if (!initialized.load())
-            return;
+        assert(initialized.load());
 
         CYB_PROFILE_CPU_SCOPE("Input");
 
 #ifdef _WIN32
-        rawinput::Update(keyboard, mouse);
+        // Reset mouse delta position
+        g_mouse.pointerDelta.x = 0.0f;
+        g_mouse.pointerDelta.y = 0.0f;
 
         // Since raw input doesn't contain absolute mouse position, we get it
         // with though old trusty winapi.
         POINT p{};
         GetCursorPos(&p);
         ScreenToClient(window, &p);
-        mouse.pointerPosition = XMFLOAT2((float)p.x, (float)p.y);
+        g_mouse.pointerPosition = Vec2{ (float)p.x, (float)p.y };
 #endif
 
         // Ignore inputs if application isn't in foreground
         const bool ignoreInput = (::GetForegroundWindow() != window);
 
-        keyboard.Update(ignoreInput);
-        mouse.Update(ignoreInput);
+        g_keyboard.Update(ignoreInput);
+        g_mouse.Update(ignoreInput);
     }
 
-    const KeyboardState& GetKeyboardState()
+    bool KeyDown(uint32_t key) noexcept
     {
-        return keyboard;
+        return g_keyboard.KeyDown(key);
     }
 
-    const MouseState& GetMouseState()
+    bool KeyUp(uint32_t key) noexcept
     {
-        return mouse;
+        return g_keyboard.KeyUp(key);
     }
 
-    bool KeyDown(uint32_t key)
+    bool KeyPressed(uint32_t key) noexcept
     {
-        return keyboard.KeyDown(key);
+        return g_keyboard.KeyPressed(key);
     }
 
-    bool KeyUp(uint32_t key)
+    bool KeyReleased(uint32_t key) noexcept
     {
-        return keyboard.KeyUp(key);
+        return g_keyboard.KeyReleased(key);
     }
 
-    bool KeyPressed(uint32_t key)
+    Vec2 GetMousePointerDelta() noexcept
     {
-        return keyboard.KeyPressed(key);
+        return g_mouse.pointerDelta;
     }
 
-    bool KeyReleased(uint32_t key)
+    MouseButton MouseButtons() noexcept
     {
-        return keyboard.KeyReleased(key);
+        return g_mouse.GetButtons();
     }
 
-    MouseButton MouseButtons()
+    MouseButton MouseButtonsPressed() noexcept
     {
-        return mouse.GetButtons();
+        return g_mouse.GetPressedButtons();
     }
 
-    MouseButton MouseButtonsPressed()
+    MouseButton MouseButtonsReleased() noexcept
     {
-        return mouse.GetPressedButtons();
-    }
-
-    MouseButton MouseButtonsReleased()
-    {
-        return mouse.GetReleasedButtons();
+        return g_mouse.GetReleasedButtons();
     }
 }

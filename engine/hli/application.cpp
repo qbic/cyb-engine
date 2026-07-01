@@ -25,54 +25,7 @@ namespace cyb::hli
         activePath = component;
     }
 
-    void Application::Run()
-    {
-        // Do lazy-style initialization
-        if (!initialized)
-        {
-            Initialize();
-            initialized = true;
-        }
-
-        // disable update loops if application is not active
-        if (!IsWindowActive())
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            return;
-        }
-
-        profiler::BeginFrame();
-        deltaTime = timer.RecordElapsedSeconds();
-
-        // Wake up the events that need to be executed on the main thread, in thread safe manner:
-        eventsystem::FireEvent(eventsystem::Event_ThreadSafePoint, 0);
-
-        if (activePath != nullptr)
-            activePath->SetCanvas(canvas);
-
-        // Update the game components
-        // TODO: Add a fixed-time update routine
-        Update(deltaTime);
-
-        // Render the scene
-        Render();
-
-        // Compose the final image and and pass it to the swapchain for display
-        CommandList cmd = graphicsDevice->BeginCommandList();
-        graphicsDevice->BeginRenderPass(&swapchain, cmd);
-        Viewport viewport;
-        viewport.width = (float)swapchain.GetDesc().width;
-        viewport.height = (float)swapchain.GetDesc().height;
-        graphicsDevice->BindViewports(&viewport, 1, cmd);
-
-        Compose(cmd);
-        graphicsDevice->EndRenderPass(cmd);
-
-        profiler::EndFrame(cmd);
-        graphicsDevice->ExecuteCommandLists();
-    }
-
-    void Application::Initialize()
+    void Application::Init()
     {
         Timer timer;
 #ifdef CYB_DEBUG_BUILD
@@ -83,6 +36,9 @@ namespace cyb::hli
 
         RegisterStaticCVars();
         jobsystem::Initialize();
+
+        m_window = ClientWindow::Create({ });
+        SetWindow(m_window.GetNativeHandle().hWnd);       // TODO: REMOVE
 
         jobsystem::Context ctx;
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { resourcemanager::Initialize(); });
@@ -101,12 +57,61 @@ namespace cyb::hli
         CYB_INFO_HR();
     }
 
+    void Application::UpdateLoop()
+    {
+        do 
+        {
+            // Update input state and poll window events
+            input::Update(window);
+            if (!m_window.PollEvents())
+                break;
+
+            // Add a little delay to relax the system if the client window is not
+            // active, and skip update and rendering entierly is it's minimized.
+            if (!m_window.IsActive())
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                if (m_window.IsMinimized())
+                    continue;
+            }
+
+            // Rebuild swapchain and update buffers if client window changes size
+            if (m_window.GetWidth() != activePath->GetPhysicalWidth() ||
+                m_window.GetHeight() != activePath->GetPhysicalHeight())
+                SetWindow(m_window.GetNativeHandle().hWnd);
+
+            profiler::BeginFrame();
+            float dt = timer.RecordElapsedSeconds();
+
+            // Wake up the events that need to be executed on the main thread, 
+            // in thread safe manner.
+            eventsystem::FireEvent(eventsystem::Event_ThreadSafePoint, 0);
+
+            Update(dt);
+
+            Render();
+
+            // Compose the final image and and pass it to the swapchain for display
+            CommandList cmd = graphicsDevice->BeginCommandList();
+            graphicsDevice->BeginRenderPass(&swapchain, cmd);
+            Viewport viewport{};
+            viewport.width = (float)swapchain.GetDesc().width;
+            viewport.height = (float)swapchain.GetDesc().height;
+            graphicsDevice->BindViewports(&viewport, 1, cmd);
+
+            Compose(cmd);
+            graphicsDevice->EndRenderPass(cmd);
+
+            profiler::EndFrame(cmd);
+            graphicsDevice->ExecuteCommandLists();
+        } while (true);
+    }
+
     void Application::Update(double dt)
     {
         CYB_PROFILE_CPU_SCOPE("Update");
         if (activePath != nullptr)
             activePath->Update(dt);
-        input::Update(window);
     }
 
     void Application::Render()

@@ -3,6 +3,7 @@
 - Depth buffer only goes from 0 - 0.01 according to renderdoc (seems fine in-game though so not sure it's a bug)
 
 ### Todo (features):
+- FPS limiter (lower fps limit for inactive window)
 - Animation entity
 - LOD support
 - Water
@@ -11,9 +12,6 @@
 - Move shader loading/compiling to resource_manager
 - Create a hardcoded fallback for all resources when loading fail
 - Compute shader support
-
-### Todo (smaller stuff):
-- change XMFLOAT4X4 TransformComponent::world to XMMATRIX
 
 ### Todo (editor)
 - Undo for delete action

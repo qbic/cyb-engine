@@ -1,43 +1,25 @@
+#include <Windows.h>
+#include "resource.h"
 #include "editor/editor.h"
 #include "game.h"
 
-#include "graphics/display.h"
+#include "cyb-engine.h"
 
 using namespace cyb;
 
+#define MAX_LOADSTRING 100
+
+WCHAR szTitle[MAX_LOADSTRING];
+WCHAR szWindowClass[MAX_LOADSTRING];
+WCHAR szTextlogFile[MAX_LOADSTRING];
+
 void Game::Load()
 {
-#if 1 
     std::string filename = resourcemanager::FindFile("scenes/terrain_01.csd");
     SerializeFromFile(filename, scene::GetScene());
-#else
-    editor::TerrainMeshDesc terrainDesc;
-    terrainDesc.size = 1000;
-    terrainDesc.maxAltitude = 120;
-    //terrainMeshDesc.mapResolution = 400;
-    terrainDesc.numChunks = 1;
-    terrainDesc.heightmap_desc.function = editor::TerrainNoiseDescription::NoiseFunction::PERLIN;
-    terrainDesc.heightmap_desc.seed = 15236;
-    terrainDesc.heightmap_desc.frequency = 7;
-    terrainDesc.heightmap_desc.octaves = 4;
-    terrainDesc.moisturemap_desc.seed = 33412;
-    terrainDesc.moisturemap_desc.frequency = 5.4f;
-
-    editor::SetTerrainGenerationParams(&m_meshDesc);
-    editor::GenerateTerrain(&m_meshDesc, scene);
-
-    scene->weathers.Create(ecs::CreateEntity());
-
-    scene->CreateLight("Sun00", XMFLOAT3(122.0f, 101.0f, 170.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 1.0f, 10000.0f, scene::LightType::Directional);
-    scene->CreateLight("Sun01", XMFLOAT3(-32.0f, -53.0f, -42.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.75f, 10000.0f, scene::LightType::Directional);
-    scene->CreateLight("Sun02", XMFLOAT3(-63.0f, 162.0f, -200.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.6f, 10000.0f, scene::LightType::Directional);
-    scene->CreateLight("Light_Point01", XMFLOAT3(0.0f, 20.0f, 0.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), 0.6f, 100.0f, scene::LightType::Point);
-#endif
 
     camera->zFarPlane = 1500.f;
     cameraTransform.Translate(XMFLOAT3(0, 2, -10));
-
-    auto modes = cyb::GetFullscreenDisplayModes();
 
     RenderPath3D::Load();
 }
@@ -58,15 +40,9 @@ void Game::Update(double dt)
 
 void Game::CameraControl(double dt)
 {
-    float xDif = 0;
-    float yDif = 0;
-
+    Vec2 mouseMove{ 0.0f, 0.0f };
     if (HasFlag(input::MouseButtons(), input::MouseButton::Right))
-    {
-        const XMFLOAT2& pointerDelta = input::GetMouseState().pointerDelta;
-        xDif = m_mouseSensitivity * pointerDelta.x * (1.0f / 60.0f);
-        yDif = m_mouseSensitivity * pointerDelta.y * (1.0f / 60.0f);
-    }
+        mouseMove = input::GetMousePointerDelta() * m_mouseSensitivity * (1.0f / 60.0f);
 
     // if dt > 100 millisec, don't allow the camera to jump too far...
     const float clampedDt = std::min((float)dt, 0.1f);
@@ -95,14 +71,14 @@ void Game::CameraControl(double dt)
     if (moveLength < 0.0001f)
         move = XMVectorSet(0, 0, 0, 0);
 
-    if (abs(xDif) + abs(yDif) > 0 || moveLength > 0.0001f)
+    if (abs(mouseMove.x) + abs(mouseMove.y) > 0 || moveLength > 0.0001f)
     {
         XMMATRIX cameraRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&cameraTransform.rotation_local));
         XMVECTOR rotatedMove = XMVector3TransformNormal(move, cameraRotation);
         XMFLOAT3 rotatedMoveStored;
         XMStoreFloat3(&rotatedMoveStored, rotatedMove);
         cameraTransform.Translate(rotatedMoveStored);
-        cameraTransform.RotateRollPitchYaw(XMFLOAT3(yDif, xDif, 0));
+        cameraTransform.RotateRollPitchYaw(XMFLOAT3(mouseMove.y, mouseMove.x, 0));
     }
 
     cameraTransform.UpdateTransform();
@@ -110,3 +86,27 @@ void Game::CameraControl(double dt)
 }
 
 
+int WINAPI WinMain(_In_ HINSTANCE hInstance,
+    _In_opt_ HINSTANCE /* hPrevInstance */,
+    _In_ LPSTR /* lpCmdLine */,
+    _In_ int nShowCmd)
+{
+    // load resource strings
+    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+    LoadStringW(hInstance, IDC_CYBGAME, szWindowClass, MAX_LOADSTRING);
+    LoadStringW(hInstance, IDS_TEXTLOG, szTextlogFile, MAX_LOADSTRING);
+
+    // setup engine logger output modules
+    cyb::RegisterLogOutputModule<cyb::LogOutputModule_VisualStudio>();
+    cyb::RegisterLogOutputModule<cyb::LogOutputModule_File>(szTextlogFile);
+
+    // configure asset search paths
+    cyb::resourcemanager::AddSearchPath("assets/");
+    cyb::resourcemanager::AddSearchPath("../assets/");
+
+    GameApplication game{};
+    game.Init();
+    game.UpdateLoop();
+
+    return 0;
+}

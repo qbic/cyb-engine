@@ -1,20 +1,24 @@
 #include <array>
 #include <windows.h>
 #include <hidsdi.h>
-#include "core/arena.h"
+#include <malloc.h>
 #include "core/logger.h"
+#include "core/sys.h"
 #include "input/input_raw.h"
 
 #pragma comment(lib, "Hid.lib")
 
+namespace cyb::input
+{
+    extern KeyboardState g_keyboard;
+    extern MouseState g_mouse;
+}
+
 namespace cyb::input::rawinput
 {
-    static constexpr size_t inputArenaBlockSize = 1024 * 2;
-    ArenaAllocator inputArena;
-    std::vector<RAWINPUT*> inputMessages;
-    std::atomic<bool> initialized{ false };
+    LRESULT CALLBACK InputWindowProc(HWND, UINT, WPARAM, LPARAM);
 
-    void Initialize(WindowHandle window)
+    void Init(WindowHandle window) noexcept
     {
         std::array<RAWINPUTDEVICE, 2> rid{};
 
@@ -31,14 +35,10 @@ namespace cyb::input::rawinput
         rid[1].hwndTarget = window;
 
         if (RegisterRawInputDevices(rid.data(), (UINT)rid.size(), sizeof(rid[0])) == FALSE)
-        {
-            // registration failed. Call GetLastError for the cause of the error
-            assert(0);
-        }
+            Panicf("RegisterRawInputDevices failed: {}", GetLastError());
 
-        inputArena.SetPageSizeAndAlignment(inputArenaBlockSize, 8);
-        inputMessages.reserve(64);
-        initialized.store(true);
+        // Hook in InputWindowProc to the global proc
+        g_WindowProc = InputWindowProc;
     }
 
     [[nodiscard]] static uint32_t TranslateKey(int virtualCode)
@@ -124,6 +124,8 @@ namespace cyb::input::rawinput
                 return;
 
             //const uint16_t scanCode = rawkeyboard.MakeCode;
+            // if((keyboard.Flags & RI_KEY_E1) != 0)
+            //    scanCode = ioKeyboard::GetKeyScanCode(keyboard.VKey);
             //bool extended = (rawkeyboard.Flags & RI_KEY_E0) != 0;
 
             const int key = TranslateKey(rawkeyboard.VKey);
@@ -159,37 +161,31 @@ namespace cyb::input::rawinput
         }
     }
 
-    void Update(KeyboardState& keyboard, MouseState& mouse)
+    LRESULT CALLBACK InputWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        // Reset mouse delta position
-        mouse.pointerDelta.x = 0.0f;
-        mouse.pointerDelta.y = 0.0f;
-
-        // Loop through inputs that we got from text loop
-        for (auto& input : inputMessages)
-            ParseRawInputBlock(keyboard, mouse, *input);
-
-        inputMessages.clear();
-        inputArena.Reset();
-    }
-
-    void ParseMessage(HRAWINPUT hRawInput)
-    {
-        if (!initialized.load())
-            return;
-
-        UINT dwSize = 0u;
-
-        GetRawInputData(hRawInput, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
-        BYTE* lpb = inputArena.Allocate(dwSize);
-        if (lpb == nullptr)
+        switch (msg)
         {
-            CYB_WARNING("Input message queue full, dropping input data");
-            return;
+        case WM_INPUT:
+        {
+            UINT dwSize{ 0 };
+            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+
+            std::byte* lpb = (std::byte*)alloca(dwSize);
+            if (lpb == nullptr)
+            {
+                CYB_WARNING("InputWindowProc: Failed to allocate {} bytes on the stack! Dropping input event.", dwSize);
+                return 0;
+            }
+
+            const UINT result = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
+            assert(result == dwSize);
+                
+            const RAWINPUT* raw = (const RAWINPUT*)lpb;
+            ParseRawInputBlock(g_keyboard, g_mouse, *raw);
+        } break;
         }
 
-        UINT result = GetRawInputData(hRawInput, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
-        if (result == dwSize)
-            inputMessages.push_back((RAWINPUT*)lpb);
+        return DefWindowProcW(hWnd, msg, wParam, lParam);
     }
-}
+
+} // namespace cyb::input::rawinput

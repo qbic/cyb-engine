@@ -2,6 +2,7 @@
 #include "core/sys.h"
 #include "core/timer.h"
 #include "hli/renderpath.h"
+#include "graphics/window.h"
 
 namespace cyb::hli
 {
@@ -13,8 +14,8 @@ namespace cyb::hli
         void ActivePath(RenderPath* component);
         [[nodiscard]] RenderPath* GetActivePath() { return activePath; }
 
-        void Run();
-        virtual void Initialize();
+        virtual void Init();
+        void UpdateLoop();
         virtual void Update(double dt);
         virtual void Render();
         virtual void Compose(rhi::CommandList cmd);
@@ -26,10 +27,6 @@ namespace cyb::hli
         void SetWindow(WindowHandle window);
         [[nodiscard]] WindowHandle GetWindow() const { return window; }
 
-        void KillWindowFocus() { isWindowActive = false; }
-        void SetWindowFocus() { isWindowActive = true; }
-        [[nodiscard]] bool IsWindowActive() const { return isWindowActive; }
-
     private:
         bool isWindowActive = true;
         std::unique_ptr<rhi::GraphicsDevice> graphicsDevice;
@@ -39,7 +36,8 @@ namespace cyb::hli
         double deltaTime = 0.0;
         Canvas canvas;
         RenderPath* activePath = nullptr;
-        WindowHandle window;
+        ClientWindow m_window{};
+        WindowHandle window;            // TODO: REMOVE
         rhi::Swapchain swapchain;
     };
 }

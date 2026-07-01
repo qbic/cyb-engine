@@ -3,6 +3,8 @@
 
 namespace cyb
 {
+    LRESULT(CALLBACK* g_WindowProc)(HWND, UINT, WPARAM, LPARAM) = DefWindowProcW;
+
     void Panic(const std::string& message)
     {
         CYB_ERROR("Panic: {}", message);
@@ -17,7 +19,7 @@ namespace cyb
         PostQuitMessage(code);
     }
 
-    std::wstring Utf8ToWide(const std::string& s)
+    std::wstring Utf8ToWide(const std::string_view s)
     {
         if (s.empty())
             return {};
@@ -38,7 +40,7 @@ namespace cyb
         return result;
     }
 
-    std::string WideToUtf8(const std::wstring& w)
+    std::string WideToUtf8(const std::wstring_view w)
     {
         if (w.empty())
             return {};
@@ -53,9 +55,9 @@ namespace cyb
         WideCharToMultiByte(
             CP_UTF8, 0,
             w.data(), (int)w.size(),
-            result.data(), size, nullptr, nullptr);
+            result.data(), size,
+            nullptr, nullptr);
 
         return result;
     }
-
-}
+} // namespace cyb

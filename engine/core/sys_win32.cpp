@@ -9,7 +9,7 @@ namespace cyb
     {
         CYB_ERROR("Panic: {}", message);
         CYB_DEBUGBREAK();
-        MessageBoxA(GetActiveWindow(), message.c_str(), "Panic", MB_OK);
+        MessageBoxW(GetActiveWindow(), Utf8ToWide(message).c_str(), L"Panic", MB_ICONERROR | MB_OK);
         ExitProcess(-1);
     }
 

@@ -42,7 +42,7 @@ void Game::CameraControl(double dt)
 {
     Vec2 mouseMove{ 0.0f, 0.0f };
     if (HasFlag(input::MouseButtons(), input::MouseButton::Right))
-        mouseMove = input::GetMousePointerDelta() * m_mouseSensitivity * (1.0f / 60.0f);
+        mouseMove = input::PointerDelta() * m_mouseSensitivity * (1.0f / 60.0f);
 
     // if dt > 100 millisec, don't allow the camera to jump too far...
     const float clampedDt = std::min((float)dt, 0.1f);

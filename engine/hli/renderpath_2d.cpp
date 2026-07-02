@@ -1,3 +1,4 @@
+#include "core/cvar.h"
 #include "hli/renderpath_2d.h"
 #include "editor/editor.h"
 #include "imgui.h"
@@ -6,6 +7,8 @@
 
 namespace cyb::hli
 {
+    CVar<float> r_renderScale{ "r_renderScale", 1.0f, 0.1f, 4.0f, CVarFlag::RendererBit, "Render scale factor for the internal resolution" };
+    
     void RenderPath2D::ResizeBuffers()
     {
         currentBufferSize = GetInternalResolution();
@@ -24,7 +27,7 @@ namespace cyb::hli
 
     void RenderPath2D::Update(double dt)
     {
-        const XMUINT2 internalResolution = GetInternalResolution();
+        const UVec2 internalResolution = GetInternalResolution();
         if (currentBufferSize.x != internalResolution.x || currentBufferSize.y != internalResolution.y)
         {
             CYB_TRACE("Resizing buffers (width={}, height={})", internalResolution.x, internalResolution.y);
@@ -61,5 +64,13 @@ namespace cyb::hli
             rhi::GetDevice()->EndEvent(cmd);
         }
 #endif
+    }
+
+    UVec2 RenderPath2D::GetInternalResolution() const
+    {
+        return {
+            (uint32_t)((float)GetPhysicalWidth() * r_renderScale.GetValue()),
+            (uint32_t)((float)GetPhysicalHeight() * r_renderScale.GetValue())
+        };
     }
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include "core/mathlib.h"
 #include "hli/renderpath.h"
 
 namespace cyb::hli
@@ -15,15 +16,12 @@ namespace cyb::hli
         void Render() const override;
         void Compose(rhi::CommandList cmd) const override;
 
-        [[nodiscard]] XMUINT2 GetInternalResolution() const
-        {
-            return XMUINT2(GetPhysicalWidth(), GetPhysicalHeight());
-        }
+        [[nodiscard]] UVec2 GetInternalResolution() const;
 
     private:
-        XMUINT2 currentBufferSize = {};
+        UVec2 currentBufferSize{};
 #ifndef NO_EDITOR
-        bool showEditor = false;
+        bool showEditor{ false };
 #endif
     };
 }

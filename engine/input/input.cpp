@@ -114,7 +114,7 @@ namespace cyb::input
         return g_keyboard.KeyReleased(key);
     }
 
-    Vec2 GetMousePointerDelta() noexcept
+    Vec2 PointerDelta() noexcept
     {
         return g_mouse.pointerDelta;
     }

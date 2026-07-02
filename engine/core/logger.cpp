@@ -51,7 +51,7 @@ namespace cyb
 #ifdef _WIN32
     void LogOutputModule_VisualStudio::Write(const cyb::LogMessage& msg)
     {
-        OutputDebugStringA(msg.text.c_str());
+        OutputDebugStringW(Utf8ToWide(msg.text).c_str());
     }
 #endif // _WIN32
 

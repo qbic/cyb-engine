@@ -110,7 +110,7 @@ namespace cyb::input
     [[nodiscard]] bool KeyReleased(uint32_t key) noexcept;
 
     /** Get the delta position of the mouse pointer. */
-    [[nodiscard]] Vec2 GetMousePointerDelta() noexcept;
+    [[nodiscard]] Vec2 PointerDelta() noexcept;
 
     /** Get a bitmask of the mouse button states. */
     [[nodiscard]] MouseButton MouseButtons() noexcept;

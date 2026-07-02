@@ -15,7 +15,7 @@ namespace cyb::hli
     void RenderPath3D::ResizeBuffers()
     {
         GraphicsDevice* device = cyb::rhi::GetDevice();
-        XMUINT2 internalResolution = GetInternalResolution();
+        UVec2 internalResolution = GetInternalResolution();
 
         // Render targets:
         {

@@ -12,12 +12,15 @@
 #include "editor/imgui_backend.h"
 #include "editor/filedialog.h"
 
+#include <chrono>
+
 using namespace cyb::rhi;
 
 namespace cyb::hli
 {
     CVar<bool> r_vsync{ "r_vsync", true, CVarFlag::RendererBit, "Enable/Disable framebuffer swap on vertical refresh" };
-
+    CVar<uint32_t> r_maxBackgroundFps{ "r_maxBackgroundFps", 30, 1, 240, CVarFlag::RendererBit, "Maximum FPS when the application is not active" };
+    
     void Application::ActivePath(RenderPath* component)
     {
         if (component != nullptr)
@@ -70,7 +73,12 @@ namespace cyb::hli
             // active, and skip update and rendering entierly is it's minimized.
             if (!m_window.IsActive())
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                const double TargetFrameTimeMs = 1000.0 / double(r_maxBackgroundFps.GetValue());
+                const double elapsedMs = timer.ElapsedMilliseconds();
+                const auto remainingTime = std::chrono::duration<double, std::milli>(TargetFrameTimeMs - elapsedMs);
+                if (remainingTime > std::chrono::duration<double, std::milli>::zero())
+                    std::this_thread::sleep_for(remainingTime);
+
                 if (m_window.IsMinimized())
                     continue;
             }

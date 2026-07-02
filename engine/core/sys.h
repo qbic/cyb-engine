@@ -8,7 +8,11 @@
 #define NOMINMAX
 #endif
 #include <Windows.h>
+#ifdef _DEBUG
 #define CYB_DEBUGBREAK() __debugbreak()
+#else // _DEBUG
+#define CYB_DEBUGBREAK()
+#endif // _DEBUG
 #endif // _WIN32
 
 #define BIT(n)			(1ULL << (n))

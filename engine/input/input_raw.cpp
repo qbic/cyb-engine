@@ -18,7 +18,7 @@ namespace cyb::input::rawinput
 {
     LRESULT CALLBACK InputWindowProc(HWND, UINT, WPARAM, LPARAM);
 
-    void Init(WindowHandle window) noexcept
+    void Init(NativeWindowHandle window) noexcept
     {
         std::array<RAWINPUTDEVICE, 2> rid{};
 

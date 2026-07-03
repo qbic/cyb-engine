@@ -4,5 +4,5 @@
 namespace cyb::input::rawinput
 {
     /** Initialize the raw input api for keyboard and mouse. */
-    void Init(WindowHandle window) noexcept;
+    void Init(NativeWindowHandle window) noexcept;
 }

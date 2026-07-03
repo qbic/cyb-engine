@@ -1329,7 +1329,7 @@ namespace cyb::editor
                 {
                     for (size_t i = 0; i < displayModeList.size(); i++)
                     {
-                        const std::string modeString = DisplayModeToString(displayModeList[i]);
+                        const std::string modeString = std::format("{}", displayModeList[i]);
                         if (ImGui::MenuItem(modeString.c_str()))
                         {
                             eventsystem::FireEvent(eventsystem::Event_SetFullScreen, i);

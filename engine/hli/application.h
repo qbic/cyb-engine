@@ -12,7 +12,7 @@ namespace cyb::hli
         virtual ~Application() = default;
 
         void ActivePath(RenderPath* component);
-        [[nodiscard]] RenderPath* GetActivePath() { return activePath; }
+        [[nodiscard]] RenderPath* GetActivePath() { return m_activePath; }
 
         virtual void Init();
         void UpdateLoop();
@@ -23,21 +23,23 @@ namespace cyb::hli
         // implemented by game, returned object must be kept alive until application exit
         [[nodiscard]] virtual RenderPath* GetRenderPath() const = 0;
 
-        // Call this before calling Run() or Initialize() if you want to render to a UWP window
-        void SetWindow(WindowHandle window);
-        [[nodiscard]] WindowHandle GetWindow() const { return window; }
+        /** Returns a reference to the client window. */
+        [[nodiscard]] const ClientWindow& GetWindow() const noexcept { return m_window; }
+
+        /** 
+         * Rebuilds the swapchain and recreates all render targets. This uses the client
+         * window and render path renderScale to determine the new swapchain size.
+         */
+        void RebuildSwapchain();
 
     private:
-        bool isWindowActive = true;
-        std::unique_ptr<rhi::GraphicsDevice> graphicsDevice;
-        eventsystem::Handle changeVSyncEvent;
-        bool initialized = false;
-        Timer timer;
-        double deltaTime = 0.0;
-        Canvas canvas;
-        RenderPath* activePath = nullptr;
+        void InitGraphicsDevice();
+
+        std::unique_ptr<rhi::GraphicsDevice> m_graphicsDevice{};
+        eventsystem::Handle m_changeVSyncEvent{};
+        Timer m_timer{};
+        RenderPath* m_activePath{ nullptr };
         ClientWindow m_window{};
-        WindowHandle window;            // TODO: REMOVE
-        rhi::Swapchain swapchain;
+        rhi::Swapchain swapchain{};
     };
 }

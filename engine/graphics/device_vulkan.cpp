@@ -1523,7 +1523,7 @@ namespace cyb::rhi
             vkDestroySemaphore(device, queue.trackingSemaphore, nullptr);
     }
 
-    bool GraphicsDevice_Vulkan::CreateSwapchain(const SwapchainDesc* desc, WindowHandle window, Swapchain* swapchain) const
+    bool GraphicsDevice_Vulkan::CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window, Swapchain* swapchain) const
     {
         auto internal_state = std::static_pointer_cast<Swapchain_Vulkan>(swapchain->internal_state);
         if (swapchain->internal_state == nullptr)
@@ -2765,7 +2765,7 @@ namespace cyb::rhi
         signalSemaphore.value = value;
         signalSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
     }
-
+#include "systems/profiler.h"
     uint64_t GraphicsDevice_Vulkan::CommandQueue::Submit(GraphicsDevice_Vulkan* device, VkFence fence)
     {
         std::scoped_lock lock{ *locker };

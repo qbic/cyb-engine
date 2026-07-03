@@ -8,9 +8,9 @@
 namespace cyb
 {
 #ifdef _WIN32
-    using WindowHandle = HWND;
+    using NativeWindowHandle = HWND;
 #else // _WIN32
-    using WindowHandle = void*;
+    using NativeWindowHandle = void*;
 #endif // _WIN32
 
     struct VideoMode
@@ -20,13 +20,6 @@ namespace cyb
         uint32_t refreshRate;
 
         [[nodiscard]] bool operator==(const VideoMode&) const = default;
-    };
-
-    struct WindowInfo
-    {
-        int width;
-        int height;
-        float dpi;
     };
 
     /** Calculate the aspect ratio of a video mode. */
@@ -42,16 +35,9 @@ namespace cyb
 
     /** Returns the effective work area of the primary display. */
     [[nodiscard]] UVec2 DisplayWorkArea();
-
-    [[nodiscard]] inline std::string DisplayModeToString(const VideoMode& mode)
-    {
-        return std::format("{}x{} @ {}Hz)", mode.width, mode.height, mode.refreshRate);
-    }
-
-    // DEPRICATED
-    [[nodiscard]] WindowInfo GetWindowInfo(WindowHandle window);
 } // namespace cyb
 
+/** std::format specialization for cyb::VideoMode. */
 template <>
 struct std::formatter<cyb::VideoMode>
 {

@@ -219,7 +219,7 @@ namespace cyb::rhi
         GraphicsDevice_Vulkan();
         virtual ~GraphicsDevice_Vulkan();
 
-        bool CreateSwapchain(const SwapchainDesc* desc, WindowHandle window, Swapchain* swapchain) const override;
+        bool CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window, Swapchain* swapchain) const override;
         bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const override;
         bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const override;
         bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const override;

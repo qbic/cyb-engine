@@ -1,3 +1,4 @@
+#include <chrono>
 #include "core/cvar.h"
 #include "graphics/device_vulkan.h"
 #include "graphics/renderer.h"
@@ -12,8 +13,6 @@
 #include "editor/imgui_backend.h"
 #include "editor/filedialog.h"
 
-#include <chrono>
-
 using namespace cyb::rhi;
 
 namespace cyb::hli
@@ -24,13 +23,13 @@ namespace cyb::hli
     void Application::ActivePath(RenderPath* component)
     {
         if (component != nullptr)
-            component->SetCanvas(canvas);
-        activePath = component;
+            component->SetCanvas(m_window.GetWidth(), m_window.GetHeight());
+        m_activePath = component;
     }
 
     void Application::Init()
     {
-        Timer timer;
+        Timer timer{};
 #ifdef CYB_DEBUG_BUILD
         CYB_INFO("Running debug build, performance will be slow!");
 #endif
@@ -40,14 +39,16 @@ namespace cyb::hli
         RegisterStaticCVars();
         jobsystem::Initialize();
 
+        // Initialize the client window, graphics device, and swapchain
         m_window = ClientWindow::Create({ });
-        SetWindow(m_window.GetNativeHandle().hWnd);       // TODO: REMOVE
+        InitGraphicsDevice();
+        RebuildSwapchain();
 
-        jobsystem::Context ctx;
+        jobsystem::Context ctx{};
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { resourcemanager::Initialize(); });
-        jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) { input::Initialize(window); });
+        jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) { input::Initialize(m_window.GetNativeHandle()); });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { renderer::Initialize(); });
-        jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(window); });
+        jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(m_window.GetNativeHandle()); });
         jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) {
             RenderPath* renderPath = GetRenderPath();
             renderPath->Load();
@@ -65,7 +66,7 @@ namespace cyb::hli
         do 
         {
             // Update input state and poll window events
-            input::Update(window);
+            input::Update(m_window.GetNativeHandle());
             if (!m_window.PollEvents())
                 break;
 
@@ -74,7 +75,7 @@ namespace cyb::hli
             if (!m_window.IsActive())
             {
                 const double TargetFrameTimeMs = 1000.0 / double(r_maxBackgroundFps.GetValue());
-                const double elapsedMs = timer.ElapsedMilliseconds();
+                const double elapsedMs = m_timer.ElapsedMilliseconds();
                 const auto remainingTime = std::chrono::duration<double, std::milli>(TargetFrameTimeMs - elapsedMs);
                 if (remainingTime > std::chrono::duration<double, std::milli>::zero())
                     std::this_thread::sleep_for(remainingTime);
@@ -83,13 +84,13 @@ namespace cyb::hli
                     continue;
             }
 
-            // Rebuild swapchain and update buffers if client window changes size
-            if (m_window.GetWidth() != activePath->GetPhysicalWidth() ||
-                m_window.GetHeight() != activePath->GetPhysicalHeight())
-                SetWindow(m_window.GetNativeHandle().hWnd);
+            // Rebuild swapchain and resize buffers if the client window changes size
+            if (m_window.GetWidth() != m_activePath->GetPhysicalWidth() ||
+                m_window.GetHeight() != m_activePath->GetPhysicalHeight())
+                RebuildSwapchain();
 
             profiler::BeginFrame();
-            float dt = timer.RecordElapsedSeconds();
+            float dt = m_timer.RecordElapsedSeconds();
 
             // Wake up the events that need to be executed on the main thread, 
             // in thread safe manner.
@@ -100,68 +101,68 @@ namespace cyb::hli
             Render();
 
             // Compose the final image and and pass it to the swapchain for display
-            CommandList cmd = graphicsDevice->BeginCommandList();
-            graphicsDevice->BeginRenderPass(&swapchain, cmd);
+            CommandList cmd = m_graphicsDevice->BeginCommandList();
+            m_graphicsDevice->BeginRenderPass(&swapchain, cmd);
             Viewport viewport{};
             viewport.width = (float)swapchain.GetDesc().width;
             viewport.height = (float)swapchain.GetDesc().height;
-            graphicsDevice->BindViewports(&viewport, 1, cmd);
+            m_graphicsDevice->BindViewports(&viewport, 1, cmd);
 
             Compose(cmd);
-            graphicsDevice->EndRenderPass(cmd);
+            m_graphicsDevice->EndRenderPass(cmd);
 
             profiler::EndFrame(cmd);
-            graphicsDevice->ExecuteCommandLists();
+            m_graphicsDevice->ExecuteCommandLists();
         } while (true);
     }
 
     void Application::Update(double dt)
     {
         CYB_PROFILE_CPU_SCOPE("Update");
-        if (activePath != nullptr)
-            activePath->Update(dt);
+        if (m_activePath != nullptr)
+            m_activePath->Update(dt);
     }
 
     void Application::Render()
     {
         CYB_PROFILE_CPU_SCOPE("Render");
-        if (activePath != nullptr)
-            activePath->Render();
+        if (m_activePath != nullptr)
+            m_activePath->Render();
     }
 
     void Application::Compose(rhi::CommandList cmd)
     {
         CYB_PROFILE_CPU_SCOPE("Compose");
-        if (activePath != nullptr)
-            activePath->Compose(cmd);
+        if (m_activePath != nullptr)
+            m_activePath->Compose(cmd);
     }
 
-    void Application::SetWindow(WindowHandle window)
+    void Application::RebuildSwapchain()
     {
-        this->window = window;
+        assert(m_graphicsDevice);
 
-        // this should probably be handled by the editor separately
-        SetFileDialogParentWindow(window);
+        // TODO: This should probably be handled by the editor separately
+        SetFileDialogParentWindow(m_window.GetNativeHandle());
 
-        if (graphicsDevice == nullptr)
+        rhi::SwapchainDesc desc{};
+        if (m_activePath != nullptr)
         {
-            graphicsDevice = std::make_unique<rhi::GraphicsDevice_Vulkan>();
-            rhi::GetDevice() = graphicsDevice.get();
-            rhi::GraphicsDevice* device = rhi::GetDevice();
+            m_activePath->SetCanvas(m_window.GetWidth(), m_window.GetHeight());
+            desc.width = m_activePath->GetPhysicalWidth();
+            desc.height = m_activePath->GetPhysicalHeight();
+        }
+        else
+        {
+            desc.width = m_window.GetWidth();
+            desc.height = m_window.GetHeight();
         }
 
-        canvas.SetCanvas(window);
+        rhi::GetDevice()->CreateSwapchain(&desc, m_window.GetNativeHandle(), &swapchain);
 
-        rhi::SwapchainDesc desc = {};
-        WindowInfo info = GetWindowInfo(window);
-        desc.width = canvas.GetPhysicalWidth();
-        desc.height = canvas.GetPhysicalHeight();;
-        rhi::GetDevice()->CreateSwapchain(&desc, window, &swapchain);
-
-        changeVSyncEvent = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this] (uint64_t userdata) {
+        m_changeVSyncEvent = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this] (uint64_t userdata) {
             SwapchainDesc desc = swapchain.desc;
             desc.vsync = (userdata != 0);
-            bool success = graphicsDevice->CreateSwapchain(&desc, nullptr, &swapchain);
+            bool success = m_graphicsDevice->CreateSwapchain(&desc, nullptr, &swapchain);
             assert(success);
         });
 
@@ -169,5 +170,11 @@ namespace cyb::hli
         r_vsync.RegisterOnChangeCallback([] (const CVar<bool>& cvar) {
             eventsystem::FireEvent(eventsystem::Event_SetVSync, cvar.GetValue() ? 1ull : 0ull);
         });
+    }
+
+    void Application::InitGraphicsDevice()
+    {
+        m_graphicsDevice = std::make_unique<rhi::GraphicsDevice_Vulkan>();
+        rhi::GetDevice() = m_graphicsDevice.get();
     }
 }

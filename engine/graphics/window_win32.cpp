@@ -73,18 +73,14 @@ namespace cyb
             x, y,
             rc.right - rc.left,
             rc.bottom - rc.top,
-            nullptr, 
+            desc.parent,
             nullptr,
             hInstance,
             nullptr);
         if (!hWnd)
             Panicf("Failed to create window: {}", GetLastError());
 
-        Handle nativeHandle{};
-        nativeHandle.hInstance = hInstance;
-        nativeHandle.hWnd = hWnd;
-
-        ClientWindow window(nativeHandle, desc);
+        ClientWindow window(hWnd, desc);
 
         // Store a pointer to ourselves in the HWND so WndProc can reach it.
         // Must happen before any messages are dispatched.
@@ -97,11 +93,14 @@ namespace cyb
         ShowWindow(hWnd, SW_SHOW);
         UpdateWindow(hWnd);
 
+        window.m_isOpen = true;
+        window.m_isActive = true;
+
         return window;
     }
 
-    ClientWindow::ClientWindow(Handle handle, const ClientWindowDesc& desc) :
-        m_nativeHandle(handle),
+    ClientWindow::ClientWindow(NativeWindowHandle windowHandle, const ClientWindowDesc& desc) :
+        m_nativeHandle(windowHandle),
         m_width(desc.width),
         m_height(desc.height)
     {
@@ -109,17 +108,17 @@ namespace cyb
 
     ClientWindow::~ClientWindow()
     {
-        if (m_nativeHandle.hWnd)
+        if (m_nativeHandle)
         {
-            SetWindowLongPtrW(static_cast<HWND>(m_nativeHandle.hWnd), GWLP_USERDATA, 0);
-            DestroyWindow(static_cast<HWND>(m_nativeHandle.hWnd));
+            SetWindowLongPtrW(static_cast<HWND>(m_nativeHandle), GWLP_USERDATA, 0);
+            DestroyWindow(static_cast<HWND>(m_nativeHandle));
         }
     }
 
     bool ClientWindow::PollEvents() noexcept
     {
         MSG msg{};
-        while (PeekMessageW(&msg, m_nativeHandle.hWnd, 0, 0, PM_REMOVE))
+        while (PeekMessageW(&msg, m_nativeHandle, 0, 0, PM_REMOVE))
         {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
@@ -131,13 +130,15 @@ namespace cyb
     ClientWindow::ClientWindow(ClientWindow&& other) noexcept :
         m_nativeHandle(other.m_nativeHandle),
         m_width(other.m_width),
-        m_height(other.m_height)
+        m_height(other.m_height),
+        m_isOpen(other.m_isOpen),
+        m_isMinimized(other.m_isMinimized),
+        m_isActive(other.m_isActive)
     {
-        other.m_nativeHandle.hWnd = nullptr;
-        other.m_nativeHandle.hInstance = nullptr;
+        other.m_nativeHandle = nullptr;
 
-        if (m_nativeHandle.hWnd)
-            SetWindowLongPtrW(static_cast<HWND>(m_nativeHandle.hWnd), GWLP_USERDATA,
+        if (m_nativeHandle)
+            SetWindowLongPtrW(static_cast<HWND>(m_nativeHandle), GWLP_USERDATA,
                 reinterpret_cast<LONG_PTR>(this));
     }
 
@@ -146,19 +147,20 @@ namespace cyb
         if (this == &other)
             return *this;
 
-        if (m_nativeHandle.hWnd)
-            DestroyWindow(static_cast<HWND>(m_nativeHandle.hWnd));
+        if (m_nativeHandle)
+            DestroyWindow(static_cast<HWND>(m_nativeHandle));
 
-        m_nativeHandle.hWnd = other.m_nativeHandle.hWnd;
-        m_nativeHandle.hInstance = other.m_nativeHandle.hInstance;
+        m_nativeHandle = other.m_nativeHandle;
         m_width = other.m_width;
         m_height = other.m_height;
+        m_isOpen = other.m_isOpen;
+        m_isMinimized = other.m_isMinimized;
+        m_isActive = other.m_isActive;
+    
+        other.m_nativeHandle = nullptr;
 
-        other.m_nativeHandle.hWnd = nullptr;
-        other.m_nativeHandle.hInstance = nullptr;
-
-        if (m_nativeHandle.hWnd)
-            SetWindowLongPtrW(static_cast<HWND>(m_nativeHandle.hWnd), GWLP_USERDATA,
+        if (m_nativeHandle)
+            SetWindowLongPtrW(static_cast<HWND>(m_nativeHandle), GWLP_USERDATA,
                 reinterpret_cast<LONG_PTR>(this));
 
         return *this;
@@ -178,7 +180,7 @@ namespace cyb
             else
             {
                 RECT rc{};
-                GetClientRect(m_nativeHandle.hWnd, &rc);
+                GetClientRect(m_nativeHandle, &rc);
                 m_width = rc.right - rc.left;
                 m_height = rc.bottom - rc.top;
                 m_isMinimized = false;

@@ -64,7 +64,7 @@ namespace cyb
     {
         DISPLAY_DEVICEW device{};
         device.cb = sizeof(device);
-        const int displayIndex = 0;
+        const int displayIndex{ 0 };
         if (!EnumDisplayDevicesW(0, displayIndex, &device, 0))
             return std::vector<VideoMode>{};
 
@@ -91,20 +91,7 @@ namespace cyb
             static_cast<uint32_t>(wa.bottom - wa.top),
         };
     }
-
-    WindowInfo GetWindowInfo(WindowHandle window)
-    {
-        WindowInfo info{};
-        info.dpi = (float)GetDpiForWindow(window);
-
-        RECT rect;
-        GetClientRect(window, &rect);
-        info.width = int(rect.right - rect.left);
-        info.height = int(rect.bottom - rect.top);
-
-        return info;
-    }
-#else
+#else // _WIN32
     std::vector<VideoMode> EnumeratePrimaryDisplayVideoModes()
     {
         return std::vector<VideoMode>{};
@@ -114,5 +101,5 @@ namespace cyb
     {
         return { 0u, 0u };
     }
-#endif
+#endif // _WIN32
 } // namespace cyb

@@ -4,9 +4,9 @@
 
 namespace cyb
 {
-    static WindowHandle g_parentWindow{ nullptr };
+    static NativeWindowHandle g_parentWindow{ nullptr };
 
-    void SetFileDialogParentWindow(WindowHandle window)
+    void SetFileDialogParentWindow(NativeWindowHandle window)
     {
         g_parentWindow = window;
     }

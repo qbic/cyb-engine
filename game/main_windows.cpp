@@ -35,13 +35,13 @@ bool EnterFullscreenMode(uint64_t modeIndex)
     fullscreenSettings.dmDisplayFrequency = mode.refreshRate;
     fullscreenSettings.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL | DM_DISPLAYFREQUENCY;
 
-    HWND hwnd = (HWND)application.GetWindow();
+    HWND hwnd = (HWND)application.GetWindow().GetNativeHandle();
     SetWindowLongPtr(hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW);
     SetWindowLongPtr(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
     bool isChangeSuccessful = ChangeDisplaySettings(&fullscreenSettings, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL;
     ShowWindow(hwnd, SW_MAXIMIZE);
 
-    application.SetWindow(hwnd);
+    //application.SetWindow(hwnd);
 
     return isChangeSuccessful;
 }

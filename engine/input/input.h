@@ -89,13 +89,13 @@ namespace cyb::input
     };
 
     /** Initialize all the needed subsystem used by input. */
-    void Initialize(WindowHandle window) noexcept;
+    void Initialize(NativeWindowHandle window) noexcept;
 
     /**
      * Update the states of all input devices.
      * Call this once per frame (before processing new input events).
      */
-    void Update(WindowHandle window) noexcept;
+    void Update(NativeWindowHandle window) noexcept;
 
     /** Check if a keyboard key is current down. */
     [[nodiscard]] bool KeyDown(uint32_t key) noexcept;

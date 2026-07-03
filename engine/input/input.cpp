@@ -56,7 +56,7 @@ namespace cyb::input
         activeButtonIndex ^= 1;
     }
 
-    void Initialize(WindowHandle window) noexcept
+    void Initialize(NativeWindowHandle window) noexcept
     {
         Timer timer;
 
@@ -68,7 +68,7 @@ namespace cyb::input
         initialized.store(true);
     }
 
-    void Update(WindowHandle window) noexcept
+    void Update(NativeWindowHandle window) noexcept
     {
         assert(initialized.load());
 

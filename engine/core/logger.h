@@ -5,10 +5,10 @@
 #include <fstream>
 #include <chrono>
 
-#define CYB_TRACE(...)		cyb::PostTrace(__VA_ARGS__)
-#define CYB_INFO(...)		cyb::PostInfo(__VA_ARGS__)
-#define CYB_WARNING(...)	cyb::PostWarning(__VA_ARGS__)
-#define CYB_ERROR(...)		cyb::PostError(__VA_ARGS__)
+#define CYB_TRACE(...)		::cyb::PostTrace(__VA_ARGS__)
+#define CYB_INFO(...)		::cyb::PostInfo(__VA_ARGS__)
+#define CYB_WARNING(...)	::cyb::PostWarning(__VA_ARGS__)
+#define CYB_ERROR(...)		::cyb::PostError(__VA_ARGS__)
 
 #define CYB_CWARNING(expr, ...) { if (expr) { CYB_WARNING(__VA_ARGS__); }}
 #define CYB_CERROR(expr, ...)	{ if (expr) { CYB_ERROR(__VA_ARGS__); }}

@@ -16,6 +16,10 @@ namespace cyb::hli
         void Render() const override;
         void Compose(rhi::CommandList cmd) const override;
 
+        /**
+         * Gets the scaled internal resolution for rendering.
+         * For unscaled resolution, use GetPhysicalWidth() and GetPhysicalHeight().
+         */
         [[nodiscard]] UVec2 GetInternalResolution() const;
 
     private:

@@ -38,11 +38,9 @@ namespace cyb::hli
         if (input::KeyPressed(input::KEYBOARD_BUTTON_F1))
             showEditor = !showEditor;
 
-        {
-            CYB_PROFILE_CPU_SCOPE("GUI Render");
-            ImGui_Impl_CybEngine_Update();
-            editor::Update(showEditor, dt);
-        }
+        CYB_PROFILE_CPU_SCOPE("GUI Render");
+        ImGui_Impl_CybEngine_Update();
+        editor::Update(showEditor, dt);
 #endif
     }
 

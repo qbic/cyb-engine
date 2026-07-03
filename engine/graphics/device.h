@@ -635,7 +635,7 @@ namespace cyb::rhi
     public:
         virtual ~GraphicsDevice() = default;
 
-        virtual bool CreateSwapchain(const SwapchainDesc* desc, WindowHandle window, Swapchain* swapchain) const = 0;
+        virtual bool CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window, Swapchain* swapchain) const = 0;
         virtual bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const = 0;
         virtual bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const = 0;
         virtual bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const = 0;

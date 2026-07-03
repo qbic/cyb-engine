@@ -14,7 +14,7 @@ namespace cyb
      * This is optional, but recommended to set so that the file dialog is
      * modal to the main application window.
      */
-    void SetFileDialogParentWindow(cyb::WindowHandle window);
+    void SetFileDialogParentWindow(cyb::NativeWindowHandle window);
 
     /**
      * @brief Filter for file dialog.

@@ -23,12 +23,6 @@ namespace cyb
             dpi = other.dpi;
         }
 
-        void SetCanvas(WindowHandle window)
-        {
-            const WindowInfo prop = GetWindowInfo(window);
-            SetCanvas(prop.width, prop.height, prop.dpi);
-        }
-
         [[nodiscard]] float GetDPI() const { return dpi; }
         [[nodiscard]] uint32_t GetPhysicalWidth() const { return width; }
         [[nodiscard]] uint32_t GetPhysicalHeight() const { return height; }

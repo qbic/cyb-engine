@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include "core/non_copyable.h"
 #include "core/sys.h"
 #include "graphics/display.h"
@@ -15,6 +16,8 @@ namespace cyb
         NativeWindowHandle parent{ nullptr };
     };
 
+    using WindowResizeFn = std::function<void()>;
+
     class ClientWindow : public MovableNonCopyable
     {
     public:
@@ -27,9 +30,13 @@ namespace cyb
 
         /** 
          * Parses all window events. Call this once per frame.
-         * Returns false is window is requested to close.
+         * This will also call appropriate window callbacks if set.
+         * Returns false if window is requested to close.
          */
         bool PollEvents() noexcept;
+
+        /** Sets the callback function to be called when the window is resized. */
+        void SetWindowResizeCallback(WindowResizeFn callback) noexcept { m_windowResizeCallback = std::move(callback); }
 
         [[nodiscard]] uint32_t GetWidth() const noexcept { return m_width; }
         [[nodiscard]] uint32_t GetHeight() const noexcept { return m_height; }
@@ -52,5 +59,6 @@ namespace cyb
         bool m_isMinimized{ false };
         bool m_isActive{ false };
         NativeWindowHandle m_nativeHandle{};
+        WindowResizeFn m_windowResizeCallback{};
     };
 } // namespace cyb

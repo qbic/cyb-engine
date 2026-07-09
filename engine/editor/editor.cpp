@@ -992,34 +992,84 @@ namespace cyb::editor
 
         void WindowContent() override
         {
-            if (ImGui::BeginTable("CVars", 4, ImGuiTableFlags_Reorderable | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
+            if (ImGui::BeginTable("CVars", 4, ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
             {
-                ImGui::TableSetupColumn("Name");
+
+                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_DefaultSort);
                 ImGui::TableSetupColumn("Type");
                 ImGui::TableSetupColumn("Value");
                 ImGui::TableSetupColumn("Description");
                 ImGui::TableHeadersRow();
 
-                const auto& registry = GetCVarRegistry();
+                Sync();
+                ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs();
+                if (sortSpecs->SpecsDirty || m_rowsRebuilt)
+                {
+                    SortRows(sortSpecs);
+                    sortSpecs->SpecsDirty = false;
+                }
+                m_rowsRebuilt = false;
 
-                for (const auto& [_, cvar] : registry)
+                for (const CVarBase* cvar : m_rows)
                 {
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetName().c_str());
+                    ImGui::Text("%s", cvar->GetName().c_str());
 
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetTypeAsString().data());
+                    ImGui::Text("%s", cvar->GetTypeAsString().data());
 
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetValueAsString().c_str());
+                    ImGui::Text("%s", cvar->GetValueAsString().c_str());
 
                     ImGui::TableNextColumn();
-                    ImGui::Text(cvar->GetDescription().c_str());
+                    ImGui::Text("%s", cvar->GetDescription().c_str());
                 }
 
                 ImGui::EndTable();
             }
         }
+
+        void Sync()
+        {
+            const auto& registry = GetCVarRegistry();
+            if (registry.size() == m_lastRegistrySize)
+                return;
+
+            m_rows.clear();
+            m_rows.reserve(registry.size());
+            for (const auto& [_, cvar] : registry)
+                m_rows.push_back(cvar);
+
+            m_lastRegistrySize = registry.size();
+            m_rowsRebuilt = true;
+        }
+
+        void SortRows(ImGuiTableSortSpecs* sortSpecs)
+        {
+            std::ranges::sort(m_rows, [sortSpecs] (const CVarBase* a, const CVarBase* b) {
+                for (int n = 0; n < sortSpecs->SpecsCount; n++)
+                {
+                    const ImGuiTableColumnSortSpecs* spec = &sortSpecs->Specs[n];
+                    int delta = 0;
+                    switch (spec->ColumnIndex)
+                    {
+                    case 0: delta = a->GetName().compare(b->GetName()); break;
+                    case 1: delta = a->GetTypeAsString().compare(b->GetTypeAsString()); break;
+                    case 2: delta = a->GetValueAsString().compare(b->GetValueAsString()); break;
+                    case 3: delta = a->GetDescription().compare(b->GetDescription()); break;
+                    default: break;
+                    }
+                    if (delta != 0)
+                        return spec->SortDirection == ImGuiSortDirection_Ascending ? delta < 0 : delta > 0;
+                }
+                return a->GetName() < b->GetName();
+            });
+
+        }
+
+        std::vector<CVarBase*> m_rows{};
+        size_t m_lastRegistrySize{ SIZE_MAX };
+        bool m_rowsRebuilt{ false };
     };
 
     //------------------------------------------------------------------------------

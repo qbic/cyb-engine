@@ -110,8 +110,8 @@ namespace cyb
     {
         if (m_nativeHandle)
         {
-            SetWindowLongPtrW(static_cast<HWND>(m_nativeHandle), GWLP_USERDATA, 0);
-            DestroyWindow(static_cast<HWND>(m_nativeHandle));
+            SetWindowLongPtrW(m_nativeHandle, GWLP_USERDATA, 0);
+            DestroyWindow(m_nativeHandle);
         }
     }
 
@@ -138,8 +138,7 @@ namespace cyb
         other.m_nativeHandle = nullptr;
 
         if (m_nativeHandle)
-            SetWindowLongPtrW(static_cast<HWND>(m_nativeHandle), GWLP_USERDATA,
-                reinterpret_cast<LONG_PTR>(this));
+            SetWindowLongPtrW(m_nativeHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
     }
 
     ClientWindow& ClientWindow::operator=(ClientWindow&& other) noexcept
@@ -148,7 +147,7 @@ namespace cyb
             return *this;
 
         if (m_nativeHandle)
-            DestroyWindow(static_cast<HWND>(m_nativeHandle));
+            DestroyWindow(m_nativeHandle);
 
         m_nativeHandle = other.m_nativeHandle;
         m_width = other.m_width;
@@ -160,8 +159,7 @@ namespace cyb
         other.m_nativeHandle = nullptr;
 
         if (m_nativeHandle)
-            SetWindowLongPtrW(static_cast<HWND>(m_nativeHandle), GWLP_USERDATA,
-                reinterpret_cast<LONG_PTR>(this));
+            SetWindowLongPtrW(m_nativeHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 
         return *this;
     }
@@ -184,6 +182,8 @@ namespace cyb
                 m_width = rc.right - rc.left;
                 m_height = rc.bottom - rc.top;
                 m_isMinimized = false;
+                if (m_windowResizeCallback)
+                    m_windowResizeCallback();
             }
         } break;
 

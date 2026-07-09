@@ -11,137 +11,112 @@ namespace cyb
 {
     enum class CVarFlag : uint32_t
     {
-        SystemBit   = BIT(0),       //!< CVar belongs to core system.
-        RendererBit = BIT(1),       //!< CVar belongs to renderer.
-        GuiBit      = BIT(2),       //!< CVar belongs to GUI.
-        GameBit     = BIT(3),       //!< CVar belongs to game.
-        RomBit      = BIT(10),      //!< Read only access, cannot be changed by user.
-        NoSaveBit   = BIT(11),      //!< Cvar wont be written during serialization.
-        ModifiedBit = BIT(12)       //!< Flags that CVar has been modified since init.
+        SystemBit = BIT(0),         ///< CVar belongs to system.
+        RendererBit = BIT(1),       ///< CVar belongs to renderer.
+        GuiBit      = BIT(2),       ///< CVar belongs to GUI.
+        GameBit     = BIT(3),       ///< CVar belongs to game.
+        RomBit      = BIT(10),      ///< Read only access, cannot be changed by user.
+        NoSaveBit   = BIT(11),      ///< Cvar wont be written during serialization.
+        ModifiedBit = BIT(12)       ///< Flags that CVar has been modified since init.
     };
     CYB_ENABLE_BITMASK_OPERATORS(CVarFlag);
 
-    /**
-     * @brief Undefined so that only explicit types of CVar is allowed.
-     */
+    /** Undefined so that only explicit types of CVar is allowed. */
     template <typename T>
     class CVar;
 
-    namespace detail
+    /** CVar base functionality that doesn't require value type. */
+    class CVarBase : private NonCopyable
     {
-        /**
-         * @brief CVar base functionality that doesn't require value type.
-         */
-        class CVarBase : private NonCopyable
+    public:
+        explicit CVarBase(const std::string& name, CVarFlag flags, const std::string& description);
+        virtual ~CVarBase() = default;
+
+        [[nodiscard]] uint64_t GetHash() const;
+        [[nodiscard]] const std::string& GetName() const;
+        [[nodiscard]] const std::string& GetDescription() const;
+        [[nodiscard]] bool IsModified() const;
+        void SetModified(bool value);
+        [[nodiscard]] bool IsReadOnly() const;
+
+        [[nodiscard]] virtual const std::type_info& GetType() const = 0;
+        [[nodiscard]] virtual const std::string& GetValueAsString() const = 0;
+        [[nodiscard]] virtual const std::string_view GetTypeAsString() const = 0;
+
+    private:
+        const std::string m_name;
+        const std::string m_description;
+        const uint64_t m_hash;                  // Computed from name
+        CVarFlag m_flags;
+    };
+
+    /** CVar common functionality that is general for all value types. */
+    template <typename T>
+    class CVarCommon : public CVarBase
+    {
+    public:
+        using CallbackType = std::function<void(const CVar<T>&)>;
+
+        explicit CVarCommon(const std::string& name, T value, CVarFlag flags, const std::string& description) :
+            CVarBase(name, flags, description),
+            m_value(value)
         {
-        public:
-            explicit CVarBase(const std::string& name, CVarFlag flags, const std::string& description);
-            virtual ~CVarBase() = default;
+        }
+        virtual ~CVarCommon() = default;
 
-            [[nodiscard]] uint64_t GetHash() const;
-            [[nodiscard]] const std::string& GetName() const;
-            [[nodiscard]] const std::string& GetDescription() const;
-            [[nodiscard]] bool IsModified() const;
-            void SetModified(bool value);
-            [[nodiscard]] bool IsReadOnly() const;
-
-            [[nodiscard]] virtual const std::type_info& GetType() const = 0;
-            [[nodiscard]] virtual const std::string& GetValueAsString() const = 0;
-            [[nodiscard]] virtual const std::string_view GetTypeAsString() const = 0;
-
-        private:
-            const std::string m_name;
-            const std::string m_description;
-            const uint64_t m_hash;                  // computed from name
-            CVarFlag m_flags;
-        };
-
-        /**
-         * @brief CVar common functionality that is general for all value types.
-         */
-        template<typename T>
-        class CVarCommon : public CVarBase
+        void SetValue(const T& value)
         {
-        public:
-            using ValueType = T;
-            using CallbackType = std::function<void(const CVar<T>&)>;
+            if (IsReadOnly() || m_value == value)
+                return;
 
-            explicit CVarCommon(const std::string& name, ValueType value, CVarFlag flags, const std::string& description) :
-                CVarBase(name, flags, description),
-                m_value(value)
-            {
-            }
-            virtual ~CVarCommon() = default;
+            m_value = value;
+            OnModifyValue();
+            SetModified(true);
+            RunOnChangeCallbacks();
+        }
 
-            void SetValue(const ValueType& value)
-            {
-                if (IsReadOnly() || m_value == value)
-                    return;
+        [[nodiscard]] const std::type_info& GetType() const override final { return typeid(T); }
+        [[nodiscard]] const T& GetValue() const { return m_value; }
+        [[nodiscard]] const std::string_view GetTypeAsString() const override final { return typeid(T).name(); }
 
-                m_value = value;
-                OnModifyValue();
-                SetModified(true);
-                RunOnChangeCallbacks();
-            }
+        void RunOnChangeCallbacks() const
+        {
+            for (auto& callback : m_callbacks)
+                callback(*static_cast<const CVar<T>*>(this));
+        }
 
-            [[nodiscard]] const std::type_info& GetType() const override final
-            {
-                return typeid(T);
-            }
+        void ClearCallbacks()
+        {
+            m_callbacks.clear();
+        }
 
-            [[nodiscard]] const ValueType& GetValue() const
-            { 
-                return m_value;
-            }
-            
-            [[nodiscard]] const std::string_view GetTypeAsString() const override final
-            {
-                return typeid(T).name();
-            }
+        void RegisterOnChangeCallback(const CallbackType callback)
+        {
+            m_callbacks.push_back(std::move(callback));
+        }
 
-            void RunOnChangeCallbacks() const
-            {
-                for (auto& callback : m_callbacks)
-                    callback(*static_cast<const CVar<T>*>(this));
-            }
+    private:
+        virtual void OnModifyValue() {}
 
-            void ClearCallbacks()
-            {
-                m_callbacks.clear();
-            }
+        T m_value;
+        std::vector<CallbackType> m_callbacks;
+    };
 
-            void RegisterOnChangeCallback(const CallbackType callback)
-            {
-                m_callbacks.push_back(std::move(callback));
-            }
-
-        private:
-            virtual void OnModifyValue()
-            {
-            }
-
-            ValueType m_value;
-            std::vector<CallbackType> m_callbacks;
-        };
-    } // namespace cyb::detail
-
-    template<typename T>
-    concept cvar_number_type = 
+    // Every supported type of CVar must be explicitly specialized. 
+    // This concept is used to restrict the template parameter of CVar to only supported types.
+    template <typename T>
+    concept cvar_number_value = 
         std::same_as<T, int32_t>  ||
         std::same_as<T, uint32_t> ||
         std::same_as<T, float>;
 
-    /**
-     * @brief CVar of number family type implementation.
-     *
-     * Numerical cvars may use optional min and max values.
-     */
-    template<cvar_number_type T>
-    class CVar<T> : public detail::CVarCommon<T>
+    /** CVar specialization for numerical types with optional min and max values. */
+    template <cvar_number_value T>
+    class CVar<T> : public CVarCommon<T>
     {
     public:
         explicit CVar(const std::string& name, const T value, const T minValue, const T maxValue, CVarFlag flags, const std::string& description) :
-            detail::CVarCommon<T>(name, value, flags, description),
+            CVarCommon<T>(name, value, flags, description),
             m_minValue(minValue),
             m_maxValue(maxValue)
         {
@@ -180,18 +155,16 @@ namespace cyb
     private:
         T m_minValue;
         T m_maxValue;
-        std::string m_valueAsString;
+        std::string m_valueAsString;    // Cached string representation of the value
     };
 
-    /**
-     * @brief CVar of boolean type implementation.
-     */
-    template<>
-    class CVar<bool> : public detail::CVarCommon<bool>
+    /** CVar specialization for bool. */
+    template <>
+    class CVar<bool> : public CVarCommon<bool>
     {
     public:
         explicit CVar(const std::string& name, const bool value, CVarFlag flags, const std::string& description) :
-            detail::CVarCommon<bool>(name, value, flags, description)
+            CVarCommon<bool>(name, value, flags, description)
         {
         }
 
@@ -204,15 +177,13 @@ namespace cyb
         }
     };
 
-    /**
-     * @brief CVar of string type implementation.
-     */
-    template<>
-    class CVar<std::string> : public detail::CVarCommon<std::string>
+    /** CVar specialization for std::string. */
+    template <>
+    class CVar<std::string> : public CVarCommon<std::string>
     {
     public:
         explicit CVar(const std::string& name, const std::string& value, CVarFlag flags, const std::string& description) :
-            detail::CVarCommon<std::string>(name, value, flags, description)
+            CVarCommon<std::string>(name, value, flags, description)
         {
         }
 
@@ -224,21 +195,19 @@ namespace cyb
         }
     };
 
-    using CVarRegistryMapType = std::unordered_map<uint64_t, detail::CVarBase*>;
+    using CVarRegistryMapType = std::unordered_map<uint64_t, CVarBase*>;
 
-    /**
-     * @brief Register all globally defined cvars to the registry.
-     *        This needs be called once at initialization!
+    /** 
+     * Register all globally defined cvars to the registry.
+     * This needs be called once at initialization!
      */
     void RegisterStaticCVars();
 
-    /**
-     * @brief Get a const map of the registry containing all registered cvars.
-     */
+    /** Get a const map of the registry containing all registered cvars. */
     [[nodiscard]] const CVarRegistryMapType& GetCVarRegistry();
 
     /**
-     * @brief Try to find a registered cvar of type T.
+     * Try to find a registered cvar of type T.
      *
      * Example usage:
      *  auto* cvar = Find<bool>(hash::String("cvarName"));
@@ -246,14 +215,14 @@ namespace cyb
      * @param hash Hashed value of the cvar's name.
      * @return A pointer to the cvar if it was found and types are matching, nullptr otherwise.
      */
-    template<typename T>
+    template <typename T>
     [[nodiscard]] CVar<T>* FindCVar(const uint64_t hash)
     {
         auto it = GetCVarRegistry().find(hash);
         if (it == GetCVarRegistry().end())
             return nullptr;
 
-        detail::CVarBase* cvar = it->second;
+        CVarBase* cvar = it->second;
         if (cvar->GetType() != typeid(T))
             return nullptr;
 

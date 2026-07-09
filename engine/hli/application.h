@@ -14,11 +14,14 @@ namespace cyb::hli
         void ActivePath(RenderPath* component);
         [[nodiscard]] RenderPath* GetActivePath() { return m_activePath; }
 
-        virtual void Init();
+        /** Initializes the application. */
+        void Init();
+
+        /** 
+         * Starts the main update loop. Loop will exit when the client window
+         * is closed or the application is requested to exit.
+         */
         void UpdateLoop();
-        virtual void Update(double dt);
-        virtual void Render();
-        virtual void Compose(rhi::CommandList cmd);
 
         // implemented by game, returned object must be kept alive until application exit
         [[nodiscard]] virtual RenderPath* GetRenderPath() const = 0;
@@ -34,12 +37,15 @@ namespace cyb::hli
 
     private:
         void InitGraphicsDevice();
+        virtual void Update(double dt);
+        virtual void Render();
+        virtual void Compose(rhi::CommandList cmd);
 
+        ClientWindow m_window{};
         std::unique_ptr<rhi::GraphicsDevice> m_graphicsDevice{};
+        rhi::Swapchain m_swapchain{};
+        RenderPath* m_activePath{ nullptr };
         eventsystem::Handle m_changeVSyncEvent{};
         Timer m_timer{};
-        RenderPath* m_activePath{ nullptr };
-        ClientWindow m_window{};
-        rhi::Swapchain swapchain{};
     };
 }

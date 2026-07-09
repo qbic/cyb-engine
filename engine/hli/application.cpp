@@ -1,4 +1,5 @@
 #include <chrono>
+#include <functional>
 #include "core/cvar.h"
 #include "graphics/device_vulkan.h"
 #include "graphics/renderer.h"
@@ -55,6 +56,9 @@ namespace cyb::hli
 
             ActivePath(renderPath);
         });
+
+        // Rebuild swapchain and resize buffers if the client window changes size
+        m_window.SetWindowResizeCallback(std::bind(&Application::RebuildSwapchain, this));
         jobsystem::Wait(ctx);
 
         CYB_INFO("cyb-engine initialized in {:.2f}ms ", timer.ElapsedMilliseconds());
@@ -70,13 +74,14 @@ namespace cyb::hli
             if (!m_window.PollEvents())
                 break;
 
-            // Add a little delay to relax the system if the client window is not
-            // active, and skip update and rendering entierly is it's minimized.
+            const float dt = m_timer.RecordElapsedSeconds();
+
+            // If the window is not active we limit the FPS to r_maxBackgroundFps.
+            // If the window is minimized we skip the update and render entirely.
             if (!m_window.IsActive())
             {
                 const double TargetFrameTimeMs = 1000.0 / double(r_maxBackgroundFps.GetValue());
-                const double elapsedMs = m_timer.ElapsedMilliseconds();
-                const auto remainingTime = std::chrono::duration<double, std::milli>(TargetFrameTimeMs - elapsedMs);
+                const auto remainingTime = std::chrono::duration<double, std::milli>(TargetFrameTimeMs - dt);
                 if (remainingTime > std::chrono::duration<double, std::milli>::zero())
                     std::this_thread::sleep_for(remainingTime);
 
@@ -84,13 +89,7 @@ namespace cyb::hli
                     continue;
             }
 
-            // Rebuild swapchain and resize buffers if the client window changes size
-            if (m_window.GetWidth() != m_activePath->GetPhysicalWidth() ||
-                m_window.GetHeight() != m_activePath->GetPhysicalHeight())
-                RebuildSwapchain();
-
             profiler::BeginFrame();
-            float dt = m_timer.RecordElapsedSeconds();
 
             // Wake up the events that need to be executed on the main thread, 
             // in thread safe manner.
@@ -102,10 +101,10 @@ namespace cyb::hli
 
             // Compose the final image and and pass it to the swapchain for display
             CommandList cmd = m_graphicsDevice->BeginCommandList();
-            m_graphicsDevice->BeginRenderPass(&swapchain, cmd);
+            m_graphicsDevice->BeginRenderPass(&m_swapchain, cmd);
             Viewport viewport{};
-            viewport.width = (float)swapchain.GetDesc().width;
-            viewport.height = (float)swapchain.GetDesc().height;
+            viewport.width = (float)m_swapchain.GetDesc().width;
+            viewport.height = (float)m_swapchain.GetDesc().height;
             m_graphicsDevice->BindViewports(&viewport, 1, cmd);
 
             Compose(cmd);
@@ -157,12 +156,12 @@ namespace cyb::hli
             desc.height = m_window.GetHeight();
         }
 
-        rhi::GetDevice()->CreateSwapchain(&desc, m_window.GetNativeHandle(), &swapchain);
+        rhi::GetDevice()->CreateSwapchain(&desc, m_window.GetNativeHandle(), &m_swapchain);
 
         m_changeVSyncEvent = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this] (uint64_t userdata) {
-            SwapchainDesc desc = swapchain.desc;
+            SwapchainDesc desc = m_swapchain.desc;
             desc.vsync = (userdata != 0);
-            bool success = m_graphicsDevice->CreateSwapchain(&desc, nullptr, &swapchain);
+            bool success = m_graphicsDevice->CreateSwapchain(&desc, nullptr, &m_swapchain);
             assert(success);
         });
 

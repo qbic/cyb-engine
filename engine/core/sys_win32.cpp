@@ -1,5 +1,6 @@
 #include "core/sys.h"
 #include "core/logger.h"
+#include <cassert>
 
 namespace cyb
 {
@@ -17,6 +18,19 @@ namespace cyb
     {
         CYB_INFO("Exiting application with code {}", code);
         PostQuitMessage(code);
+    }
+
+    void SetThisThreadName(const std::string& name) noexcept
+    {
+        const HANDLE thread = GetCurrentThread();
+        const HRESULT hr = SetThreadDescription(thread, Utf8ToWide(name).c_str());
+        assert(SUCCEEDED(hr));
+    }
+
+    void SetThisThreadAffinity(uint32_t affinityMask) noexcept
+    {
+        const HANDLE handle = GetCurrentThread();
+        SetThreadAffinityMask(handle, affinityMask);
     }
 
     std::wstring Utf8ToWide(const std::string_view s)

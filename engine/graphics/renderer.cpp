@@ -77,7 +77,7 @@ namespace cyb::renderer
         return &depth_stencils[id];
     }
 
-    void LoadBuffers(jobsystem::Context& ctx)
+    void LoadBuffers(jobsystem::JobCounter& ctx)
     {
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
             GPUBufferDesc desc;
@@ -151,11 +151,11 @@ namespace cyb::renderer
                 return false;
             }
 
-            bool success = device->CreateShader(stage, output->shader.data(), output->shader.size(), &shader);
-            if (success)
-                device->SetName(&shader, filename.c_str());
+            if (!device->CreateShader(stage, output->shader.data(), output->shader.size(), &shader))
+                return false;
 
-            return success;
+            device->SetName(&shader, filename.c_str());
+            return true;
         }
 
         return device->CreateShader(stage, fileData.data(), fileData.size(), &shader);
@@ -217,7 +217,7 @@ namespace cyb::renderer
         device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_CLAMP]);
     }
 
-    static void LoadBuiltinTextures(jobsystem::Context& ctx)
+    static void LoadBuiltinTextures(jobsystem::JobCounter& ctx)
     {
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_POINTLIGHT] = resourcemanager::LoadFile("textures/light_point.png"); });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { builtin_textures[BUILTIN_TEXTURE_DIRLIGHT] = resourcemanager::LoadFile("textures/light_directional.png"); });
@@ -225,7 +225,7 @@ namespace cyb::renderer
 
     static void LoadShaders()
     {
-        jobsystem::Context ctx = {};
+        jobsystem::JobCounter ctx = {};
 
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_FLAT_SHADING] =
@@ -414,7 +414,7 @@ namespace cyb::renderer
         Timer timer;
         GetCamera().CreatePerspective(1.78f, 0.1f, 1000.0f, 70.0f);
 
-        jobsystem::Context ctx;
+        jobsystem::JobCounter ctx;
         LoadBuiltinTextures(ctx);
         LoadBuffers(ctx);
         LoadShaders();
@@ -682,13 +682,13 @@ namespace cyb::renderer
             device->BeginEvent("DebugObjectAABB", cmd);
             device->BindPipelineState(&pso_debug[DEBUGRENDERING_CUBE], cmd);
 
-            const GPUBuffer* vbs[] = {
+            const std::array<const GPUBuffer*, 1> vbs {
                 &wirecube_vb,
             };
-            const uint32_t strides[] = {
+            const std::array<uint32_t, 1> strides {
                 sizeof(XMFLOAT4) + sizeof(XMFLOAT4),
             };
-            device->BindVertexBuffers(vbs, _countof(vbs), strides, nullptr, cmd);
+            device->BindVertexBuffers(vbs.data(), vbs.size(), strides.data(), nullptr, cmd);
             device->BindIndexBuffer(&wirecube_ib, IndexBufferFormat::Uint16, 0, cmd);
 
             MaterialCB material_cb;
@@ -746,13 +746,13 @@ namespace cyb::renderer
 
             // Draw all the aabb boxes for light sources
             device->BindPipelineState(&pso_debug[DEBUGRENDERING_CUBE], cmd);
-            const GPUBuffer* vbs[] = {
+            const std::array<const GPUBuffer*, 1> vbs {
                 &wirecube_vb,
             };
-            const uint32_t strides[] = {
+            const std::array<uint32_t, 1> strides {
                 sizeof(XMFLOAT4) + sizeof(XMFLOAT4),
             };
-            device->BindVertexBuffers(vbs, _countof(vbs), strides, nullptr, cmd);
+            device->BindVertexBuffers(vbs.data(), vbs.size(), strides.data(), nullptr, cmd);
             device->BindIndexBuffer(&wirecube_ib, IndexBufferFormat::Uint16, 0, cmd);
 
             MaterialCB cbMaterial;

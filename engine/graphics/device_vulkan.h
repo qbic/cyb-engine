@@ -11,6 +11,28 @@
 
 namespace cyb::rhi
 {
+    struct Queue_Vulkan
+    {
+        VkQueue queue = VK_NULL_HANDLE;
+        uint64_t lastSubmittedID = 0;
+        VkSemaphore trackingSemaphore = VK_NULL_HANDLE;
+
+        std::vector<VkSemaphoreSubmitInfo> submit_signalSemaphoreInfos;
+        std::vector<VkSemaphoreSubmitInfo> submit_waitSemaphoreInfos;
+        std::vector<VkCommandBufferSubmitInfo> submit_cmds;
+
+        std::vector<VkSemaphore> swapchainWaitSemaphores;
+        std::vector<VkSwapchainKHR> swapchains;
+        std::vector<uint32_t> swapchainImageIndices;
+
+        void AddWaitSemaphore(VkSemaphore semaphore, uint64_t value);
+        void AddSignalSemaphore(VkSemaphore semaphore, uint64_t value);
+        uint64_t Submit(VkFence fence);
+
+    private:
+        std::recursive_mutex m_mutex;
+    };
+
     class GraphicsDevice_Vulkan final : public GraphicsDevice
     {
     private:
@@ -31,14 +53,11 @@ namespace cyb::rhi
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
         VkDevice device = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
-        std::vector<VkQueueFamilyProperties> queueFamilies;
-        uint32_t graphicsFamily = VK_QUEUE_FAMILY_IGNORED;
-        uint32_t computeFamily = VK_QUEUE_FAMILY_IGNORED;
-        uint32_t copyFamily = VK_QUEUE_FAMILY_IGNORED;
-        std::vector<uint32_t> families;
-        VkQueue graphicsQueue = VK_NULL_HANDLE;
-        VkQueue computeQueue = VK_NULL_HANDLE;
-        VkQueue copyQueue = VK_NULL_HANDLE;
+
+        uint32_t m_graphicsQueueFamily = VK_QUEUE_FAMILY_IGNORED;
+        uint32_t m_computeQueueFamily = VK_QUEUE_FAMILY_IGNORED;
+        uint32_t m_transferQueueFamily = VK_QUEUE_FAMILY_IGNORED;
+		uint32_t m_presentFamily = VK_QUEUE_FAMILY_IGNORED;
 
         VkPhysicalDeviceProperties2 properties2 = {};
         VkPhysicalDeviceVulkan11Properties properties_1_1 = {};
@@ -54,28 +73,8 @@ namespace cyb::rhi
         std::vector<VkDynamicState> pso_dynamic_states;
         VkPipelineDynamicStateCreateInfo dynamic_state_info = {};
 
-        struct CommandQueue
-        {
-            VkQueue queue = VK_NULL_HANDLE;
-            uint64_t lastSubmittedID = 0;
-            VkSemaphore trackingSemaphore = VK_NULL_HANDLE;
-            std::shared_ptr<std::mutex> locker;
-
-            std::vector<VkSemaphoreSubmitInfo> submit_signalSemaphoreInfos;
-            std::vector<VkSemaphoreSubmitInfo> submit_waitSemaphoreInfos;
-            std::vector<VkCommandBufferSubmitInfo> submit_cmds;
-
-            std::vector<VkSemaphore> swapchainWaitSemaphores;
-            std::vector<VkSwapchainKHR> swapchains;
-            std::vector<uint32_t> swapchainImageIndices;
-
-            void AddWaitSemaphore(VkSemaphore semaphore, uint64_t value);
-            void AddSignalSemaphore(VkSemaphore semaphore, uint64_t value);
-            uint64_t Submit(GraphicsDevice_Vulkan* device, VkFence fence);
-        };
-
-        [[nodiscard]] CommandQueue& GetQueue(QueueType queueType);
-        std::array<CommandQueue, Numerical(QueueType::Count)> queues;
+        [[nodiscard]] Queue_Vulkan& GetQueue(QueueType queueType);
+        std::array<Queue_Vulkan, Numerical(QueueType::Count)> queues;
 
         struct CopyAllocator
         {
@@ -143,8 +142,8 @@ namespace cyb::rhi
 
         struct CommandList_Vulkan
         {
-            VkCommandPool commandpools[BUFFERCOUNT][Numerical(QueueType::Count)] = {};
-            VkCommandBuffer commandbuffers[BUFFERCOUNT][Numerical(QueueType::Count)] = {};
+            std::array<std::array<VkCommandPool, Numerical(QueueType::Count)>, BUFFERCOUNT> commandpools{};
+            std::array<std::array<VkCommandBuffer, Numerical(QueueType::Count)>, BUFFERCOUNT> commandbuffers{};
             uint32_t buffer_index = 0;
 
             QueueType queue = QueueType::Count;
@@ -158,10 +157,10 @@ namespace cyb::rhi
             std::vector<Swapchain> prevSwapchains;
 
             const PipelineState* active_pso = nullptr;
-            uint32_t vertexbuffer_strides[8] = {};
+            std::array<uint32_t, 8> vertexbuffer_strides{};
             size_t vertexbuffer_hash = 0;
             bool dirty_pso = false;
-            RenderPassInfo renderpassInfo = {};
+            RenderPassInfo renderpassInfo{};
             std::vector<VkImageMemoryBarrier2> renderpassBarriersBegin;
             std::vector<VkImageMemoryBarrier2> renderpassBarriersEnd;
 
@@ -180,9 +179,7 @@ namespace cyb::rhi
                 prevPipelineHash = 0;
                 active_pso = nullptr;
                 vertexbuffer_hash = 0;
-                for (int i = 0; i < _countof(vertexbuffer_strides); ++i) {
-                    vertexbuffer_strides[i] = 0;
-                }
+                vertexbuffer_strides.fill(0);
                 dirty_pso = false;
                 prevSwapchains.clear();
             }

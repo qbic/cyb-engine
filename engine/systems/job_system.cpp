@@ -1,229 +1,299 @@
-#include <thread>
-#include <semaphore>
-#include <mutex>
-#include <condition_variable>
-#include <cassert>
-#ifdef _WIN32
-#include <Windows.h>
-#endif
-#include "core/atomic_queue.h"
+#include "core/mpmc_queue.h"
 #include "core/sys.h"
-#include "core/logger.h"
 #include "core/non_copyable.h"
 #include "systems/job_system.h"
+#include <array>
+#include <thread>
+#include <semaphore>
+#include <cassert>
+#include <random>
 
 namespace cyb::jobsystem
 {
     struct Job : private MovableNonCopyable
     {
-        std::function<void(JobArgs)> task;
-        Context* ctx{ nullptr };
-        uint32_t groupJobOffset{ 0 };
-        uint32_t groupJobEnd{ 0 };
+        JobTask task;
+        JobCounter* counter = nullptr;
+        uint32_t groupJobOffset = 0;
+        uint32_t groupJobEnd = 0;
+    };
 
-        uint32_t Execute()
+    static constexpr uint32_t MAX_WORKER_COUNT = 63;
+    static constexpr uint32_t SPIN_ITERATIONS_BEFORE_WAIT = 32;
+    static constexpr size_t JOB_QUEUE_MAX_SIZE = 1024;
+    using JobQueue = MPMCQueue<Job, JOB_QUEUE_MAX_SIZE>;
+
+    struct WorkerData
+    {
+        JobQueue queue;
+        std::jthread thread;
+    };
+
+    struct JobSystemImpl
+    {
+        //using rng_engine = std::mt19937_64;
+        using rng_engine = std::minstd_rand;
+        std::vector<WorkerData> workers;
+        std::counting_semaphore<> wakeSignal{ 0 };
+        std::atomic<uint32_t> nextPushWorker{ 0 };
+        std::array<uint8_t, 256> modLut{}; // Lookup table from atomic uint8_t->workerIndex (avoiding modulo)
+
+        static thread_local uint32_t tl_workerIndex;
+        static thread_local rng_engine tl_rng;
+
+        JobSystemImpl(uint32_t workerCount) :
+            workers(workerCount)
         {
-            for (uint32_t i = groupJobOffset; i < groupJobEnd; ++i)
+            // Precompute lookup table of modulos to avoid divs at runtime
+            for (uint32_t i = 0; i < modLut.size(); ++i)
+                modLut[i] = static_cast<uint8_t>(i % workers.size());
+
+            // Spawn worker threads
+            for (uint32_t threadID = 0; threadID < workers.size(); ++threadID)
+            {
+                WorkerData& worker = workers[threadID];
+                worker.thread = std::jthread{ [this, threadID](std::stop_token stopToken) {
+                    // Name all worker threads for easier debugging and assign them to
+                    // their own CPU core. This isn't strictly necessary, but can
+                    // improve performance and makes debugging easier.
+                    SetThisThreadName(std::format("cyb_worker_{}", threadID));
+                    SetThisThreadAffinity(BIT(threadID + 1));
+
+                    WorkerThreadMain(threadID, stopToken);
+                } };
+            }
+        }
+
+        ~JobSystemImpl()
+        {
+            for (auto& worker : workers)
+                worker.thread.request_stop();
+
+            wakeSignal.release(static_cast<ptrdiff_t>(workers.size()));
+
+            for (auto& worker : workers)
+            {
+                if (worker.thread.joinable())
+                    worker.thread.join();
+            }
+        }
+
+        constexpr uint8_t ConstrainQueueIndex(uint32_t index) const noexcept
+        {
+            return modLut[static_cast<uint8_t>(index)];
+        }
+
+        void Schedule(Job&& job) noexcept
+        {
+            // Schedule job's evenly through all the available workers
+            // to avoid as much stealing contention as possible
+            const uint32_t index = nextPushWorker.fetch_add(1, std::memory_order_relaxed);
+            WorkerData& worker = workers[ConstrainQueueIndex(index)];
+            if (!worker.queue.Push(job))
+            {
+                Execute(std::move(job));
+                return;
+            }
+
+            // Signal work available
+            wakeSignal.release();
+        }
+
+        void Execute(Job&& job) noexcept
+        {
+            for (uint32_t i = job.groupJobOffset; i < job.groupJobEnd; ++i)
             {
                 JobArgs args{};
                 args.jobIndex = i;
-                args.groupIndex = i - groupJobOffset;
-                args.isFirstJobInGroup = (i == groupJobOffset);
-                args.isLastJobInGroup = (i == groupJobEnd - 1);
-                task(std::move(args));
+                args.groupIndex = i - job.groupJobOffset;
+                args.isFirstJobInGroup = (i == job.groupJobOffset);
+                args.isLastJobInGroup = (i == job.groupJobEnd - 1);
+                job.task(args);
             }
 
-            return ctx->remainingJobCount.fetch_sub(1, std::memory_order_acq_rel);
-        }
-    };
-
-    static constexpr size_t JOB_QUEUE_MAX_SIZE = 1024;
-    using JobQueue = AtomicCircularQueue<Job, JOB_QUEUE_MAX_SIZE>;
-
-    // This structure is responsible to stop worker thread loops
-    // once this is destroyed, worker threads will be woken up and end their loops.
-    struct InternalState
-    {
-        uint32_t numCores{ 0 };
-        uint32_t numThreads{ 0 };
-        std::thread::id mainThreadId;
-        std::vector<JobQueue> jobQueuePerThread;
-        std::counting_semaphore<> wakeSemaphore{ 0 };
-        std::atomic<uint32_t> nextQueue{ 0 };
-        std::vector<std::jthread> threads;
-        std::mutex waitMutex;
-        std::condition_variable waitCondition;
-
-        void Submit(Job&& job)
-        {
-            // If jobsystem is not initilized, execute the job immediately here.
-            if (numThreads == 0)
-            {
-                job.Execute();
-                return;
-            }
-
-            auto& queue = jobQueuePerThread[nextQueue.fetch_add(1) % numThreads];
-
-            // If the queue is full, execute the job immidietly on the main thread.
-            if (!queue.Push(std::move(job)))
-            {
-                assert(0);          // break if debug mode
-                job.Execute();
-                return;
-            }
-            wakeSemaphore.release();
+            // If no other jobs are remaining, wake up any threads waiting
+            // on this job counter
+            const uint32_t remaining = job.counter->remainingJobCount.fetch_sub(1, std::memory_order_acq_rel) - 1;
+            if (remaining == 0)
+                job.counter->remainingJobCount.notify_all();
         }
 
-        ~InternalState()
+        [[nodiscard]] WorkerData& CurrentWorker() noexcept
         {
-            for (auto& thread : threads)
-                thread.request_stop();
-
-            wakeSemaphore.release(wakeSemaphore.max());
-
-            for (auto& thread : threads)
-                thread.join();
+            return workers[tl_workerIndex];
         }
-    };
 
-    static InternalState internal_state{};
-
-    // Start working on a job queue. After the job queue is finished, it 
-    // can switch to an other queue and steal jobs from there.
-    static void Work(uint32_t startingQueue)
-    {
-        for (uint32_t i = 0; i < internal_state.numThreads; ++i)
+        [[nodiscard]] bool GetJobToExecute(Job& job) noexcept
         {
-            JobQueue& queue = internal_state.jobQueuePerThread[(startingQueue + i) % internal_state.numThreads];
-            while (auto job = queue.Pop())
-            {
-                const uint32_t progressBefore = job->Execute();
+            WorkerData& worker = CurrentWorker();
+            if (worker.queue.Pop(job))
+                return true;
 
-                // If progressBefore is 1, previous job was the last one and we
-                // can wake up the waiting threads.
-                if (progressBefore == 1)
+            uint8_t victim = ConstrainQueueIndex(tl_rng());
+            if (victim == tl_workerIndex)
+                victim = ConstrainQueueIndex(victim + 1);
+
+            return workers[victim].queue.Pop(job);
+        }
+
+        [[nodiscard]] bool ExecuteOneJob() noexcept
+        {
+            Job job{};
+            if (!GetJobToExecute(job))
+                return false;
+
+            Execute(std::move(job));
+            return true;
+        }
+
+        // No thread local reads here sence this might be called from a 
+        // non-worker thread through Wait()
+        [[nodiscard]] bool StealAndExecuteExhaustive(uint32_t startingQueue, uint32_t queueCount) noexcept
+        {
+            Job job{};
+            for (uint32_t i = 0; i < queueCount; ++i)
+            {
+                const uint8_t victim = ConstrainQueueIndex(startingQueue + i);
+                if (workers[victim].queue.Pop(job))
                 {
-                    std::unique_lock<std::mutex> lock(internal_state.waitMutex);
-                    internal_state.waitCondition.notify_all();
+                    Execute(std::move(job));
+                    return true;
                 }
             }
+            return false;
         }
-    }
 
-    void Initialize()
-    {
-        assert(internal_state.numThreads == 0 && "allready initialized");
-
-        // Get number of cores on system and and use that to set number of thread
-        // saving one for the main thread.
-        internal_state.numCores = std::thread::hardware_concurrency();
-        internal_state.numThreads = std::max(1u, internal_state.numCores - 1);
+        [[nodiscard]] bool ExecuteOneJobExhaustive() noexcept
         {
-            std::vector<JobQueue> temp{ internal_state.numThreads };
-            internal_state.jobQueuePerThread = std::move(temp);
-        }
-        internal_state.mainThreadId = std::this_thread::get_id();
+            // Try to execute job on worker's own queue
+            Job job{};
+            WorkerData& worker = CurrentWorker();
+            if (worker.queue.Pop(job))
+            {
+                Execute(std::move(job));
+                return true;
+            }
 
-        internal_state.threads.reserve(internal_state.numThreads);
-        for (uint32_t threadID = 0; threadID < internal_state.numThreads; ++threadID)
+            // Try to steal and execute a job from any worker
+            // thread except the current one
+            return StealAndExecuteExhaustive(tl_workerIndex + 1, workers.size() - 1);
+        }
+
+        void WaitUntilWorkAvailable() noexcept
         {
-            std::jthread& worker = internal_state.threads.emplace_back([threadID](const std::stop_token stopToken) {
-                while (!stopToken.stop_requested())
-                {
-                    Work(threadID);
-                    internal_state.wakeSemaphore.acquire();
-                }
-            });
+            if (ExecuteOneJobExhaustive())
+                return;
 
-#if defined(_WIN32)
-            HANDLE handle = (HANDLE)worker.native_handle();
-            std::wstring wthreadname = std::format(L"cyb_worker_{}", threadID);
-            HRESULT hr = SetThreadDescription(handle, wthreadname.c_str());
-            assert(SUCCEEDED(hr));
-
-            // Set thread affinity, each thread to a specific core starting from
-            // second core (core 0 is the main thread).
-            const int core = threadID + 1;
-            const DWORD_PTR affinityMask = 1ull << core;
-            SetThreadAffinityMask(handle, affinityMask);
-#endif // _WIN32
+            wakeSignal.acquire();
         }
 
-        CYB_INFO("JobSystem Initialized with [{} cores] [{} threads]", internal_state.numCores, internal_state.numThreads);
+        void ExecuteWorkOrWait() noexcept
+        {
+            for (uint32_t i = 0; i < SPIN_ITERATIONS_BEFORE_WAIT; ++i)
+            {
+                if (ExecuteOneJob())
+                    return;
+                std::this_thread::yield();
+            }
+
+            WaitUntilWorkAvailable();
+        }
+
+		void WorkerThreadMain(uint32_t workerIndex, std::stop_token stopToken) noexcept
+		{
+            tl_workerIndex = workerIndex;
+            tl_rng.seed(workerIndex + 1);
+
+            while (!stopToken.stop_requested())
+                ExecuteWorkOrWait();
+		}
+
+		[[nodiscard]] bool IsFinished(const JobCounter& counter) const noexcept
+		{
+			return counter.remainingJobCount.load(std::memory_order_acquire) == 0;
+		}
+    };
+
+    thread_local uint32_t JobSystemImpl::tl_workerIndex = 0;
+    thread_local JobSystemImpl::rng_engine JobSystemImpl::tl_rng{};
+
+    static std::unique_ptr<JobSystemImpl> g_jobSystem;
+
+    void Initialize() noexcept
+    {
+        assert(!g_jobSystem && "only initialize once");
+
+        // Calculate how many actual worker threads we want
+        const uint32_t coreCount = std::max(1u, std::thread::hardware_concurrency());
+        const uint32_t workerCount = std::clamp(coreCount - 1u, 1u, MAX_WORKER_COUNT);
+
+		g_jobSystem = std::make_unique<JobSystemImpl>(workerCount);
     }
 
-    uint32_t GetThreadCount()
+    uint32_t WorkerCount() noexcept
     {
-        return internal_state.numThreads;
+        return g_jobSystem->workers.size();
     }
 
-    void Execute(Context& ctx, const std::function<void(JobArgs)>& task)
+    void Execute(JobCounter& counter, const JobTask& task) noexcept
     {
-        // Context state is updated.
-        ctx.remainingJobCount.fetch_add(1);
+        // Update job counter
+        counter.remainingJobCount.fetch_add(1, std::memory_order_relaxed);
 
         Job job;
-        job.ctx = &ctx;
+        job.counter = &counter;
         job.task = task;
         job.groupJobOffset = 0;
         job.groupJobEnd = 1;
 
-        internal_state.Submit(std::move(job));
+        g_jobSystem->Schedule(std::move(job));
     }
 
     // Calculate the amount of job groups to dispatch (overestimate, or "ceil").
-    [[nodiscard]] static uint32_t DispatchGroupCount(uint32_t jobCount, uint32_t groupSize)
+    [[nodiscard]] static uint32_t DispatchGroupCount(uint32_t count, uint32_t groupSize) noexcept
     {
-        return (jobCount + groupSize - 1) / groupSize;
+        return (count + groupSize - 1) / groupSize;
     }
 
-    uint32_t Dispatch(Context& ctx, uint32_t jobCount, uint32_t groupSize, const std::function<void(JobArgs)>& task)
+    uint32_t Dispatch(JobCounter& counter, uint32_t count, uint32_t groupSize, const JobTask& task) noexcept
     {
-        if (jobCount == 0 || groupSize == 0)
+        if (count == 0 || groupSize == 0)
             return 0;
 
-        const uint32_t groupCount = DispatchGroupCount(jobCount, groupSize);
+        const uint32_t groupCount = DispatchGroupCount(count, groupSize);
 
-        // Context state is updated.
-        ctx.remainingJobCount.fetch_add(groupCount);
-
+        // Update job counter
+        counter.remainingJobCount.fetch_add(groupCount, std::memory_order_relaxed);
+        
         for (uint32_t groupID = 0; groupID < groupCount; ++groupID)
         {
             // For each group, generate one real job.
             Job job;
-            job.ctx = &ctx;
+            job.counter = &counter;
             job.task = task;
             job.groupJobOffset = groupID * groupSize;
-            job.groupJobEnd = std::min(job.groupJobOffset + groupSize, jobCount);
+            job.groupJobEnd = std::min(job.groupJobOffset + groupSize, count);
 
-            internal_state.Submit(std::move(job));
+            g_jobSystem->Schedule(std::move(job));
         }
 
         return groupCount;
     }
 
-    bool IsBusy(const Context& ctx)
+    bool IsFinished(const JobCounter& counter) noexcept
     {
-        // Whenever the context label is greater than zero, it means that there is
-        // still work that needs to be done.
-        return ctx.remainingJobCount.load(std::memory_order_acquire) > 0;
+        return g_jobSystem->IsFinished(counter);
     }
 
-    void Wait(const Context& ctx)
+    void Wait(const JobCounter& counter) noexcept
     {
-        if (IsBusy(ctx))
+        int32_t observed = 0;
+        while ((observed = counter.remainingJobCount.load(std::memory_order_acquire)) != 0)
         {
-            const bool isWorkerThread = (std::this_thread::get_id() != internal_state.mainThreadId);
-            if (ctx.allowWorkOnMainThread || isWorkerThread)
-                Work(internal_state.nextQueue.fetch_add(1) % internal_state.numThreads);
+            if (g_jobSystem->StealAndExecuteExhaustive(0, g_jobSystem->workers.size()))
+                continue;
 
-            while (IsBusy(ctx))
-            {
-                // Put thread to sleep until waitCondition is signaled.
-                std::unique_lock<std::mutex> lock(internal_state.waitMutex);
-                internal_state.waitCondition.wait(lock, [&ctx] { return !IsBusy(ctx); });
-            }
+            counter.remainingJobCount.wait(observed, std::memory_order_acquire);
         }
     }
-}
+} // namespace cyb::jobsystem

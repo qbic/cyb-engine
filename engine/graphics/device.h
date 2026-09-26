@@ -79,7 +79,7 @@ namespace cyb::rhi
     struct FormatInfo
     {
         Format format;
-        const char* name;
+        std::string_view name;
         uint8_t bytesPerBlock;
         uint8_t blockSize;
         bool hasDepth;
@@ -178,7 +178,7 @@ namespace cyb::rhi
     {
         Graphics,
         Compute,
-        Copy,
+        Transfer,
         Count
     };
 
@@ -242,7 +242,7 @@ namespace cyb::rhi
 
         struct Element
         {
-            std::string inputName;
+            std::string_view inputName;
             uint32_t inputSlot = 0;
             Format format = Format::Unknown;
 
@@ -284,11 +284,11 @@ namespace cyb::rhi
     {
         struct ClearDepthStencil
         {
-            float depth;
-            uint32_t stencil;
+            float depth = 1.0f;
+            uint32_t stencil = 0;
         };
 
-        float color[4];
+        std::array<float, 4> color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
         ClearDepthStencil depthStencil;
     };
 
@@ -309,7 +309,7 @@ namespace cyb::rhi
         Format format = Format::Unknown;
         Swizzle swizzle;
         uint32_t mipLevels = 1;
-        ClearValue clear = {};
+        ClearValue clear;
         ResourceStates initialState = ResourceStates::ShaderResourceBit;
     };
 
@@ -350,7 +350,7 @@ namespace cyb::rhi
         Format format = Format::BGRA8_UNORM;
         bool fullscreen = false;
         bool vsync = true;
-        float clearColor[4] = { .4f, .4f, .4f, 1.0f };
+        std::array<float, 4> clearColor = {{ .4f, .4f, .4f, 1.0f }};
     };
 
     struct PipelineStateDesc
@@ -509,7 +509,7 @@ namespace cyb::rhi
 
     struct RenderPassInfo
     {
-        Format rtFormats[8] = {};           // render target formats
+        std::array<Format, 8> rtFormats{};  // render target formats
         uint32_t rtCount = 0;               // number of render targets
         Format dsFormat = Format::Unknown;  // depth stencil format
 
@@ -532,7 +532,7 @@ namespace cyb::rhi
                 uint64_t value;
             };
 
-            Hasher hasher = {};
+            Hasher hasher{};
             static_assert(sizeof(Hasher) == sizeof(uint64_t));
             hasher.bits.rtFormat_0 = (uint64_t)rtFormats[0];
             hasher.bits.rtFormat_1 = (uint64_t)rtFormats[1];
@@ -548,7 +548,7 @@ namespace cyb::rhi
 
         static RenderPassInfo GetFrom(const RenderPassImage* images, uint32_t imageCount)
         {
-            RenderPassInfo info;
+            RenderPassInfo info{};
             for (uint32_t i = 0; i < imageCount; ++i)
             {
                 const RenderPassImage& image = images[i];
@@ -583,7 +583,7 @@ namespace cyb::rhi
 
     struct Sampler final : public RenderDeviceChild
     {
-        SamplerDesc desc = {};
+        SamplerDesc desc{};
         const SamplerDesc& GetDesc() const { return desc; }
     };
 
@@ -597,7 +597,6 @@ namespace cyb::rhi
     struct Swapchain final : public RenderDeviceChild
     {
         SwapchainDesc desc;
-
         constexpr const SwapchainDesc& GetDesc() const { return desc; }
     };
 

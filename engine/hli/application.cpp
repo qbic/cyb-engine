@@ -10,7 +10,6 @@
 #include "input/input.h"
 #include "hli/application.h"
 #include "config.h"
-
 #include "editor/imgui_backend.h"
 #include "editor/filedialog.h"
 
@@ -39,13 +38,14 @@ namespace cyb::hli
 
         RegisterStaticCVars();
         jobsystem::Initialize();
+        CYB_INFO("JobSystem Initialized with [{} worker threads]", jobsystem::WorkerCount());
 
         // Initialize the client window, graphics device, and swapchain
         m_window = ClientWindow::Create({ });
         InitGraphicsDevice();
         RebuildSwapchain();
 
-        jobsystem::Context ctx{};
+        jobsystem::JobCounter ctx{};
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { resourcemanager::Initialize(); });
         jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) { input::Initialize(m_window.GetNativeHandle()); });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { renderer::Initialize(); });

@@ -384,14 +384,14 @@ struct Scene
 
     void Serialize(Serializer& ser);
 
-    void RunTransformUpdateSystem(jobsystem::Context& ctx);
-    void RunHierarchyUpdateSystem(jobsystem::Context& ctx);
-    void RunMeshUpdateSystem(jobsystem::Context& ctx);
-    void RunObjectUpdateSystem(jobsystem::Context& ctx);
-    void RunLightUpdateSystem(jobsystem::Context& ctx);
-    void RunCameraUpdateSystem(jobsystem::Context& ctx);
-    void RunAnimationUpdateSystem(jobsystem::Context& ctx);
-    void RunWeatherUpdateSystem(jobsystem::Context& ctx);
+    void RunTransformUpdateSystem(jobsystem::JobCounter& ctx);
+    void RunHierarchyUpdateSystem(jobsystem::JobCounter& ctx);
+    void RunMeshUpdateSystem(jobsystem::JobCounter& ctx);
+    void RunObjectUpdateSystem(jobsystem::JobCounter& ctx);
+    void RunLightUpdateSystem(jobsystem::JobCounter& ctx);
+    void RunCameraUpdateSystem(jobsystem::JobCounter& ctx);
+    void RunAnimationUpdateSystem(jobsystem::JobCounter& ctx);
+    void RunWeatherUpdateSystem(jobsystem::JobCounter& ctx);
 };
 
 // getter to the global scene

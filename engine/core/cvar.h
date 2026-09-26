@@ -5,13 +5,13 @@
 #include <functional>
 #include "core/enum_flags.h"
 #include "core/non_copyable.h"
-#include "core/types.h"
+#include "core/sys.h"
 
 namespace cyb
 {
     enum class CVarFlag : uint32_t
     {
-        SystemBit = BIT(0),         ///< CVar belongs to system.
+        SystemBit   = BIT(0),       ///< CVar belongs to system.
         RendererBit = BIT(1),       ///< CVar belongs to renderer.
         GuiBit      = BIT(2),       ///< CVar belongs to GUI.
         GameBit     = BIT(3),       ///< CVar belongs to game.
@@ -96,7 +96,7 @@ namespace cyb
         }
 
     private:
-        virtual void OnModifyValue() {}
+        virtual void OnModifyValue() = 0;
 
         T m_value;
         std::vector<CallbackType> m_callbacks;
@@ -166,15 +166,26 @@ namespace cyb
         explicit CVar(const std::string& name, const bool value, CVarFlag flags, const std::string& description) :
             CVarCommon<bool>(name, value, flags, description)
         {
+            OnModifyValue();
         }
 
         virtual ~CVar() = default;
 
         [[nodiscard]] const std::string& GetValueAsString() const override
         {
-            static const std::string boolStrings[] = { "false", "true" };
-            return GetValue() ? boolStrings[1] : boolStrings[0];
+            return m_valueAsString;
         }
+
+    private:
+        void OnModifyValue() override
+        {
+            if (GetValue() == true)
+                m_valueAsString = "true";
+            else
+                m_valueAsString = "false";
+        }
+
+        std::string m_valueAsString;    // Cached string representation of the value
     };
 
     /** CVar specialization for std::string. */
@@ -192,6 +203,11 @@ namespace cyb
         [[nodiscard]] const std::string& GetValueAsString() const override
         {
             return GetValue();
+        }
+
+    private:
+        void OnModifyValue() override
+        {
         }
     };
 

@@ -290,14 +290,14 @@ namespace cyb::rhi::vulkan_internal
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
         VkShaderModule shadermodule = VK_NULL_HANDLE;
-        VkPipelineShaderStageCreateInfo stageInfo = {};
+        VkPipelineShaderStageCreateInfo stageInfo{};
 
         std::vector<VkDescriptorSetLayoutBinding> layout_bindings;
-        VkDeviceSize uniform_buffer_sizes[DESCRIPTORBINDER_CBV_COUNT] = {};
+        std::array<VkDeviceSize, DESCRIPTORBINDER_CBV_COUNT> uniform_buffer_sizes{};
         std::vector<uint32_t> uniform_buffer_dynamic_slots;
         std::vector<VkImageViewType> imageViewTypes;
 
-        VkPushConstantRange pushconstants = {};
+        VkPushConstantRange pushconstants{};
 
         ~Shader_Vulkan()
         {
@@ -326,21 +326,21 @@ namespace cyb::rhi::vulkan_internal
 
     struct PipelineState_Vulkan
     {
-        VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };              // no lifetime management here
-        VkDescriptorSetLayout descriptorset_layout{ VK_NULL_HANDLE };   // no lifetime management here
+        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;              // no lifetime management here
+        VkDescriptorSetLayout descriptorset_layout = VK_NULL_HANDLE;   // no lifetime management here
 
         std::vector<VkDescriptorSetLayoutBinding> layout_bindings;
         std::vector<VkImageViewType> imageViewTypes;
 
         VkPushConstantRange pushconstants{};
 
-        VkDeviceSize uniform_buffer_sizes[DESCRIPTORBINDER_CBV_COUNT]{};
+        std::array<VkDeviceSize, DESCRIPTORBINDER_CBV_COUNT> uniform_buffer_sizes{};
         std::vector<uint32_t> uniform_buffer_dynamic_slots;
 
-        size_t binding_hash{ 0 };
+        size_t binding_hash = 0;
 
         VkGraphicsPipelineCreateInfo pipelineInfo{};
-        VkPipelineShaderStageCreateInfo shaderStages[Numerical(ShaderType::Count)]{};
+        std::array<VkPipelineShaderStageCreateInfo, Numerical(ShaderType::Count)> shaderStages{};
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         VkPipelineRasterizationStateCreateInfo rasterizer{};
         VkPipelineRasterizationDepthClipStateCreateInfoEXT depthclip{};
@@ -355,7 +355,7 @@ namespace cyb::rhi::vulkan_internal
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
         VkSwapchainKHR swapchain = VK_NULL_HANDLE;
         VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
-        VkExtent2D swapchainExtent = {};
+        VkExtent2D swapchainExtent{};
         std::vector<VkImage> swapchainImages;
         std::vector<VkImageView> swapchainImageViews;
 
@@ -436,7 +436,7 @@ namespace cyb::rhi::vulkan_internal
         VkDevice device,
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationHandler)
     {
-        VkSurfaceCapabilitiesKHR capabilities = {};
+        VkSurfaceCapabilitiesKHR capabilities{};
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, internal_state->surface, &capabilities);
 
         uint32_t formatCount = 0;
@@ -449,7 +449,7 @@ namespace cyb::rhi::vulkan_internal
         std::vector<VkPresentModeKHR> presentModes(presentModeCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, internal_state->surface, &presentModeCount, presentModes.data());
 
-        VkSurfaceFormatKHR surfaceFormat = {};
+        VkSurfaceFormatKHR surfaceFormat{};
         surfaceFormat.format = ConvertFormat(internal_state->desc.format);
         surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
         bool valid = false;
@@ -500,19 +500,13 @@ namespace cyb::rhi::vulkan_internal
         createInfo.preTransform = capabilities.currentTransform;
         createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
+		// Set the present mode based on vsync preference.
+		// Default to FIFO (vsync enabled), but allow MAILBOX or IMMEDIATE if vsync is disabled.
         createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
         if (!internal_state->desc.vsync)
         {
-            for (auto& present_mode : presentModes)
-            {
-                if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR)
-                {
-                    createInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-                    break;
-                }
-                if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
-                    createInfo.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-            }
+			const auto mailboxMode = std::ranges::find(presentModes, VK_PRESENT_MODE_MAILBOX_KHR);
+			createInfo.presentMode = (mailboxMode != presentModes.end()) ? *mailboxMode : VK_PRESENT_MODE_IMMEDIATE_KHR;
         }
 
         createInfo.clipped = VK_TRUE;
@@ -584,7 +578,7 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::CopyAllocator::Destroy()
     {
-        vkQueueWaitIdle(device->queues[Numerical(QueueType::Copy)].queue);
+        vkQueueWaitIdle(device->queues[Numerical(QueueType::Transfer)].queue);
         for (auto& x : freelist)
         {
             vkDestroyCommandPool(device->device, x.transferCommandPool, nullptr);
@@ -620,9 +614,9 @@ namespace cyb::rhi
             VkCommandPoolCreateInfo poolInfo = {};
             poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
             poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-            poolInfo.queueFamilyIndex = device->copyFamily;
+            poolInfo.queueFamilyIndex = device->m_transferQueueFamily;
             VK_CHECK(vkCreateCommandPool(device->device, &poolInfo, nullptr, &cmd.transferCommandPool));
-            poolInfo.queueFamilyIndex = device->graphicsFamily;
+            poolInfo.queueFamilyIndex = device->m_graphicsQueueFamily;
             VK_CHECK(vkCreateCommandPool(device->device, &poolInfo, nullptr, &cmd.transitionCommandPool));
 
             VkCommandBufferAllocateInfo commandBufferInfo = {};
@@ -678,11 +672,11 @@ namespace cyb::rhi
         std::scoped_lock lock{ locker };
 
         {
-            auto& queue = device->GetQueue(QueueType::Copy);
+            auto& queue = device->GetQueue(QueueType::Transfer);
             cmdSubmitInfo.commandBuffer = cmd.transferCommandBuffer;
             queue.submit_cmds.push_back(cmdSubmitInfo);
             
-            queue.Submit(device, VK_NULL_HANDLE);
+            queue.Submit(VK_NULL_HANDLE);
 
             copyQueueSignalInfo.semaphore = queue.trackingSemaphore;
             copyQueueSignalInfo.value = queue.lastSubmittedID;
@@ -694,7 +688,7 @@ namespace cyb::rhi
             queue.submit_waitSemaphoreInfos.push_back(copyQueueSignalInfo);
             queue.submit_cmds.push_back(cmdSubmitInfo);
             
-            queue.Submit(device, cmd.fence);    // signal fence on last submit
+            queue.Submit(cmd.fence);    // signal fence on last submit
         }
 
         while (VK_CHECK(vkWaitForFences(device->device, 1, &cmd.fence, VK_TRUE, timeoutValue)) == VK_TIMEOUT)
@@ -874,28 +868,22 @@ namespace cyb::rhi
     {
         this->device = device;
 
-        // Create descriptor pool:
-        VkDescriptorPoolSize poolSizes[5] = {};
-
+        std::array<VkDescriptorPoolSize, 5> poolSizes{};
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         poolSizes[0].descriptorCount = DESCRIPTORBINDER_SRV_COUNT * poolSize;
-
         poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         poolSizes[1].descriptorCount = DESCRIPTORBINDER_SRV_COUNT * poolSize;
-
         poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         poolSizes[2].descriptorCount = DESCRIPTORBINDER_SRV_COUNT * poolSize;
-
         poolSizes[3].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         poolSizes[3].descriptorCount = DESCRIPTORBINDER_CBV_COUNT * poolSize;
-
         poolSizes[4].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
         poolSizes[4].descriptorCount = DESCRIPTORBINDER_CBV_COUNT * poolSize;
 
-        VkDescriptorPoolCreateInfo createInfo = {};
+        VkDescriptorPoolCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        createInfo.poolSizeCount = _countof(poolSizes);
-        createInfo.pPoolSizes = poolSizes;
+        createInfo.poolSizeCount = poolSizes.size();
+        createInfo.pPoolSizes = poolSizes.data();
         createInfo.maxSets = poolSize;
         VK_CHECK(vkCreateDescriptorPool(device->device, &createInfo, nullptr, &descriptorPool));
     }
@@ -1083,6 +1071,16 @@ namespace cyb::rhi
             vec.push_back(s.c_str());
         return vec;
     }
+
+	template <typename T>
+	[[nodiscard]] std::vector<T> UnorderedSetToVector(const std::unordered_set<T>& set)
+	{
+		std::vector<T> vec;
+		vec.reserve(set.size());
+		for (const auto& s : set)
+			vec.push_back(s);
+		return vec;
+	}
 
     GraphicsDevice_Vulkan::GraphicsDevice_Vulkan()
     {
@@ -1311,59 +1309,63 @@ namespace cyb::rhi
             }
         }
 
-        // Find queue families:
+        // Find queue families
         uint32_t queueFamilyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
-
-        queueFamilies.resize(queueFamilyCount);
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
 
-        // Query base queue families:
-        for (uint32_t i = 0; i < queueFamilyCount; ++i)
+        for (uint32_t i = 0; i < queueFamilyCount; i++)
         {
-            if (graphicsFamily == VK_QUEUE_FAMILY_IGNORED &&
-                queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-                graphicsFamily = i;
-            if (copyFamily == VK_QUEUE_FAMILY_IGNORED &&
-                queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
-                copyFamily = i;
-            if (computeFamily == VK_QUEUE_FAMILY_IGNORED &&
-                queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
-                computeFamily = i;
+            const auto& props = queueFamilies[i];
+#ifdef _WIN32
+            const VkBool32 presentSupport = vkGetPhysicalDeviceWin32PresentationSupportKHR(physicalDevice, i);
+#else
+            const VkBool32 presentSupport = false;
+#endif
+
+            if (m_graphicsQueueFamily == VK_QUEUE_FAMILY_IGNORED &&
+                props.queueFlags & VK_QUEUE_GRAPHICS_BIT &&
+                presentSupport)
+                m_graphicsQueueFamily = i;
+
+            if (m_transferQueueFamily == VK_QUEUE_FAMILY_IGNORED &&
+                props.queueFlags & VK_QUEUE_TRANSFER_BIT)
+                m_transferQueueFamily = i;
+
+            if (m_computeQueueFamily == VK_QUEUE_FAMILY_IGNORED &&
+                props.queueFlags & VK_QUEUE_COMPUTE_BIT)
+                m_computeQueueFamily = i;
+
+            // Prefer dedicated transfer queue (no graphics/compute)
+            if (props.queueCount > 0 &&
+                props.queueFlags & VK_QUEUE_TRANSFER_BIT &&
+                !(props.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+                !(props.queueFlags & VK_QUEUE_COMPUTE_BIT))
+                m_transferQueueFamily = i;
+
+            // Prefer dedicated compute queue (no graphics)
+            if (props.queueCount > 0 &&
+                props.queueFlags & VK_QUEUE_COMPUTE_BIT &&
+                !(props.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+                m_computeQueueFamily = i;
         }
 
-        // Now try to find dedicated compute and transfer queues:
-        for (uint32_t i = 0; i < queueFamilyCount; ++i)
-        {
-            if (queueFamilies[i].queueCount > 0 &&
-                queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT &&
-                !(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
-                !(queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT))
-            {
-                copyFamily = i;
-            }
+		if (m_graphicsQueueFamily == VK_QUEUE_FAMILY_IGNORED)
+			Panic("Failed to find a graphics queue family!");
 
-            if (queueFamilies[i].queueCount > 0 &&
-                queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT &&
-                !(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
-            {
-                computeFamily = i;
-            }
-        }
-
-        std::unordered_set<uint32_t> uniqueQueueFamilies = { graphicsFamily, copyFamily, computeFamily };
+        std::unordered_set<uint32_t> uniqueQueueFamilies = { m_graphicsQueueFamily, m_transferQueueFamily, m_computeQueueFamily };
 
         const float queuePriority = 1.0f;
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        for (uint32_t queueFamily : uniqueQueueFamilies)
+        for (uint32_t familyIndex : uniqueQueueFamilies)
         {
             VkDeviceQueueCreateInfo queueCreateInfo{};
             queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfo.queueFamilyIndex = queueFamily;
+            queueCreateInfo.queueFamilyIndex = familyIndex;
             queueCreateInfo.queueCount = 1;
             queueCreateInfo.pQueuePriorities = &queuePriority;
             queueCreateInfos.push_back(queueCreateInfo);
-            families.push_back(queueFamily);
         }
 
         const auto deviceExtensionsVec = StringSetToVector(enabledDeviceExtensions);
@@ -1382,19 +1384,17 @@ namespace cyb::rhi
 
         // Queues:
         {
-            VkQueue graphicsQueue = VK_NULL_HANDLE;
-            VkQueue computeQueue = VK_NULL_HANDLE;
-            VkQueue copyQueue = VK_NULL_HANDLE;
-            vkGetDeviceQueue(device, graphicsFamily, 0, &graphicsQueue);
-            vkGetDeviceQueue(device, computeFamily, 0, &computeQueue);
-            vkGetDeviceQueue(device, copyFamily, 0, &copyQueue);
+			VkQueue graphicsQueue = VK_NULL_HANDLE;
+			VkQueue computeQueue = VK_NULL_HANDLE;
+			VkQueue transferQueue = VK_NULL_HANDLE;
+
+            vkGetDeviceQueue(device, m_graphicsQueueFamily, 0, &graphicsQueue);
+            vkGetDeviceQueue(device, m_computeQueueFamily, 0, &computeQueue);
+            vkGetDeviceQueue(device, m_transferQueueFamily, 0, &transferQueue);
 
             queues[Numerical(QueueType::Graphics)].queue = graphicsQueue;
-            queues[Numerical(QueueType::Graphics)].locker = std::make_shared<std::mutex>();
             queues[Numerical(QueueType::Compute)].queue = computeQueue;
-            queues[Numerical(QueueType::Compute)].locker = std::make_shared<std::mutex>();
-            queues[Numerical(QueueType::Copy)].queue = copyQueue;
-            queues[Numerical(QueueType::Copy)].locker = std::make_shared<std::mutex>();
+            queues[Numerical(QueueType::Transfer)].queue = transferQueue;
         }
 
         memory_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
@@ -1443,13 +1443,13 @@ namespace cyb::rhi
                 switch (static_cast<QueueType>(i))
                 {
                 case QueueType::Graphics:
-                    SetSemaphoreName(queues[i].trackingSemaphore, "CommandQueue::trackingSemaphore[QueueType::Graphics]");
+                    SetSemaphoreName(queues[i].trackingSemaphore, "Queue_Vulkan::trackingSemaphore[QueueType::Graphics]");
                     break;
                 case QueueType::Compute:
-                    SetSemaphoreName(queues[i].trackingSemaphore, "CommandQueue::trackingSemaphore[QueueType::Compute]");
+                    SetSemaphoreName(queues[i].trackingSemaphore, "Queue_Vulkan::trackingSemaphore[QueueType::Compute]");
                     break;
-                case QueueType::Copy:
-                    SetSemaphoreName(queues[i].trackingSemaphore, "CommandQueue::trackingSemaphore[QueueType::Copy]");
+                case QueueType::Transfer:
+                    SetSemaphoreName(queues[i].trackingSemaphore, "Queue_Vulkan::trackingSemaphore[QueueType::Transfer]");
                     break;
                 }
             }
@@ -1548,24 +1548,6 @@ namespace cyb::rhi
 #endif // _WIN32
         }
 
-        uint32_t presentFamily = VK_QUEUE_FAMILY_IGNORED;
-        for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilies.size()); ++i)
-        {
-            VkBool32 graphicsSupport = (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT);
-            VkBool32 presentationSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, internal_state->surface, &presentationSupport);
-
-            if (graphicsSupport && presentationSupport)
-            {
-                presentFamily = i;
-                break;
-            }
-        }
-
-        // present family not found, we cannot create Swapchain
-        if (presentFamily == VK_QUEUE_FAMILY_IGNORED)
-            return false;
-
         return CreateSwapchainInternal(internal_state.get(), physicalDevice, device, m_allocationHandler);
     }
 
@@ -1662,7 +1644,8 @@ namespace cyb::rhi
         case GPUQueryType::Timestamp:
             poolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
             break;
-        case GPUQueryType::Occlusion:
+		case GPUQueryType::Occlusion: 
+            [[fallthrough]];
         case GPUQueryType::OcclusionBinary:
             poolInfo.queryType = VK_QUERY_TYPE_OCCLUSION;
             break;
@@ -1676,7 +1659,7 @@ namespace cyb::rhi
     {
         assert(count <= 8);
         CommandList_Vulkan& commandList = GetCommandList(cmd);
-        size_t hash = 0;
+        uint64_t hash = 0;
 
         VkDeviceSize voffsets[8] = {};
         VkBuffer vbuffers[8] = {};
@@ -1689,16 +1672,10 @@ namespace cyb::rhi
             auto internal_state = ToInternal(vertexBuffers[i]);
             vbuffers[i] = internal_state->resource;
             if (offsets != nullptr)
-            {
                 voffsets[i] = offsets[i];
-            }
         }
 
-        for (int i = count; i < _countof(commandList.vertexbuffer_strides); ++i)
-        {
-            commandList.vertexbuffer_strides[i] = 0;
-        }
-
+        std::fill(commandList.vertexbuffer_strides.begin() + count, commandList.vertexbuffer_strides.end(), 0);
         vkCmdBindVertexBuffers(commandList.GetCommandBuffer(), 0, static_cast<uint32_t>(count), vbuffers, voffsets);
 
         if (hash != commandList.vertexbuffer_hash)
@@ -2577,7 +2554,7 @@ namespace cyb::rhi
         VkGraphicsPipelineCreateInfo& pipeline_info = internal_state->pipelineInfo;
         pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipeline_info.stageCount = shaderStageCount;
-        pipeline_info.pStages = internal_state->shaderStages;
+        pipeline_info.pStages = internal_state->shaderStages.data();
         pipeline_info.pInputAssemblyState = &input_assembly;
         pipeline_info.pViewportState = &viewportState;
         pipeline_info.pRasterizationState = &rasterizer;
@@ -2591,10 +2568,12 @@ namespace cyb::rhi
 
     void GraphicsDevice_Vulkan::BindScissorRects(const Rect* rects, uint32_t rectCount, CommandList cmd)
     {
+        std::array<VkRect2D, 16> scissors{};
+
         assert(rects != nullptr);
-        VkRect2D scissors[16];
-        assert(rectCount < _countof(scissors));
+        assert(rectCount < scissors.size());
         assert(rectCount < properties2.properties.limits.maxViewports);
+        
         for (uint32_t i = 0; i < rectCount; ++i)
         {
             scissors[i].extent.width = abs(rects[i].right - rects[i].left);
@@ -2603,14 +2582,15 @@ namespace cyb::rhi
             scissors[i].offset.y = std::max(0, rects[i].top);
         }
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        vkCmdSetScissorWithCount(commandlist.GetCommandBuffer(), rectCount, scissors);
+        vkCmdSetScissorWithCount(commandlist.GetCommandBuffer(), rectCount, scissors.data());
     }
 
     void GraphicsDevice_Vulkan::BindViewports(const Viewport* viewports, uint32_t viewportCount, CommandList cmd)
     {
+        std::array<VkViewport, 16> vp{};
+
         assert(viewports != nullptr);
-        VkViewport vp[16];
-        assert(viewportCount < _countof(vp));
+        assert(viewportCount < vp.size());
         assert(viewportCount < properties2.properties.limits.maxViewports);
 
         for (uint32_t i = 0; i < viewportCount; ++i)
@@ -2623,7 +2603,7 @@ namespace cyb::rhi
             vp[i].maxDepth = viewports[i].maxDepth;
         }
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
-        vkCmdSetViewport(commandlist.GetCommandBuffer(), 0, viewportCount, vp);
+        vkCmdSetViewport(commandlist.GetCommandBuffer(), 0, viewportCount, vp.data());
     }
 
     void GraphicsDevice_Vulkan::BindPipelineState(const PipelineState* pso, CommandList cmd)
@@ -2674,13 +2654,13 @@ namespace cyb::rhi
             // Need to create one more command list:
             for (uint32_t buffer_index = 0; buffer_index < BUFFERCOUNT; ++buffer_index)
             {
-                VkCommandPoolCreateInfo poolInfo = {};
+                VkCommandPoolCreateInfo poolInfo{};
                 poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
                 poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-                poolInfo.queueFamilyIndex = graphicsFamily;
+                poolInfo.queueFamilyIndex = m_graphicsQueueFamily;
                 VK_CHECK(vkCreateCommandPool(device, &poolInfo, nullptr, &commandlist.commandpools[buffer_index][static_cast<uint32_t>(queue)]));
 
-                VkCommandBufferAllocateInfo allocInfo = {};
+                VkCommandBufferAllocateInfo allocInfo{};
                 allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
                 allocInfo.commandPool = commandlist.commandpools[buffer_index][static_cast<uint32_t>(queue)];
                 allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -2695,7 +2675,7 @@ namespace cyb::rhi
 
         VK_CHECK(vkResetCommandPool(device, commandlist.GetCommandPool(), 0));
 
-        VkCommandBufferBeginInfo beginInfo = {};
+        VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         beginInfo.flags = 0;
         beginInfo.pInheritanceInfo = nullptr;
@@ -2703,13 +2683,13 @@ namespace cyb::rhi
 
         if (queue == QueueType::Graphics)
         {
-            VkViewport vp = {};
+            VkViewport vp{};
             vp.width = 1;
             vp.height = 1;
             vp.maxDepth = 1;
             vkCmdSetViewportWithCount(commandlist.GetCommandBuffer(), 1, &vp);
 
-            VkRect2D scissor;
+            VkRect2D scissor{};
             scissor.offset.x = 0;
             scissor.offset.y = 0;
             scissor.extent.width = 65535;
@@ -2748,7 +2728,7 @@ namespace cyb::rhi
         VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
     }
 
-    void GraphicsDevice_Vulkan::CommandQueue::AddWaitSemaphore(VkSemaphore semaphore, uint64_t value)
+    void Queue_Vulkan::AddWaitSemaphore(VkSemaphore semaphore, uint64_t value)
     {
         VkSemaphoreSubmitInfo& waitSemaphore = submit_waitSemaphoreInfos.emplace_back();
         waitSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
@@ -2757,7 +2737,7 @@ namespace cyb::rhi
         waitSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
     }
 
-    void GraphicsDevice_Vulkan::CommandQueue::AddSignalSemaphore(VkSemaphore semaphore, uint64_t value)
+    void Queue_Vulkan::AddSignalSemaphore(VkSemaphore semaphore, uint64_t value)
     {
         VkSemaphoreSubmitInfo& signalSemaphore = submit_signalSemaphoreInfos.emplace_back();
         signalSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
@@ -2765,24 +2745,22 @@ namespace cyb::rhi
         signalSemaphore.value = value;
         signalSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
     }
-#include "systems/profiler.h"
-    uint64_t GraphicsDevice_Vulkan::CommandQueue::Submit(GraphicsDevice_Vulkan* device, VkFence fence)
+
+    uint64_t Queue_Vulkan::Submit(VkFence fence)
     {
-        std::scoped_lock lock{ *locker };
+        std::scoped_lock lock{ m_mutex };
 
         // signal the tracking semaphore with the last submitted ID to mark 
         // the end of the frame
         lastSubmittedID++;
         AddSignalSemaphore(trackingSemaphore, lastSubmittedID);
 
-        VkSubmitInfo2 submitInfo = {};
+        VkSubmitInfo2 submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
         submitInfo.commandBufferInfoCount = (uint32_t)submit_cmds.size();
         submitInfo.pCommandBufferInfos = submit_cmds.data();
-
         submitInfo.waitSemaphoreInfoCount = static_cast<uint32_t>(submit_waitSemaphoreInfos.size());
         submitInfo.pWaitSemaphoreInfos = submit_waitSemaphoreInfos.data();
-        
         submitInfo.signalSemaphoreInfoCount = static_cast<uint32_t>(submit_signalSemaphoreInfos.size());
         submitInfo.pSignalSemaphoreInfos = submit_signalSemaphoreInfos.data();
 
@@ -2794,7 +2772,7 @@ namespace cyb::rhi
 
         if (!swapchains.empty())
         {
-            VkPresentInfoKHR presentInfo = {};
+            VkPresentInfoKHR presentInfo{};
             presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
             presentInfo.waitSemaphoreCount = static_cast<uint32_t>(swapchainWaitSemaphores.size());
             presentInfo.pWaitSemaphores = swapchainWaitSemaphores.data();
@@ -2811,9 +2789,8 @@ namespace cyb::rhi
         return lastSubmittedID;
     }
 
-    GraphicsDevice_Vulkan::CommandQueue& GraphicsDevice_Vulkan::GetQueue(QueueType queueType)
+    Queue_Vulkan& GraphicsDevice_Vulkan::GetQueue(QueueType queueType)
     {
-        assert(queueType < QueueType::Count);
         return queues[Numerical(queueType)];
     }
 
@@ -2829,7 +2806,7 @@ namespace cyb::rhi
                 CommandList_Vulkan& commandlist = *m_commandlists[cmd_index].get();
                 VK_CHECK(vkEndCommandBuffer(commandlist.GetCommandBuffer()));
 
-                CommandQueue& queue = GetQueue(commandlist.queue);
+                Queue_Vulkan& queue = GetQueue(commandlist.queue);
 
                 VkCommandBufferSubmitInfo& submitInfo = queue.submit_cmds.emplace_back();
                 submitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
@@ -2873,7 +2850,7 @@ namespace cyb::rhi
             }
 
             for (auto& queue : queues)
-                queue.Submit(this, nullptr);
+                queue.Submit(VK_NULL_HANDLE);
         }
 
         // Sync up every queue to every other queue at the end of the frame.
@@ -2899,8 +2876,8 @@ namespace cyb::rhi
         {
             if (frameCount >= BUFFERCOUNT)
             {
-                VkSemaphore waitSemaphores[Numerical(QueueType::Count)] = {};
-                uint64_t waitValues[Numerical(QueueType::Count)] = {};
+                std::array<VkSemaphore, Numerical(QueueType::Count)> waitSemaphores{};
+                std::array<uint64_t, Numerical(QueueType::Count)> waitValues{};
                 uint32_t waitSemaphoreCount = 0;
 
                 for (auto& queue : queues)
@@ -2917,8 +2894,8 @@ namespace cyb::rhi
                     VkSemaphoreWaitInfo waitInfo = {};
                     waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
                     waitInfo.semaphoreCount = waitSemaphoreCount;
-                    waitInfo.pSemaphores = waitSemaphores;
-                    waitInfo.pValues = waitValues;
+                    waitInfo.pSemaphores = waitSemaphores.data();
+                    waitInfo.pValues = waitValues.data();
 
                     while (VK_CHECK(vkWaitSemaphores(device, &waitInfo, timeoutValue)) == VK_TIMEOUT)
                     {
@@ -2972,7 +2949,7 @@ namespace cyb::rhi
         m_pipelineCache = VK_NULL_HANDLE;
 
         // Create Vulkan pipeline cache
-        VkPipelineCacheCreateInfo createInfo = {};
+        VkPipelineCacheCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
         createInfo.initialDataSize = 0;
         createInfo.pInitialData = nullptr;
@@ -3026,7 +3003,7 @@ namespace cyb::rhi
         }
         commandlist.prevSwapchains.push_back(*swapchain);
 
-        VkRenderingInfo info = {};
+        VkRenderingInfo info{};
         info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
         info.renderArea.offset.x = 0;
         info.renderArea.offset.y = 0;
@@ -3048,7 +3025,7 @@ namespace cyb::rhi
         info.colorAttachmentCount = 1;
         info.pColorAttachments = &color_attachment;
 
-        VkImageMemoryBarrier2 barrier = {};
+        VkImageMemoryBarrier2 barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
         barrier.image = internal_state->swapchainImages[internal_state->swapchainImageIndex];
         barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -3065,7 +3042,7 @@ namespace cyb::rhi
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
-        VkDependencyInfo dependencyInfo = {};
+        VkDependencyInfo dependencyInfo{};
         dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
         dependencyInfo.imageMemoryBarrierCount = 1;
         dependencyInfo.pImageMemoryBarriers = &barrier;
@@ -3090,7 +3067,7 @@ namespace cyb::rhi
         commandlist.renderpassBarriersBegin.clear();
         commandlist.renderpassBarriersEnd.clear();
 
-        VkRenderingInfo renderingInfo = {};
+        VkRenderingInfo renderingInfo{};
         renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
         renderingInfo.layerCount = 1;
         renderingInfo.renderArea.offset.x = 0;
@@ -3230,7 +3207,7 @@ namespace cyb::rhi
 
         if (!commandlist.renderpassBarriersBegin.empty())
         {
-            VkDependencyInfo dependencyInfo = {};
+            VkDependencyInfo dependencyInfo{};
             dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
             dependencyInfo.imageMemoryBarrierCount = static_cast<uint32_t>(commandlist.renderpassBarriersBegin.size());
             dependencyInfo.pImageMemoryBarriers = commandlist.renderpassBarriersBegin.data();
@@ -3249,7 +3226,7 @@ namespace cyb::rhi
 
         if (!commandlist.renderpassBarriersEnd.empty())
         {
-            VkDependencyInfo dependencyInfo = {};
+            VkDependencyInfo dependencyInfo{};
             dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
             dependencyInfo.imageMemoryBarrierCount = static_cast<uint32_t>(commandlist.renderpassBarriersEnd.size());
             dependencyInfo.pImageMemoryBarriers = commandlist.renderpassBarriersEnd.data();
@@ -3258,7 +3235,7 @@ namespace cyb::rhi
             commandlist.renderpassBarriersEnd.clear();
         }
 
-        commandlist.renderpassInfo = {};
+        commandlist.renderpassInfo = RenderPassInfo{};
     }
 
     void GraphicsDevice_Vulkan::Draw(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd)
@@ -3271,7 +3248,6 @@ namespace cyb::rhi
     void GraphicsDevice_Vulkan::DrawIndexed(uint32_t index_count, uint32_t start_index_location, int32_t base_vertex_location, CommandList cmd)
     {
         PreDraw(cmd);
-
         CommandList_Vulkan& commandlist = GetCommandList(cmd);
         vkCmdDrawIndexed(commandlist.GetCommandBuffer(), index_count, 1, start_index_location, base_vertex_location, 0);
     }
@@ -3374,7 +3350,7 @@ namespace cyb::rhi
         if (!extensions.EXT_debug_utils || resource == nullptr || !resource->IsValid())
             return;
 
-        VkDebugUtilsObjectNameInfoEXT info = {};
+        VkDebugUtilsObjectNameInfoEXT info{};
         info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
         info.pObjectName = name;
         if (resource->IsBuffer())
@@ -3399,7 +3375,7 @@ namespace cyb::rhi
         if (!extensions.EXT_debug_utils || shader == nullptr || !shader->IsValid())
             return;
 
-        VkDebugUtilsObjectNameInfoEXT info = {};
+        VkDebugUtilsObjectNameInfoEXT info{};
         info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
         info.objectType = VK_OBJECT_TYPE_SHADER_MODULE;
         info.objectHandle = (uint64_t)ToInternal(shader)->shadermodule;

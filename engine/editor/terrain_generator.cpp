@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <fstream>
 #include "core/noise.h"
-#include "core/random.h"
 #include "core/logger.h"
 #include "core/filesystem.h"
 #include "systems/event_system.h"
@@ -314,9 +313,9 @@ namespace cyb::editor
 
         noise2::NoiseImage image{ { m_previewSize, m_previewSize } };
 #if MULTITHREADED_PREVIEW
-        jobsystem::Context ctx{};
+        jobsystem::JobCounter counter{};
         const uint32_t groupSize = PREVIEW_GEN_GROUP_SIZE;
-        jobsystem::Dispatch(ctx, imageDesc.size.height, groupSize, [&] (jobsystem::JobArgs args) {
+        jobsystem::Dispatch(counter, imageDesc.size.height, groupSize, [&] (const jobsystem::JobArgs& args) {
             const uint32_t rowStart = args.jobIndex;
             noise2::RenderNoiseImageRows(image, &imageDesc, rowStart, 1);
         });
@@ -334,7 +333,7 @@ namespace cyb::editor
         subresourceData.rowPitch = image.GetStride();
 
 #if MULTITHREADED_PREVIEW
-        jobsystem::Wait(ctx);
+        jobsystem::Wait(counter);
 #endif
         rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &m_texture);
         m_lastPreviewGenerationTime = timer.ElapsedMilliseconds();
@@ -423,11 +422,19 @@ namespace cyb::editor
         ImGui::Spacing();
         ImGui::Spacing();
 
-        if (!jobsystem::IsBusy(m_jobContext))
+        if (jobsystem::IsFinished(m_jobContext))
         {
             if (ImGui::Button("Generate Mesh", ImVec2(-1.0f, 0.0f)))
             {
+                // Keep this single threaded for now as there's no thread-safe
+                // way of merging the terrain mesh to the sscene
+#if 0
+                jobsystem::Execute(m_jobContext, [&](jobsystem::JobArgs args) {
+                    GenerateTerrainMesh();
+                });
+#else
                 GenerateTerrainMesh();
+#endif
             }
         }
         else
@@ -592,8 +599,7 @@ namespace cyb::editor
             DelaunayTriangulator triangulator{ hm, m_chunkSize, m_chunkSize };
             triangulator.Triangulate(m_maxError, 0, 0);
 
-            jobsystem::Context ctx;
-            ctx.allowWorkOnMainThread = false;
+            jobsystem::JobCounter ctx{};
 
             std::vector<XMFLOAT3> points;
             jobsystem::Execute(ctx, [&] (jobsystem::JobArgs args) {

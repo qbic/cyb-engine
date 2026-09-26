@@ -7,7 +7,7 @@
 
 namespace cyb::hli
 {
-    CVar<float> r_renderScale{ "r_renderScale", 1.0f, 0.1f, 4.0f, CVarFlag::RendererBit, "Render scale factor for the internal resolution" };
+    CVar<float> r_renderScale{ "r_renderScale", 0.4f, 0.1f, 4.0f, CVarFlag::RendererBit, "Render scale factor for the internal resolution" };
     
     void RenderPath2D::ResizeBuffers()
     {

@@ -2,7 +2,6 @@
 #include <string>
 #include <format>
 #include <cstdint>
-
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -44,6 +43,12 @@ namespace cyb
      */
     void Exit(int code = 0);
 
+    // Assign a name to the caller thread for easier debugging.
+    void SetThisThreadName(const std::string& name) noexcept;
+
+    // Set affinity mask for the calling thread.
+    void SetThisThreadAffinity(uint32_t affinityMask) noexcept;
+
 #ifdef _WIN32
     /** Convert a UTF-8 string to wide string. */
     [[nodiscard]] std::wstring Utf8ToWide(const std::string_view s);
@@ -51,4 +56,5 @@ namespace cyb
     /** Convert a wide string to UTF-8 string. */
     [[nodiscard]] std::string WideToUtf8(const std::wstring_view w);
 #endif // _WIN32
+
 } // namespace cyb

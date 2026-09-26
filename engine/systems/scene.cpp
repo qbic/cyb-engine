@@ -486,7 +486,7 @@ void Scene::Update([[maybe_unused]] double dt)
     this->dt = dt;
     this->time += dt;
 
-    jobsystem::Context ctx;
+    jobsystem::JobCounter ctx;
 
     // update systems with no dependency
     RunAnimationUpdateSystem(ctx);      // waits on ctx before returning
@@ -654,17 +654,17 @@ void Scene::Serialize(Serializer& ser)
     weathers.Serialize(ser, context);
 }
 
-void Scene::RunTransformUpdateSystem(jobsystem::Context& ctx)
+void Scene::RunTransformUpdateSystem(jobsystem::JobCounter& ctx)
 {
-    jobsystem::Dispatch(ctx, (uint32_t)transforms.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (jobsystem::JobArgs args) {
+    jobsystem::Dispatch(ctx, (uint32_t)transforms.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (const jobsystem::JobArgs& args) {
         TransformComponent& transform = transforms[args.jobIndex];
         transform.UpdateTransform();
     });
 }
 
-void Scene::RunHierarchyUpdateSystem(jobsystem::Context& ctx)
+void Scene::RunHierarchyUpdateSystem(jobsystem::JobCounter& ctx)
 {
-    jobsystem::Dispatch(ctx, (uint32_t)hierarchy.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (jobsystem::JobArgs args) {
+    jobsystem::Dispatch(ctx, (uint32_t)hierarchy.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (const jobsystem::JobArgs& args) {
         const HierarchyComponent& hier = hierarchy[args.jobIndex];
         ecs::Entity entity = hierarchy.GetEntity(args.jobIndex);
         TransformComponent* transform = transforms.GetComponent(entity);
@@ -693,9 +693,9 @@ void Scene::RunHierarchyUpdateSystem(jobsystem::Context& ctx)
     });
 }
 
-void Scene::RunMeshUpdateSystem(jobsystem::Context& ctx)
+void Scene::RunMeshUpdateSystem(jobsystem::JobCounter& ctx)
 {
-    jobsystem::Dispatch(ctx, (uint32_t)meshes.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (jobsystem::JobArgs args) {
+    jobsystem::Dispatch(ctx, (uint32_t)meshes.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (const jobsystem::JobArgs& args) {
         ecs::Entity entity = meshes.GetEntity(args.jobIndex);
         MeshComponent& mesh = meshes[args.jobIndex];
 
@@ -709,11 +709,11 @@ void Scene::RunMeshUpdateSystem(jobsystem::Context& ctx)
     });
 }
 
-void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
+void Scene::RunObjectUpdateSystem(jobsystem::JobCounter& ctx)
 {
     aabb_objects.resize(objects.Size());
 
-    jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (jobsystem::JobArgs args) {
+    jobsystem::Dispatch(ctx, (uint32_t)objects.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (const jobsystem::JobArgs& args) {
         ecs::Entity entity = objects.GetEntity(args.jobIndex);
         ObjectComponent& object = objects[args.jobIndex];
 
@@ -731,11 +731,11 @@ void Scene::RunObjectUpdateSystem(jobsystem::Context& ctx)
     });
 }
 
-void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)
+void Scene::RunLightUpdateSystem(jobsystem::JobCounter& ctx)
 {
     aabb_lights.resize(lights.Size());
 
-    jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (jobsystem::JobArgs args) {
+    jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (const jobsystem::JobArgs& args) {
         LightComponent& light = lights[args.jobIndex];
         const ecs::Entity entity = lights.GetEntity(args.jobIndex);
         if (!transforms.Contains(entity))
@@ -759,19 +759,19 @@ void Scene::RunLightUpdateSystem(jobsystem::Context& ctx)
     });
 }
 
-void Scene::RunCameraUpdateSystem(jobsystem::Context& ctx)
+void Scene::RunCameraUpdateSystem(jobsystem::JobCounter& ctx)
 {
-    jobsystem::Dispatch(ctx, (uint32_t)cameras.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (jobsystem::JobArgs args) {
+    jobsystem::Dispatch(ctx, (uint32_t)cameras.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (const jobsystem::JobArgs& args) {
         CameraComponent& camera = cameras[args.jobIndex];
         camera.UpdateCamera();
     });
 }
 
-void Scene::RunAnimationUpdateSystem(jobsystem::Context& ctx)
+void Scene::RunAnimationUpdateSystem(jobsystem::JobCounter& ctx)
 {
     CYB_PROFILE_CPU_SCOPE("Animation");
 
-    jobsystem::Dispatch(ctx, (uint32_t)animations.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (jobsystem::JobArgs args) {
+    jobsystem::Dispatch(ctx, (uint32_t)animations.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (const jobsystem::JobArgs& args) {
         AnimationComponent& animation = animations[args.jobIndex];
         if (!animation.IsPlaying())
             return;
@@ -963,7 +963,7 @@ void Scene::RunAnimationUpdateSystem(jobsystem::Context& ctx)
     jobsystem::Wait(ctx);
 }
 
-void Scene::RunWeatherUpdateSystem(jobsystem::Context& /* ctx */)
+void Scene::RunWeatherUpdateSystem(jobsystem::JobCounter& /* ctx */)
 {
     if (weathers.Size() > 0)
         weather = weathers[0];
@@ -1046,7 +1046,7 @@ void SerializeComponent(scene::TransformComponent& x, Serializer& ser, ecs::Scen
 
     if (ser.IsReading())
     {
-        jobsystem::Execute(context.ctx, [&x] (jobsystem::JobArgs) {
+        jobsystem::Execute(context.ctx, [&x] (const jobsystem::JobArgs&) {
             x.SetDirty();
             x.UpdateTransform();
         });
@@ -1089,9 +1089,7 @@ void SerializeComponent(scene::MeshComponent& x, Serializer& ser, ecs::SceneSeri
     ser.Serialize(x.indices);
 
     if (ser.IsReading())
-    {
-        jobsystem::Execute(context.ctx, [&x] (jobsystem::JobArgs) { x.CreateRenderData(); });
-    }
+        jobsystem::Execute(context.ctx, [&x] (const jobsystem::JobArgs&) { x.CreateRenderData(); });
 }
 
 void SerializeComponent(scene::ObjectComponent& x, Serializer& ser, ecs::SceneSerializeContext& context)

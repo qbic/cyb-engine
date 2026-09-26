@@ -220,7 +220,7 @@ namespace cyb::editor
         float m_maxMeshAltitude{ 200.0f };  // Max altitude in meters
         ui::Gradient m_biomeColorBand;
 
-        jobsystem::Context m_jobContext;
+        jobsystem::JobCounter m_jobContext;
         ecs::Entity m_terrainGroupID{ ecs::INVALID_ENTITY };
     };
 

@@ -18,7 +18,7 @@ namespace cyb::ecs
     struct SceneSerializeContext
     {
         uint64_t archiveVersion = 0;
-        jobsystem::Context ctx;
+        jobsystem::JobCounter ctx;
         std::unordered_map<uint32_t, Entity> remap;
 
         ~SceneSerializeContext()

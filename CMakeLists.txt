@@ -13,8 +13,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(FETCHCONTENT_QUIET OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-#--- Find required packages
+# Find required package dependencies 
 find_package(Vulkan REQUIRED)
+
+# Fetch statically linked dependencies
 include(fetch-freetype)
 include(fetch-imgui)
 

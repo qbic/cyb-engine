@@ -47,10 +47,10 @@ namespace cyb::hli
 
         jobsystem::JobCounter ctx{};
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { resourcemanager::Initialize(); });
-        jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) { input::Initialize(m_window.GetNativeHandle()); });
+        jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) { input::Initialize(m_window.GetNativeHandle()); });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { renderer::Initialize(); });
-        jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(m_window.GetNativeHandle()); });
-        jobsystem::Execute(ctx, [this] (jobsystem::JobArgs) {
+        jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) { ImGui_Impl_CybEngine_Init(m_window.GetNativeHandle()); });
+        jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) {
             RenderPath* renderPath = GetRenderPath();
             renderPath->Load();
 

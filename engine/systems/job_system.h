@@ -1,3 +1,35 @@
+/**
+ * 
+ * @mainpage cyb::jobsystem - work-stealing job system
+ *
+ * Runs a fixed pool of worker threads (hardware threads minus one, capped at 63).
+ * Each worker is pinned to its own core starting at core 1, which leaves core 0
+ * for the main thread.
+ *
+ * Each worker owns a bounded MPMC queue. Jobs are pushed round-robin across the
+ * workers. An idle worker pops from its own queue first, then steals from the
+ * other workers, and sleeps on a semaphore when it finds no work. If the target
+ * queue is full, the job runs inline on the thread that submitted it.
+ *
+ * JobCounter tracks completion. Execute() and Dispatch() increment the counter,
+ * and each finished job (or job group) decrements it. Wait() does not block
+ * idly: the calling thread helps execute queued jobs until the counter reaches
+ * zero.
+ *
+ * Usage:
+ *   jobsystem::Initialize();
+ *
+ *   jobsystem::JobCounter counter;
+ *   jobsystem::Dispatch(counter, (uint32_t)items.size(), 64,
+ *       [&](const jobsystem::JobArgs& args) { Process(items[args.jobIndex]); });
+ *   jobsystem::Wait(counter);
+ *
+ * Notes:
+ *   - Call Initialize() before any other function in this namespace.
+ *   - A JobCounter must outlive every job submitted against it.
+ *   - Tasks are stored as std::function and copied per job/group, so keep
+ *     lambda captures small.
+ */
 #pragma once
 #include <atomic>
 #include <functional>
@@ -19,42 +51,51 @@ namespace cyb::jobsystem
     };
 
     using JobTask = std::function<void(const JobArgs&)>;
-
-    // Initialize the jobsystem.
-    // Must be called before any other calls in the subsystem.
-    // This will spawn (number of available cores minus one) worker threads, assigning
-    // each of them to a seperate core starting from one (leaving zero for main thread).
+    
+    /**
+     * @brief Initialize the jobsystem.
+     * 
+     * Must be called before any other calls in the subsystem.
+     * This will spawn (number of available cores minus one) worker threads, assigning
+     * each of them to a seperate core starting from one (leaving zero for main thread).
+     */
     void Initialize() noexcept;
 
-    // Get number of worker threads utilized by the jobsystem.
+    /**
+     * @return Number of worker threads utilized by the jobsystem.
+     */
     [[nodiscard]] uint32_t WorkerCount() noexcept;
 
     /**
      * @brief Execute a task async, the context can be waited on.
-     *        If jobsystem hasn't been initialized this will be immidietly executed.
      */
     void Execute(JobCounter& counter, const JobTask& task) noexcept;
 
-    /*
+    /**
      * Create a set of jobs and distribute work among the available threads.
-     * Task gets copied to all jobs, so keep lamda captures as small as possible.
-     * 
-     * Example usage to distribute workload of a vector with 6 elements into 3 groups:
-     * std::vector<int> test = {{ 1, 2, 3, 4, 5, 6 }};
-     * Dispatch(ctx, test.size(), 2, [&test] (jobsystem::JobArgs args) {
-     *     int& value = test[args.jobIndex];
-     * }
-     * 
-     * @param jobCount Total number of jobs to dispatch.
+     * @param count Total number of jobs to dispatch.
      * @param groupSize Number of jobs to pass as a group to each thread.
      * @return The number of actual jobs groups created.
      */
     uint32_t Dispatch(JobCounter& counter, uint32_t count, uint32_t groupSize, const JobTask& task) noexcept;
     
-    // Check of the jobsystem is still working on jobs in the counter.
-    // @return True if the counter has reached zero.
+    /**
+     * Create a set of jobs and distribute work among the available threads.
+     * Will block until all jobs are executed.
+     * @param count Total number of jobs to dispatch.
+     * @param groupSize Number of jobs to pass as a group to each thread.
+     * @return The number of actual jobs groups created.
+     */
+    uint32_t Dispatch(uint32_t count, uint32_t groupSize, const JobTask& task) noexcept;
+    
+    /**
+     * Check of the jobsystem is still working on jobs in the counter.
+     * @return True if the counter has reached zero.
+     */
     bool IsFinished(const JobCounter& counter) noexcept;
 
-    // Waits until counter reaches zero.
+    /**
+     * @brief Blocks until counter reaches zero.
+     */
     void Wait(const JobCounter& counter) noexcept;
 }

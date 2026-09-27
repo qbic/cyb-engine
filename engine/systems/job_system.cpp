@@ -280,6 +280,14 @@ namespace cyb::jobsystem
         return groupCount;
     }
 
+    uint32_t Dispatch(uint32_t count, uint32_t groupSize, const JobTask& task) noexcept
+    {
+        JobCounter counter{};
+        uint32_t groups = Dispatch(counter, count, groupSize, task);
+        Wait(counter);
+        return groups;
+    }
+
     bool IsFinished(const JobCounter& counter) noexcept
     {
         return g_jobSystem->IsFinished(counter);

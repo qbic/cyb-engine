@@ -8,12 +8,12 @@ namespace cyb
 {
     struct ClientWindowDesc
     {
-        std::string_view title{ "cyb-engine" };
-        uint32_t width{ 1920 };
-        uint32_t height{ 1080 };
-        bool resizable{ true };
-        bool decorated{ true };
-        NativeWindowHandle parent{ nullptr };
+        std::string_view title = "cyb-engine";
+        uint32_t width = 1920;
+        uint32_t height = 1080;
+        bool resizable = true;
+        bool decorated = true;
+        NativeWindowHandle parent = nullptr;
     };
 
     using WindowResizeFn = std::function<void()>;
@@ -31,7 +31,7 @@ namespace cyb
         /** 
          * Parses all window events. Call this once per frame.
          * This will also call appropriate window callbacks if set.
-         * Returns false if window is requested to close.
+         * @return False if window is requested to close.
          */
         bool PollEvents() noexcept;
 
@@ -53,12 +53,12 @@ namespace cyb
         /** Private constructor. Use ClientWindow::Create to create window. */
         explicit ClientWindow(NativeWindowHandle windowHandle, const ClientWindowDesc& desc);
 
-        uint32_t m_width{ 0 };
-        uint32_t m_height{ 0 };
-        bool m_isOpen{ false };
-        bool m_isMinimized{ false };
-        bool m_isActive{ false };
-        NativeWindowHandle m_nativeHandle{};
-        WindowResizeFn m_windowResizeCallback{};
+        uint32_t m_width = 0;
+        uint32_t m_height = 0;
+        bool m_isOpen = false;
+        bool m_isMinimized = false;
+        bool m_isActive = false;
+        NativeWindowHandle m_nativeHandle = nullptr;
+        WindowResizeFn m_windowResizeCallback;
     };
 } // namespace cyb

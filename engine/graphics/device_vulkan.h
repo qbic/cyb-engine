@@ -226,7 +226,7 @@ namespace cyb::rhi
         void CreateSubresource(Texture* texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const;
 
         CommandList BeginCommandList(QueueType queue) override;
-        void ExecuteCommandLists() override;
+        void SubmitCommandLists() override;
         void WaitForGPU() const override;
         void SetName(GPUResource* pResource, const char* name) override;
         void SetName(Shader* shader, const char* name) override;

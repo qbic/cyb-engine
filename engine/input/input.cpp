@@ -75,19 +75,19 @@ namespace cyb::input
         CYB_PROFILE_CPU_SCOPE("Input");
 
 #ifdef _WIN32
-        // Reset mouse delta position
+        // reset mouse delta position
         g_mouse.pointerDelta.x = 0.0f;
         g_mouse.pointerDelta.y = 0.0f;
 
-        // Since raw input doesn't contain absolute mouse position, we get it
-        // with though old trusty winapi.
+        // raw input only create input event for relative mouse movement
+        // using a standard mouse, so use old winapi to get it
         POINT p{};
         GetCursorPos(&p);
         ScreenToClient(window, &p);
         g_mouse.pointerPosition = Vec2{ (float)p.x, (float)p.y };
 #endif
 
-        // Ignore inputs if application isn't in foreground
+        // ignore inputs if application isn't in foreground
         const bool ignoreInput = (::GetForegroundWindow() != window);
 
         g_keyboard.Update(ignoreInput);

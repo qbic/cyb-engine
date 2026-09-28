@@ -589,7 +589,7 @@ namespace cyb::rhi
 
     struct PipelineState final : public RenderDeviceChild
     {
-        size_t hash{ 0 };
+        size_t hash = 0;
         PipelineStateDesc desc{};
         const PipelineStateDesc& GetDesc() const { return desc; }
     };
@@ -643,7 +643,7 @@ namespace cyb::rhi
         virtual bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const = 0;
 
         virtual CommandList BeginCommandList(QueueType queue = QueueType::Graphics) = 0;
-        virtual void ExecuteCommandLists() {}
+        virtual void SubmitCommandLists() {}
 
         /**
          * @brief Make the CPU wait until all submitted GPU work is finished execution.
@@ -726,7 +726,7 @@ namespace cyb::rhi
             GPUBuffer buffer;		// application can bind it to the GPU
             uint64_t offset = 0;	// allocation's offset from the GPUbuffer's beginning
 
-            // Returns true if the allocation was successful
+            // @return True if the buffer is a valid allocated GPUBuffer.
             inline bool IsValid() const { return data != nullptr && buffer.IsValid(); }
         };
 
@@ -795,7 +795,7 @@ namespace cyb::rhi
 
     inline const FormatInfo& GetFormatInfo(Format format)
     {
-        static constexpr FormatInfo s_formatInfo[] = {
+        static constexpr std::array formatInfoTable = std::to_array<FormatInfo>({
             { Format::Unknown,      "UNKNOWN",      0,  0,  false,  false   },
             { Format::R8_UNORM,     "R8_UNORM",     1,  1,  false,  false   },
             { Format::RGBA8_UINT,   "RGBA8_UINT",   4,  1,  false,  false   },
@@ -810,14 +810,15 @@ namespace cyb::rhi
             { Format::D24S8,        "D24S8",        4,  1,  true,   true    },
             { Format::D32,          "D32",          4,  1,  true,   false   },
             { Format::D32S8,        "D32S8",        8,  1,  true,   true    }
-        };
+        });
 
-        static_assert(sizeof(s_formatInfo) / sizeof(FormatInfo) == (size_t)Format::COUNT);
+        static_assert(formatInfoTable.size() == Numerical(Format::COUNT));
 
-        if ((uint32_t)format >= (uint32_t)Format::COUNT)
-            return s_formatInfo[0]; // UNKNOWN
+        assert(Numerical(format) < Numerical(Format::COUNT));
+        if (Numerical(format) >= Numerical(Format::COUNT))
+            return formatInfoTable[0]; // UNKNOWN
 
-        const FormatInfo& info = s_formatInfo[(uint32_t)format];
+        const FormatInfo& info = formatInfoTable[(uint32_t)format];
         assert(info.format == format);
         return info;
     }

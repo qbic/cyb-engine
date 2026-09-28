@@ -174,8 +174,8 @@ namespace cyb::jobsystem
                 return true;
             }
 
-            // Try to steal and execute a job from any worker
-            // thread except the current one
+            // Try to steal and execute a job from another
+            // worker thread, skipping the current one
             return StealAndExecuteExhaustive(tl_workerIndex + 1, workers.size() - 1);
         }
 
@@ -235,13 +235,13 @@ namespace cyb::jobsystem
         return g_jobSystem->workers.size();
     }
 
-    void Execute(JobCounter& counter, const JobTask& task) noexcept
+    void Execute(JobCounter& target, const JobTask& task) noexcept
     {
         // Update job counter
-        counter.remainingJobCount.fetch_add(1, std::memory_order_relaxed);
+        target.remainingJobCount.fetch_add(1, std::memory_order_relaxed);
 
         Job job;
-        job.counter = &counter;
+        job.counter = &target;
         job.task = task;
         job.groupJobOffset = 0;
         job.groupJobEnd = 1;
@@ -255,7 +255,7 @@ namespace cyb::jobsystem
         return (count + groupSize - 1) / groupSize;
     }
 
-    uint32_t Dispatch(JobCounter& counter, uint32_t count, uint32_t groupSize, const JobTask& task) noexcept
+    uint32_t Dispatch(JobCounter& target, uint32_t count, uint32_t groupSize, const JobTask& task) noexcept
     {
         if (count == 0 || groupSize == 0)
             return 0;
@@ -263,13 +263,13 @@ namespace cyb::jobsystem
         const uint32_t groupCount = DispatchGroupCount(count, groupSize);
 
         // Update job counter
-        counter.remainingJobCount.fetch_add(groupCount, std::memory_order_relaxed);
+        target.remainingJobCount.fetch_add(groupCount, std::memory_order_relaxed);
         
         for (uint32_t groupID = 0; groupID < groupCount; ++groupID)
         {
             // For each group, generate one real job.
             Job job;
-            job.counter = &counter;
+            job.counter = &target;
             job.task = task;
             job.groupJobOffset = groupID * groupSize;
             job.groupJobEnd = std::min(job.groupJobOffset + groupSize, count);
@@ -282,9 +282,9 @@ namespace cyb::jobsystem
 
     uint32_t Dispatch(uint32_t count, uint32_t groupSize, const JobTask& task) noexcept
     {
-        JobCounter counter{};
-        uint32_t groups = Dispatch(counter, count, groupSize, task);
-        Wait(counter);
+        JobCounter target{};
+        uint32_t groups = Dispatch(target, count, groupSize, task);
+        Wait(target);
         return groups;
     }
 
@@ -293,15 +293,15 @@ namespace cyb::jobsystem
         return g_jobSystem->IsFinished(counter);
     }
 
-    void Wait(const JobCounter& counter) noexcept
+    void Wait(const JobCounter& target) noexcept
     {
         int32_t observed = 0;
-        while ((observed = counter.remainingJobCount.load(std::memory_order_acquire)) != 0)
+        while ((observed = target.remainingJobCount.load(std::memory_order_acquire)) != 0)
         {
             if (g_jobSystem->StealAndExecuteExhaustive(0, g_jobSystem->workers.size()))
                 continue;
 
-            counter.remainingJobCount.wait(observed, std::memory_order_acquire);
+            target.remainingJobCount.wait(observed, std::memory_order_acquire);
         }
     }
 } // namespace cyb::jobsystem

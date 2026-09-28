@@ -32,6 +32,7 @@
  */
 #pragma once
 #include <atomic>
+#include <cstdint>
 #include <functional>
 
 namespace cyb::jobsystem
@@ -54,7 +55,6 @@ namespace cyb::jobsystem
     
     /**
      * @brief Initialize the jobsystem.
-     * 
      * Must be called before any other calls in the subsystem.
      * This will spawn (number of available cores minus one) worker threads, assigning
      * each of them to a seperate core starting from one (leaving zero for main thread).
@@ -67,35 +67,41 @@ namespace cyb::jobsystem
     [[nodiscard]] uint32_t WorkerCount() noexcept;
 
     /**
-     * @brief Execute a task async, the context can be waited on.
+     * @brief Execute a task async.
+     * @param target Counter to decrement when this job finishes.
+     * @param task Entry point invoked when executed.
      */
-    void Execute(JobCounter& counter, const JobTask& task) noexcept;
+    void Execute(JobCounter& target, const JobTask& task) noexcept;
 
     /**
      * Create a set of jobs and distribute work among the available threads.
+     * @param target Counter to decrement when a group job finishes.
      * @param count Total number of jobs to dispatch.
      * @param groupSize Number of jobs to pass as a group to each thread.
+     * @param task Entry point invoked when the job runs.
      * @return The number of actual jobs groups created.
      */
-    uint32_t Dispatch(JobCounter& counter, uint32_t count, uint32_t groupSize, const JobTask& task) noexcept;
+    uint32_t Dispatch(JobCounter& target, uint32_t count, uint32_t groupSize, const JobTask& task) noexcept;
     
     /**
      * Create a set of jobs and distribute work among the available threads.
      * Will block until all jobs are executed.
      * @param count Total number of jobs to dispatch.
      * @param groupSize Number of jobs to pass as a group to each thread.
+     * @param task Entry point invoked when the job runs.
      * @return The number of actual jobs groups created.
      */
     uint32_t Dispatch(uint32_t count, uint32_t groupSize, const JobTask& task) noexcept;
     
     /**
-     * Check of the jobsystem is still working on jobs in the counter.
      * @return True if the counter has reached zero.
+     * @param counter Counter to wait on.
      */
     bool IsFinished(const JobCounter& counter) noexcept;
 
     /**
      * @brief Blocks until counter reaches zero.
+     * @param target Counter to wait on.
      */
-    void Wait(const JobCounter& counter) noexcept;
+    void Wait(const JobCounter& target) noexcept;
 }

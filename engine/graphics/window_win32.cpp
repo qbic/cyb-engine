@@ -168,7 +168,6 @@ namespace cyb
     {
         switch (msg)
         {
-
         case WM_SIZE:
         {
             if (wParam == SIZE_MINIMIZED)
@@ -203,19 +202,19 @@ namespace cyb
 
     static LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        // During CreateWindowExW, before GWLP_USERDATA is set,
+        // during CreateWindowExW, before GWLP_USERDATA is set,
         // some messages (WM_CREATE, WM_NCCREATE…) arrive with a null pointer,
         // so don't assume a valid pointer!
         auto* window = reinterpret_cast<ClientWindow*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
         if (window)
             window->HandleMessage(msg, wParam, lParam);
 
-        // If imgui takes an input from the user we need to return
+        // if imgui takes an input from the user we need to return
         // so that it doesen't follow though to the game.
         if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
             return true;
 
-        // Handle some (possibly) early window events excplicitly here.
+        // handle some (possibly) early window events excplicitly here.
         switch (msg)
         {
         case WM_NCCREATE:

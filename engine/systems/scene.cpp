@@ -735,7 +735,7 @@ void Scene::RunLightUpdateSystem(jobsystem::JobCounter& ctx)
 {
     aabb_lights.resize(lights.Size());
 
-    jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), r_sceneSubtaskGroupsize.GetValue(), [&] (const jobsystem::JobArgs& args) {
+    jobsystem::Dispatch(ctx, (uint32_t)lights.Size(), r_sceneSubtaskGroupsize.GetValue(), [&](const jobsystem::JobArgs& args) {
         LightComponent& light = lights[args.jobIndex];
         const ecs::Entity entity = lights.GetEntity(args.jobIndex);
         if (!transforms.Contains(entity))

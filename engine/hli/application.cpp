@@ -67,12 +67,13 @@ namespace cyb::hli
 
     void Application::UpdateLoop()
     {
-        do 
+        for (;;)
         {
             // Update input state and poll window events
-            input::Update(m_window.GetNativeHandle());
+            if (m_window.IsActive())
+                input::Update(m_window.GetNativeHandle());
             if (!m_window.PollEvents())
-                break;
+                break;  // window is requesting to close
 
             const float dt = m_timer.RecordElapsedSeconds();
 
@@ -111,8 +112,8 @@ namespace cyb::hli
             m_graphicsDevice->EndRenderPass(cmd);
 
             profiler::EndFrame(cmd);
-            m_graphicsDevice->ExecuteCommandLists();
-        } while (true);
+            m_graphicsDevice->SubmitCommandLists();
+        }
     }
 
     void Application::Update(double dt)

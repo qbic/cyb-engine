@@ -1,10 +1,10 @@
+#include "core/logger.h"
+#include "core/sys.h"
+#include "input/input_raw.h"
 #include <array>
 #include <windows.h>
 #include <hidsdi.h>
 #include <malloc.h>
-#include "core/logger.h"
-#include "core/sys.h"
-#include "input/input_raw.h"
 
 #pragma comment(lib, "Hid.lib")
 
@@ -20,15 +20,12 @@ namespace cyb::input::rawinput
 
     void Init(NativeWindowHandle window) noexcept
     {
+        // register mouse (0) and keyboard (1)
         std::array<RAWINPUTDEVICE, 2> rid{};
-
-        // Register mouse:
         rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
         rid[0].usUsage = HID_USAGE_GENERIC_MOUSE;
         rid[0].dwFlags = RIDEV_INPUTSINK;
         rid[0].hwndTarget = window;
-
-        // Register keyboard:
         rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
         rid[1].usUsage = HID_USAGE_GENERIC_KEYBOARD;
         rid[1].dwFlags = RIDEV_INPUTSINK;
@@ -37,7 +34,7 @@ namespace cyb::input::rawinput
         if (RegisterRawInputDevices(rid.data(), (UINT)rid.size(), sizeof(rid[0])) == FALSE)
             Panicf("RegisterRawInputDevices failed: {}", GetLastError());
 
-        // Hook in InputWindowProc to the global proc
+        // hook in InputWindowProc to the global window proc
         g_WindowProc = InputWindowProc;
     }
 
@@ -167,10 +164,10 @@ namespace cyb::input::rawinput
         {
         case WM_INPUT:
         {
-            UINT dwSize{ 0 };
+            UINT dwSize = 0;
             GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
-
-            std::byte* lpb = (std::byte*)alloca(dwSize);
+            
+            std::byte* lpb = (std::byte*)_malloca(dwSize);
             if (lpb == nullptr)
             {
                 CYB_WARNING("InputWindowProc: Failed to allocate {} bytes on the stack! Dropping input event.", dwSize);
@@ -182,9 +179,10 @@ namespace cyb::input::rawinput
                 
             const RAWINPUT* raw = (const RAWINPUT*)lpb;
             ParseRawInputBlock(g_keyboard, g_mouse, *raw);
+            _freea(lpb);
         } break;
         }
-
+        
         return DefWindowProcW(hWnd, msg, wParam, lParam);
     }
 

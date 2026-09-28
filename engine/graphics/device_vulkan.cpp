@@ -356,15 +356,14 @@ namespace cyb::rhi::vulkan_internal
         VkSwapchainKHR swapchain = VK_NULL_HANDLE;
         VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
         VkExtent2D swapchainExtent{};
-        std::vector<VkImage> swapchainImages;
-        std::vector<VkImageView> swapchainImageViews;
+        std::vector<std::shared_ptr<Texture_Vulkan>> textures;
 
         VkSurfaceKHR surface = VK_NULL_HANDLE;
 
         uint32_t swapchainImageIndex = 0;
         uint32_t swapchainAcquireSemaphoreIndex = 0;
         std::vector<VkSemaphore> swapchainAcquireSemaphores;
-        VkSemaphore swapchainReleaseSemaphore = VK_NULL_HANDLE;
+        std::vector<VkSemaphore> swapchainReleaseSemaphores;
 
         SwapchainDesc desc;
         std::mutex locker;
@@ -376,15 +375,14 @@ namespace cyb::rhi::vulkan_internal
             allocationhandler->destroylocker.lock();
             uint64_t framecount = allocationhandler->framecount;
 
-            for (size_t i = 0; i < swapchainImages.size(); ++i)
+            for (size_t i = 0; i < swapchainAcquireSemaphores.size(); ++i)
             {
-                allocationhandler->destroyer_imageviews.push_back(std::make_pair(swapchainImageViews[i], framecount));
                 allocationhandler->destroyer_semaphores.push_back(std::make_pair(swapchainAcquireSemaphores[i], framecount));
+                allocationhandler->destroyer_semaphores.push_back(std::make_pair(swapchainReleaseSemaphores[i], framecount));
             }
 
             allocationhandler->destroyer_swapchains.push_back(std::make_pair(swapchain, framecount));
             allocationhandler->destroyer_surfaces.push_back(std::make_pair(surface, framecount));
-            allocationhandler->destroyer_semaphores.push_back(std::make_pair(swapchainReleaseSemaphore, framecount));
             allocationhandler->destroylocker.unlock();
         }
     };
@@ -515,20 +513,24 @@ namespace cyb::rhi::vulkan_internal
         VK_CHECK(vkCreateSwapchainKHR(device, &createInfo, nullptr, &internal_state->swapchain));
 
         if (createInfo.oldSwapchain != VK_NULL_HANDLE)
+        {
+            std::lock_guard lock{ allocationHandler->destroylocker };
             vkDestroySwapchainKHR(device, createInfo.oldSwapchain, nullptr);
+        }
 
-        vkGetSwapchainImagesKHR(device, internal_state->swapchain, &imageCount, nullptr);
-        internal_state->swapchainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(device, internal_state->swapchain, &imageCount, internal_state->swapchainImages.data());
+        VK_CHECK(vkGetSwapchainImagesKHR(device, internal_state->swapchain, &imageCount, nullptr));
+        std::array<VkImage, 32> swapchainImages{};
+        assert(swapchainImages.size() >= imageCount);
+        VK_CHECK(vkGetSwapchainImagesKHR(device, internal_state->swapchain, &imageCount, swapchainImages.data()));
         internal_state->swapchainImageFormat = surfaceFormat.format;
 
-        // Create swap chain render targets:
-        internal_state->swapchainImageViews.resize(internal_state->swapchainImages.size());
-        for (size_t i = 0; i < internal_state->swapchainImages.size(); ++i)
+        // create swapchain render targets
+        internal_state->textures.resize(imageCount);
+        for (size_t i = 0; i < imageCount; ++i)
         {
             VkImageViewCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            createInfo.image = internal_state->swapchainImages[i];
+            createInfo.image = swapchainImages[i];
             createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
             createInfo.format = internal_state->swapchainImageFormat;
             createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -541,27 +543,61 @@ namespace cyb::rhi::vulkan_internal
             createInfo.subresourceRange.baseArrayLayer = 0;
             createInfo.subresourceRange.layerCount = 1;
 
-            if (internal_state->swapchainImageViews[i] != VK_NULL_HANDLE)
+            if (internal_state->textures[i] != nullptr)
             {
                 allocationHandler->destroylocker.lock();
-                allocationHandler->destroyer_imageviews.push_back(std::make_pair(internal_state->swapchainImageViews[i], allocationHandler->framecount));
+                internal_state->textures[i]->rtv = {};
+                internal_state->textures[i]->srv = {};
                 allocationHandler->destroylocker.unlock();
+            } 
+            else
+            {
+                internal_state->textures[i] = std::make_shared<Texture_Vulkan>();
+                internal_state->textures[i]->allocationHandler = allocationHandler;
             }
 
-            VK_CHECK(vkCreateImageView(device, &createInfo, nullptr, &internal_state->swapchainImageViews[i]));
+            internal_state->textures[i]->resource = swapchainImages[i];
+            //internal_state->textures[i]->defaultLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            VK_CHECK(vkCreateImageView(device, &createInfo, nullptr, &internal_state->textures[i]->rtv.imageView));
+            VK_CHECK(vkCreateImageView(device, &createInfo, nullptr, &internal_state->textures[i]->srv.imageView));
         }
 
         VkSemaphoreCreateInfo semaphoreInfo{};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
+        // safety release of current swapchain semaphores that might still be working, since this could have been called mid-frame:
+        allocationHandler->destroylocker.lock();
+        for (auto& x : internal_state->swapchainAcquireSemaphores)
+        {
+            allocationHandler->destroyer_semaphores.push_back(std::make_pair(x, allocationHandler->framecount));
+        }
+        internal_state->swapchainAcquireSemaphores.clear();
+        for (auto& x : internal_state->swapchainReleaseSemaphores)
+        {
+            allocationHandler->destroyer_semaphores.push_back(std::make_pair(x, allocationHandler->framecount));
+        }
+        internal_state->swapchainReleaseSemaphores.clear();
+        allocationHandler->destroylocker.unlock();
+
+        internal_state->swapchainAcquireSemaphoreIndex = 0;
+        internal_state->swapchainImageIndex = 0;
+
         if (internal_state->swapchainAcquireSemaphores.empty())
         {
-            for (size_t i = 0; i < internal_state->swapchainImages.size(); ++i)
+            for (size_t i = 0; i < internal_state->textures.size(); ++i)
+            {
                 VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->swapchainAcquireSemaphores.emplace_back()));
+            }
         }
 
-        if (internal_state->swapchainReleaseSemaphore == VK_NULL_HANDLE)
-            VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->swapchainReleaseSemaphore));
+        if (internal_state->swapchainReleaseSemaphores.empty())
+        {
+            for (size_t i = 0; i < internal_state->textures.size(); ++i)
+            {
+                VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &internal_state->swapchainReleaseSemaphores.emplace_back()));
+            }
+        }
 
         return true;
     }
@@ -669,7 +705,7 @@ namespace cyb::rhi
         VkSemaphoreSubmitInfo copyQueueSignalInfo = {};
         copyQueueSignalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
 
-        std::scoped_lock lock{ locker };
+        std::lock_guard lock{ locker };
 
         {
             auto& queue = device->GetQueue(QueueType::Transfer);
@@ -2748,12 +2784,12 @@ namespace cyb::rhi
 
     uint64_t Queue_Vulkan::Submit(VkFence fence)
     {
-        std::scoped_lock lock{ m_mutex };
+        std::lock_guard lock{ m_mutex };
 
         // signal the tracking semaphore with the last submitted ID to mark 
         // the end of the frame
-        lastSubmittedID++;
-        AddSignalSemaphore(trackingSemaphore, lastSubmittedID);
+        const uint64_t submissionID = ++lastSubmittedID;
+        AddSignalSemaphore(trackingSemaphore, submissionID);
 
         VkSubmitInfo2 submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
@@ -2786,7 +2822,7 @@ namespace cyb::rhi
             swapchainImageIndices.clear();
         }
 
-        return lastSubmittedID;
+        return submissionID;
     }
 
     Queue_Vulkan& GraphicsDevice_Vulkan::GetQueue(QueueType queueType)
@@ -2794,9 +2830,9 @@ namespace cyb::rhi
         return queues[Numerical(queueType)];
     }
 
-    void GraphicsDevice_Vulkan::ExecuteCommandLists()
+    void GraphicsDevice_Vulkan::SubmitCommandLists()
     {
-        // Submit current frame:
+        // Submit current frame
         {
             const uint32_t cmd_last = m_cmdCount;
             m_cmdCount = 0;
@@ -2824,7 +2860,7 @@ namespace cyb::rhi
 
                     VkSemaphoreSubmitInfo& signalSemaphore = queue.submit_signalSemaphoreInfos.emplace_back();
                     signalSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-                    signalSemaphore.semaphore = internal_state->swapchainReleaseSemaphore;
+                    signalSemaphore.semaphore = internal_state->swapchainReleaseSemaphores[internal_state->swapchainImageIndex];
                     signalSemaphore.value = 0; // not a timeline semaphore
                     signalSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
@@ -2873,35 +2909,33 @@ namespace cyb::rhi
         frameCount++;
 
         // Begin next frame:
+        if (frameCount >= BUFFERCOUNT)
         {
-            if (frameCount >= BUFFERCOUNT)
+            std::array<VkSemaphore, Numerical(QueueType::Count)> waitSemaphores{};
+            std::array<uint64_t, Numerical(QueueType::Count)> waitValues{};
+            uint32_t waitSemaphoreCount = 0;
+
+            for (auto& queue : queues)
             {
-                std::array<VkSemaphore, Numerical(QueueType::Count)> waitSemaphores{};
-                std::array<uint64_t, Numerical(QueueType::Count)> waitValues{};
-                uint32_t waitSemaphoreCount = 0;
+                if (queue.lastSubmittedID < BUFFERCOUNT)
+                    continue;
 
-                for (auto& queue : queues)
+                waitSemaphores[waitSemaphoreCount] = queue.trackingSemaphore;
+                waitValues[waitSemaphoreCount] = queue.lastSubmittedID - BUFFERCOUNT + 1;
+                ++waitSemaphoreCount;
+            }
+            if (waitSemaphoreCount > 0)
+            {
+                VkSemaphoreWaitInfo waitInfo = {};
+                waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+                waitInfo.semaphoreCount = waitSemaphoreCount;
+                waitInfo.pSemaphores = waitSemaphores.data();
+                waitInfo.pValues = waitValues.data();
+
+                while (VK_CHECK(vkWaitSemaphores(device, &waitInfo, timeoutValue)) == VK_TIMEOUT)
                 {
-                    if (queue.lastSubmittedID < BUFFERCOUNT)
-                        continue;
-
-                    waitSemaphores[waitSemaphoreCount] = queue.trackingSemaphore;
-                    waitValues[waitSemaphoreCount] = queue.lastSubmittedID - BUFFERCOUNT + 1;
-                    ++waitSemaphoreCount;
-                }
-                if (waitSemaphoreCount > 0)
-                {
-                    VkSemaphoreWaitInfo waitInfo = {};
-                    waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
-                    waitInfo.semaphoreCount = waitSemaphoreCount;
-                    waitInfo.pSemaphores = waitSemaphores.data();
-                    waitInfo.pValues = waitValues.data();
-
-                    while (VK_CHECK(vkWaitSemaphores(device, &waitInfo, timeoutValue)) == VK_TIMEOUT)
-                    {
-                        CYB_ERROR("[SubmitCommandLists] vkWaitSemaphores resulted in VK_TIMEOUT");
-                        std::this_thread::yield();
-                    }
+                    CYB_ERROR("[SubmitCommandLists] vkWaitSemaphores resulted in VK_TIMEOUT");
+                    std::this_thread::yield();
                 }
             }
         }
@@ -2963,9 +2997,8 @@ namespace cyb::rhi
         commandlist.renderpassBarriersEnd.clear();
         auto internal_state = ToInternal(swapchain);
 
-        internal_state->swapchainAcquireSemaphoreIndex = (internal_state->swapchainAcquireSemaphoreIndex + 1) % internal_state->swapchainAcquireSemaphores.size();
-
         internal_state->locker.lock();
+        internal_state->swapchainAcquireSemaphoreIndex = (internal_state->swapchainAcquireSemaphoreIndex + 1) % internal_state->swapchainAcquireSemaphores.size();
         VkResult res = vkAcquireNextImageKHR(
             device,
             internal_state->swapchain,
@@ -3011,9 +3044,9 @@ namespace cyb::rhi
         info.renderArea.extent.height = swapchain->desc.height;
         info.layerCount = 1;
 
-        VkRenderingAttachmentInfo color_attachment = {};
+        VkRenderingAttachmentInfo color_attachment{};
         color_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        color_attachment.imageView = internal_state->swapchainImageViews[internal_state->swapchainImageIndex];
+        color_attachment.imageView = internal_state->textures[internal_state->swapchainImageIndex]->rtv.imageView;
         color_attachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -3027,7 +3060,7 @@ namespace cyb::rhi
 
         VkImageMemoryBarrier2 barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-        barrier.image = internal_state->swapchainImages[internal_state->swapchainImageIndex];
+        barrier.image = internal_state->textures[internal_state->swapchainImageIndex]->resource;
         barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;

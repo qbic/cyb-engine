@@ -82,10 +82,10 @@ namespace cyb::input
 
         MouseButton buttons[2]{ MouseButton::None };
         MouseButton currentButtonState{ MouseButton::None };
-        uint8_t activeButtonIndex{ 0 };
+        uint8_t activeButtonIndex = 0;
         Vec2 pointerPosition{ 0.0f, 0.0f };
         Vec2 pointerDelta{ 0.0f, 0.0f };
-        float wheelDelta{ 0.0f };
+        float wheelDelta = 0.0f;
     };
 
     /** Initialize all the needed subsystem used by input. */
@@ -93,7 +93,9 @@ namespace cyb::input
 
     /**
      * Update the states of all input devices.
-     * Call this once per frame (before processing new input events).
+     * This should be called once each frame.
+     * Ensure ClientWindow::PollEvents() is called AFTER this
+     * sence this resets pointer delta to zero.
      */
     void Update(NativeWindowHandle window) noexcept;
 

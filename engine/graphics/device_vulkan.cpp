@@ -434,6 +434,8 @@ namespace cyb::rhi::vulkan_internal
         VkDevice device,
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationHandler)
     {
+        std::lock_guard lcok{ internal_state->locker };
+
         VkSurfaceCapabilitiesKHR capabilities{};
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, internal_state->surface, &capabilities);
 
@@ -515,6 +517,7 @@ namespace cyb::rhi::vulkan_internal
         if (createInfo.oldSwapchain != VK_NULL_HANDLE)
         {
             std::lock_guard lock{ allocationHandler->destroylocker };
+            VK_CHECK(vkDeviceWaitIdle(device));
             vkDestroySwapchainKHR(device, createInfo.oldSwapchain, nullptr);
         }
 
@@ -1574,7 +1577,7 @@ namespace cyb::rhi
         if (internal_state->surface == VK_NULL_HANDLE)
         {
 #ifdef _WIN32
-            VkWin32SurfaceCreateInfoKHR create_info = {};
+            VkWin32SurfaceCreateInfoKHR create_info{};
             create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
             create_info.hwnd = window;
             create_info.hinstance = GetModuleHandle(nullptr);
@@ -2893,18 +2896,18 @@ namespace cyb::rhi
         // NOTES: 
         //  - it disables overlapping queues into the next frame
         //  - it's not submitted immediately here, but the waits are recorded before next frame submits
-        for (int queue1 = 0; queue1 < Numerical(QueueType::Count); ++queue1)
-        {
-            if (queues[queue1].queue == nullptr)
-                continue;
-            for (int queue2 = 0; queue2 < Numerical(QueueType::Count); ++queue2)
-            {
-                if (queue1 == queue2)
-                    continue;
-
-                queues[queue1].AddWaitSemaphore(queues[queue2].trackingSemaphore, queues[queue2].lastSubmittedID);
-            }
-        }
+        //for (int queue1 = 0; queue1 < Numerical(QueueType::Count); ++queue1)
+        //{
+        //    if (queues[queue1].queue == nullptr)
+        //        continue;
+        //    for (int queue2 = 0; queue2 < Numerical(QueueType::Count); ++queue2)
+        //    {
+        //        if (queue1 == queue2)
+        //            continue;
+        //
+        //        queues[queue1].AddWaitSemaphore(queues[queue2].trackingSemaphore, queues[queue2].lastSubmittedID);
+        //    }
+        //}
 
         frameCount++;
 

@@ -1,5 +1,4 @@
 /**
- * 
  * @mainpage cyb::jobsystem - work-stealing job system
  *
  * Runs a fixed pool of worker threads (hardware threads minus one, capped at 63).

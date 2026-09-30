@@ -627,7 +627,7 @@ namespace cyb::rhi
     {
     protected:
         static constexpr uint32_t BUFFERCOUNT = 2;
-        static constexpr bool VALIDATION_MODE_ENABLED = false;
+        static constexpr bool VALIDATION_MODE_ENABLED = true;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 

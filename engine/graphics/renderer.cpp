@@ -19,24 +19,25 @@ namespace cyb::renderer
 
     CVar<bool> r_debugObjectAABB{ "r_debugObjectAABB", false, CVarFlag::RendererBit, "Render AABB of all objects in the scene" };
     CVar<bool> r_debugLightSources{ "r_debugLightSources", false, CVarFlag::RendererBit, "Render icon and AABB of all light sources" };
-    
-    Shader shaders[SHADERTYPE_COUNT];
-    GPUBuffer constantbuffers[CBTYPE_COUNT];
-    Sampler samplerStates[SSLOT_COUNT] = {};
-    VertexInputLayout input_layouts[VLTYPE_COUNT] = {};
-    RasterizerState rasterizers[RSTYPE_COUNT];
-    DepthStencilState depth_stencils[DSSTYPE_COUNT];
+	CVar<float> r_gamme{ "r_gamma", 2.2f, 1.0f, 3.0f, CVarFlag::RendererBit, "Gamma correction value" };
 
-    PipelineState psoMaterial[MaterialComponent::Shadertype_Count];
-    PipelineState psoOutline;
-    PipelineState psoSky;
+    std::array<ShaderHandle, SHADERTYPE_COUNT> shaders{};
+    std::array<BufferHandle, CBTYPE_COUNT> constantbuffers{};
+    std::array<SamplerHandle, SSLOT_COUNT> samplerStates{};
+    std::array<VertexInputLayout, VLTYPE_COUNT> input_layouts{};
+    std::array<RasterizerState, RSTYPE_COUNT> rasterizers{};
+    std::array<DepthStencilState, DSSTYPE_COUNT> depth_stencils{};
+
+    std::array<PipelineStateHandle, MaterialComponent::Shadertype_Count> psoMaterial{};
+    PipelineStateHandle psoOutline;
+    PipelineStateHandle psoSky;
 
     enum DEBUGRENDERING
     {
         DEBUGRENDERING_CUBE,
         DEBUGRENDERING_COUNT
     };
-    PipelineState pso_debug[DEBUGRENDERING_COUNT];
+    std::array<PipelineStateHandle, DEBUGRENDERING_COUNT> pso_debug{};
 
     enum BUILTIN_TEXTURES
     {
@@ -44,43 +45,42 @@ namespace cyb::renderer
         BUILTIN_TEXTURE_DIRLIGHT,
         BUILTIN_TEXTURE_COUNT
     };
-    Resource builtin_textures[BUILTIN_TEXTURE_COUNT];
+    std::array<Resource, BUILTIN_TEXTURE_COUNT> builtin_textures{};
 
-    std::string SHADERPATHS[] = {
+	// paths has to be '/' terminated!
+    constexpr std::array SHADERPATHS = std::to_array<std::string_view>({
         "../engine/shaders/",   // on dev
         "engine/shaders/"       // on release
-    };
+    });
 
-    float GAMMA = 2.2f;
-
-    const Shader* GetShader(SHADERTYPE id)
+    const IShader* GetShader(SHADERTYPE id)
     {
-        assert(id < SHADERTYPE_COUNT);
-        return &shaders[id];
+        assert(id < shaders.size());
+        return shaders[id];
     }
 
-    const Sampler* GetSamplerState(SSLOT id)
+    const ISampler* GetSamplerState(SSLOT id)
     {
-        assert(id < SSLOT_COUNT);
-        return &samplerStates[id];
+        assert(id < samplerStates.size());
+        return samplerStates[id];
     }
 
     const rhi::RasterizerState* GetRasterizerState(RSTYPES id)
     {
-        assert(id < RSTYPE_COUNT);
+        assert(id < rasterizers.size());
         return &rasterizers[id];
     }
 
     const rhi::DepthStencilState* GetDepthStencilState(DSSTYPES id)
     {
-        assert(id < DSSTYPE_COUNT);
+        assert(id < depth_stencils.size());
         return &depth_stencils[id];
     }
 
     void LoadBuffers(jobsystem::JobCounter& ctx)
     {
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
-            GPUBufferDesc desc;
+            BufferDesc desc;
             desc.usage = BufferUsage::ConstantBufferBit;
 
             //
@@ -89,13 +89,13 @@ namespace cyb::renderer
             desc.cpuAccess = CpuAccessMode::None;
             desc.size = sizeof(FrameConstants);
             desc.stride = 0;
-            device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_FRAME]);
-            device->SetName(&constantbuffers[CBTYPE_FRAME], "constantbuffers[CBTYPE_FRAME]");
+            desc.debugName = "constantbuffers[CBTYPE_FRAME]";
+            constantbuffers[CBTYPE_FRAME] = device->CreateBuffer(&desc, nullptr);
 
             desc.size = sizeof(CameraConstants);
             desc.stride = 0;
-            device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_CAMERA]);
-            device->SetName(&constantbuffers[CBTYPE_CAMERA], "constantbuffers[CBTYPE_CAMERA]");
+			desc.debugName = "constantbuffers[CBTYPE_CAMERA]";
+            constantbuffers[CBTYPE_CAMERA] = device->CreateBuffer(&desc, nullptr);
 
             //
             // DYNAMIC usage buffers (short lifetime, fast update, slow read)
@@ -103,20 +103,20 @@ namespace cyb::renderer
             desc.cpuAccess = CpuAccessMode::None;
             desc.size = sizeof(MaterialCB);
             desc.stride = 0;
-            device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_MATERIAL]);
-            device->SetName(&constantbuffers[CBTYPE_MATERIAL], "constantbuffers[CBTYPE_MATERIAL]");
+            desc.debugName = "constantbuffers[CBTYPE_MATERIAL]";
+            constantbuffers[CBTYPE_MATERIAL] = device->CreateBuffer(&desc, nullptr);
 
             desc.size = sizeof(ImageConstants);
-            device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_IMAGE]);
-            device->SetName(&constantbuffers[CBTYPE_IMAGE], "constantbuffers[CBTYPE_IMAGE]");
+            desc.debugName = "constantbuffers[CBTYPE_IMAGE]";
+            constantbuffers[CBTYPE_IMAGE] = device->CreateBuffer(&desc, nullptr);
 
             desc.size = sizeof(MiscCB);
-            device->CreateBuffer(&desc, nullptr, &constantbuffers[CBTYPE_MISC]);
-            device->SetName(&constantbuffers[CBTYPE_MISC], "constantbuffers[CBTYPE_MISC]");
+            desc.debugName = "constantbuffers[CBTYPE_MISC]";
+            constantbuffers[CBTYPE_MISC] = device->CreateBuffer(&desc, nullptr);
         });
     }
 
-    bool LoadShader(ShaderType stage, Shader& shader, const std::string& filename)
+    ShaderHandle LoadShader(ShaderType stage, const std::string& filename)
     {
         std::string shaderpath{};
         for (const auto& path : SHADERPATHS)
@@ -131,7 +131,7 @@ namespace cyb::renderer
         std::string fullPath = shaderpath + filename;
         std::vector<uint8_t> fileData;
         if (!filesystem::ReadFile(fullPath, fileData))
-            return false;
+            return nullptr;
 
         if (!filesystem::HasExtension(filename, "spv"))
         {
@@ -148,73 +148,83 @@ namespace cyb::renderer
             if (!output.has_value())
             {
                 CYB_ERROR("Failed to compile shader (filename={0}):\n{1}", filename, output.error());
-                return false;
+                return nullptr;
             }
 
-            if (!device->CreateShader(stage, output->shader.data(), output->shader.size(), &shader))
-                return false;
+			ShaderDesc shaderDesc{};
+			shaderDesc.stage = stage;
+			shaderDesc.format = ShaderFormat::SpirV;
+			shaderDesc.bytecode = output->shader.data();
+			shaderDesc.bytecodeLength = output->shader.size();
+			shaderDesc.debugName = filename;
 
-            device->SetName(&shader, filename.c_str());
-            return true;
+            return device->CreateShader(&shaderDesc);
         }
 
-        return device->CreateShader(stage, fileData.data(), fileData.size(), &shader);
+        ShaderDesc shaderDesc{};
+        shaderDesc.stage = stage;
+        shaderDesc.format = ShaderFormat::GLSL;
+        shaderDesc.bytecode = fileData.data();
+        shaderDesc.bytecodeLength = fileData.size();
+		shaderDesc.debugName = filename;
+
+        return device->CreateShader(&shaderDesc);
     }
 
     static void LoadSamplerStates()
     {
-        SamplerDesc desc;
+        SamplerDesc desc{};
         desc.maxAnisotropy = 1.0f;
         desc.borderColor = XMFLOAT4(0, 0, 0, 0);
         desc.lodBias = 0.0f;
         desc.minLOD = 0.0f;
         desc.maxLOD = FLT_MAX;
 
-        // Point filtering states
+		// point filtering states
         desc.filter = Filtering::None;
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_WRAP]);
+        samplerStates[SSLOT_POINT_WRAP] = device->CreateSampler(&desc);
 
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Mirror;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_MIRROR]);
+        samplerStates[SSLOT_POINT_MIRROR] = device->CreateSampler(&desc);
 
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Clamp;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_POINT_CLAMP]);
+        samplerStates[SSLOT_POINT_CLAMP] = device->CreateSampler(&desc);
 
-        // BiLinear filtering states
+        // bilinear filtering states
         desc.filter = Filtering::Min | Filtering::Mag;
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_WRAP]);
+        samplerStates[SSLOT_BILINEAR_WRAP] = device->CreateSampler(&desc);
 
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Mirror;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_MIRROR]);
+        samplerStates[SSLOT_BILINEAR_MIRROR] = device->CreateSampler(&desc);
 
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Clamp;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_BILINEAR_CLAMP]);
+        samplerStates[SSLOT_BILINEAR_CLAMP] = device->CreateSampler(&desc);
 
-        // TriLinear filtering states
+        // trilinear filtering states
         desc.filter = Filtering::Min | Filtering::Mag | Filtering::Mip;
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_WRAP]);
+        samplerStates[SSLOT_TRILINEAR_WRAP] = device->CreateSampler(&desc);
 
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Mirror;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_MIRROR]);
+        samplerStates[SSLOT_TRILINEAR_MIRROR] = device->CreateSampler(&desc);
 
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Clamp;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_TRILINEAR_CLAMP]);
+        samplerStates[SSLOT_TRILINEAR_CLAMP] = device->CreateSampler(&desc);
 
-        // Anisotropic filtering states
+        // anisotropic filtering states
         desc.filter = Filtering::Min | Filtering::Mag | Filtering::Mip;
         desc.maxAnisotropy = 16.0f;
 
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Wrap;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_WRAP]);
+        samplerStates[SSLOT_ANISO_WRAP] = device->CreateSampler(&desc);
 
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Mirror;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_MIRROR]);
+        samplerStates[SSLOT_ANISO_MIRROR] = device->CreateSampler(&desc);
 
         desc.addressU = desc.addressV = desc.addressW = SamplerAddressMode::Clamp;
-        device->CreateSampler(&desc, &samplerStates[SSLOT_ANISO_CLAMP]);
+        samplerStates[SSLOT_ANISO_CLAMP] = device->CreateSampler(&desc);
     }
 
     static void LoadBuiltinTextures(jobsystem::JobCounter& ctx)
@@ -225,44 +235,47 @@ namespace cyb::renderer
 
     static void LoadShaders()
     {
-        jobsystem::JobCounter ctx = {};
+        jobsystem::JobCounter jobCount{};
 
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
+        // vertex shaders
+        jobsystem::Execute(jobCount, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_FLAT_SHADING] =
             {
                 { "in_position", 0, scene::MeshComponent::Vertex_Pos::FORMAT },
                 { "in_color",    1, scene::MeshComponent::Vertex_Col::FORMAT }
             };
-            LoadShader(ShaderType::Vertex, shaders[VSTYPE_FLAT_SHADING], "flat_shader.vert");
+            shaders[VSTYPE_FLAT_SHADING] = LoadShader(ShaderType::Vertex, "flat_shader.vert");
         });
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
+        jobsystem::Execute(jobCount, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_SKY] =
             {
                 { "in_pos",   0, scene::MeshComponent::Vertex_Pos::FORMAT }
             };
-            LoadShader(ShaderType::Vertex, shaders[VSTYPE_SKY], "sky.vert");
+            shaders[VSTYPE_SKY] = LoadShader(ShaderType::Vertex, "sky.vert");
         });
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) {
+        jobsystem::Execute(jobCount, [] (jobsystem::JobArgs) {
             input_layouts[VLTYPE_DEBUG_LINE] =
             {
                 { "in_position", 0, Format::RGBA32_FLOAT },
                 { "in_color",    0, Format::RGBA32_FLOAT }
             };
-            LoadShader(ShaderType::Vertex, shaders[VSTYPE_DEBUG_LINE], "debug_line.vert");
+            shaders[VSTYPE_DEBUG_LINE] = LoadShader(ShaderType::Vertex, "debug_line.vert");
         });
 
-        jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { LoadShader(ShaderType::Vertex, shaders[VSTYPE_POSTPROCESS], "postprocess.vert"); });
+        jobsystem::Execute(jobCount, [] (jobsystem::JobArgs) { shaders[VSTYPE_POSTPROCESS] = LoadShader(ShaderType::Vertex, "postprocess.vert"); });
 
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Geometry, shaders[GSTYPE_FLAT_SHADING], "flat_shader.geom"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Geometry, shaders[GSTYPE_FLAT_DISNEY_SHADING], "flat_shader_disney.geom"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Geometry, shaders[GSTYPE_FLAT_UNLIT], "flat_shader_unlit.geom"); });
+        // geometry shaders
+        jobsystem::Execute(jobCount, [](jobsystem::JobArgs) { shaders[GSTYPE_FLAT_SHADING] = LoadShader(ShaderType::Geometry, "flat_shader.geom"); });
+        jobsystem::Execute(jobCount, [](jobsystem::JobArgs) { shaders[GSTYPE_FLAT_DISNEY_SHADING] = LoadShader(ShaderType::Geometry, "flat_shader_disney.geom"); });
+        jobsystem::Execute(jobCount, [](jobsystem::JobArgs) { shaders[GSTYPE_FLAT_UNLIT] = LoadShader(ShaderType::Geometry, "flat_shader_unlit.geom"); });
 
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Pixel, shaders[FSTYPE_FLAT_SHADING], "flat_shader.frag"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Pixel, shaders[FSTYPE_SKY], "sky.frag"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Pixel, shaders[FSTYPE_POSTPROCESS_OUTLINE], "outline.frag"); });
-        jobsystem::Execute(ctx, [](jobsystem::JobArgs) { LoadShader(ShaderType::Pixel, shaders[FSTYPE_DEBUG_LINE], "debug_line.frag"); });
+		// pixel shaders
+        jobsystem::Execute(jobCount, [](jobsystem::JobArgs) { shaders[FSTYPE_FLAT_SHADING] = LoadShader(ShaderType::Pixel, "flat_shader.frag"); });
+        jobsystem::Execute(jobCount, [](jobsystem::JobArgs) { shaders[FSTYPE_SKY] = LoadShader(ShaderType::Pixel, "sky.frag"); });
+        jobsystem::Execute(jobCount, [](jobsystem::JobArgs) { shaders[FSTYPE_POSTPROCESS_OUTLINE] = LoadShader(ShaderType::Pixel, "outline.frag"); });
+        jobsystem::Execute(jobCount, [](jobsystem::JobArgs) { shaders[FSTYPE_DEBUG_LINE] = LoadShader(ShaderType::Pixel, "debug_line.frag"); });
 
-        jobsystem::Wait(ctx);
+        jobsystem::Wait(jobCount);
 
         {
             DepthStencilState dsd;
@@ -334,7 +347,7 @@ namespace cyb::renderer
 
         {
             // MaterialComponent::Shadertype_BDRF
-            PipelineStateDesc desc;
+            PipelineStateDesc desc{};
             desc.vs = GetShader(VSTYPE_FLAT_SHADING);
             desc.gs = GetShader(GSTYPE_FLAT_SHADING);
             desc.ps = GetShader(FSTYPE_FLAT_SHADING);
@@ -342,11 +355,11 @@ namespace cyb::renderer
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
             desc.pt = PrimitiveTopology::TriangleList;
-            device->CreatePipelineState(&desc, &psoMaterial[MaterialComponent::Shadertype_BDRF]);
+            psoMaterial[MaterialComponent::Shadertype_BDRF] = device->CreatePipelineState(&desc);
         }
         {
             // MaterialComponent::Shadertype_Disney_BDRF
-            PipelineStateDesc desc;
+            PipelineStateDesc desc{};
             desc.vs = GetShader(VSTYPE_FLAT_SHADING);
             desc.gs = GetShader(GSTYPE_FLAT_DISNEY_SHADING);
             desc.ps = GetShader(FSTYPE_FLAT_SHADING);
@@ -354,11 +367,11 @@ namespace cyb::renderer
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
             desc.pt = PrimitiveTopology::TriangleList;
-            device->CreatePipelineState(&desc, &psoMaterial[MaterialComponent::Shadertype_Disney_BDRF]);
+            psoMaterial[MaterialComponent::Shadertype_Disney_BDRF] = device->CreatePipelineState(&desc);
         }
         {
             // MaterialComponent::Shadertype_Unlit
-            PipelineStateDesc desc;
+            PipelineStateDesc desc{};
             desc.vs = GetShader(VSTYPE_FLAT_SHADING);
             desc.gs = GetShader(GSTYPE_FLAT_UNLIT);
             desc.ps = GetShader(FSTYPE_FLAT_SHADING);
@@ -366,41 +379,41 @@ namespace cyb::renderer
             desc.dss = &depth_stencils[DSSTYPE_DEFAULT];
             desc.il = &input_layouts[VLTYPE_FLAT_SHADING];
             desc.pt = PrimitiveTopology::TriangleList;
-            device->CreatePipelineState(&desc, &psoMaterial[MaterialComponent::Shadertype_Unlit]);
+            psoMaterial[MaterialComponent::Shadertype_Unlit] = device->CreatePipelineState(&desc);
         }
         {
             // PSO_OUTLINE
-            PipelineStateDesc desc;
+            PipelineStateDesc desc{};
             desc.vs = GetShader(VSTYPE_POSTPROCESS);
             desc.ps = GetShader(FSTYPE_POSTPROCESS_OUTLINE);
             desc.rs = &rasterizers[RSTYPE_DOUBLESIDED];
             desc.dss = &depth_stencils[DSSTYPE_DEPTH_DISABLED];
             desc.pt = PrimitiveTopology::TriangleStrip;
-            device->CreatePipelineState(&desc, &psoOutline);
+            psoOutline = device->CreatePipelineState(&desc);
         }
         {
             // PSO_SKY
-            PipelineStateDesc desc;
+            PipelineStateDesc desc{};
             desc.vs = GetShader(VSTYPE_SKY);
             desc.ps = GetShader(FSTYPE_SKY);
             desc.rs = &rasterizers[RSTYPE_SKY];
             desc.dss = &depth_stencils[DSSTYPE_SKY];
             desc.pt = PrimitiveTopology::TriangleStrip;
-            device->CreatePipelineState(&desc, &psoSky);
+            psoSky = device->CreatePipelineState(&desc);
         }
         {
             // DEBUGRENDERING_CUBE
-            PipelineStateDesc desc;
+            PipelineStateDesc desc{};
             desc.vs = GetShader(VSTYPE_DEBUG_LINE);
             desc.ps = GetShader(FSTYPE_DEBUG_LINE);
             desc.rs = &rasterizers[RSTYPE_WIRE_DOUBLESIDED];
             desc.dss = &depth_stencils[DSSTYPE_DEPTH_READ];
             desc.il = &input_layouts[VLTYPE_DEBUG_LINE];
             desc.pt = PrimitiveTopology::LineList;
-            device->CreatePipelineState(&desc, &pso_debug[DEBUGRENDERING_CUBE]);
+            pso_debug[DEBUGRENDERING_CUBE] = device->CreatePipelineState(&desc);
         }
 
-        jobsystem::Wait(ctx);
+        jobsystem::Wait(jobCount);
     }
 
     void ReloadShaders()
@@ -484,7 +497,7 @@ namespace cyb::renderer
     void UpdatePerFrameData(const SceneView& view, float time, FrameConstants& frameCB)
     {
         frameCB.time = time;
-        frameCB.gamma = GAMMA;
+        frameCB.gamma = r_gamme.GetValue();
 
         // setup weather
         const scene::WeatherComponent& weather = view.scene->weather;
@@ -534,7 +547,7 @@ namespace cyb::renderer
     void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, rhi::CommandList cmd)
     {
         device->BeginEvent("UpdateRenderData", cmd);
-        device->UpdateBuffer(&constantbuffers[CBTYPE_FRAME], &frameCB, cmd);
+        device->UpdateBuffer(constantbuffers[CBTYPE_FRAME], &frameCB, cmd);
         device->EndEvent(cmd);
     }
 
@@ -542,7 +555,7 @@ namespace cyb::renderer
     {
         assert(camera);
 
-        CameraConstants cc = {};
+        CameraConstants cc{};
         XMStoreFloat4x4(&cc.proj, camera->projection);
         XMStoreFloat4x4(&cc.view, camera->view);
         XMStoreFloat4x4(&cc.vp, camera->VP);
@@ -551,15 +564,15 @@ namespace cyb::renderer
         XMStoreFloat4x4(&cc.inv_vp, camera->invVP);
         cc.pos = XMFLOAT4(camera->pos.x, camera->pos.y, camera->pos.z, 1.0f);
 
-        device->UpdateBuffer(&constantbuffers[CBTYPE_CAMERA], &cc, cmd);
+        device->UpdateBuffer(constantbuffers[CBTYPE_CAMERA], &cc, cmd);
     }
 
     void DrawScene(const SceneView& view, CommandList cmd)
     {
         device->BeginEvent("DrawScene", cmd);
 
-        device->BindConstantBuffer(&constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME, cmd);
-        device->BindConstantBuffer(&constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA, cmd);
+        device->BindConstantBuffer(constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME, cmd);
+        device->BindConstantBuffer(constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA, cmd);
 
         uint8_t prevUserStencilRef = 0;
         device->BindStencilRef(0, cmd);
@@ -576,11 +589,11 @@ namespace cyb::renderer
             }
 
             const MeshComponent& mesh = view.scene->meshes[object.meshIndex];
-            if (mesh.vertex_buffer_col.IsValid())
+            if (mesh.vertex_buffer_col)
             {
-                std::array<const rhi::GPUBuffer*, 2> vertex_buffers = {
-                    &mesh.vertex_buffer_pos,
-                    &mesh.vertex_buffer_col
+                std::array<const rhi::IBuffer*, 2> vertex_buffers = {
+                    mesh.vertex_buffer_pos,
+                    mesh.vertex_buffer_col
                 };
 
                 std::array<uint32_t, 2> strides = {
@@ -589,7 +602,7 @@ namespace cyb::renderer
                 };
 
                 device->BindVertexBuffers(vertex_buffers.data(), vertex_buffers.size(), strides.data(), nullptr, cmd);
-                device->BindIndexBuffer(&mesh.index_buffer, IndexBufferFormat::Uint32, 0, cmd);
+                device->BindIndexBuffer(mesh.index_buffer, IndexBufferFormat::Uint32, 0, cmd);
             }
             else
             {
@@ -597,7 +610,7 @@ namespace cyb::renderer
             }
 
             const TransformComponent& transform = view.scene->transforms[object.transformIndex];
-            MiscCB cb = {};
+            MiscCB cb{};
             XMMATRIX W = transform.world;
             XMStoreFloat4x4(&cb.g_xModelMatrix, XMMatrixTranspose(W));
             XMStoreFloat4x4(&cb.g_xTransform, XMMatrixTranspose(W * view.camera->VP));
@@ -613,7 +626,7 @@ namespace cyb::renderer
                 material_cb.metalness = material.metalness;
                 device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
 
-                const PipelineState* pso = &psoMaterial[material.shaderType];
+                const PipelineStateHandle pso = psoMaterial[material.shaderType];
                 device->BindPipelineState(pso, cmd);
                 device->DrawIndexed(subset.indexCount, subset.indexOffset, 0, cmd);
             }
@@ -626,10 +639,10 @@ namespace cyb::renderer
     {
         device->BeginEvent("DrawSky", cmd);
         device->BindStencilRef(255, cmd);
-        device->BindPipelineState(&psoSky, cmd);
+        device->BindPipelineState(psoSky, cmd);
 
-        device->BindConstantBuffer(&constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME, cmd);
-        device->BindConstantBuffer(&constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA, cmd);
+        device->BindConstantBuffer(constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME, cmd);
+        device->BindConstantBuffer(constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA, cmd);
 
         device->Draw(3, 0, cmd);
         device->EndEvent(cmd);
@@ -637,12 +650,12 @@ namespace cyb::renderer
 
     void DrawDebugScene(const SceneView& view, CommandList cmd)
     {
-        static GPUBuffer wirecube_vb;
-        static GPUBuffer wirecube_ib;
+        static BufferHandle wirecube_vb;
+        static BufferHandle wirecube_ib;
 
         device->BeginEvent("DrawDebugScene", cmd);
 
-        if (!wirecube_vb.IsValid())
+        if (!wirecube_vb)
         {
             const XMFLOAT4 min = XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f);
             const XMFLOAT4 max = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -658,38 +671,38 @@ namespace cyb::renderer
                 XMFLOAT4(max.x, min.y, max.z, 1.0f), XMFLOAT4(1, 1, 1, 1)
             };
 
-            GPUBufferDesc vertexbuffer_desc;
+            BufferDesc vertexbuffer_desc{};
             vertexbuffer_desc.cpuAccess = CpuAccessMode::None;
             vertexbuffer_desc.size = sizeof(verts);
             vertexbuffer_desc.usage = BufferUsage::VertexBufferBit;
-            device->CreateBuffer(&vertexbuffer_desc, &verts, &wirecube_vb);
+            wirecube_vb = device->CreateBuffer(&vertexbuffer_desc, &verts);
 
             const uint16_t indices[] = {
                 0,1,1,2,0,3,0,4,1,5,4,5,
                 5,6,4,7,2,6,3,7,2,3,6,7
             };
 
-            GPUBufferDesc indexbuffer_desc;
+            BufferDesc indexbuffer_desc{};
             indexbuffer_desc.cpuAccess = CpuAccessMode::None;
             indexbuffer_desc.size = sizeof(indices);
             indexbuffer_desc.usage = BufferUsage::IndexBufferBit;
-            device->CreateBuffer(&indexbuffer_desc, &indices, &wirecube_ib);
+            wirecube_ib = device->CreateBuffer(&indexbuffer_desc, &indices);
         }
 
         // Draw bounding boxes for all visible objects
         if (r_debugObjectAABB.GetValue())
         {
             device->BeginEvent("DebugObjectAABB", cmd);
-            device->BindPipelineState(&pso_debug[DEBUGRENDERING_CUBE], cmd);
+            device->BindPipelineState(pso_debug[DEBUGRENDERING_CUBE], cmd);
 
-            const std::array<const GPUBuffer*, 1> vbs {
-                &wirecube_vb,
+            const std::array<const rhi::IBuffer*, 1> vbs {
+                wirecube_vb,
             };
             const std::array<uint32_t, 1> strides {
                 sizeof(XMFLOAT4) + sizeof(XMFLOAT4),
             };
             device->BindVertexBuffers(vbs.data(), vbs.size(), strides.data(), nullptr, cmd);
-            device->BindIndexBuffer(&wirecube_ib, IndexBufferFormat::Uint16, 0, cmd);
+            device->BindIndexBuffer(wirecube_ib, IndexBufferFormat::Uint16, 0, cmd);
 
             MaterialCB material_cb;
             material_cb.baseColor = XMFLOAT4(1.0f, 0.933f, 0.6f, 1.0f);
@@ -734,10 +747,10 @@ namespace cyb::renderer
                 switch (light.GetType())
                 {
                 case scene::LightType::Directional:
-                    renderer::DrawImage(&builtin_textures[BUILTIN_TEXTURE_DIRLIGHT].GetTexture(), params, cmd);
+                    renderer::DrawImage(builtin_textures[BUILTIN_TEXTURE_DIRLIGHT].GetTexture(), params, cmd);
                     break;
                 case scene::LightType::Point:
-                    renderer::DrawImage(&builtin_textures[BUILTIN_TEXTURE_POINTLIGHT].GetTexture(), params, cmd);
+                    renderer::DrawImage(builtin_textures[BUILTIN_TEXTURE_POINTLIGHT].GetTexture(), params, cmd);
                     break;
                 default:
                     break;
@@ -745,15 +758,15 @@ namespace cyb::renderer
             }
 
             // Draw all the aabb boxes for light sources
-            device->BindPipelineState(&pso_debug[DEBUGRENDERING_CUBE], cmd);
-            const std::array<const GPUBuffer*, 1> vbs {
-                &wirecube_vb,
+            device->BindPipelineState(pso_debug[DEBUGRENDERING_CUBE], cmd);
+            const std::array<const rhi::IBuffer*, 1> vbs {
+                wirecube_vb,
             };
             const std::array<uint32_t, 1> strides {
                 sizeof(XMFLOAT4) + sizeof(XMFLOAT4),
             };
             device->BindVertexBuffers(vbs.data(), vbs.size(), strides.data(), nullptr, cmd);
-            device->BindIndexBuffer(&wirecube_ib, IndexBufferFormat::Uint16, 0, cmd);
+            device->BindIndexBuffer(wirecube_ib, IndexBufferFormat::Uint16, 0, cmd);
 
             MaterialCB cbMaterial;
             cbMaterial.baseColor = XMFLOAT4(0.666f, 0.874f, 0.933f, 1.0f);
@@ -780,7 +793,7 @@ namespace cyb::renderer
     }
 
     void Postprocess_Outline(
-        const Texture& input,
+        const rhi::ITexture* input,
         CommandList cmd,
         float thickness,
         float threshold,
@@ -788,9 +801,9 @@ namespace cyb::renderer
     {
         device->BeginEvent("Postprocess_Outline", cmd);
 
-        device->BindPipelineState(&psoOutline, cmd);
-        device->BindSampler(&samplerStates[SSLOT_POINT_CLAMP], 0, cmd);
-        device->BindResource(&input, 0, cmd);
+        device->BindPipelineState(psoOutline, cmd);
+        device->BindSampler(samplerStates[SSLOT_POINT_CLAMP], 0, cmd);
+        device->BindResource(input, 0, cmd);
 
         PostProcess postprocess = {};
         postprocess.param0.x = thickness;

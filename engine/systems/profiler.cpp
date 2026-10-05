@@ -11,8 +11,8 @@ namespace cyb::profiler
 
     bool initialized = false;
     std::mutex lock;
-    rhi::GPUQuery query;
-    std::array<rhi::GPUBuffer, rhi::GraphicsDevice::GetBufferCount()> queryResultBuffer = {};
+    rhi::QueryHandle query;
+    std::array<rhi::BufferHandle, rhi::GraphicsDevice::GetBufferCount()> queryResultBuffer{};
     std::atomic<uint32_t> queryCount = 0;
     uint32_t queryIndex = 0;
 
@@ -36,20 +36,20 @@ namespace cyb::profiler
             initialized = true;
             rhi::GraphicsDevice* device = rhi::GetDevice();
 
-            rhi::GPUQueryDesc desc;
-            desc.type = rhi::GPUQueryType::Timestamp;
-            desc.queryCount = 1024;
-            bool success = device->CreateQuery(&desc, &query);
-            assert(success);
+            rhi::QueryDesc queryDesc;
+            queryDesc.type = rhi::QueryType::Timestamp;
+            queryDesc.queryCount = 1024;
+            query = device->CreateQuery(&queryDesc);
+            assert(query);
 
-            rhi::GPUBufferDesc bd;
-            bd.cpuAccess = rhi::CpuAccessMode::Write;
-            bd.size = desc.queryCount * sizeof(uint64_t);
+            rhi::BufferDesc bufferDesc{};
+            bufferDesc.cpuAccess = rhi::CpuAccessMode::Read;
+            bufferDesc.size = queryDesc.queryCount * sizeof(uint64_t);
 
             for (auto& buffer : queryResultBuffer)
             {
-                success = device->CreateBuffer(&bd, nullptr, &buffer);
-                assert(success);
+                buffer = device->CreateBuffer(&bufferDesc, nullptr);
+                assert(buffer);
             }
         }
 
@@ -60,7 +60,7 @@ namespace cyb::profiler
 
         const double gpuFrequency = (double)device->GetTimestampFrequency() / 1000.0;
         queryIndex = (queryIndex + 1) % queryResultBuffer.size();
-        uint64_t* queryResults = (uint64_t*)queryResultBuffer[queryIndex].mappedData;
+        uint64_t* queryResults = (uint64_t*)queryResultBuffer[queryIndex]->MappedMemory();
 
         for (auto& [entryID, entry] : context.entries)
         {
@@ -68,7 +68,7 @@ namespace cyb::profiler
             {
                 int beginQuery = entry.gpuBegin[queryIndex];
                 int endQuery = entry.gpuEnd[queryIndex];
-                if (queryResultBuffer[queryIndex].mappedData != nullptr && beginQuery >= 0 && endQuery >= 0)
+                if (queryResultBuffer[queryIndex]->MappedMemory() != nullptr && beginQuery >= 0 && endQuery >= 0)
                 {
                     uint64_t beginResult = queryResults[beginQuery];
                     uint64_t endResult = queryResults[endQuery];
@@ -88,7 +88,7 @@ namespace cyb::profiler
             entry.inUse = false;
         }
 
-        device->ResetQuery(&query, 0, query.desc.queryCount, cmd);
+        device->ResetQuery(query, 0, query->GetDesc().queryCount, cmd);
         context.gpuFrame = BeginGpuEntry("GPU Frame", cmd);
 
         // update the frametime graph arrays used by profiler gui
@@ -111,10 +111,10 @@ namespace cyb::profiler
         // command list than start point
         Entry& gpuEntry = context.entries[context.gpuFrame];
         gpuEntry.gpuEnd[queryIndex] = queryCount.fetch_add(1);
-        device->EndQuery(&query, gpuEntry.gpuEnd[queryIndex], cmd);
+        device->EndQuery(query, gpuEntry.gpuEnd[queryIndex], cmd);
 
         EndEntry(context.cpuFrame);
-        device->ResolveQuery(&query, 0, queryCount.load(), &queryResultBuffer[queryIndex], 0ull, cmd);
+        device->ResolveQuery(query, 0, queryCount.load(), queryResultBuffer[queryIndex], 0ull, cmd);
         queryCount.store(0);
     }
 
@@ -140,7 +140,7 @@ namespace cyb::profiler
         entry.cmd = cmd;
         entry.gpuBegin[queryIndex] = queryCount.fetch_add(1);
 
-        rhi::GetDevice()->EndQuery(&query, entry.gpuBegin[queryIndex], cmd);
+        rhi::GetDevice()->EndQuery(query, entry.gpuBegin[queryIndex], cmd);
         return id;
     }
 
@@ -159,7 +159,7 @@ namespace cyb::profiler
         else
         {
             entry.gpuEnd[queryIndex] = queryCount.fetch_add(1);
-            rhi::GetDevice()->EndQuery(&query, entry.gpuEnd[queryIndex], entry.cmd);
+            rhi::GetDevice()->EndQuery(query, entry.gpuEnd[queryIndex], entry.cmd);
         }
     }
 

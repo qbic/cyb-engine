@@ -12,19 +12,19 @@ namespace cyb::renderer
         DEPTH_TEST_MODE_COUNT
     };
 
-    static Shader vertShader;
-    static Shader fragShader;
+    static ShaderHandle vertShader;
+    static ShaderHandle fragShader;
     static RasterizerState rasterizerState;
     static DepthStencilState depthStencilState[STENCILMODE_COUNT][DEPTH_TEST_MODE_COUNT];
-    static PipelineState psoImage[STENCILMODE_COUNT][DEPTH_TEST_MODE_COUNT];
-    static Texture whiteTexture;
+    static PipelineStateHandle psoImage[STENCILMODE_COUNT][DEPTH_TEST_MODE_COUNT];
+    static TextureHandle whiteTexture;
 
-    void DrawImage(const Texture* texture, const ImageParams& params, CommandList cmd)
+    void DrawImage(const ITexture* texture, const ImageParams& params, CommandList cmd)
     {
         GraphicsDevice* device = rhi::GetDevice();
         device->BeginEvent("Image", cmd);
 
-        ImageConstants image = {};
+        ImageConstants image{};
 
         if (params.IsFullscreenEnabled())
         {
@@ -49,11 +49,11 @@ namespace cyb::renderer
         }
 
         if (texture == nullptr)
-            texture = &whiteTexture;
+            texture = whiteTexture;
 
         device->BindResource(texture, 0, cmd);
         device->BindStencilRef(params.stencilRef, cmd);
-        device->BindPipelineState(&psoImage[params.stencilComp][params.IsDepthTestEnabled()], cmd);
+        device->BindPipelineState(psoImage[params.stencilComp][params.IsDepthTestEnabled()], cmd);
         device->BindDynamicConstantBuffer(image, CBSLOT_IMAGE, cmd);
         device->Draw(params.IsFullscreenEnabled() ? 3 : 4, 0, cmd);
         device->EndEvent(cmd);
@@ -63,12 +63,12 @@ namespace cyb::renderer
     {
         GraphicsDevice* device = rhi::GetDevice();
 
-        renderer::LoadShader(ShaderType::Vertex, vertShader, "image.vert");
-        renderer::LoadShader(ShaderType::Pixel, fragShader, "image.frag");
+        vertShader = renderer::LoadShader(ShaderType::Vertex, "image.vert");
+        fragShader = renderer::LoadShader(ShaderType::Pixel, "image.frag");
 
-        PipelineStateDesc desc;
-        desc.vs = &vertShader;
-        desc.ps = &fragShader;
+        PipelineStateDesc desc{};
+        desc.vs = vertShader;
+        desc.ps = fragShader;
         desc.rs = &rasterizerState;
         desc.pt = PrimitiveTopology::TriangleStrip;
 
@@ -77,7 +77,7 @@ namespace cyb::renderer
             for (int d = 0; d < DEPTH_TEST_MODE_COUNT; ++d)
             {
                 desc.dss = &depthStencilState[i][d];
-                device->CreatePipelineState(&desc, &psoImage[i][d]);
+                psoImage[i][d] = device->CreatePipelineState(&desc);
             }
         }
     }
@@ -92,14 +92,14 @@ namespace cyb::renderer
             desc.height = 4;
             desc.format = rhi::Format::RGBA8_UNORM;
 
-            uint32_t textureData[4 * 4] = {};
+            uint32_t textureData[4 * 4]{};
             for (int i = 0; i < (4 * 4); ++i)
                 textureData[i] = 0xffffffff;
 
-            rhi::SubresourceData subresourceData;
+            rhi::SubresourceData subresourceData{};
             subresourceData.mem = textureData;
             subresourceData.rowPitch = 4 * 4;
-            device->CreateTexture(&desc, &subresourceData, &whiteTexture);
+            whiteTexture = device->CreateTexture(&desc, &subresourceData);
         }
 
         RasterizerState rs;

@@ -13,6 +13,7 @@ namespace cyb::rhi
 {
     struct Queue_Vulkan
     {
+		VkDevice device = VK_NULL_HANDLE;
         VkQueue queue = VK_NULL_HANDLE;
         uint64_t lastSubmittedID = 0;
         VkSemaphore trackingSemaphore = VK_NULL_HANDLE;
@@ -21,16 +22,19 @@ namespace cyb::rhi
         std::vector<VkSemaphoreSubmitInfo> submit_waitSemaphoreInfos;
         std::vector<VkCommandBufferSubmitInfo> submit_cmds;
 
-        std::vector<VkSemaphore> swapchainWaitSemaphores;
-        std::vector<VkSwapchainKHR> swapchains;
-        std::vector<uint32_t> swapchainImageIndices;
-
         void AddWaitSemaphore(VkSemaphore semaphore, uint64_t value);
         void AddSignalSemaphore(VkSemaphore semaphore, uint64_t value);
         uint64_t Submit(VkFence fence);
 
+		uint64_t UpdateLastFinishedID();
+		uint64_t GetLastFinishedID() const { return m_lastFinishedID; }
+
+        bool PollCommandList(uint64_t commandListID);
+        bool WaitCommandList(uint64_t commandListID, uint64_t timeout);
+
     private:
         std::recursive_mutex m_mutex;
+		uint64_t m_lastFinishedID = 0;
     };
 
     class GraphicsDevice_Vulkan final : public GraphicsDevice
@@ -59,22 +63,20 @@ namespace cyb::rhi
         uint32_t m_transferQueueFamily = VK_QUEUE_FAMILY_IGNORED;
 		uint32_t m_presentFamily = VK_QUEUE_FAMILY_IGNORED;
 
-        VkPhysicalDeviceProperties2 properties2 = {};
-        VkPhysicalDeviceVulkan11Properties properties_1_1 = {};
-        VkPhysicalDeviceVulkan12Properties properties_1_2 = {};
-        VkPhysicalDeviceVulkan13Properties properties_1_3 = {};
-        VkPhysicalDeviceMemoryProperties2 memory_properties_2 = {};
+        VkPhysicalDeviceProperties2 properties2{};
+        VkPhysicalDeviceVulkan11Properties properties_1_1{};
+        VkPhysicalDeviceVulkan12Properties properties_1_2{};
+        VkPhysicalDeviceVulkan13Properties properties_1_3{};
+        VkPhysicalDeviceMemoryProperties2 memory_properties_2{};
 
-        VkPhysicalDeviceFeatures2 features2 = {};
-        VkPhysicalDeviceVulkan11Features features_1_1 = {};
-        VkPhysicalDeviceVulkan12Features features_1_2 = {};
-        VkPhysicalDeviceVulkan13Features features_1_3 = {};
+        VkPhysicalDeviceFeatures2 features2{};
+        VkPhysicalDeviceVulkan11Features features_1_1{};
+        VkPhysicalDeviceVulkan12Features features_1_2{};
+        VkPhysicalDeviceVulkan13Features features_1_3{};
 
         std::vector<VkDynamicState> pso_dynamic_states;
-        VkPipelineDynamicStateCreateInfo dynamic_state_info = {};
+        VkPipelineDynamicStateCreateInfo dynamic_state_info{};
 
-        [[nodiscard]] Queue_Vulkan& GetQueue(QueueType queueType);
-        std::array<Queue_Vulkan, Numerical(QueueType::Count)> queues;
 
         struct CopyAllocator
         {
@@ -88,7 +90,7 @@ namespace cyb::rhi
                 VkCommandPool transitionCommandPool = VK_NULL_HANDLE;
                 VkCommandBuffer transitionCommandBuffer = VK_NULL_HANDLE;
                 VkFence fence = VK_NULL_HANDLE;
-                GPUBuffer uploadBuffer;
+                BufferHandle uploadBuffer;
                 inline bool IsValid() const { return transferCommandBuffer != VK_NULL_HANDLE; }
             };
 
@@ -117,10 +119,10 @@ namespace cyb::rhi
 
             enum DIRTY_FLAGS
             {
-                DIRTY_NONE = 0,
-                DIRTY_DESCRIPTOR = 1 << 1,
-                DIRTY_OFFSET = 1 << 2,
-                DIRTY_ALL = ~0,
+                DIRTY_NONE       = 0,
+                DIRTY_DESCRIPTOR = BIT(1),
+                DIRTY_OFFSET     = BIT(2),
+                DIRTY_ALL        = ~0,
             };
             uint32_t dirtyFlags = DIRTY_NONE;
 
@@ -142,11 +144,11 @@ namespace cyb::rhi
 
         struct CommandList_Vulkan
         {
-            std::array<std::array<VkCommandPool, Numerical(QueueType::Count)>, BUFFERCOUNT> commandpools{};
-            std::array<std::array<VkCommandBuffer, Numerical(QueueType::Count)>, BUFFERCOUNT> commandbuffers{};
+            std::array<std::array<VkCommandPool, uint32_t(CommandQueue::Count)>, BUFFERCOUNT> commandpools{};
+            std::array<std::array<VkCommandBuffer, uint32_t(CommandQueue::Count)>, BUFFERCOUNT> commandbuffers{};
             uint32_t buffer_index = 0;
 
-            QueueType queue = QueueType::Count;
+            CommandQueue queue = CommandQueue::Count;
 
             DescriptorBinder binder;
             std::array<DescriptorBinderPool, BUFFERCOUNT> binder_pools;
@@ -154,9 +156,9 @@ namespace cyb::rhi
 
             std::vector<std::pair<size_t, VkPipeline>> pipelinesWorker;
             size_t prevPipelineHash = 0;
-            std::vector<Swapchain> prevSwapchains;
+            std::vector<ISwapchain*> prevSwapchains;
 
-            const PipelineState* active_pso = nullptr;
+            const IPipelineState* active_pso = nullptr;
             std::array<uint32_t, 8> vertexbuffer_strides{};
             size_t vertexbuffer_hash = 0;
             bool dirty_pso = false;
@@ -165,10 +167,10 @@ namespace cyb::rhi
             std::vector<VkImageMemoryBarrier2> renderpassBarriersEnd;
 
             inline VkCommandPool GetCommandPool() const {
-                return commandpools[buffer_index][static_cast<uint32_t>(queue)];
+                return commandpools[buffer_index][uint32_t(queue)];
             }
             inline VkCommandBuffer GetCommandBuffer() const {
-                return commandbuffers[buffer_index][static_cast<uint32_t>(queue)];
+                return commandbuffers[buffer_index][uint32_t(queue)];
             }
 
             void Reset(uint32_t newBufferIndex) {
@@ -216,60 +218,77 @@ namespace cyb::rhi
         GraphicsDevice_Vulkan();
         virtual ~GraphicsDevice_Vulkan();
 
-        bool CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window, Swapchain* swapchain) const override;
-        bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const override;
-        bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const override;
-        bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const override;
-        bool CreateShader(ShaderType stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const override;
-        bool CreateSampler(const SamplerDesc* desc, Sampler* sampler) const override;
-        bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const override;
-        void CreateSubresource(Texture* texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const;
+        [[nodiscard]] Queue_Vulkan& GetQueue(CommandQueue queueIndex);
 
-        CommandList BeginCommandList(QueueType queue) override;
-        void SubmitCommandLists() override;
+        SwapchainHandle CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window) const override;
+        BufferHandle CreateBuffer(const BufferDesc* desc, const void* initData) const override;
+        QueryHandle CreateQuery(const QueryDesc* desc) const override;
+        EventQueryHandle CreateEventQuery() const override;
+        TextureHandle CreateTexture(const TextureDesc* desc, const SubresourceData* init_data) const override;
+        ShaderHandle CreateShader(const ShaderDesc* desc) const override;
+        SamplerHandle CreateSampler(const SamplerDesc* desc) const override;
+        PipelineStateHandle CreatePipelineState(const PipelineStateDesc* desc) const override;
+        void CreateSubresource(ITexture* texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const;
+
+        CommandList BeginCommandList(CommandQueue queue) override;
+        void ExecuteCommandLists() override;
         void WaitForGPU() const override;
-        void SetName(GPUResource* pResource, const char* name) override;
-        void SetName(Shader* shader, const char* name) override;
 
         void ClearPipelineStateCache() override;
         MemoryUsage GetMemoryUsage() const override;
 
         /////////////// Thread-sensitive ////////////////////////
 
-        void BeginRenderPass(const Swapchain* swapchain, CommandList cmd) override;
+        void BeginRenderPass(ISwapchain* swapchain, CommandList cmd) override;
         void BeginRenderPass(const RenderPassImage* images, uint32_t imageCount, CommandList cmd) override;
         void EndRenderPass(CommandList cmd) override;
 
         void BindScissorRects(const Rect* rects, uint32_t rectCount, CommandList cmd) override;
         void BindViewports(const Viewport* viewports, uint32_t viewportCount, CommandList cmd) override;
-        void BindPipelineState(const PipelineState* pso, CommandList cmd) override;
-        void BindVertexBuffers(const GPUBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets, CommandList cmd) override;
-        void BindIndexBuffer(const GPUBuffer* index_buffer, const IndexBufferFormat format, uint64_t offset, CommandList cmd) override;
+        void BindPipelineState(const IPipelineState* pso, CommandList cmd) override;
+        void BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets, CommandList cmd) override;
+        void BindIndexBuffer(const IBuffer* index_buffer, const IndexBufferFormat format, uint64_t offset, CommandList cmd) override;
         void BindStencilRef(uint32_t value, CommandList cmd) override;
-        void BindResource(const GPUResource* resource, int slot, CommandList cmd) override;
-        void BindSampler(const Sampler* sampler, uint32_t slot, CommandList cmd) override;
-        void BindConstantBuffer(const GPUBuffer* buffer, uint32_t slot, CommandList cmd, uint64_t offset) override;
+        void BindResource(const IResource* resource, int slot, CommandList cmd) override;
+        void BindSampler(const ISampler* sampler, uint32_t slot, CommandList cmd) override;
+        void BindConstantBuffer(const IBuffer* buffer, uint32_t slot, CommandList cmd, uint64_t offset) override;
 
-        void CopyBuffer(const GPUBuffer* dst, uint64_t dst_offset, const GPUBuffer* src, uint64_t src_offset, uint64_t size, CommandList cmd) override;
+        void CopyBuffer(const IBuffer* dst, uint64_t dst_offset, const IBuffer* src, uint64_t src_offset, uint64_t size, CommandList cmd) override;
 
         void Draw(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd) override;
-        void DrawIndexed(uint32_t index_count, uint32_t start_index_location, int32_t base_vertex_location, CommandList cmd) override;
+        void DrawIndexed(uint32_t indexCount, uint32_t startIndexLocation, int32_t baseVertexLocation, CommandList cmd) override;
 
-        void BeginQuery(const GPUQuery* query, uint32_t index, CommandList cmd) override;
-        void EndQuery(const GPUQuery* query, uint32_t index, CommandList cmd) override;
-        void ResolveQuery(const GPUQuery* query, uint32_t index, uint32_t count, const GPUBuffer* dest, uint64_t destOffset, CommandList cmd) override;
-        void ResetQuery(const GPUQuery* query, uint32_t index, uint32_t count, CommandList cmd) override;
+        void BeginQuery(IQuery* query, uint32_t index, CommandList cmd) override;
+        void EndQuery(IQuery* query, uint32_t index, CommandList cmd) override;
+        void ResolveQuery(const IQuery* query, uint32_t index, uint32_t count, IBuffer* dest, uint64_t destOffset, CommandList cmd) override;
+        void ResetQuery(IQuery* query, uint32_t index, uint32_t count, CommandList cmd) override;
         
+        void SetEventQuery(IEventQuery* query, CommandQueue queue) override;
+        bool PollEventQuery(IEventQuery* query) override;
+        void WaitEventQuery(IEventQuery* query) override;
+        void ResetEventQuery(IEventQuery* query) override;
+
         void PushConstants(const void* data, uint32_t size, CommandList cmd, uint32_t offset) override;
 
         void BeginEvent(const char* name, CommandList cmd) override;
         void EndEvent(CommandList cmd) override;
 
-        uint64_t GetMinOffsetAlignment(const GPUBufferDesc* desc) const override;
+        uint64_t GetMinOffsetAlignment(const BufferDesc* desc) const override;
 
         GPULinearAllocator& GetFrameAllocator(CommandList cmd) override
         {
             return GetCommandList(cmd).frame_allocators[GetBufferIndex()];
+        }
+
+        void AddWaitSemaphore(CommandQueue queueIndex, VkSemaphore semaphore, uint64_t value)
+        {
+            auto& queue = queues[uint32_t(queueIndex)];
+            queue.AddWaitSemaphore(semaphore, value);
+        }
+        void AddSignalSemaphore(CommandQueue queueIndex, VkSemaphore semaphore, uint64_t value)
+        {
+            auto& queue = queues[uint32_t(queueIndex)];
+            queue.AddSignalSemaphore(semaphore, value);
         }
 
         struct AllocationHandler
@@ -303,9 +322,11 @@ namespace cyb::rhi
                 vkDestroyInstance(instance, nullptr);
             }
 
-            // Deferred destroy of resources that the GPU is already finished with:
+            // deferred destroy of resources that the GPU is already finished with
             void Update(uint64_t frameCount, uint32_t BUFFERCOUNT)
             {
+                std::scoped_lock lock{ destroylocker };
+
                 const auto destroy = [&](auto&& queue, auto&& handler) {
                     while (!queue.empty()) {
                         if (queue.front().second + BUFFERCOUNT >= frameCount)
@@ -317,7 +338,6 @@ namespace cyb::rhi
                     }
                 };
 
-                std::scoped_lock lck{ destroylocker };
                 framecount = frameCount;
 
                 destroy(destroyer_images, [&](auto& item) {
@@ -365,6 +385,7 @@ namespace cyb::rhi
             }
         };
 
+        std::array<Queue_Vulkan, uint32_t(CommandQueue::Count)> queues;
         std::shared_ptr<AllocationHandler> m_allocationHandler;
     };
 }

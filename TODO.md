@@ -1,9 +1,11 @@
 ### Bugs:
 - Unlit flat shader doesent render anything
 - Depth buffer only goes from 0 - 0.01 according to renderdoc (seems fine in-game though so not sure it's a bug)
+- Terrain gen PreviewNode::UpdatePreview() seems to get called multiple times on update
 
 ### Todo (features):
-- FPS limiter (lower fps limit for inactive window)
+- Compile shaders when compiling the project and load spri-v shaders instead.
+- Collision detection
 - Animation entity
 - LOD support
 - Water

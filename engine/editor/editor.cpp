@@ -739,7 +739,7 @@ namespace cyb::editor
         PostDraw();
     }
 
-    class Tool_Profiler : public ToolWindow, private NonCopyable
+    class Tool_Profiler : public ToolWindow, private NonCopyableNonMovable
     {
     public:
         Tool_Profiler(const std::string& title) :
@@ -799,7 +799,7 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    class Tool_LogDisplay : public ToolWindow, private NonCopyable
+    class Tool_LogDisplay : public ToolWindow, private NonCopyableNonMovable
     {
     public:
         struct LogLine
@@ -895,7 +895,7 @@ namespace cyb::editor
         { EntityType::Animations,   "Animations"    }
     };
 
-    class Tool_ContentBrowser : public ToolWindow, private NonCopyable
+    class Tool_ContentBrowser : public ToolWindow, private NonCopyableNonMovable
     {
     public:
         Tool_ContentBrowser(const std::string& title) :
@@ -982,7 +982,7 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    class Tool_CVarViewer : public ToolWindow, private NonCopyable
+    class Tool_CVarViewer : public ToolWindow, private NonCopyableNonMovable
     {
     public:
         Tool_CVarViewer(const std::string& title) :
@@ -1074,7 +1074,7 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    class Tool_TerrainGenerator : public ToolWindow, private NonCopyable
+    class Tool_TerrainGenerator : public ToolWindow, private NonCopyableNonMovable
     {
     public:
         Tool_TerrainGenerator(const std::string& windowTitle) :
@@ -1095,7 +1095,7 @@ namespace cyb::editor
 
     //------------------------------------------------------------------------------
 
-    class Tool_Scenegraph : public ToolWindow, private NonCopyable
+    class Tool_Scenegraph : public ToolWindow, private NonCopyableNonMovable
     {
     public:
         Tool_Scenegraph(const std::string& title) :
@@ -1145,7 +1145,7 @@ namespace cyb::editor
 
     static constexpr int WidgetWindowFlags = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground |ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
 
-    class ActionButtonMenu : public ToolWindow, private NonCopyable
+    class ActionButtonMenu : public ToolWindow, private NonCopyableNonMovable
     {
     public:
         const ImVec2 buttonSize = ImVec2(48, 42);
@@ -1224,7 +1224,7 @@ namespace cyb::editor
         ui::StyleColorSet m_windowStyleColors;
     };
 
-    class PerformanceVisualizer : public ToolWindow, private NonCopyable
+    class PerformanceVisualizer : public ToolWindow, private NonCopyableNonMovable
     {
     public:
         const ImVec2 plotSize = ImVec2(250, 100);

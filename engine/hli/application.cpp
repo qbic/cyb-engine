@@ -102,17 +102,18 @@ namespace cyb::hli
 
             // Compose the final image and and pass it to the swapchain for display
             CommandList cmd = m_graphicsDevice->BeginCommandList();
-            m_graphicsDevice->BeginRenderPass(&m_swapchain, cmd);
+            m_graphicsDevice->BeginRenderPass(m_swapchain, cmd);
             Viewport viewport{};
-            viewport.width = (float)m_swapchain.GetDesc().width;
-            viewport.height = (float)m_swapchain.GetDesc().height;
+            viewport.width = (float)m_swapchain->GetDesc().width;
+            viewport.height = (float)m_swapchain->GetDesc().height;
             m_graphicsDevice->BindViewports(&viewport, 1, cmd);
 
             Compose(cmd);
             m_graphicsDevice->EndRenderPass(cmd);
 
             profiler::EndFrame(cmd);
-            m_graphicsDevice->SubmitCommandLists();
+            m_graphicsDevice->ExecuteCommandLists();
+            m_swapchain->Present();
         }
     }
 
@@ -145,6 +146,7 @@ namespace cyb::hli
         SetFileDialogParentWindow(m_window.GetNativeHandle());
 
         rhi::SwapchainDesc desc{};
+		desc.bufferCount = m_graphicsDevice->GetBufferCount();
         if (m_activePath != nullptr)
         {
             m_activePath->SetCanvas(m_window.GetWidth(), m_window.GetHeight());
@@ -157,13 +159,19 @@ namespace cyb::hli
             desc.height = m_window.GetHeight();
         }
 
-        rhi::GetDevice()->CreateSwapchain(&desc, m_window.GetNativeHandle(), &m_swapchain);
+        if (!m_swapchain)
+            m_swapchain = m_graphicsDevice->CreateSwapchain(&desc, m_window.GetNativeHandle());
+        else
+        {
+            [[maybe_unused]] bool result = m_swapchain->ResizeBuffers(desc);
+            assert(result);
+        }
 
         m_changeVSyncEvent = eventsystem::Subscribe(eventsystem::Event_SetVSync, [this] (uint64_t userdata) {
-            SwapchainDesc desc = m_swapchain.desc;
+            SwapchainDesc desc = m_swapchain->GetDesc();
             desc.vsync = (userdata != 0);
-            bool success = m_graphicsDevice->CreateSwapchain(&desc, nullptr, &m_swapchain);
-            assert(success);
+            [[maybe_unused]] bool result = m_swapchain->ResizeBuffers(desc);
+            assert(result);
         });
 
         r_vsync.ClearCallbacks();

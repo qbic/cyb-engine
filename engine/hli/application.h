@@ -43,7 +43,7 @@ namespace cyb::hli
 
         ClientWindow m_window{};
         std::unique_ptr<rhi::GraphicsDevice> m_graphicsDevice{};
-        rhi::Swapchain m_swapchain{};
+        rhi::SwapchainHandle m_swapchain{};
         RenderPath* m_activePath{ nullptr };
         eventsystem::Handle m_changeVSyncEvent{};
         Timer m_timer{};

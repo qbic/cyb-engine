@@ -27,10 +27,10 @@ namespace cyb
     struct ResourceInternal : public Resource::InternalBaseData
     {
         std::vector<uint8_t> data;
-        cyb::rhi::Texture texture;
+        cyb::rhi::TextureHandle texture;
     };
 
-    const rhi::Texture& Resource::GetTexture() const
+    const rhi::ITexture* Resource::GetTexture() const
     {
         assert(m_internalState != nullptr);
         assert(m_internalState->type == ResourceType::Image);
@@ -174,7 +174,7 @@ namespace cyb::resourcemanager
         desc.format = rhi::Format::RGBA8_UNORM;
 
         rhi::SubresourceData data = rhi::SubresourceData::FromDesc(rawImage, desc);
-        rhi::GetDevice()->CreateTexture(&desc, &data, &resource->texture);
+        resource->texture = rhi::GetDevice()->CreateTexture(&desc, &data);
 
         stbi_image_free(rawImage);
         return true;

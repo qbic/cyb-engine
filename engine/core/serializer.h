@@ -16,7 +16,7 @@ namespace cyb
 {
     constexpr uint32_t ARCHIVE_VERSION = 5;
 
-    class Archive : private MovableNonCopyable
+    class Archive : private NonCopyable
     {
     public:
         // passing a nullptr to data will initialize the archive for writing
@@ -72,7 +72,7 @@ namespace cyb
         uint64_t reserved[2];
     };
 
-    class Serializer : private NonCopyable
+    class Serializer : private NonCopyableNonMovable
     {
     public:
         Serializer(Archive&& ar, int32_t version = ARCHIVE_VERSION);

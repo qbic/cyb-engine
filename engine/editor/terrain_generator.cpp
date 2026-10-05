@@ -328,39 +328,47 @@ namespace cyb::editor
         desc.height = image.GetHeight();
         desc.format = rhi::Format::RGBA8_UNORM;
 
-        rhi::SubresourceData subresourceData;
+        rhi::SubresourceData subresourceData{};
         subresourceData.mem = image.GetConstPtr(0);
         subresourceData.rowPitch = image.GetStride();
 
 #if MULTITHREADED_PREVIEW
         jobsystem::Wait(counter);
 #endif
-        rhi::GetDevice()->CreateTexture(&desc, &subresourceData, &m_texture);
+        m_texture = rhi::GetDevice()->CreateTexture(&desc, &subresourceData);
         m_lastPreviewGenerationTime = timer.ElapsedMilliseconds();
     }
 
     void PreviewNode::Update()
     {
         if (m_autoUpdate)
-            UpdatePreview();
+			m_dirtyPreview = true;
     }
 
     void PreviewNode::DisplayContent()
     {
         const ImGuiStyle& style = ImGui::GetStyle();
 
-        if (ui::Checkbox("Auto Update", &m_autoUpdate, nullptr) && m_autoUpdate)
-            UpdatePreview();
+        if (ui::Checkbox("Auto Update", &m_autoUpdate, nullptr))
+            Update();
         if (!m_autoUpdate && ImGui::Button("Update", ImVec2(0, 0)))
-            UpdatePreview();
+			m_dirtyPreview = true;
+
+		if (m_dirtyPreview)
+		{
+			// has to be done before sending the texture to imgui, otherwise it
+            // will crash if the texture is deleted while imgui is using it
+			UpdatePreview();
+			m_dirtyPreview = false;
+		}
 
         ImGuiWindow* window = ImGui::GetCurrentWindow();
         const float imageWidth = window->WorkRect.GetWidth();
         const ImVec2 imageSize{ imageWidth, imageWidth };
         ImGui::Text("Size: %f", imageWidth);
-        if (ValidState && m_texture.IsValid())
+        if (ValidState && m_texture)
         {
-            ImGui::Image((ImTextureID)&m_texture, imageSize);
+            ImGui::Image((ImTextureID)(m_texture.Get()), imageSize);
         }
         else
         {

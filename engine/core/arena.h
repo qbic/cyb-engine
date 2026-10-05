@@ -6,7 +6,7 @@
 
 namespace cyb
 {
-    class ArenaAllocator : private NonCopyable
+    class ArenaAllocator : private NonCopyableNonMovable
     {
     private:
         static constexpr size_t defaultPageSize{ 1024 * 1024 };

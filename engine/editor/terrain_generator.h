@@ -164,7 +164,8 @@ namespace cyb::editor
         uint32_t m_previewSize = 128;   // Used as both width and height
         float m_lastPreviewGenerationTime = 0.0f;
         float m_freqScale = 8.0f;
-        rhi::Texture m_texture;
+		bool m_dirtyPreview = true;
+        rhi::TextureHandle m_texture;
     };
 
     class GenerateMeshNode : public ui::NG_Node

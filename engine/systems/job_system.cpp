@@ -10,7 +10,7 @@
 
 namespace cyb::jobsystem
 {
-    struct Job : private MovableNonCopyable
+    struct Job : private NonCopyable
     {
         JobTask task;
         JobCounter* counter = nullptr;

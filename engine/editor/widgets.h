@@ -44,7 +44,7 @@ namespace cyb::ui
     };
 
     // Set a stylevar or stylevarscheme for imgui that will be reset when out of scope
-    class ScopedStyleVar : private NonCopyable
+    class ScopedStyleVar : private NonCopyableNonMovable
     {
     public:
         using VarValue = StyleVarSet::VarValue;
@@ -56,7 +56,7 @@ namespace cyb::ui
     };
 
     // Set a stylecolor or stylecolorscheme for imgui that will be reset when out of scope
-    class ScopedStyleColor : private NonCopyable
+    class ScopedStyleColor : private NonCopyableNonMovable
     {
     public:
         using ColorValue = StyleColorSet::ColorValue;
@@ -68,7 +68,7 @@ namespace cyb::ui
     };
 
     // Push an imgui id that will be popped when of scope
-    class PushID : private NonCopyable
+    class PushID : private NonCopyableNonMovable
     {
     public:
         PushID(const void* id) { ImGui::PushID(id); }

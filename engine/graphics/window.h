@@ -18,7 +18,7 @@ namespace cyb
 
     using WindowResizeFn = std::function<void()>;
 
-    class ClientWindow : public MovableNonCopyable
+    class ClientWindow : public NonCopyable
     {
     public:
         static ClientWindow Create(const ClientWindowDesc& desc);

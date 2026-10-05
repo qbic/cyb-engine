@@ -1,16 +1,30 @@
 #pragma once
-#include <array>
-#include <vector>
 #include "core/enum_flags.h"
 #include "core/mathlib.h"
+#include "core/ref_count.h"
 #include "core/sys.h"
 #include "core/logger.h"
 #include "graphics/display.h"   // for WindowHandle
+#include <array>
+
+template <typename To, typename From>
+    requires std::is_pointer_v<To>
+[[nodiscard]] inline To check_cast(From* ptr) noexcept
+{
+#ifdef _DEBUG
+    static_assert(!std::is_same_v<To, From>, "redundant cast");
+    To checked = dynamic_cast<To>(ptr);
+    assert(checked != nullptr && "invalid cast");
+    return checked;
+#else
+    return static_cast<To>(ptr);
+#endif
+}
 
 namespace cyb::rhi
 {
-    struct Texture;
-    struct Shader;
+    struct ITexture;
+    struct IShader;
 
     enum class BufferUsage : uint8_t
     {
@@ -24,8 +38,8 @@ namespace cyb::rhi
     enum class CpuAccessMode : uint8_t
     {
         None,                           //!< CPU no access, GPU read/write
-        Read,                           //!< CPU write, GPU read
-        Write                           //!< CPU, GPU write
+        Read,                           //!< CPU read, GPU write
+        Write                           //!< CPU write, GPU read
     };
 
     enum class Filtering : uint8_t
@@ -174,7 +188,7 @@ namespace cyb::rhi
         GLSL
     };
 
-    enum class QueueType : uint8_t
+    enum class CommandQueue : uint8_t
     {
         Graphics,
         Compute,
@@ -184,19 +198,19 @@ namespace cyb::rhi
 
     enum class ResourceStates : uint32_t
     {
-        // Common resource states:
+        // Common resource states
         Unknown             = 0,        //!< Dont preserve contents
         ShaderResourceBit   = BIT(0),   //!< Shader resource, read only
         UnorderedAccessBit  = BIT(1),   //!< Shader resource, write enabled
         CopySourceBit       = BIT(2),   //!< Copy from
         CopyDestBit         = BIT(3),   //!< Copy to
 
-        // Texture specific resource states:
+        // Texture specific resource states
         RenderTargetBit     = BIT(10),  //!< Render target, write enabled
         DepthWriteBit       = BIT(11),  //!< Depth stencil, write enabled
         DepthReadBit        = BIT(12),  //!< Depth stencil, read only
 
-        // GPUBuffer specific resource states:
+        // GPUBuffer specific resource states
         VertexBufferBit     = BIT(20),  //!< Vertex buffer, read only
         IndexBufferBit      = BIT(21),  //!< Index buffer, read only
         ConstantBufferBit   = BIT(22),  //!< Constant buffer, read only
@@ -205,31 +219,32 @@ namespace cyb::rhi
     };
     CYB_ENABLE_BITMASK_OPERATORS(ResourceStates);
 
-    enum class GPUQueryType : uint8_t
+    enum class QueryType : uint8_t
     {
         Timestamp,                      //!< Retrieve time point of gpu execution
         Occlusion,                      //!< How many samples passed depth test?
         OcclusionBinary                 //!< Depth test passed or not?
     };
 
-    struct GPUBufferDesc
+    struct BufferDesc
     {
         uint64_t size = 0;
         CpuAccessMode cpuAccess = CpuAccessMode::None;
         BufferUsage usage = BufferUsage::None;
         uint32_t stride = 0;            // Needed for struct buffer types
+		std::string debugName{};
     };
 
-    struct GPUQueryDesc
+    struct QueryDesc
     {
-        GPUQueryType type = GPUQueryType::Timestamp;
+        QueryType type = QueryType::Timestamp;
         uint32_t queryCount = 0;
     };
 
     struct Viewport
     {
-        float x = 0;                    // Top-Left
-        float y = 0;                    // Top-Left
+        float x = 0;                    // top-left
+        float y = 0;                    // top-left
         float width = 0;
         float height = 0;
         float minDepth = 0;
@@ -311,6 +326,7 @@ namespace cyb::rhi
         uint32_t mipLevels = 1;
         ClearValue clear;
         ResourceStates initialState = ResourceStates::ShaderResourceBit;
+        std::string debugName{};
     };
 
     struct RasterizerState
@@ -353,11 +369,20 @@ namespace cyb::rhi
         std::array<float, 4> clearColor = {{ .4f, .4f, .4f, 1.0f }};
     };
 
+	struct ShaderDesc
+	{
+		ShaderType stage = ShaderType::Count;
+		ShaderFormat format = ShaderFormat::None;
+		const void* bytecode = nullptr;
+		size_t bytecodeLength = 0;
+		std::string debugName{};
+	};
+
     struct PipelineStateDesc
     {
-        const Shader* vs = nullptr;
-        const Shader* gs = nullptr;
-        const Shader* ps = nullptr;
+        const IShader* vs = nullptr;
+        const IShader* gs = nullptr;
+        const IShader* ps = nullptr;
         const RasterizerState* rs = nullptr;
         const DepthStencilState* dss = nullptr;
         const VertexInputLayout* il = nullptr;
@@ -393,45 +418,55 @@ namespace cyb::rhi
     //  Render Device Children
     //=============================================================
 
-    struct RenderDeviceChild
+	struct IBuffer : public IResource
     {
-        std::shared_ptr<void> internal_state;
-        inline bool IsValid() const { return internal_state.get() != nullptr; }
+        [[nodiscard]] virtual const BufferDesc& GetDesc() const = 0;
+        [[nodiscard]] virtual void* MappedMemory() = 0;
     };
+	using BufferHandle = RefCountPtr<IBuffer>;
 
-    struct GPUResource : public RenderDeviceChild
+    struct IQuery : public IResource
     {
-        enum class Type
-        {
-            Unknown,
-            Buffer,
-            Texture
-        };
-
-        Type type = Type::Unknown;
-        void* mappedData = nullptr;
-        uint32_t mappedSize = 0;
-
-        constexpr bool IsTexture() const { return type == Type::Texture; }
-        constexpr bool IsBuffer() const { return type == Type::Buffer; }
+        [[nodiscard]] virtual const QueryDesc& GetDesc() const = 0;
     };
+    using QueryHandle = RefCountPtr<IQuery>;
 
-    struct GPUBuffer : public GPUResource
+	struct IEventQuery : public IResource
+	{
+	};
+	using EventQueryHandle = RefCountPtr<IEventQuery>;
+
+    struct ITexture : public IResource
     {
-        GPUBufferDesc desc{};
-        const GPUBufferDesc& GetDesc() const { return desc; }
+        [[nodiscard]] virtual const TextureDesc& GetDesc() const = 0;
     };
+	using TextureHandle = RefCountPtr<ITexture>;
 
-    struct GPUQuery : public GPUResource
-    {
-        GPUQueryDesc desc{};
-    };
+	struct IShader : public IResource
+	{
+		[[nodiscard]] virtual const ShaderDesc& GetDesc() const = 0;
+	};
+	using ShaderHandle = RefCountPtr<IShader>;
 
-    struct Texture final : public GPUResource
+    struct ISampler : public IResource
     {
-        TextureDesc desc{};
-        const TextureDesc& GetDesc() const { return desc; }
+		[[nodiscard]] virtual const SamplerDesc& GetDesc() const = 0;
     };
+	using SamplerHandle = RefCountPtr<ISampler>;
+
+    struct IPipelineState : public IResource
+    {
+        [[nodiscard]] virtual const PipelineStateDesc& GetDesc() const = 0;
+    };
+	using PipelineStateHandle = RefCountPtr<IPipelineState>;
+
+    struct ISwapchain : public IResource
+    {
+        [[nodiscard]] virtual const SwapchainDesc& GetDesc() const = 0;
+		[[nodiscard]] virtual bool ResizeBuffers(const SwapchainDesc& desc) = 0;
+		virtual void Present() = 0;
+    };
+	using SwapchainHandle = RefCountPtr<ISwapchain>;
 
     struct RenderPassImage
     {
@@ -463,17 +498,17 @@ namespace cyb::rhi
         Type type = Type::RenderTarget;
         LoadOp loadOp = LoadOp::Load;
         StoreOp storeOp = StoreOp::Store;
-        const Texture* texture = nullptr;
+        const ITexture* texture = nullptr;
         ResourceStates prePassLayout = ResourceStates::Unknown;     // layout before the render pass
         ResourceStates layout = ResourceStates::Unknown;	        // layout within the render pass
         ResourceStates postPassLayout = ResourceStates::Unknown;	// layout after the render pass
         DepthResolveMode depthDesolveMode = DepthResolveMode::Min;
 
         static RenderPassImage RenderTarget(
-            const Texture* resource,
+            const ITexture* resource,
             LoadOp loadOp = LoadOp::Load,
             StoreOp storeOp = StoreOp::Store,
-            ResourceStates prePassLayout =  ResourceStates::Unknown,
+            ResourceStates prePassLayout = ResourceStates::Unknown,
             ResourceStates postPassLayout = ResourceStates::ShaderResourceBit)
         {
             RenderPassImage image;
@@ -488,7 +523,7 @@ namespace cyb::rhi
         }
 
         static RenderPassImage DepthStencil(
-            const Texture* resource,
+            const ITexture* resource,
             LoadOp loadOp = LoadOp::Load,
             StoreOp storeOp = StoreOp::Store,
             ResourceStates prePassLayout = ResourceStates::DepthWriteBit,
@@ -575,31 +610,6 @@ namespace cyb::rhi
         }
     };
 
-    struct Shader final : public RenderDeviceChild
-    {
-        ShaderType stage = ShaderType::Vertex;
-        std::string code;
-    };
-
-    struct Sampler final : public RenderDeviceChild
-    {
-        SamplerDesc desc{};
-        const SamplerDesc& GetDesc() const { return desc; }
-    };
-
-    struct PipelineState final : public RenderDeviceChild
-    {
-        size_t hash = 0;
-        PipelineStateDesc desc{};
-        const PipelineStateDesc& GetDesc() const { return desc; }
-    };
-
-    struct Swapchain final : public RenderDeviceChild
-    {
-        SwapchainDesc desc;
-        constexpr const SwapchainDesc& GetDesc() const { return desc; }
-    };
-
     //=============================================================
     //  Render Device Interface Class
     //=============================================================
@@ -616,42 +626,40 @@ namespace cyb::rhi
 
     struct DescriptorBindingTable
     {
-        std::array<GPUBuffer, DESCRIPTORBINDER_CBV_COUNT>   CBV{};
-        std::array<uint64_t, DESCRIPTORBINDER_CBV_COUNT>    CBV_offset{};
-        std::array<GPUResource, DESCRIPTORBINDER_SRV_COUNT> SRV{};
-        std::array<int, DESCRIPTORBINDER_SRV_COUNT>         SRV_index{};
-        std::array<Sampler, DESCRIPTORBINDER_SAMPLER_COUNT> SAM{};
+        std::array<const IBuffer*, DESCRIPTORBINDER_CBV_COUNT> CBV{};
+        std::array<uint64_t, DESCRIPTORBINDER_CBV_COUNT> CBV_offset{};
+        std::array<IResource*, DESCRIPTORBINDER_SRV_COUNT> SRV{};
+        std::array<int, DESCRIPTORBINDER_SRV_COUNT> SRV_index{};
+        std::array<const ISampler*, DESCRIPTORBINDER_SAMPLER_COUNT> SAM{};
     };
 
     class GraphicsDevice
     {
     protected:
         static constexpr uint32_t BUFFERCOUNT = 2;
-        static constexpr bool VALIDATION_MODE_ENABLED = true;
+        static constexpr bool VALIDATION_MODE_ENABLED = false;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 
     public:
         virtual ~GraphicsDevice() = default;
 
-        virtual bool CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window, Swapchain* swapchain) const = 0;
-        virtual bool CreateBuffer(const GPUBufferDesc* desc, const void* initData, GPUBuffer* buffer) const = 0;
-        virtual bool CreateQuery(const GPUQueryDesc* desc, GPUQuery* query) const = 0;
-        virtual bool CreateTexture(const TextureDesc* desc, const SubresourceData* init_data, Texture* texture) const = 0;
-        virtual bool CreateShader(ShaderType stage, const void* shaderBytecode, size_t bytecodeLength, Shader* shader) const = 0;
-        virtual bool CreateSampler(const SamplerDesc* desc, Sampler* sampler) const = 0;
-        virtual bool CreatePipelineState(const PipelineStateDesc* desc, PipelineState* pso) const = 0;
+        virtual SwapchainHandle CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window) const = 0;
+        virtual BufferHandle CreateBuffer(const BufferDesc* desc, const void* initData) const = 0;
+        virtual QueryHandle CreateQuery(const QueryDesc* desc) const = 0;
+		virtual EventQueryHandle CreateEventQuery() const = 0;
+        virtual TextureHandle CreateTexture(const TextureDesc* desc, const SubresourceData* init_data) const = 0;
+        virtual ShaderHandle CreateShader(const ShaderDesc* desc) const = 0;
+        virtual SamplerHandle CreateSampler(const SamplerDesc* desc) const = 0;
+        virtual PipelineStateHandle CreatePipelineState(const PipelineStateDesc* desc) const = 0;
 
-        virtual CommandList BeginCommandList(QueueType queue = QueueType::Graphics) = 0;
-        virtual void SubmitCommandLists() {}
+        virtual CommandList BeginCommandList(CommandQueue queue = CommandQueue::Graphics) = 0;
+        virtual void ExecuteCommandLists() {}
 
         /**
          * @brief Make the CPU wait until all submitted GPU work is finished execution.
          */
         virtual void WaitForGPU() const = 0;
-
-        virtual void SetName(GPUResource* resource, const char* name) { (void)resource; (void)name; }
-        virtual void SetName(Shader* shader, const char* name) { (void)shader; (void)name; }
 
         virtual void ClearPipelineStateCache() = 0;
 
@@ -661,7 +669,7 @@ namespace cyb::rhi
         constexpr uint64_t GetTimestampFrequency() const { return gpuTimestampFrequency; }
 
         // Returns the minimum required alignment for buffer offsets when creating subresources
-        virtual uint64_t GetMinOffsetAlignment(const GPUBufferDesc* desc) const = 0;
+        virtual uint64_t GetMinOffsetAlignment(const BufferDesc* desc) const = 0;
 
         struct MemoryUsage
         {
@@ -678,78 +686,87 @@ namespace cyb::rhi
         //	- To get a CommandList that can be recorded into, call BeginCommandList()
         //	- These are not thread safe, only a single thread should use a single CommandList at one time
 
-        virtual void BeginRenderPass(const Swapchain* swapchain, CommandList cmd) = 0;
+        virtual void BeginRenderPass(ISwapchain* swapchain, CommandList cmd) = 0;
         virtual void BeginRenderPass(const RenderPassImage* images, uint32_t imageCount, CommandList cmd) = 0;
         virtual void EndRenderPass(CommandList cmd) = 0;
 
         virtual void BindScissorRects(const Rect* rects, uint32_t rectCount, CommandList cmd) = 0;
         virtual void BindViewports(const Viewport* viewports, uint32_t viewportCount, CommandList cmd) = 0;
-        virtual void BindPipelineState(const PipelineState* pso, CommandList cmd) = 0;
-        virtual void BindVertexBuffers(const GPUBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets, CommandList cmd) = 0;
-        virtual void BindIndexBuffer(const GPUBuffer* index_buffer, const IndexBufferFormat format, uint64_t offset, CommandList cmd) = 0;
+        virtual void BindPipelineState(const IPipelineState* pso, CommandList cmd) = 0;
+        virtual void BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets, CommandList cmd) = 0;
+        virtual void BindIndexBuffer(const IBuffer* index_buffer, const IndexBufferFormat format, uint64_t offset, CommandList cmd) = 0;
         virtual void BindStencilRef(uint32_t value, CommandList cmd) = 0;
-        virtual void BindResource(const GPUResource* resource, int slot, CommandList cmd) = 0;
-        virtual void BindSampler(const Sampler* sampler, uint32_t slot, CommandList cmd) = 0;
-        virtual void BindConstantBuffer(const GPUBuffer* buffer, uint32_t slot, CommandList cmd, uint64_t offset = 0ull) = 0;
+        virtual void BindResource(const IResource* resource, int slot, CommandList cmd) = 0;
+        virtual void BindSampler(const ISampler* sampler, uint32_t slot, CommandList cmd) = 0;
+        virtual void BindConstantBuffer(const IBuffer* buffer, uint32_t slot, CommandList cmd, uint64_t offset = 0ull) = 0;
 
-        virtual void CopyBuffer(const GPUBuffer* dst, uint64_t dst_offset, const GPUBuffer* src, uint64_t src_offset, uint64_t size, CommandList cmd) = 0;
+        virtual void CopyBuffer(const IBuffer* dst, uint64_t dst_offset, const IBuffer* src, uint64_t src_offset, uint64_t size, CommandList cmd) = 0;
 
         virtual void Draw(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd) = 0;
-        virtual void DrawIndexed(uint32_t index_count, uint32_t start_index_location, int32_t base_vertex_location, CommandList cmd) = 0;
+        virtual void DrawIndexed(uint32_t indexCount, uint32_t startIndexLocation, int32_t baseVertexLocation, CommandList cmd) = 0;
 
-        virtual void BeginQuery(const GPUQuery* query, uint32_t index, CommandList cmd) = 0;
-        virtual void EndQuery(const GPUQuery* query, uint32_t index, CommandList cmd) = 0;
-        virtual void ResolveQuery(const GPUQuery* query, uint32_t index, uint32_t count, const GPUBuffer* dest, uint64_t destOffset, CommandList cmd) = 0;
-        virtual void ResetQuery(const GPUQuery* query, uint32_t index, uint32_t count, CommandList cmd) = 0;
+        virtual void BeginQuery(IQuery* query, uint32_t index, CommandList cmd) = 0;
+        virtual void EndQuery(IQuery* query, uint32_t index, CommandList cmd) = 0;
+        virtual void ResolveQuery(const IQuery* query, uint32_t index, uint32_t count, IBuffer* dest, uint64_t destOffset, CommandList cmd) = 0;
+        virtual void ResetQuery(IQuery* query, uint32_t index, uint32_t count, CommandList cmd) = 0;
+
+        virtual void SetEventQuery(IEventQuery* query, CommandQueue queue) = 0;
+		virtual bool PollEventQuery(IEventQuery* query) = 0;
+		virtual void WaitEventQuery(IEventQuery* query) = 0;
+		virtual void ResetEventQuery(IEventQuery* query) = 0;
 
         virtual void PushConstants(const void* data, uint32_t size, CommandList cmd, uint32_t offset = 0) = 0;
 
         virtual void BeginEvent(const char* name, CommandList cmd) = 0;
         virtual void EndEvent(CommandList cmd) = 0;
 
-        // Some helpers:
         struct GPULinearAllocator
         {
-            GPUBuffer buffer;
-            uint64_t offset = 0ull;
-            uint64_t alignment = 0ull;
+            BufferHandle buffer;
+            uint64_t offset = 0;
+            uint64_t alignment = 0;
+
             void Reset()
             {
-                offset = 0ull;
+                offset = 0u;
             }
         };
         virtual GPULinearAllocator& GetFrameAllocator(CommandList cmd) = 0;
 
-        struct GPUAllocation
+        struct ScratchBuffer
         {
-            void* data = nullptr;	// application can write to this. Reads might be not supported or slow. The offset is already applied
-            GPUBuffer buffer;		// application can bind it to the GPU
-            uint64_t offset = 0;	// allocation's offset from the GPUbuffer's beginning
+			void* data = nullptr;	   // CPU pointer (offset allready applied)
+            IBuffer* buffer = nullptr; // handle for GPU binding
+			uint64_t offset = 0;	   // offset from buffer start (for GPU binding)
 
             // @return True if the buffer is a valid allocated GPUBuffer.
-            inline bool IsValid() const { return data != nullptr && buffer.IsValid(); }
+            inline bool IsValid() const { return data != nullptr && buffer != nullptr; }
         };
 
         // Allocates temporary memory that the CPU can write and GPU can read. 
         // Allocation is only alive for one frame and automatically invalidated after that.
-        [[nodiscard]] GPUAllocation AllocateGPU(uint64_t dataSize, CommandList cmd)
+        [[nodiscard]] ScratchBuffer AllocateGPU(uint64_t dataSize, CommandList cmd)
         {
-            GPUAllocation allocation;
+            ScratchBuffer allocation{};
             if (dataSize == 0)
                 return allocation;
 
             GPULinearAllocator& allocator = GetFrameAllocator(cmd);
 
-            const uint64_t free_space = allocator.buffer.desc.size - allocator.offset;
-            if (dataSize > free_space)
+            // query the size of the current buffer (if it exists)
+            const uint64_t currentBufferSize = allocator.buffer ? allocator.buffer->GetDesc().size : 0;
+            const uint64_t freeSpace = currentBufferSize - allocator.offset;
+
+            if (dataSize > freeSpace)
             {
-                GPUBufferDesc desc;
-                desc.cpuAccess = CpuAccessMode::Read;
+                BufferDesc desc{};
+                desc.cpuAccess = CpuAccessMode::Write;
                 desc.usage = BufferUsage::ConstantBufferBit | BufferUsage::VertexBufferBit | BufferUsage::IndexBufferBit;
                 allocator.alignment = GetMinOffsetAlignment(&desc);
-                desc.size = AlignPow2((allocator.buffer.desc.size + dataSize) * 2, allocator.alignment);
-                CreateBuffer(&desc, nullptr, &allocator.buffer);
-                SetName(&allocator.buffer, "FrameAllocationBuffer");
+                desc.size = AlignPow2((currentBufferSize + dataSize) * 2, allocator.alignment);
+				desc.debugName = "ScratchBufferPool";
+
+                allocator.buffer = CreateBuffer(&desc, nullptr);
                 allocator.offset = 0;
 
                 CYB_TRACE("Increasing GPU frame allocation for cmd(0x{:x}) bufferIndex {} to {:.1f}kb", (ptrdiff_t)cmd.internal_state, GetBufferIndex(), desc.size / 1024.0f);
@@ -757,28 +774,31 @@ namespace cyb::rhi
 
             allocation.buffer = allocator.buffer;
             allocation.offset = allocator.offset;
-            allocation.data = (void*)((size_t)allocator.buffer.mappedData + allocator.offset);
-
+            allocation.data = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(allocator.buffer->MappedMemory()) + allocator.offset);
+			// align the offset for the next allocation
             allocator.offset += AlignPow2(dataSize, allocator.alignment);
 
             assert(allocation.IsValid());
             return allocation;
         }
 
-        // Update a CpuAccessMode::Default buffer data
+        // Update a gpu buffer data
         // Since it uses a GPU Copy operation, appropriate synchronization is expected
         // And it cannot be used inside a RenderPass
-        void UpdateBuffer(const GPUBuffer* buffer, const void* data, CommandList cmd, uint64_t size = ~0, uint64_t offset = 0)
+        void UpdateBuffer(IBuffer* buffer, const void* data, CommandList cmd, uint64_t size = ~0, uint64_t offset = 0)
         {
+			assert(buffer->GetDesc().cpuAccess != CpuAccessMode::Write);
             if (buffer == nullptr || data == nullptr)
                 return;
 
-            size = std::min(buffer->desc.size, size);
+            size = std::min(buffer->GetDesc().size, size);
             if (size == 0)
                 return;
-            GPUAllocation allocation = AllocateGPU(size, cmd);
+
+            ScratchBuffer allocation = AllocateGPU(size, cmd);
             std::memcpy(allocation.data, data, size);
-            CopyBuffer(buffer, offset, &allocation.buffer, allocation.offset, size, cmd);
+
+            CopyBuffer(buffer, offset, allocation.buffer, allocation.offset, size, cmd);
         }
 
         // Bind a constant buffer with data for a specific command list
@@ -787,9 +807,9 @@ namespace cyb::rhi
         template<typename T>
         void BindDynamicConstantBuffer(const T& data, uint32_t slot, CommandList cmd)
         {
-            GPUAllocation allocation = AllocateGPU(sizeof(T), cmd);
+            ScratchBuffer allocation = AllocateGPU(sizeof(T), cmd);
             std::memcpy(allocation.data, &data, sizeof(T));
-            BindConstantBuffer(&allocation.buffer, slot, cmd, allocation.offset);
+            BindConstantBuffer(allocation.buffer, slot, cmd, allocation.offset);
         }
     };
 
@@ -814,8 +834,8 @@ namespace cyb::rhi
 
         static_assert(formatInfoTable.size() == Numerical(Format::COUNT));
 
-        assert(Numerical(format) < Numerical(Format::COUNT));
-        if (Numerical(format) >= Numerical(Format::COUNT))
+        assert(uint32_t(format) < uint32_t(Format::COUNT));
+        if (uint32_t(format) >= uint32_t(Format::COUNT))
             return formatInfoTable[0]; // UNKNOWN
 
         const FormatInfo& info = formatInfoTable[(uint32_t)format];

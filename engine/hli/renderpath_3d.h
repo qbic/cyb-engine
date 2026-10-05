@@ -30,11 +30,11 @@ namespace cyb::hli
         renderer::SceneView sceneViewMain;
         //renderer::SceneView sceneViewDebug;
 
-        renderer::FrameConstants frameCB = {};
+        renderer::FrameConstants frameCB{};
 
-        rhi::Texture rtMain;
-        rhi::Texture rtMainDepth;
-        rhi::Texture rtSelectionOutline;
+        rhi::TextureHandle rtMain;
+        rhi::TextureHandle rtMainDepth;
+        rhi::TextureHandle rtSelectionOutline;
 
         double runtime = 0.0;                       // Accumilated delta times
     };

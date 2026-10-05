@@ -115,12 +115,12 @@ void MeshComponent::CreateRenderData()
 
     // create index buffer gpu data
     {
-        rhi::GPUBufferDesc desc;
+        rhi::BufferDesc desc;
         desc.size = uint32_t(sizeof(uint32_t) * indices.size());
         desc.usage = rhi::BufferUsage::IndexBufferBit;
 
-        bool result = device->CreateBuffer(&desc, indices.data(), &index_buffer);
-        assert(result == true);
+        index_buffer = device->CreateBuffer(&desc, indices.data());
+        assert(index_buffer);
     }
 
     aabb.Invalidate();
@@ -138,21 +138,21 @@ void MeshComponent::CreateRenderData()
             aabb.GrowPoint(pos);
         }
 
-        rhi::GPUBufferDesc desc;
+        rhi::BufferDesc desc{};
         desc.size = uint32_t(sizeof(Vertex_Pos) * vertices.size());
         desc.usage = rhi::BufferUsage::VertexBufferBit;
-        bool result = device->CreateBuffer(&desc, vertices.data(), &vertex_buffer_pos);
-        assert(result == true);
+        vertex_buffer_pos = device->CreateBuffer(&desc, vertices.data());
+        assert(vertex_buffer_pos);
     }
 
     // vertex_buffer_col - COLOR
     if (!vertex_colors.empty())
     {
-        rhi::GPUBufferDesc desc;
+        rhi::BufferDesc desc{};
         desc.size = uint32_t(sizeof(uint32_t) * vertex_colors.size());
         desc.usage = rhi::BufferUsage::VertexBufferBit;
-        bool result = device->CreateBuffer(&desc, vertex_colors.data(), &vertex_buffer_col);
-        assert(result == true);
+        vertex_buffer_col = device->CreateBuffer(&desc, vertex_colors.data());
+        assert(vertex_buffer_col);
     }
 }
 

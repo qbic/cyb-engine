@@ -19,35 +19,35 @@ namespace cyb::hli
 
         // Render targets:
         {
-            TextureDesc desc;
+            TextureDesc desc{};
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;
             desc.format = Format::RGBA8_UNORM;
             desc.initialState = ResourceStates::ShaderResourceBit | ResourceStates::RenderTargetBit;
-            device->CreateTexture(&desc, nullptr, &rtMain);
-            device->SetName(&rtMain, "rtMain");
+			desc.debugName = "rtMain";
+            rtMain = device->CreateTexture(&desc, nullptr);
         }
 
         // Depth stencil buffer:
         {
-            TextureDesc desc;
+            TextureDesc desc{};
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;
             desc.format = Format::D24S8;
             desc.initialState = ResourceStates::DepthWriteBit;
-            device->CreateTexture(&desc, nullptr, &rtMainDepth);
-            device->SetName(&rtMainDepth, "rtMainDepth");
+            desc.debugName = "rtMainDepth";
+            rtMainDepth = device->CreateTexture(&desc, nullptr);
         }
 
         // Selection outline
         {
-            TextureDesc desc;
+            TextureDesc desc{};
             desc.width = internalResolution.x;
             desc.height = internalResolution.y;
             desc.format = Format::R8_UNORM;
             desc.initialState = ResourceStates::ShaderResourceBit | ResourceStates::RenderTargetBit;
-            device->CreateTexture(&desc, nullptr, &rtSelectionOutline);
-            device->SetName(&rtSelectionOutline, "rtSelectionOutline");
+            desc.debugName = "rtSelectionOutline";
+            rtSelectionOutline = device->CreateTexture(&desc, nullptr);
         }
 
         RenderPath2D::ResizeBuffers();
@@ -81,20 +81,20 @@ namespace cyb::hli
 
         device->BeginEvent("Opaque Scene", cmd);
         Viewport viewport;
-        viewport.width = (float)rtMain.GetDesc().width;
-        viewport.height = (float)rtMain.GetDesc().height;
+        viewport.width = (float)rtMain->GetDesc().width;
+        viewport.height = (float)rtMain->GetDesc().height;
         device->BindViewports(&viewport, 1, cmd);
 
-        const RenderPassImage renderPassImages[] = {
+        const std::array renderPassImages = std::to_array<RenderPassImage>({
             RenderPassImage::RenderTarget(
-                &rtMain,
+                rtMain,
                 RenderPassImage::LoadOp::DontCare),
             RenderPassImage::DepthStencil(
-                &rtMainDepth,
+                rtMainDepth,
                 RenderPassImage::LoadOp::Clear,
                 RenderPassImage::StoreOp::Store)
-        };
-        device->BeginRenderPass(renderPassImages, _countof(renderPassImages), cmd);
+        });
+        device->BeginRenderPass(renderPassImages.data(), renderPassImages.size(), cmd);
 
         Rect scissor = GetScissorInternalResolution();
         device->BindScissorRects(&scissor, 1, cmd);
@@ -117,17 +117,17 @@ namespace cyb::hli
         device->BeginEvent("Selection Outline", cmd);
         {
             CYB_PROFILE_GPU_SCOPE("Selection Outline", cmd);
-            const RenderPassImage rpStencilFill[] = {
+            const std::array rpStencilFill = std::to_array<RenderPassImage>({
                 RenderPassImage::RenderTarget(
-                    &rtSelectionOutline,
+                    rtSelectionOutline,
                     RenderPassImage::LoadOp::Clear),
                 RenderPassImage::DepthStencil(
-                    &rtMainDepth,
+                    rtMainDepth,
                     RenderPassImage::LoadOp::Load)
-            };
-            device->BeginRenderPass(rpStencilFill, _countof(rpStencilFill), cmd);
+            });
+            device->BeginRenderPass(rpStencilFill.data(), rpStencilFill.size(), cmd);
 
-            renderer::ImageParams image = {};
+            renderer::ImageParams image{};
             image.EnableFullscreen();
             image.stencilRef = 8;
             image.stencilComp = renderer::STENCILMODE_EQUAL;
@@ -136,12 +136,12 @@ namespace cyb::hli
 
             device->EndRenderPass(cmd);
 
-            const RenderPassImage rpOutline[] = {
+            const std::array rpOutline = std::to_array<RenderPassImage>({
                 RenderPassImage::RenderTarget(
-                    &rtMain,
+                    rtMain,
                     RenderPassImage::LoadOp::Load)
-            };
-            device->BeginRenderPass(rpOutline, _countof(rpOutline), cmd);
+            });
+            device->BeginRenderPass(rpOutline.data(), rpOutline.size(), cmd);
             XMFLOAT4 outlineColor = XMFLOAT4(1.0f, 0.62f, 0.17f, 1.0f);
             renderer::Postprocess_Outline(rtSelectionOutline, cmd, r_selectionOutlineThickness.GetValue(), 0.05f, outlineColor);
             device->EndRenderPass(cmd);
@@ -153,14 +153,14 @@ namespace cyb::hli
 
     void RenderPath3D::Compose(CommandList cmd) const
     {
-        GraphicsDevice* device = rhi::GetDevice();
-        renderer::ImageParams params = {};
+        renderer::ImageParams params{};
         params.EnableFullscreen();
 
+        GraphicsDevice* device = rhi::GetDevice();
         device->BeginEvent("Composition", cmd);
-        const rhi::Sampler* pointSampler = GetSamplerState(renderer::SSLOT_POINT_CLAMP);
+        const rhi::ISampler* pointSampler = GetSamplerState(renderer::SSLOT_POINT_CLAMP);
         device->BindSampler(pointSampler, 0, cmd);
-        renderer::DrawImage(&rtMain, params, cmd);
+        renderer::DrawImage(rtMain, params, cmd);
         device->EndEvent(cmd);
 
         RenderPath2D::Compose(cmd);

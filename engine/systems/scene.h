@@ -107,10 +107,10 @@ struct alignas(16) MeshComponent
 
     // non-serialized data
     AxisAlignedBox aabb;
-    rhi::GPUBuffer vertex_buffer_pos;
-    rhi::GPUBuffer vertex_buffer_col;
-    rhi::GPUBuffer index_buffer;
-    rhi::GPUBuffer vertexBuffer;
+    rhi::BufferHandle vertex_buffer_pos;
+    rhi::BufferHandle vertex_buffer_col;
+    rhi::BufferHandle index_buffer;
+    rhi::BufferHandle vertexBuffer;
 
     // clear vertex and index data. GPUBuffer's will be left untouched
     void Clear();

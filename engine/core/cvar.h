@@ -26,7 +26,7 @@ namespace cyb
     class CVar;
 
     /** CVar base functionality that doesn't require value type. */
-    class CVarBase : private NonCopyable
+    class CVarBase : private NonCopyableNonMovable
     {
     public:
         explicit CVarBase(const std::string& name, CVarFlag flags, const std::string& description);

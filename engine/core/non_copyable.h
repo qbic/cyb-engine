@@ -6,21 +6,20 @@ namespace cyb
     {
     protected:
         NonCopyable() = default;
-
+        NonCopyable(NonCopyable&& other) = default;
+        NonCopyable& operator=(NonCopyable&& other) = default;
         NonCopyable(const NonCopyable& other) = delete;
-        NonCopyable(NonCopyable&& other) = delete;
         NonCopyable& operator=(const NonCopyable& other) = delete;
-        NonCopyable& operator=(NonCopyable&& other) = delete;
     };
 
-    class MovableNonCopyable
+    class NonCopyableNonMovable
     {
     protected:
-        MovableNonCopyable() = default;
-        MovableNonCopyable(MovableNonCopyable&& other) = default;
-        MovableNonCopyable& operator=(MovableNonCopyable&& other) = default;
-
-        MovableNonCopyable(const MovableNonCopyable& other) = delete;
-        MovableNonCopyable& operator=(const MovableNonCopyable& other) = delete;
+        NonCopyableNonMovable() = default;
+        NonCopyableNonMovable(const NonCopyableNonMovable& other) = delete;
+        NonCopyableNonMovable(NonCopyableNonMovable&& other) = delete;
+        NonCopyableNonMovable& operator=(const NonCopyableNonMovable& other) = delete;
+        NonCopyableNonMovable& operator=(NonCopyableNonMovable&& other) = delete;
     };
+
 } // namespace cyb

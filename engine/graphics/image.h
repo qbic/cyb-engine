@@ -18,9 +18,9 @@ namespace cyb::renderer
 
     enum class ImageFlag
     {
-        None = 0,
+        None          = 0,
         FullscreenBit = BIT(1),
-        DepthTestBit = BIT(2)
+        DepthTestBit  = BIT(2)
     };
     CYB_ENABLE_BITMASK_OPERATORS(ImageFlag);
 
@@ -53,5 +53,5 @@ namespace cyb::renderer
 
     void Image_Initialize();
 
-    void DrawImage(const rhi::Texture* texture, const ImageParams& params, rhi::CommandList cmd);
+    void DrawImage(const rhi::ITexture* texture, const ImageParams& params, rhi::CommandList cmd);
 }

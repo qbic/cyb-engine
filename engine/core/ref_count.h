@@ -20,11 +20,24 @@
  *   - The refcount is atomic, but a single RefCountPtr instance is not thread-safe.
  */
 #pragma once
+#include "core/non_copyable.h"
 #include <cstdint>
 #include <atomic>
 
 namespace cyb
 {
+    class IResource : protected NonCopyableNonMovable
+    {
+    protected:
+        IResource() = default;
+        virtual ~IResource() = default;
+
+    public:
+        virtual uint32_t AddRef() = 0;
+        virtual uint32_t Release() = 0;
+        virtual uint32_t GetRefCount() = 0;
+    };
+
     // RefCountPtr
     // Mostly a copy of Microsoft::WRL::ComPtr<T>
 	template <typename T>

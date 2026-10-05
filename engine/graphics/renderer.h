@@ -109,14 +109,14 @@ namespace cyb::renderer
         std::vector<uint32_t> lightIndexes;    // scene->lights indexes
     };
 
-    const rhi::Shader* GetShader(SHADERTYPE id);
-    const rhi::Sampler* GetSamplerState(SSLOT id);
+    const rhi::IShader* GetShader(SHADERTYPE id);
+    const rhi::ISampler* GetSamplerState(SSLOT id);
     const rhi::RasterizerState* GetRasterizerState(RSTYPES id);
     const rhi::DepthStencilState* GetDepthStencilState(DSSTYPES id);
 
     void Initialize();
     void ReloadShaders();
-    bool LoadShader(rhi::ShaderType stage, rhi::Shader& shader, const std::string& filename);
+    rhi::ShaderHandle LoadShader(rhi::ShaderType stage, const std::string& filename);
 
     // Prepare view for rendering
     void UpdatePerFrameData(const SceneView& view, float time, FrameConstants& frameCB);
@@ -137,7 +137,7 @@ namespace cyb::renderer
     void DrawDebugScene(const SceneView& view, rhi::CommandList cmd);
 
     void Postprocess_Outline(
-        const rhi::Texture& input,
+        const rhi::ITexture* input,
         rhi::CommandList cmd,
         float thickness,
         float threshold,

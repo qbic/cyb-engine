@@ -1,14 +1,13 @@
-#include <unordered_set>
-#include <unordered_map>
-#ifdef _WIN32
-#include <dwmapi.h>
-#endif // _WIN32
 #include "core/logger.h"
 #include "core/sys.h"
 #include "core/hash.h"
 #include "graphics/device_vulkan.h"
 #include "volk.h"
 #include "spirv_reflect.h"
+#include <unordered_set>
+#ifdef _WIN32
+#include <dwmapi.h>
+#endif // _WIN32
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -444,7 +443,7 @@ namespace cyb::rhi::vulkan_internal
 
 		const SwapchainDesc& GetDesc() const override { return m_desc; }
         bool ResizeBuffers(const SwapchainDesc& desc) override;
-        void Present() override;
+        void Present();
         void WaitForAcquireFence();
 
     private:
@@ -777,13 +776,13 @@ namespace cyb::rhi
             queue.Submit(VK_NULL_HANDLE);
 
             copyQueueSignalInfo.semaphore = queue.trackingSemaphore;
-            copyQueueSignalInfo.value = queue.lastSubmittedID;
+            copyQueueSignalInfo.value = queue.GetLastSubmittedID();
         }
 
         {
             auto& queue = device->GetQueue(CommandQueue::Graphics);
             cmdSubmitInfo.commandBuffer = cmd.transitionCommandBuffer;
-            queue.submit_waitSemaphoreInfos.push_back(copyQueueSignalInfo);
+            queue.m_waitSemaphoreInfos.push_back(copyQueueSignalInfo);
             queue.submit_cmds.push_back(cmdSubmitInfo);
             
             queue.Submit(cmd.fence);    // signal fence on last submit
@@ -2850,7 +2849,7 @@ namespace cyb::rhi
 
     void Queue_Vulkan::AddWaitSemaphore(VkSemaphore semaphore, uint64_t value)
     {
-        VkSemaphoreSubmitInfo& waitSemaphore = submit_waitSemaphoreInfos.emplace_back();
+        VkSemaphoreSubmitInfo& waitSemaphore = m_waitSemaphoreInfos.emplace_back();
         waitSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
         waitSemaphore.semaphore = semaphore;
         waitSemaphore.value = value;
@@ -2859,7 +2858,7 @@ namespace cyb::rhi
 
     void Queue_Vulkan::AddSignalSemaphore(VkSemaphore semaphore, uint64_t value)
     {
-        VkSemaphoreSubmitInfo& signalSemaphore = submit_signalSemaphoreInfos.emplace_back();
+        VkSemaphoreSubmitInfo& signalSemaphore = m_signalSemaphoreInfos.emplace_back();
         signalSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
         signalSemaphore.semaphore = semaphore;
         signalSemaphore.value = value;
@@ -2872,22 +2871,22 @@ namespace cyb::rhi
 
         // signal the tracking semaphore with the last submitted ID to mark 
         // the end of the frame
-        const uint64_t submissionID = ++lastSubmittedID;
+        const uint64_t submissionID = ++m_lastSubmittedID;
         AddSignalSemaphore(trackingSemaphore, submissionID);
 
         VkSubmitInfo2 submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
         submitInfo.commandBufferInfoCount = (uint32_t)submit_cmds.size();
         submitInfo.pCommandBufferInfos = submit_cmds.data();
-        submitInfo.waitSemaphoreInfoCount = static_cast<uint32_t>(submit_waitSemaphoreInfos.size());
-        submitInfo.pWaitSemaphoreInfos = submit_waitSemaphoreInfos.data();
-        submitInfo.signalSemaphoreInfoCount = static_cast<uint32_t>(submit_signalSemaphoreInfos.size());
-        submitInfo.pSignalSemaphoreInfos = submit_signalSemaphoreInfos.data();
+        submitInfo.waitSemaphoreInfoCount = static_cast<uint32_t>(m_waitSemaphoreInfos.size());
+        submitInfo.pWaitSemaphoreInfos = m_waitSemaphoreInfos.data();
+        submitInfo.signalSemaphoreInfoCount = static_cast<uint32_t>(m_signalSemaphoreInfos.size());
+        submitInfo.pSignalSemaphoreInfos = m_signalSemaphoreInfos.data();
 
         VK_CHECK(vkQueueSubmit2(queue, 1, &submitInfo, fence));
 
-        submit_waitSemaphoreInfos.clear();
-        submit_signalSemaphoreInfos.clear();
+        m_waitSemaphoreInfos.clear();
+        m_signalSemaphoreInfos.clear();
         submit_cmds.clear();
 
         return submissionID;
@@ -2901,7 +2900,7 @@ namespace cyb::rhi
 
     bool Queue_Vulkan::PollCommandList(uint64_t commandListID)
     {
-        if (commandListID > lastSubmittedID || commandListID == 0)
+        if (commandListID > m_lastSubmittedID || commandListID == 0)
             return false;
 
         bool completed = GetLastFinishedID() >= commandListID;
@@ -2913,7 +2912,7 @@ namespace cyb::rhi
 
 	bool Queue_Vulkan::WaitCommandList(uint64_t commandListID, uint64_t timeout)
 	{
-		if (commandListID > lastSubmittedID || commandListID == 0)
+		if (commandListID > m_lastSubmittedID || commandListID == 0)
 			return false;
 
 		if (PollCommandList(commandListID))
@@ -2954,7 +2953,7 @@ namespace cyb::rhi
                 Swapchain_Vulkan* swapchain = check_cast<Swapchain_Vulkan*>(_swapchain);
 
                 queue.AddWaitSemaphore(swapchain->acquireSemaphores[swapchain->acquireSemaphoreIndex], 0);
-                queue.AddSignalSemaphore(swapchain->acquireSemaphores[swapchain->acquireSemaphoreIndex], 0);
+                queue.AddSignalSemaphore(swapchain->presentSemaphores[swapchain->imageIndex], 0);
             }
 
             for (auto& x : commandlist.pipelinesWorker)
@@ -2980,6 +2979,13 @@ namespace cyb::rhi
 
         // run garbage collection
         m_allocationHandler->Update(frameCount, BUFFERCOUNT);
+    }
+
+    void GraphicsDevice_Vulkan::Present(ISwapchain* _swapchain)
+    {
+        Swapchain_Vulkan* swapchain = check_cast<Swapchain_Vulkan*>(_swapchain);
+        swapchain->Present();
+        swapchain->WaitForAcquireFence();
     }
 
     void GraphicsDevice_Vulkan::WaitForGPU() const
@@ -3036,7 +3042,6 @@ namespace cyb::rhi
         commandlist.renderpassBarriersEnd.clear();
 
         Swapchain_Vulkan* swapchain = check_cast<Swapchain_Vulkan*>(_swapchain);
-        swapchain->WaitForAcquireFence();
 
         swapchain->locker.lock();
 
@@ -3386,7 +3391,7 @@ namespace cyb::rhi
 		assert(query->commandListID == 0);
 
 		query->queue = queue;
-        query->commandListID = queues[uint32_t(queue)].lastSubmittedID;
+        query->commandListID = queues[uint32_t(queue)].GetLastSubmittedID();
     }
 
     bool GraphicsDevice_Vulkan::PollEventQuery(IEventQuery* _query)

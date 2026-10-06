@@ -113,7 +113,7 @@ namespace cyb::hli
 
             profiler::EndFrame(cmd);
             m_graphicsDevice->ExecuteCommandLists();
-            m_swapchain->Present();
+            m_graphicsDevice->Present(m_swapchain);
         }
     }
 

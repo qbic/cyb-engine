@@ -1,13 +1,14 @@
 #pragma once
-#include <array>
-#include <deque>
-#include <mutex>
 #include "core/spinlock.h"
 #include "graphics/device.h"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 #include "volk.h"
 #include "vk_mem_alloc.h"
+#include <array>
+#include <deque>
+#include <mutex>
+#include <unordered_map>
 
 namespace cyb::rhi
 {
@@ -15,11 +16,7 @@ namespace cyb::rhi
     {
 		VkDevice device = VK_NULL_HANDLE;
         VkQueue queue = VK_NULL_HANDLE;
-        uint64_t lastSubmittedID = 0;
         VkSemaphore trackingSemaphore = VK_NULL_HANDLE;
-
-        std::vector<VkSemaphoreSubmitInfo> submit_signalSemaphoreInfos;
-        std::vector<VkSemaphoreSubmitInfo> submit_waitSemaphoreInfos;
         std::vector<VkCommandBufferSubmitInfo> submit_cmds;
 
         void AddWaitSemaphore(VkSemaphore semaphore, uint64_t value);
@@ -27,14 +24,19 @@ namespace cyb::rhi
         uint64_t Submit(VkFence fence);
 
 		uint64_t UpdateLastFinishedID();
-		uint64_t GetLastFinishedID() const { return m_lastFinishedID; }
+        [[nodiscard]] uint64_t GetLastSubmittedID() const { return m_lastSubmittedID; }
+		[[nodiscard]] uint64_t GetLastFinishedID() const { return m_lastFinishedID; }
 
         bool PollCommandList(uint64_t commandListID);
         bool WaitCommandList(uint64_t commandListID, uint64_t timeout);
 
+        std::vector<VkSemaphoreSubmitInfo> m_waitSemaphoreInfos;
+
     private:
         std::recursive_mutex m_mutex;
-		uint64_t m_lastFinishedID = 0;
+        std::vector<VkSemaphoreSubmitInfo> m_signalSemaphoreInfos;
+        uint64_t m_lastSubmittedID = 0;
+        uint64_t m_lastFinishedID = 0;
     };
 
     class GraphicsDevice_Vulkan final : public GraphicsDevice
@@ -232,6 +234,7 @@ namespace cyb::rhi
 
         CommandList BeginCommandList(CommandQueue queue) override;
         void ExecuteCommandLists() override;
+        void Present(ISwapchain* swapchain) override;
         void WaitForGPU() const override;
 
         void ClearPipelineStateCache() override;
@@ -278,17 +281,6 @@ namespace cyb::rhi
         GPULinearAllocator& GetFrameAllocator(CommandList cmd) override
         {
             return GetCommandList(cmd).frame_allocators[GetBufferIndex()];
-        }
-
-        void AddWaitSemaphore(CommandQueue queueIndex, VkSemaphore semaphore, uint64_t value)
-        {
-            auto& queue = queues[uint32_t(queueIndex)];
-            queue.AddWaitSemaphore(semaphore, value);
-        }
-        void AddSignalSemaphore(CommandQueue queueIndex, VkSemaphore semaphore, uint64_t value)
-        {
-            auto& queue = queues[uint32_t(queueIndex)];
-            queue.AddSignalSemaphore(semaphore, value);
         }
 
         struct AllocationHandler

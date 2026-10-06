@@ -464,7 +464,6 @@ namespace cyb::rhi
     {
         [[nodiscard]] virtual const SwapchainDesc& GetDesc() const = 0;
 		[[nodiscard]] virtual bool ResizeBuffers(const SwapchainDesc& desc) = 0;
-		virtual void Present() = 0;
     };
 	using SwapchainHandle = RefCountPtr<ISwapchain>;
 
@@ -636,8 +635,8 @@ namespace cyb::rhi
     class GraphicsDevice
     {
     protected:
-        static constexpr uint32_t BUFFERCOUNT = 2;
-        static constexpr bool VALIDATION_MODE_ENABLED = false;
+        static constexpr uint32_t BUFFERCOUNT = 3;
+        static constexpr bool VALIDATION_MODE_ENABLED = true;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 
@@ -654,7 +653,8 @@ namespace cyb::rhi
         virtual PipelineStateHandle CreatePipelineState(const PipelineStateDesc* desc) const = 0;
 
         virtual CommandList BeginCommandList(CommandQueue queue = CommandQueue::Graphics) = 0;
-        virtual void ExecuteCommandLists() {}
+        virtual void ExecuteCommandLists() = 0;
+        virtual void Present(ISwapchain* swapchain) = 0;
 
         /**
          * @brief Make the CPU wait until all submitted GPU work is finished execution.

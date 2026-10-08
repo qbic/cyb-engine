@@ -5,7 +5,7 @@
 
 namespace cyb
 {
-	// A bounded, lock-free, multi-producer, multi-consumer circular queue.
+	// A bounded, lock-free, multi-producer, multi-consumer circular m_queue.
 	// The capacity must be a power of two, and at least 2.
 	template<typename T, size_t N>
 	class MPMCQueue
@@ -26,8 +26,8 @@ namespace cyb
 				m_buffer[i].sequence.store(i, std::memory_order_relaxed);
 		}
 
-		// Push a value at the back of the queue.
-		// Return true if value was successfully enqueued, false if queue is full.
+		// Push a value at the back of the m_queue.
+		// Return true if value was successfully enqueued, false if m_queue is full.
 		[[nodiscard]] bool Push(T& value) noexcept
 		{
 			size_t pos = m_enq.load(std::memory_order_relaxed);
@@ -54,7 +54,7 @@ namespace cyb
 			}
 		}
 		
-		// Pop a value from the front of the queue.
+		// Pop a value from the front of the m_queue.
 		// Returns true if a value was successfully dequeued.
 		[[nodiscard]] bool Pop(T& v) noexcept
 		{

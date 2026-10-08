@@ -52,14 +52,14 @@ namespace cyb::hli
     {
     }
 
-    void RenderPath2D::Compose(rhi::CommandList cmd) const
+    void RenderPath2D::Compose(rhi::ICommandList* cmd) const
     {
 #ifndef NO_EDITOR
         {
             CYB_PROFILE_GPU_SCOPE("GUI", cmd);
-            rhi::GetDevice()->BeginEvent("GUI", cmd);
+            cmd->BeginMarker("GUI");
             ImGui_Impl_CybEngine_Compose(cmd);
-            rhi::GetDevice()->EndEvent(cmd);
+            cmd->EndMarker();
         }
 #endif
     }

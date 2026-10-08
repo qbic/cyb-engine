@@ -16,17 +16,17 @@ namespace cyb::renderer
         STENCILMODE_COUNT
     };
 
-    enum class ImageFlag
+    enum class ImageFlags
     {
         None          = 0,
         FullscreenBit = BIT(1),
         DepthTestBit  = BIT(2)
     };
-    CYB_ENABLE_BITMASK_OPERATORS(ImageFlag);
+    CYB_ENABLE_BITMASK_OPERATORS(ImageFlags);
 
     struct ImageParams
     {
-        ImageFlag flags = ImageFlag::None;
+        ImageFlags flags = ImageFlags::None;
         XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
         XMFLOAT2 size = XMFLOAT2(1.0f, 1.0f);
         XMFLOAT2 pivot = XMFLOAT2(0.5f, 0.5f);          // (0,0) : upperleft, (0.5,0.5) : center, (1,1) : bottomright
@@ -43,15 +43,9 @@ namespace cyb::renderer
 
         uint8_t stencilRef = 0;
         STENCILMODE stencilComp = STENCILMODE_DISABLED;
-
-        [[nodiscard]] bool IsFullscreenEnabled() const { return HasFlag(flags, ImageFlag::FullscreenBit); }
-        [[nodiscard]] bool IsDepthTestEnabled() const { return HasFlag(flags, ImageFlag::DepthTestBit); }
-
-        void EnableFullscreen() { SetFlag(flags, ImageFlag::FullscreenBit, true); }
-        void EnableDepthTest() { SetFlag(flags, ImageFlag::DepthTestBit, true); }
     };
 
     void Image_Initialize();
 
-    void DrawImage(const rhi::ITexture* texture, const ImageParams& params, rhi::CommandList cmd);
+    void DrawImage(const rhi::ITexture* texture, const ImageParams& params, rhi::ICommandList* cmd);
 }

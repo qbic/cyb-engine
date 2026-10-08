@@ -5,10 +5,10 @@
  * Each worker is pinned to its own core starting at core 1, which leaves core 0
  * for the main thread.
  *
- * Each worker owns a bounded MPMC queue. Jobs are pushed round-robin across the
- * workers. An idle worker pops from its own queue first, then steals from the
+ * Each worker owns a bounded MPMC m_queue. Jobs are pushed round-robin across the
+ * workers. An idle worker pops from its own m_queue first, then steals from the
  * other workers, and sleeps on a semaphore when it finds no work. If the target
- * queue is full, the job runs inline on the thread that submitted it.
+ * m_queue is full, the job runs inline on the thread that submitted it.
  *
  * JobCounter tracks completion. Execute() and Dispatch() increment the counter,
  * and each finished job (or job group) decrements it. Wait() does not block

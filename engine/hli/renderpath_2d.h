@@ -14,7 +14,7 @@ namespace cyb::hli
         void Update(double dt) override;
         void PostUpdate() override;
         void Render() const override;
-        void Compose(rhi::CommandList cmd) const override;
+        void Compose(rhi::ICommandList* cmd) const override;
 
         /**
          * Gets the scaled internal resolution for rendering.

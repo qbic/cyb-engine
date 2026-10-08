@@ -19,14 +19,16 @@ namespace cyb::renderer
     static PipelineStateHandle psoImage[STENCILMODE_COUNT][DEPTH_TEST_MODE_COUNT];
     static TextureHandle whiteTexture;
 
-    void DrawImage(const ITexture* texture, const ImageParams& params, CommandList cmd)
+    void DrawImage(const ITexture* texture, const ImageParams& params, ICommandList* cmd)
     {
         GraphicsDevice* device = rhi::GetDevice();
-        device->BeginEvent("Image", cmd);
+        cmd->BeginMarker("Image");
 
         ImageConstants image{};
+        bool fullscreenEnabled = HasFlag(params.flags, ImageFlags::FullscreenBit);
+        bool depthTestEnabled = HasFlag(params.flags, ImageFlags::DepthTestBit);
 
-        if (params.IsFullscreenEnabled())
+        if (fullscreenEnabled)
         {
             image.flags |= IMAGE_FULLSCREEN_BIT;
         }
@@ -51,12 +53,12 @@ namespace cyb::renderer
         if (texture == nullptr)
             texture = whiteTexture;
 
-        device->BindResource(texture, 0, cmd);
-        device->BindStencilRef(params.stencilRef, cmd);
-        device->BindPipelineState(psoImage[params.stencilComp][params.IsDepthTestEnabled()], cmd);
-        device->BindDynamicConstantBuffer(image, CBSLOT_IMAGE, cmd);
-        device->Draw(params.IsFullscreenEnabled() ? 3 : 4, 0, cmd);
-        device->EndEvent(cmd);
+        cmd->BindResource(texture, 0);
+        cmd->BindStencilRef(params.stencilRef);
+        cmd->BindPipelineState(psoImage[params.stencilComp][depthTestEnabled]);
+        cmd->BindDynamicConstantBuffer(image, CBSLOT_IMAGE);
+        cmd->Draw(fullscreenEnabled ? 3 : 4, 0);
+        cmd->EndMarker();
     }
 
     void Image_LoadShaders()

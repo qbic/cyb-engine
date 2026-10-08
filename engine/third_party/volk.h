@@ -95,12 +95,12 @@ void volkLoadInstance(VkInstance instance);
 
 /**
  * Load global function pointers using application-created VkInstance; call this function after creating the Vulkan instance.
- * Skips loading device-based function pointers, requires usage of volkLoadDevice afterwards.
+ * Skips loading m_device-based function pointers, requires usage of volkLoadDevice afterwards.
  */
 void volkLoadInstanceOnly(VkInstance instance);
 
 /**
- * Load global function pointers using application-created VkDevice; call this function after creating the Vulkan device.
+ * Load global function pointers using application-created VkDevice; call this function after creating the Vulkan m_device.
  *
  * Note: this is not suitable for applications that want to use multiple VkDevice objects concurrently.
  */

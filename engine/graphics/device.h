@@ -4,7 +4,7 @@
 #include "core/ref_count.h"
 #include "core/sys.h"
 #include "core/logger.h"
-#include "graphics/display.h"   // for WindowHandle
+#include "graphics/display.h"
 #include <array>
 
 template <typename To, typename From>
@@ -25,6 +25,10 @@ namespace cyb::rhi
 {
     struct ITexture;
     struct IShader;
+
+    // =====================================================================
+    //  Enums: usage, stages, access
+    // =====================================================================
 
     enum class BufferUsage : uint8_t
     {
@@ -225,6 +229,10 @@ namespace cyb::rhi
         Occlusion,                      //!< How many samples passed depth test?
         OcclusionBinary                 //!< Depth test passed or not?
     };
+
+    // =====================================================================
+    //  Resource descriptions
+    // =====================================================================
 
     struct BufferDesc
     {
@@ -613,11 +621,58 @@ namespace cyb::rhi
     //  Render Device Interface Class
     //=============================================================
 
-    struct CommandList
+    struct ScratchBuffer
     {
-        void* internal_state = nullptr;
-        constexpr bool IsValid() const { return internal_state != nullptr; }
+        void* mappedMemory = nullptr;	// CPU pointer (offset allready applied)
+        IBuffer* buffer = nullptr;      // handle for GPU binding
+        uint64_t offset = 0;	        // offset from buffer start (for GPU binding)
     };
+
+    struct GPULinearAllocator;
+
+    struct ICommandList : public IResource
+    {
+        virtual GPULinearAllocator* GetFrameAllocator() = 0;
+
+        virtual void BeginRenderPass(ISwapchain* swapchain) = 0;
+        virtual void BeginRenderPass(const RenderPassImage* images, uint32_t imageCount) = 0;
+        virtual void EndRenderPass() = 0;
+            
+        virtual void BindScissorRects(const Rect* rects, uint32_t rectCount) = 0;
+        virtual void BindViewports(const Viewport* viewports, uint32_t viewportCount) = 0;
+        virtual void BindPipelineState(const IPipelineState* pso) = 0;
+        virtual void BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets) = 0;
+        virtual void BindIndexBuffer(const IBuffer* indexBuffer, const IndexBufferFormat format, uint64_t offset) = 0;
+        virtual void BindStencilRef(uint32_t value) = 0;
+        virtual void BindResource(const IResource* resource, int slot) = 0;
+        virtual void BindSampler(const ISampler* sampler, uint32_t slot) = 0;
+        virtual void BindConstantBuffer(const IBuffer* buffer, uint32_t slot, uint64_t offset = 0) = 0;
+
+        // Bind a constant buffer with data for a specific command list
+        // This will be done on the CPU to an UPLOAD buffer, so this can be used inside a RenderPass
+        // But this will be only visible on the command list it was bound to
+        template<typename T>
+        void BindDynamicConstantBuffer(const T& data, uint32_t slot)
+        {
+            ScratchBuffer allocation = GetFrameAllocator()->Alloc(sizeof(T));
+            std::memcpy(allocation.mappedMemory, &data, sizeof(T));
+            BindConstantBuffer(allocation.buffer, slot, allocation.offset);
+        }
+
+        virtual void CopyBuffer(const IBuffer* dst, uint64_t dstOffset, const IBuffer* src, uint64_t srcOffset, uint64_t size) = 0;
+        
+        // Update a gpu buffer data
+        // Since it uses a GPU Copy operation, appropriate synchronization is expected
+        // And it cannot be used inside a RenderPass
+        virtual void UpdateBuffer(IBuffer* buffer, const void* data, uint64_t size = ~0ull, uint64_t offset = 0) = 0;
+
+        virtual void Draw(uint32_t vertexCount, uint32_t startVertexLocation) = 0;
+        virtual void DrawIndexed(uint32_t indexCount, uint32_t startIndexLocation, int32_t baseVertexLocation) = 0;
+
+        virtual void BeginMarker(std::string_view name) const = 0;
+        virtual void EndMarker() const = 0;
+    };
+    using CommandListHandle = RefCountPtr<ICommandList>;
 
     constexpr uint32_t DESCRIPTORBINDER_CBV_COUNT = 14;
     constexpr uint32_t DESCRIPTORBINDER_SRV_COUNT = 16;
@@ -630,6 +685,12 @@ namespace cyb::rhi
         std::array<IResource*, DESCRIPTORBINDER_SRV_COUNT> SRV{};
         std::array<int, DESCRIPTORBINDER_SRV_COUNT> SRV_index{};
         std::array<const ISampler*, DESCRIPTORBINDER_SAMPLER_COUNT> SAM{};
+    };
+
+    struct GraphicsDeviceDesc
+    {
+        uint32_t backBufferCount = 2;
+        bool enableValidation = false;
     };
 
     class GraphicsDevice
@@ -652,7 +713,7 @@ namespace cyb::rhi
         virtual SamplerHandle CreateSampler(const SamplerDesc* desc) const = 0;
         virtual PipelineStateHandle CreatePipelineState(const PipelineStateDesc* desc) const = 0;
 
-        virtual CommandList BeginCommandList(CommandQueue queue = CommandQueue::Graphics) = 0;
+        virtual ICommandList* BeginCommandList(CommandQueue queue = CommandQueue::Graphics) = 0;
         virtual void ExecuteCommandLists() = 0;
         virtual void Present(ISwapchain* swapchain) = 0;
 
@@ -682,135 +743,21 @@ namespace cyb::rhi
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Command List functions are below:
-        //	- These are used to record rendering commands to a CommandList
-        //	- To get a CommandList that can be recorded into, call BeginCommandList()
-        //	- These are not thread safe, only a single thread should use a single CommandList at one time
+        //	- These are used to record rendering commands to a ICommandList
+        //	- To get a ICommandList that can be recorded into, call BeginCommandList()
+        //	- These are not thread safe, only a single thread should use a single ICommandList at one time
 
-        virtual void BeginRenderPass(ISwapchain* swapchain, CommandList cmd) = 0;
-        virtual void BeginRenderPass(const RenderPassImage* images, uint32_t imageCount, CommandList cmd) = 0;
-        virtual void EndRenderPass(CommandList cmd) = 0;
-
-        virtual void BindScissorRects(const Rect* rects, uint32_t rectCount, CommandList cmd) = 0;
-        virtual void BindViewports(const Viewport* viewports, uint32_t viewportCount, CommandList cmd) = 0;
-        virtual void BindPipelineState(const IPipelineState* pso, CommandList cmd) = 0;
-        virtual void BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets, CommandList cmd) = 0;
-        virtual void BindIndexBuffer(const IBuffer* index_buffer, const IndexBufferFormat format, uint64_t offset, CommandList cmd) = 0;
-        virtual void BindStencilRef(uint32_t value, CommandList cmd) = 0;
-        virtual void BindResource(const IResource* resource, int slot, CommandList cmd) = 0;
-        virtual void BindSampler(const ISampler* sampler, uint32_t slot, CommandList cmd) = 0;
-        virtual void BindConstantBuffer(const IBuffer* buffer, uint32_t slot, CommandList cmd, uint64_t offset = 0ull) = 0;
-
-        virtual void CopyBuffer(const IBuffer* dst, uint64_t dst_offset, const IBuffer* src, uint64_t src_offset, uint64_t size, CommandList cmd) = 0;
-
-        virtual void Draw(uint32_t vertexCount, uint32_t startVertexLocation, CommandList cmd) = 0;
-        virtual void DrawIndexed(uint32_t indexCount, uint32_t startIndexLocation, int32_t baseVertexLocation, CommandList cmd) = 0;
-
-        virtual void BeginQuery(IQuery* query, uint32_t index, CommandList cmd) = 0;
-        virtual void EndQuery(IQuery* query, uint32_t index, CommandList cmd) = 0;
-        virtual void ResolveQuery(const IQuery* query, uint32_t index, uint32_t count, IBuffer* dest, uint64_t destOffset, CommandList cmd) = 0;
-        virtual void ResetQuery(IQuery* query, uint32_t index, uint32_t count, CommandList cmd) = 0;
+        virtual void BeginQuery(IQuery* query, uint32_t index, ICommandList* cmd) = 0;
+        virtual void EndQuery(IQuery* query, uint32_t index, ICommandList* cmd) = 0;
+        virtual void ResolveQuery(const IQuery* query, uint32_t index, uint32_t count, IBuffer* dest, uint64_t destOffset, ICommandList* cmd) = 0;
+        virtual void ResetQuery(IQuery* query, uint32_t index, uint32_t count, ICommandList* cmd) = 0;
 
         virtual void SetEventQuery(IEventQuery* query, CommandQueue queue) = 0;
 		virtual bool PollEventQuery(IEventQuery* query) = 0;
 		virtual void WaitEventQuery(IEventQuery* query) = 0;
 		virtual void ResetEventQuery(IEventQuery* query) = 0;
 
-        virtual void PushConstants(const void* data, uint32_t size, CommandList cmd, uint32_t offset = 0) = 0;
-
-        virtual void BeginEvent(const char* name, CommandList cmd) = 0;
-        virtual void EndEvent(CommandList cmd) = 0;
-
-        struct GPULinearAllocator
-        {
-            BufferHandle buffer;
-            uint64_t offset = 0;
-            uint64_t alignment = 0;
-
-            void Reset()
-            {
-                offset = 0u;
-            }
-        };
-        virtual GPULinearAllocator& GetFrameAllocator(CommandList cmd) = 0;
-
-        struct ScratchBuffer
-        {
-			void* data = nullptr;	   // CPU pointer (offset allready applied)
-            IBuffer* buffer = nullptr; // handle for GPU binding
-			uint64_t offset = 0;	   // offset from buffer start (for GPU binding)
-
-            // @return True if the buffer is a valid allocated GPUBuffer.
-            inline bool IsValid() const { return data != nullptr && buffer != nullptr; }
-        };
-
-        // Allocates temporary memory that the CPU can write and GPU can read. 
-        // Allocation is only alive for one frame and automatically invalidated after that.
-        [[nodiscard]] ScratchBuffer AllocateGPU(uint64_t dataSize, CommandList cmd)
-        {
-            ScratchBuffer allocation{};
-            if (dataSize == 0)
-                return allocation;
-
-            GPULinearAllocator& allocator = GetFrameAllocator(cmd);
-
-            // query the size of the current buffer (if it exists)
-            const uint64_t currentBufferSize = allocator.buffer ? allocator.buffer->GetDesc().size : 0;
-            const uint64_t freeSpace = currentBufferSize - allocator.offset;
-
-            if (dataSize > freeSpace)
-            {
-                BufferDesc desc{};
-                desc.cpuAccess = CpuAccessMode::Write;
-                desc.usage = BufferUsage::ConstantBufferBit | BufferUsage::VertexBufferBit | BufferUsage::IndexBufferBit;
-                allocator.alignment = GetMinOffsetAlignment(&desc);
-                desc.size = AlignPow2((currentBufferSize + dataSize) * 2, allocator.alignment);
-				desc.debugName = "ScratchBufferPool";
-
-                allocator.buffer = CreateBuffer(&desc, nullptr);
-                allocator.offset = 0;
-
-                CYB_TRACE("Increasing GPU frame allocation for cmd(0x{:x}) bufferIndex {} to {:.1f}kb", (ptrdiff_t)cmd.internal_state, GetBufferIndex(), desc.size / 1024.0f);
-            }
-
-            allocation.buffer = allocator.buffer;
-            allocation.offset = allocator.offset;
-            allocation.data = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(allocator.buffer->MappedMemory()) + allocator.offset);
-			// align the offset for the next allocation
-            allocator.offset += AlignPow2(dataSize, allocator.alignment);
-
-            assert(allocation.IsValid());
-            return allocation;
-        }
-
-        // Update a gpu buffer data
-        // Since it uses a GPU Copy operation, appropriate synchronization is expected
-        // And it cannot be used inside a RenderPass
-        void UpdateBuffer(IBuffer* buffer, const void* data, CommandList cmd, uint64_t size = ~0, uint64_t offset = 0)
-        {
-			assert(buffer->GetDesc().cpuAccess != CpuAccessMode::Write);
-            if (buffer == nullptr || data == nullptr)
-                return;
-
-            size = std::min(buffer->GetDesc().size, size);
-            if (size == 0)
-                return;
-
-            ScratchBuffer allocation = AllocateGPU(size, cmd);
-            std::memcpy(allocation.data, data, size);
-
-            CopyBuffer(buffer, offset, allocation.buffer, allocation.offset, size, cmd);
-        }
-
-        // Bind a constant buffer with data for a specific command list
-        // This will be done on the CPU to an UPLOAD buffer, so this can be used inside a RenderPass
-        // But this will be only visible on the command list it was bound to
-        template<typename T>
-        void BindDynamicConstantBuffer(const T& data, uint32_t slot, CommandList cmd)
-        {
-            ScratchBuffer allocation = AllocateGPU(sizeof(T), cmd);
-            std::memcpy(allocation.data, &data, sizeof(T));
-            BindConstantBuffer(allocation.buffer, slot, cmd, allocation.offset);
-        }
+        virtual void PushConstants(const void* data, uint32_t size, ICommandList* cmd, uint32_t offset = 0) = 0;
     };
 
     inline const FormatInfo& GetFormatInfo(Format format)
@@ -848,5 +795,65 @@ namespace cyb::rhi
         static GraphicsDevice* device = nullptr;
         return device;
     }
-}
 
+    class GPULinearAllocator
+    {
+    public:
+        GPULinearAllocator(const GraphicsDevice* device)
+            : m_device(device)
+        {
+            // query alignment for scratch buffers
+            BufferDesc desc{};
+            desc.usage = BufferUsage::ConstantBufferBit | BufferUsage::VertexBufferBit | BufferUsage::IndexBufferBit;
+            m_alignment = device->GetMinOffsetAlignment(&desc);
+        }
+
+        // Allocates temporary memory that the CPU can write and GPU can read. 
+        // Allocation is only alive for one frame and automatically invalidated after that.
+        [[nodiscard]] ScratchBuffer Alloc(uint64_t dataSize)
+        {
+            ScratchBuffer buffer{};
+            if (dataSize == 0)
+                return buffer;
+
+            // query the size of the current buffer (if it exists)
+            const uint64_t currentBufferSize = m_buffer ? m_buffer->GetDesc().size : 0;
+            const uint64_t freeSpace = currentBufferSize - m_bufferOffset;
+
+            if (dataSize > freeSpace)
+            {
+                BufferDesc desc{};
+                desc.cpuAccess = CpuAccessMode::Write;
+                desc.usage = BufferUsage::ConstantBufferBit | BufferUsage::VertexBufferBit | BufferUsage::IndexBufferBit;
+                desc.size = AlignPow2((currentBufferSize + dataSize), c_poolAlignment);
+                desc.debugName = "GPULinearAllocator Pool";
+
+                m_buffer = m_device->CreateBuffer(&desc, nullptr);
+                m_bufferOffset = 0;
+
+                //CYB_TRACE("Increasing GPU frame allocation for cmd(0x{:x}) bufferIndex {} to {:.1f}kb", (ptrdiff_t)cmd, GetBufferIndex(), desc.size / 1024.0f);
+            }
+
+            buffer.buffer = m_buffer;
+            buffer.offset = m_bufferOffset;
+            buffer.mappedMemory = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer->MappedMemory()) + m_bufferOffset);
+
+            // align the offset for the next allocation
+            m_bufferOffset += AlignPow2(dataSize, m_alignment);
+
+            return buffer;
+        }
+
+        void Reset()
+        {
+            m_bufferOffset = 0;
+        }
+
+    private:
+        const GraphicsDevice* m_device = nullptr;
+        BufferHandle m_buffer;
+        uint64_t m_bufferOffset = 0;
+        uint64_t m_alignment = 0;
+        static constexpr uint64_t c_poolAlignment = 4096;   // GPU page size
+    };
+} // namespace cyb::rhi

@@ -1,0 +1,70 @@
+2026-10-06 21:30:54 [TRACE] DirectoryWatcher adding relative path "assets/"
+2026-10-06 21:30:54 [WARNING] DirectoryWatcher: Failed to open directory (code 2): ../assets/ 
+2026-10-06 21:30:54 [INFO] =======================================================================
+2026-10-06 21:30:54 [INFO] Initializing cyb-engine v0.1 (build 2026.08./) (asynchronous), please wait...
+2026-10-06 21:30:54 [TRACE] Registered CVar 'logHistorySize' [Type: unsigned int] with value '40'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'logSeverityThreshold' [Type: unsigned int] with value '0'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'cl_archiveCompressionLevel' [Type: unsigned int] with value '9'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'cl_assetReloadOnChange' [Type: bool] with value 'true'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'cl_assetChangeStableDelay' [Type: unsigned int] with value '200'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'r_sceneSubtaskGroupsize' [Type: unsigned int] with value '64'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'e_autoremoveLinkedEntities' [Type: bool] with value 'true'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'e_recursiveDelete' [Type: bool] with value 'true'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'r_renderScale' [Type: float] with value '0.40'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'r_selectionOutlineThickness' [Type: float] with value '1.50'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'r_vsync' [Type: bool] with value 'true'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'r_maxBackgroundFps' [Type: unsigned int] with value '30'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'r_debugObjectAABB' [Type: bool] with value 'false'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'r_debugLightSources' [Type: bool] with value 'false'
+2026-10-06 21:30:54 [TRACE] Registered CVar 'r_gamma' [Type: float] with value '2.20'
+2026-10-06 21:30:54 [INFO] JobSystem Initialized with [15 worker threads]
+2026-10-06 21:30:54 [INFO] Initialized Vulkan 1.4
+2026-10-06 21:30:54 [INFO]   Device: NVIDIA GeForce RTX 3060 Laptop GPU
+2026-10-06 21:30:54 [INFO]   Driver: NVIDIA 610.88
+2026-10-06 21:30:54 [TRACE] VulkanDeviceExtension: ["VK_KHR_swapchain", "VK_KHR_dynamic_rendering", "VK_KHR_fragment_shading_rate", "VK_KHR_synchronization2", "VK_EXT_depth_clip_enable", "VK_EXT_conservative_rasterization", "VK_EXT_conditional_rendering"]
+2026-10-06 21:30:54 [TRACE] VulkanInstanceExtensions: ["VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_utils", "VK_KHR_get_physical_device_properties2", "VK_EXT_debug_report", "VK_EXT_swapchain_colorspace"]
+2026-10-06 21:30:54 [TRACE] VulkanInstanceLayers: []
+2026-10-06 21:30:54 [INFO] Input system initialized in 0.12ms
+2026-10-06 21:30:54 [TRACE] Loaded Image asset name=textures/light_directional.png hash=0x2f2987af7f2ff9d8 in 6.12ms
+2026-10-06 21:30:54 [TRACE] Loaded Image asset name=textures/light_point.png hash=0xa0abfecb83afca46 in 6.66ms
+2026-10-06 21:30:54 [INFO] Imported scene from file assets/scenes/terrain_01.csd in 24.66ms
+2026-10-06 21:30:54 [TRACE] Available video modes for display device \\.\DISPLAY1: NVIDIA GeForce RTX 3060 Laptop GPU
+2026-10-06 21:30:54 [TRACE]   2560x1600 @ 165Hz
+2026-10-06 21:30:54 [TRACE]   1920x1200 @ 165Hz
+2026-10-06 21:30:54 [TRACE]   1680x1050 @ 165Hz
+2026-10-06 21:30:54 [TRACE]   1280x800 @ 165Hz
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/imgui.vert) in 94.37ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/debug_line.vert) in 95.66ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/debug_line.frag) in 95.05ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/postprocess.vert) in 96.72ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/sky.vert) in 96.64ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader.vert) in 97.52ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/imgui.frag) in 2.81ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/outline.frag) in 97.89ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader_unlit.geom) in 98.92ms
+2026-10-06 21:30:54 [INFO] Initialized ImGui v1.90.0
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader.frag) in 105.37ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/sky.frag) in 106.24ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader.geom) in 108.15ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader_disney.geom) in 109.60ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/image.vert) in 94.23ms
+2026-10-06 21:30:54 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/image.frag) in 89.43ms
+2026-10-06 21:30:54 [INFO] Renderer initialized in 312.06ms
+2026-10-06 21:30:54 [INFO] cyb-engine initialized in 808.45ms 
+2026-10-06 21:30:54 [INFO] =======================================================================
+2026-10-06 21:30:54 [TRACE] Resizing buffers (width=768, height=432)
+2026-10-06 21:30:54 [TRACE] Increasing GPU frame allocation for cmd(0x250396df2d0) bufferIndex 0 to 0.8kb
+2026-10-06 21:30:54 [TRACE] Increasing GPU frame allocation for cmd(0x250396df2d0) bufferIndex 0 to 9.8kb
+2026-10-06 21:30:54 [TRACE] Increasing GPU frame allocation for cmd(0x250396dd2e0) bufferIndex 0 to 0.2kb
+2026-10-06 21:30:54 [TRACE] Increasing GPU frame allocation for cmd(0x250396df2d0) bufferIndex 1 to 0.8kb
+2026-10-06 21:30:54 [TRACE] Increasing GPU frame allocation for cmd(0x250396df2d0) bufferIndex 1 to 9.8kb
+2026-10-06 21:30:54 [TRACE] Increasing GPU frame allocation for cmd(0x250396dd2e0) bufferIndex 1 to 0.2kb
+2026-10-06 21:30:54 [TRACE] Increasing GPU frame allocation for cmd(0x250396df2d0) bufferIndex 2 to 0.8kb
+2026-10-06 21:30:54 [TRACE] Increasing GPU frame allocation for cmd(0x250396df2d0) bufferIndex 2 to 9.8kb
+2026-10-06 21:30:54 [TRACE] Increasing GPU frame allocation for cmd(0x250396dd2e0) bufferIndex 2 to 0.2kb
+2026-10-06 21:30:57 [TRACE] Increasing GPU frame allocation for cmd(0x250396dd2e0) bufferIndex 1 to 5.1kb
+2026-10-06 21:30:57 [TRACE] Increasing GPU frame allocation for cmd(0x250396dd2e0) bufferIndex 2 to 97.6kb
+2026-10-06 21:30:57 [TRACE] Increasing GPU frame allocation for cmd(0x250396dd2e0) bufferIndex 0 to 97.6kb
+2026-10-06 21:30:57 [TRACE] Increasing GPU frame allocation for cmd(0x250396dd2e0) bufferIndex 1 to 107.3kb
+2026-10-06 21:31:03 [TRACE] cyb::scene::Pick finished in 1.22ms
+2026-10-06 21:31:04 [TRACE] cyb::scene::Pick finished in 0.95ms

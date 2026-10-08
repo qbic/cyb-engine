@@ -198,7 +198,7 @@ extern "C" {
     #endif
 #endif
 
-// Defined to 1 when VK_KHR_buffer_device_address device extension or equivalent core Vulkan 1.2 feature is defined in its headers.
+// Defined to 1 when VK_KHR_buffer_device_address m_device extension or equivalent core Vulkan 1.2 feature is defined in its headers.
 #if !defined(VMA_BUFFER_DEVICE_ADDRESS)
     #if VK_KHR_buffer_device_address || VMA_VULKAN_VERSION >= 1002000
         #define VMA_BUFFER_DEVICE_ADDRESS 1
@@ -207,7 +207,7 @@ extern "C" {
     #endif
 #endif
 
-// Defined to 1 when VK_EXT_memory_priority device extension is defined in Vulkan headers.
+// Defined to 1 when VK_EXT_memory_priority m_device extension is defined in Vulkan headers.
 #if !defined(VMA_MEMORY_PRIORITY)
     #if VK_EXT_memory_priority
         #define VMA_MEMORY_PRIORITY 1
@@ -216,7 +216,7 @@ extern "C" {
     #endif
 #endif
 
-// Defined to 1 when VK_KHR_external_memory device extension is defined in Vulkan headers.
+// Defined to 1 when VK_KHR_external_memory m_device extension is defined in Vulkan headers.
 #if !defined(VMA_EXTERNAL_MEMORY)
     #if VK_KHR_external_memory
         #define VMA_EXTERNAL_MEMORY 1
@@ -246,7 +246,7 @@ extern "C" {
 // - The name of a member of a struct type, meaning the value of that member in
 //   the context of the call. For example
 //   VMA_LEN_IF_NOT_NULL("VkPhysicalDeviceMemoryProperties::memoryHeapCount"),
-//   this means the number of memory heaps available in the device associated
+//   this means the number of memory heaps available in the m_device associated
 //   with the VmaAllocator being dealt with.
 #ifndef VMA_LEN_IF_NOT_NULL
     #define VMA_LEN_IF_NOT_NULL(len)
@@ -329,13 +329,13 @@ typedef enum VmaAllocatorCreateFlagBits
     flag) when it is recommended by the driver. It may improve performance on some
     GPUs.
 
-    You may set this flag only if you found out that following device extensions are
-    supported, you enabled them while creating Vulkan device passed as
-    VmaAllocatorCreateInfo::device, and you want them to be used internally by this
+    You may set this flag only if you found out that following m_device extensions are
+    supported, you enabled them while creating Vulkan m_device passed as
+    VmaAllocatorCreateInfo::m_device, and you want them to be used internally by this
     library:
 
-    - VK_KHR_get_memory_requirements2 (device extension)
-    - VK_KHR_dedicated_allocation (device extension)
+    - VK_KHR_get_memory_requirements2 (m_device extension)
+    - VK_KHR_dedicated_allocation (m_device extension)
 
     When this flag is set, you can experience following warnings reported by Vulkan
     validation layer. You can ignore them.
@@ -349,8 +349,8 @@ typedef enum VmaAllocatorCreateFlagBits
     The flag works only if VmaAllocatorCreateInfo::vulkanApiVersion `== VK_API_VERSION_1_0`.
     When it is `VK_API_VERSION_1_1`, the flag is ignored because the extension has been promoted to Vulkan 1.1.
 
-    You may set this flag only if you found out that this device extension is supported,
-    you enabled it while creating Vulkan device passed as VmaAllocatorCreateInfo::device,
+    You may set this flag only if you found out that this m_device extension is supported,
+    you enabled it while creating Vulkan m_device passed as VmaAllocatorCreateInfo::m_device,
     and you want it to be used internally by this library.
 
     The extension provides functions `vkBindBufferMemory2KHR` and `vkBindImageMemory2KHR`,
@@ -361,8 +361,8 @@ typedef enum VmaAllocatorCreateFlagBits
     /**
     Enables usage of VK_EXT_memory_budget extension.
 
-    You may set this flag only if you found out that this device extension is supported,
-    you enabled it while creating Vulkan device passed as VmaAllocatorCreateInfo::device,
+    You may set this flag only if you found out that this m_device extension is supported,
+    you enabled it while creating Vulkan m_device passed as VmaAllocatorCreateInfo::m_device,
     and you want it to be used internally by this library, along with another instance extension
     VK_KHR_get_physical_device_properties2, which is required by it (or Vulkan 1.1, where this extension is promoted).
 
@@ -375,11 +375,11 @@ typedef enum VmaAllocatorCreateFlagBits
 
     You may set this flag only if you:
 
-    - found out that this device extension is supported and enabled it while creating Vulkan device passed as VmaAllocatorCreateInfo::device,
-    - checked that `VkPhysicalDeviceCoherentMemoryFeaturesAMD::deviceCoherentMemory` is true and set it while creating the Vulkan device,
+    - found out that this m_device extension is supported and enabled it while creating Vulkan m_device passed as VmaAllocatorCreateInfo::m_device,
+    - checked that `VkPhysicalDeviceCoherentMemoryFeaturesAMD::deviceCoherentMemory` is true and set it while creating the Vulkan m_device,
     - want it to be used internally by this library.
 
-    The extension and accompanying device feature provide access to memory types with
+    The extension and accompanying m_device feature provide access to memory types with
     `VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD` and `VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD` flags.
     They are useful mostly for writing breadcrumb markers - a common method for debugging GPU crash/hang/TDR.
 
@@ -389,15 +389,15 @@ typedef enum VmaAllocatorCreateFlagBits
     */
     VMA_ALLOCATOR_CREATE_AMD_DEVICE_COHERENT_MEMORY_BIT = 0x00000010,
     /**
-    Enables usage of "buffer device address" feature, which allows you to use function
+    Enables usage of "buffer m_device address" feature, which allows you to use function
     `vkGetBufferDeviceAddress*` to get raw GPU pointer to a buffer and pass it for usage inside a shader.
 
     You may set this flag only if you:
 
-    1. (For Vulkan version < 1.2) Found as available and enabled device extension
+    1. (For Vulkan version < 1.2) Found as available and enabled m_device extension
     VK_KHR_buffer_device_address.
     This extension is promoted to core Vulkan 1.2.
-    2. Found as available and enabled device feature `VkPhysicalDeviceBufferDeviceAddressFeatures::bufferDeviceAddress`.
+    2. Found as available and enabled m_device feature `VkPhysicalDeviceBufferDeviceAddressFeatures::bufferDeviceAddress`.
 
     When this flag is set, you can create buffers with `VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT` using VMA.
     The library automatically adds `VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT` to
@@ -409,9 +409,9 @@ typedef enum VmaAllocatorCreateFlagBits
     /**
     Enables usage of VK_EXT_memory_priority extension in the library.
 
-    You may set this flag only if you found available and enabled this device extension,
+    You may set this flag only if you found available and enabled this m_device extension,
     along with `VkPhysicalDeviceMemoryPriorityFeaturesEXT::memoryPriority == VK_TRUE`,
-    while creating Vulkan device passed as VmaAllocatorCreateInfo::device.
+    while creating Vulkan m_device passed as VmaAllocatorCreateInfo::m_device.
 
     When this flag is used, VmaAllocationCreateInfo::priority and VmaPoolCreateInfo::priority
     are used to set priorities of allocated Vulkan memory. Without it, these variables are ignored.
@@ -491,7 +491,7 @@ typedef enum VmaMemoryUsage
     */
     VMA_MEMORY_USAGE_AUTO = 7,
     /**
-    Selects best memory type automatically with preference for GPU (device) memory.
+    Selects best memory type automatically with preference for GPU (m_device) memory.
 
     When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),
     you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
@@ -570,7 +570,7 @@ typedef enum VmaAllocationCreateFlagBits
     use also flag #VMA_ALLOCATION_CREATE_CAN_ALIAS_BIT.
     */
     VMA_ALLOCATION_CREATE_DONT_BIND_BIT = 0x00000080,
-    /** Create allocation only if additional device memory required for it, if any, won't exceed
+    /** Create allocation only if additional m_device memory required for it, if any, won't exceed
     memory budget. Otherwise return `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
     */
     VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT = 0x00000100,
@@ -821,7 +821,7 @@ Fill structure #VmaAllocatorCreateInfo and call function vmaCreateAllocator() to
 Call function vmaDestroyAllocator() to destroy it.
 
 It is recommended to create just one object of this type per `VkDevice` object,
-right after Vulkan is initialized and keep it alive until before Vulkan device is destroyed.
+right after Vulkan is initialized and keep it alive until before Vulkan m_device is destroyed.
 */
 VK_DEFINE_HANDLE(VmaAllocator)
 
@@ -1001,10 +1001,10 @@ typedef struct VmaAllocatorCreateInfo
 {
     /// Flags for created allocator. Use #VmaAllocatorCreateFlagBits enum.
     VmaAllocatorCreateFlags flags;
-    /// Vulkan physical device.
+    /// Vulkan physical m_device.
     /** It must be valid throughout whole lifetime of created allocator. */
     VkPhysicalDevice VMA_NOT_NULL physicalDevice;
-    /// Vulkan device.
+    /// Vulkan m_device.
     /** It must be valid throughout whole lifetime of created allocator. */
     VkDevice VMA_NOT_NULL device;
     /// Preferred size of a single `VkDeviceMemory` block to be allocated from large heaps > 1 GiB. Optional.
@@ -1036,7 +1036,7 @@ typedef struct VmaAllocatorCreateInfo
     Warning! Using this feature may not be equivalent to installing a GPU with
     smaller amount of memory, because graphics driver doesn't necessary fail new
     allocations with `VK_ERROR_OUT_OF_DEVICE_MEMORY` result when memory capacity is
-    exceeded. It may return success and just silently migrate some device memory
+    exceeded. It may return success and just silently migrate some m_device memory
     blocks to system RAM. This driver behavior can also be controlled using
     VK_AMD_memory_overallocation_behavior extension.
     */
@@ -1083,14 +1083,14 @@ typedef struct VmaAllocatorInfo
     This is the same value as has been passed through VmaAllocatorCreateInfo::instance.
     */
     VkInstance VMA_NOT_NULL instance;
-    /** \brief Handle to Vulkan physical device object.
+    /** \brief Handle to Vulkan physical m_device object.
 
     This is the same value as has been passed through VmaAllocatorCreateInfo::physicalDevice.
     */
     VkPhysicalDevice VMA_NOT_NULL physicalDevice;
-    /** \brief Handle to Vulkan device object.
+    /** \brief Handle to Vulkan m_device object.
 
-    This is the same value as has been passed through VmaAllocatorCreateInfo::device.
+    This is the same value as has been passed through VmaAllocatorCreateInfo::m_device.
     */
     VkDevice VMA_NOT_NULL device;
 } VmaAllocatorInfo;
@@ -1351,7 +1351,7 @@ typedef struct VmaAllocationInfo
 
     You usually don't need to use this offset. If you create a buffer or an image together with the allocation using e.g. function
     vmaCreateBuffer(), vmaCreateImage(), functions that operate on these resources refer to the beginning of the buffer or image,
-    not entire device memory block. Functions like vmaMapMemory(), vmaBindBufferMemory() also refer to the beginning of the allocation
+    not entire m_device memory block. Functions like vmaMapMemory(), vmaBindBufferMemory() also refer to the beginning of the allocation
     and apply this offset automatically.
 
     It can change after the allocation is moved during \ref defragmentation.
@@ -1571,7 +1571,7 @@ VMA_CALL_PRE VkResult VMA_CALL_POST vmaCreateAllocator(
 VMA_CALL_PRE void VMA_CALL_POST vmaDestroyAllocator(
     VmaAllocator VMA_NULLABLE allocator);
 
-/** \brief Returns information about existing #VmaAllocator object - handle to Vulkan device etc.
+/** \brief Returns information about existing #VmaAllocator object - handle to Vulkan m_device etc.
 
 It might be useful if you want to keep just the #VmaAllocator handle and fetch other required handles to
 `VkPhysicalDevice`, `VkDevice` etc. every time using this function.
@@ -1637,7 +1637,7 @@ VMA_CALL_PRE void VMA_CALL_POST vmaCalculateStatistics(
 /** \brief Retrieves information about current memory usage and budget for all memory heaps.
 
 \param allocator
-\param[out] pBudgets Must point to array with number of elements at least equal to number of memory heaps in physical device used.
+\param[out] pBudgets Must point to array with number of elements at least equal to number of memory heaps in physical m_device used.
 
 This function is called "get" not "calculate" because it is very fast, suitable to be called
 every frame or every allocation. For more detailed statistics use vmaCalculateStatistics().
@@ -1668,7 +1668,7 @@ This algorithm tries to find a memory type that:
 
 \return Returns VK_ERROR_FEATURE_NOT_PRESENT if not found. Receiving such result
 from this function or any other allocating function probably means that your
-device doesn't support any memory type with requested features for the specific
+m_device doesn't support any memory type with requested features for the specific
 type of resource you want to use it for. Please check parameters of your
 resource, like image layout (OPTIMAL versus LINEAR) or mip level count.
 */
@@ -1702,7 +1702,7 @@ VMA_CALL_PRE VkResult VMA_CALL_POST vmaFindMemoryTypeIndexForImageInfo(
     const VmaAllocationCreateInfo* VMA_NOT_NULL pAllocationCreateInfo,
     uint32_t* VMA_NOT_NULL pMemoryTypeIndex);
 
-/** \brief Allocates Vulkan device memory and creates #VmaPool object.
+/** \brief Allocates Vulkan m_device memory and creates #VmaPool object.
 
 \param allocator Allocator object.
 \param pCreateInfo Parameters of pool to create.
@@ -1713,7 +1713,7 @@ VMA_CALL_PRE VkResult VMA_CALL_POST vmaCreatePool(
     const VmaPoolCreateInfo* VMA_NOT_NULL pCreateInfo,
     VmaPool VMA_NULLABLE* VMA_NOT_NULL pPool);
 
-/** \brief Destroys #VmaPool object and frees Vulkan device memory.
+/** \brief Destroys #VmaPool object and frees Vulkan m_device memory.
 */
 VMA_CALL_PRE void VMA_CALL_POST vmaDestroyPool(
     VmaAllocator VMA_NOT_NULL allocator,
@@ -2356,7 +2356,7 @@ VMA_CALL_PRE VkResult VMA_CALL_POST vmaCreateAliasingBuffer(
 This is just a convenience function equivalent to:
 
 \code
-vkDestroyBuffer(device, buffer, allocationCallbacks);
+vkDestroyBuffer(m_device, buffer, allocationCallbacks);
 vmaFreeMemory(allocator, allocation);
 \endcode
 
@@ -2388,7 +2388,7 @@ VMA_CALL_PRE VkResult VMA_CALL_POST vmaCreateAliasingImage(
 This is just a convenience function equivalent to:
 
 \code
-vkDestroyImage(device, image, allocationCallbacks);
+vkDestroyImage(m_device, image, allocationCallbacks);
 vmaFreeMemory(allocator, allocation);
 \endcode
 
@@ -2600,7 +2600,7 @@ internally, like:
 Define this macro to 1 to make the library fetch pointers to Vulkan functions
 internally, like:
 
-    vulkanFunctions.vkAllocateMemory = (PFN_vkAllocateMemory)vkGetDeviceProcAddr(device, "vkAllocateMemory");
+    vulkanFunctions.vkAllocateMemory = (PFN_vkAllocateMemory)vkGetDeviceProcAddr(m_device, "vkAllocateMemory");
 
 To use this feature in new versions of VMA you now have to pass
 VmaVulkanFunctions::vkGetInstanceProcAddr and vkGetDeviceProcAddr as
@@ -2987,7 +2987,7 @@ If providing your own implementation, you need to implement a subset of std::ato
 /*
 Mapping hysteresis is a logic that launches when vmaMapMemory/vmaUnmapMemory is called
 or a persistently mapped allocation is created and destroyed several times in a row.
-It keeps additional +1 mapping of a device memory block to prevent calling actual
+It keeps additional +1 mapping of a m_device memory block to prevent calling actual
 vkMapMemory/vkUnmapMemory too many times, which may improve performance and help
 tools like RenderDOc.
 */
@@ -5872,7 +5872,7 @@ private:
 
 #ifndef _VMA_DEVICE_MEMORY_BLOCK
 /*
-Represents a single block of device memory (`VkDeviceMemory`) with all the
+Represents a single block of m_device memory (`VkDeviceMemory`) with all the
 data about its regions (aka suballocations, #VmaAllocation), assigned and free.
 
 Thread-safety:
@@ -17606,7 +17606,7 @@ vulkanFunctions.vkGetDeviceProcAddr = &vkGetDeviceProcAddr;
 VmaAllocatorCreateInfo allocatorCreateInfo = {};
 allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_2;
 allocatorCreateInfo.physicalDevice = physicalDevice;
-allocatorCreateInfo.device = device;
+allocatorCreateInfo.m_device = m_device;
 allocatorCreateInfo.instance = instance;
 allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
 
@@ -17656,7 +17656,7 @@ You can also combine multiple methods.
 -# If you just want to find memory type index that meets your requirements, you
    can use function: vmaFindMemoryTypeIndexForBufferInfo(),
    vmaFindMemoryTypeIndexForImageInfo(), vmaFindMemoryTypeIndex().
--# If you want to allocate a region of device memory without association with any
+-# If you want to allocate a region of m_device memory without association with any
    specific image or buffer, you can use function vmaAllocateMemory(). Usage of
    this function is not recommended and usually not needed.
    vmaAllocateMemoryPages() function is also provided for creating multiple allocations at once,
@@ -17692,7 +17692,7 @@ Since version 3 of the library, it is recommended to use #VMA_MEMORY_USAGE_AUTO 
 For example, if you want to create a uniform buffer that will be filled using
 transfer only once or infrequently and then used for rendering every frame as a uniform buffer, you can
 do it using following code. The buffer will most likely end up in a memory type with
-`VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT` to be fast to access by the GPU device.
+`VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT` to be fast to access by the GPU m_device.
 
 \code
 VkBufferCreateInfo bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
@@ -17707,7 +17707,7 @@ VmaAllocation allocation;
 vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr);
 \endcode
 
-If you have a preference for putting the resource in GPU (device) memory or CPU (host) memory
+If you have a preference for putting the resource in GPU (m_device) memory or CPU (host) memory
 on systems with discrete graphics card that have the memories separate, you can use
 #VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE or #VMA_MEMORY_USAGE_AUTO_PREFER_HOST.
 
@@ -17778,7 +17778,7 @@ plus some extra "magic" (heuristics).
 
 \section choosing_memory_type_explicit_memory_types Explicit memory types
 
-If you inspected memory types available on the physical device and you have
+If you inspected memory types available on the physical m_device and you have
 a preference for memory types that you want to use, you can fill member
 VmaAllocationCreateInfo::memoryTypeBits. It is a bit mask, where each bit set
 means that a memory type with that index is allowed to be used for the
@@ -17824,7 +17824,7 @@ The library can also internally decide to use dedicated allocation in some cases
 - When the size of the allocation is large.
 - When [VK_KHR_dedicated_allocation](@ref vk_khr_dedicated_allocation) extension is enabled
   and it reports that dedicated allocation is required or recommended for the resource.
-- When allocation of next big memory block fails due to not enough device memory,
+- When allocation of next big memory block fails due to not enough m_device memory,
   but allocation with the exact requested size succeeds.
 
 
@@ -17880,7 +17880,7 @@ vmaUnmapMemory(allocator, constantBufferAllocation);
 
 When mapping, you may see a warning from Vulkan validation layer similar to this one:
 
-<i>Mapping an image with layout VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL can result in undefined behavior if this memory is used by the device. Only GENERAL or PREINITIALIZED should be used.</i>
+<i>Mapping an image with layout VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL can result in undefined behavior if this memory is used by the m_device. Only GENERAL or PREINITIALIZED should be used.</i>
 
 It happens because the library maps entire `VkDeviceMemory` block, where different
 types of images and buffers may end up together, especially on GPUs with unified memory like Intel.
@@ -17975,14 +17975,14 @@ vmaCalculateStatistics(). vmaGetHeapBudgets() can be called every frame or even 
 allocation, while vmaCalculateStatistics() is intended to be used rarely,
 only to obtain statistical information, e.g. for debugging purposes.
 
-It is recommended to use <b>VK_EXT_memory_budget</b> device extension to obtain information
-about the budget from Vulkan device. VMA is able to use this extension automatically.
+It is recommended to use <b>VK_EXT_memory_budget</b> m_device extension to obtain information
+about the budget from Vulkan m_device. VMA is able to use this extension automatically.
 When not enabled, the allocator behaves same way, but then it estimates current usage
 and available budget based on its internal information and Vulkan memory heap sizes,
 which may be less precise. In order to use this extension:
 
 1. Make sure extensions VK_EXT_memory_budget and VK_KHR_get_physical_device_properties2
-   required by it are available and enable them. Please note that the first is a device
+   required by it are available and enable them. Please note that the first is a m_device
    extension and the second is instance extension!
 2. Use flag #VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT when creating #VmaAllocator object.
 3. Make sure to call vmaSetCurrentFrameIndex() every frame. Budget is queried from
@@ -18012,7 +18012,7 @@ of a specific object) and not to pass it when creating critically important reso
 On AMD graphics cards there is a custom vendor extension available: <b>VK_AMD_memory_overallocation_behavior</b>
 that allows to control the behavior of the Vulkan implementation in out-of-memory cases -
 whether it should fail with an error code or still allow the allocation.
-Usage of this extension involves only passing extra structure on Vulkan device creation,
+Usage of this extension involves only passing extra structure on Vulkan m_device creation,
 so it is out of scope of this library.
 
 Finally, you can also use #VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT flag to make sure
@@ -18080,14 +18080,14 @@ img2CreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHM
 img2CreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 
 VkImage img1;
-res = vkCreateImage(device, &img1CreateInfo, nullptr, &img1);
+res = vkCreateImage(m_device, &img1CreateInfo, nullptr, &img1);
 VkImage img2;
-res = vkCreateImage(device, &img2CreateInfo, nullptr, &img2);
+res = vkCreateImage(m_device, &img2CreateInfo, nullptr, &img2);
 
 VkMemoryRequirements img1MemReq;
-vkGetImageMemoryRequirements(device, img1, &img1MemReq);
+vkGetImageMemoryRequirements(m_device, img1, &img1MemReq);
 VkMemoryRequirements img2MemReq;
-vkGetImageMemoryRequirements(device, img2, &img2MemReq);
+vkGetImageMemoryRequirements(m_device, img2, &img2MemReq);
 
 VkMemoryRequirements finalMemReq = {};
 finalMemReq.size = std::max(img1MemReq.size, img2MemReq.size);
@@ -18137,7 +18137,7 @@ resources may be disjoint. Aliasing them is not possible in that case.
 \page custom_memory_pools Custom memory pools
 
 A memory pool contains a number of `VkDeviceMemory` blocks.
-The library automatically creates and manages default pool for each memory type available on the device.
+The library automatically creates and manages default pool for each memory type available on the m_device.
 Default memory pool automatically grows in size.
 Size of allocated blocks is also variable and managed automatically.
 
@@ -18327,7 +18327,7 @@ When you free some allocations from the beginning and there is not enough free s
 for a new one at the end of a pool, allocator's "cursor" wraps around to the
 beginning and starts allocation there. Thanks to this, if you always release
 allocations in the same order as you created them (FIFO - First In First Out),
-you can achieve behavior of a ring buffer / queue.
+you can achieve behavior of a ring buffer / m_queue.
 
 ![Ring buffer](../gfx/Linear_allocator_5_ring_buffer.png)
 
@@ -18381,7 +18381,7 @@ for(;;)
         // Recreate and bind this buffer/image at: pass.pMoves[i].dstMemory, pass.pMoves[i].dstOffset.
         VkImageCreateInfo imgCreateInfo = ...
         VkImage newImg;
-        res = vkCreateImage(device, &imgCreateInfo, nullptr, &newImg);
+        res = vkCreateImage(m_device, &imgCreateInfo, nullptr, &newImg);
         // Check res...
         res = vmaBindImageMemory(allocator, pMoves[i].dstTmpAllocation, newImg);
         // Check res...
@@ -18397,7 +18397,7 @@ for(;;)
     for(uint32_t i = 0; i < pass.moveCount; ++i)
     {
         // ...
-        vkDestroyImage(device, resData->img, nullptr);
+        vkDestroyImage(m_device, resData->img, nullptr);
     }
 
     // Update appropriate descriptors to point to the new places...
@@ -18506,7 +18506,7 @@ vmaGetHeapBudgets(allocator, budgets);
 printf("My heap currently has %u allocations taking %llu B,\n",
     budgets[heapIndex].statistics.allocationCount,
     budgets[heapIndex].statistics.allocationBytes);
-printf("allocated out of %u Vulkan device memory blocks taking %llu B,\n",
+printf("allocated out of %u Vulkan m_device memory blocks taking %llu B,\n",
     budgets[heapIndex].statistics.blockCount,
     budgets[heapIndex].statistics.blockBytes);
 printf("Vulkan reports total usage %llu B with budget %llu B.\n",
@@ -19033,8 +19033,8 @@ freqnently read on GPU e.g. as a uniform buffer (also called "dynamic"), multipl
 
 -# Easiest solution is to have one copy of the resource in `HOST_VISIBLE` memory,
    even if it means system RAM (not `DEVICE_LOCAL`) on systems with a discrete graphics card,
-   and make the device reach out to that resource directly.
-   - Reads performed by the device will then go through PCI Express bus.
+   and make the m_device reach out to that resource directly.
+   - Reads performed by the m_device will then go through PCI Express bus.
      The performace of this access may be limited, but it may be fine depending on the size
      of this resource (whether it is small enough to quickly end up in GPU cache) and the sparsity
      of access.
@@ -19052,7 +19052,7 @@ freqnently read on GPU e.g. as a uniform buffer (also called "dynamic"), multipl
    a separate "staging" copy in `HOST_VISIBLE` memory and perform an explicit transfer command between them.
 
 Thankfully, VMA offers an aid to create and use such resources in the the way optimal
-for the current Vulkan device. To help the library make the best choice,
+for the current Vulkan m_device. To help the library make the best choice,
 use flag #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT together with
 #VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT.
 It will then prefer a memory type that is both `DEVICE_LOCAL` and `HOST_VISIBLE` (integrated memory or BAR),
@@ -19121,7 +19121,7 @@ else
 
 Here are some other, less obvious use cases and their recommended settings:
 
-- An image that is used only as transfer source and destination, but it should stay on the device,
+- An image that is used only as transfer source and destination, but it should stay on the m_device,
   as it is used to temporarily store a copy of some texture, e.g. from the current to the next frame,
   for temporal antialiasing or other temporal effects.
   - Use `VkImageCreateInfo::usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT`
@@ -19133,7 +19133,7 @@ Here are some other, less obvious use cases and their recommended settings:
   - Use VmaAllocationCreateInfo::usage = #VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
     as VMA needs a hint here to differentiate from the previous case.
 - A buffer that you want to map and write from the CPU, directly read from the GPU
-  (e.g. as a uniform or vertex buffer), but you have a clear preference to place it in device or
+  (e.g. as a uniform or vertex buffer), but you have a clear preference to place it in m_device or
   host memory due to its large size.
   - Use `VkBufferCreateInfo::usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT`
   - Use VmaAllocationCreateInfo::usage = #VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE or #VMA_MEMORY_USAGE_AUTO_PREFER_HOST
@@ -19201,16 +19201,16 @@ VmaAllocatorCreateInfo::pDeviceMemoryCallbacks.
 
 \section heap_memory_limit Device heap memory limit
 
-When device memory of certain heap runs out of free space, new allocations may
+When m_device memory of certain heap runs out of free space, new allocations may
 fail (returning error code) or they may succeed, silently pushing some existing_
 memory blocks from GPU VRAM to system RAM (which degrades performance). This
 behavior is implementation-dependent - it depends on GPU vendor and graphics
 driver.
 
-On AMD cards it can be controlled while creating Vulkan device object by using
+On AMD cards it can be controlled while creating Vulkan m_device object by using
 VK_AMD_memory_overallocation_behavior extension, if available.
 
-Alternatively, if you want to test how your program behaves with limited amount of Vulkan device
+Alternatively, if you want to test how your program behaves with limited amount of Vulkan m_device
 memory available without switching your graphics card to one that really has
 smaller VRAM, you can use a feature of this library intended for this purpose.
 To do it, fill optional member VmaAllocatorCreateInfo::pHeapSizeLimit.
@@ -19232,7 +19232,7 @@ you are all set.
 
 Otherwise, if you want to use it as an extension:
 
-1 . When creating Vulkan device, check if following 2 device extensions are
+1 . When creating Vulkan m_device, check if following 2 m_device extensions are
 supported (call `vkEnumerateDeviceExtensionProperties()`).
 If yes, enable them (fill `VkDeviceCreateInfo::ppEnabledExtensionNames`).
 
@@ -19273,9 +19273,9 @@ To learn more about this extension, see:
 
 \page vk_ext_memory_priority VK_EXT_memory_priority
 
-VK_EXT_memory_priority is a device extension that allows to pass additional "priority"
+VK_EXT_memory_priority is a m_device extension that allows to pass additional "priority"
 value to Vulkan memory allocations that the implementation may use prefer certain
-buffers and images that are critical for performance to stay in device-local memory
+buffers and images that are critical for performance to stay in m_device-local memory
 in cases when the memory is over-subscribed, while some others may be moved to the system memory.
 
 VMA offers convenient usage of this extension.
@@ -19286,19 +19286,19 @@ If you want to use this extension in connection with VMA, follow these steps:
 
 \section vk_ext_memory_priority_initialization Initialization
 
-1) Call `vkEnumerateDeviceExtensionProperties` for the physical device.
+1) Call `vkEnumerateDeviceExtensionProperties` for the physical m_device.
 Check if the extension is supported - if returned array of `VkExtensionProperties` contains "VK_EXT_memory_priority".
 
-2) Call `vkGetPhysicalDeviceFeatures2` for the physical device instead of old `vkGetPhysicalDeviceFeatures`.
+2) Call `vkGetPhysicalDeviceFeatures2` for the physical m_device instead of old `vkGetPhysicalDeviceFeatures`.
 Attach additional structure `VkPhysicalDeviceMemoryPriorityFeaturesEXT` to `VkPhysicalDeviceFeatures2::pNext` to be returned.
-Check if the device feature is really supported - check if `VkPhysicalDeviceMemoryPriorityFeaturesEXT::memoryPriority` is true.
+Check if the m_device feature is really supported - check if `VkPhysicalDeviceMemoryPriorityFeaturesEXT::memoryPriority` is true.
 
-3) While creating device with `vkCreateDevice`, enable this extension - add "VK_EXT_memory_priority"
+3) While creating m_device with `vkCreateDevice`, enable this extension - add "VK_EXT_memory_priority"
 to the list passed as `VkDeviceCreateInfo::ppEnabledExtensionNames`.
 
-4) While creating the device, also don't set `VkDeviceCreateInfo::pEnabledFeatures`.
+4) While creating the m_device, also don't set `VkDeviceCreateInfo::pEnabledFeatures`.
 Fill in `VkPhysicalDeviceFeatures2` structure instead and pass it as `VkDeviceCreateInfo::pNext`.
-Enable this device feature - attach additional structure `VkPhysicalDeviceMemoryPriorityFeaturesEXT` to
+Enable this m_device feature - attach additional structure `VkPhysicalDeviceMemoryPriorityFeaturesEXT` to
 `VkPhysicalDeviceFeatures2::pNext` chain and set its member `memoryPriority` to `VK_TRUE`.
 
 5) While creating #VmaAllocator with vmaCreateAllocator() inform VMA that you
@@ -19353,13 +19353,13 @@ vmaCreateImage(allocator, &imgCreateInfo, &allocCreateInfo, &img, &alloc, nullpt
 
 \page vk_amd_device_coherent_memory VK_AMD_device_coherent_memory
 
-VK_AMD_device_coherent_memory is a device extension that enables access to
+VK_AMD_device_coherent_memory is a m_device extension that enables access to
 additional memory types with `VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD` and
 `VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD` flag. It is useful mostly for
 allocation of buffers intended for writing "breadcrumb markers" in between passes
 or draw calls, which in turn are useful for debugging GPU crash/hang/TDR cases.
 
-When the extension is available but has not been enabled, Vulkan physical device
+When the extension is available but has not been enabled, Vulkan physical m_device
 still exposes those memory types, but their usage is forbidden. VMA automatically
 takes care of that - it returns `VK_ERROR_FEATURE_NOT_PRESENT` when an attempt
 to allocate memory of such type is made.
@@ -19368,19 +19368,19 @@ If you want to use this extension in connection with VMA, follow these steps:
 
 \section vk_amd_device_coherent_memory_initialization Initialization
 
-1) Call `vkEnumerateDeviceExtensionProperties` for the physical device.
+1) Call `vkEnumerateDeviceExtensionProperties` for the physical m_device.
 Check if the extension is supported - if returned array of `VkExtensionProperties` contains "VK_AMD_device_coherent_memory".
 
-2) Call `vkGetPhysicalDeviceFeatures2` for the physical device instead of old `vkGetPhysicalDeviceFeatures`.
+2) Call `vkGetPhysicalDeviceFeatures2` for the physical m_device instead of old `vkGetPhysicalDeviceFeatures`.
 Attach additional structure `VkPhysicalDeviceCoherentMemoryFeaturesAMD` to `VkPhysicalDeviceFeatures2::pNext` to be returned.
-Check if the device feature is really supported - check if `VkPhysicalDeviceCoherentMemoryFeaturesAMD::deviceCoherentMemory` is true.
+Check if the m_device feature is really supported - check if `VkPhysicalDeviceCoherentMemoryFeaturesAMD::deviceCoherentMemory` is true.
 
-3) While creating device with `vkCreateDevice`, enable this extension - add "VK_AMD_device_coherent_memory"
+3) While creating m_device with `vkCreateDevice`, enable this extension - add "VK_AMD_device_coherent_memory"
 to the list passed as `VkDeviceCreateInfo::ppEnabledExtensionNames`.
 
-4) While creating the device, also don't set `VkDeviceCreateInfo::pEnabledFeatures`.
+4) While creating the m_device, also don't set `VkDeviceCreateInfo::pEnabledFeatures`.
 Fill in `VkPhysicalDeviceFeatures2` structure instead and pass it as `VkDeviceCreateInfo::pNext`.
-Enable this device feature - attach additional structure `VkPhysicalDeviceCoherentMemoryFeaturesAMD` to
+Enable this m_device feature - attach additional structure `VkPhysicalDeviceCoherentMemoryFeaturesAMD` to
 `VkPhysicalDeviceFeatures2::pNext` and set its member `deviceCoherentMemory` to `VK_TRUE`.
 
 5) While creating #VmaAllocator with vmaCreateAllocator() inform VMA that you
@@ -19408,7 +19408,7 @@ Example use of this extension can be found in the code of the sample and test su
 accompanying this library.
 
 
-\page enabling_buffer_device_address Enabling buffer device address
+\page enabling_buffer_device_address Enabling buffer m_device address
 
 Device extension VK_KHR_buffer_device_address
 allow to fetch raw GPU pointer to a buffer and pass it for usage in a shader code.
@@ -19418,20 +19418,20 @@ If you want to use this feature in connection with VMA, follow these steps:
 
 \section enabling_buffer_device_address_initialization Initialization
 
-1) (For Vulkan version < 1.2) Call `vkEnumerateDeviceExtensionProperties` for the physical device.
+1) (For Vulkan version < 1.2) Call `vkEnumerateDeviceExtensionProperties` for the physical m_device.
 Check if the extension is supported - if returned array of `VkExtensionProperties` contains
 "VK_KHR_buffer_device_address".
 
-2) Call `vkGetPhysicalDeviceFeatures2` for the physical device instead of old `vkGetPhysicalDeviceFeatures`.
+2) Call `vkGetPhysicalDeviceFeatures2` for the physical m_device instead of old `vkGetPhysicalDeviceFeatures`.
 Attach additional structure `VkPhysicalDeviceBufferDeviceAddressFeatures*` to `VkPhysicalDeviceFeatures2::pNext` to be returned.
-Check if the device feature is really supported - check if `VkPhysicalDeviceBufferDeviceAddressFeatures::bufferDeviceAddress` is true.
+Check if the m_device feature is really supported - check if `VkPhysicalDeviceBufferDeviceAddressFeatures::bufferDeviceAddress` is true.
 
-3) (For Vulkan version < 1.2) While creating device with `vkCreateDevice`, enable this extension - add
+3) (For Vulkan version < 1.2) While creating m_device with `vkCreateDevice`, enable this extension - add
 "VK_KHR_buffer_device_address" to the list passed as `VkDeviceCreateInfo::ppEnabledExtensionNames`.
 
-4) While creating the device, also don't set `VkDeviceCreateInfo::pEnabledFeatures`.
+4) While creating the m_device, also don't set `VkDeviceCreateInfo::pEnabledFeatures`.
 Fill in `VkPhysicalDeviceFeatures2` structure instead and pass it as `VkDeviceCreateInfo::pNext`.
-Enable this device feature - attach additional structure `VkPhysicalDeviceBufferDeviceAddressFeatures*` to
+Enable this m_device feature - attach additional structure `VkPhysicalDeviceBufferDeviceAddressFeatures*` to
 `VkPhysicalDeviceFeatures2::pNext` and set its member `bufferDeviceAddress` to `VK_TRUE`.
 
 5) While creating #VmaAllocator with vmaCreateAllocator() inform VMA that you
@@ -19506,7 +19506,7 @@ to just ignore them.
 - *vkBindBufferMemory(): Binding memory to buffer 0xeb8e4 but vkGetBufferMemoryRequirements() has not been called on that buffer.*
   - It happens when VK_KHR_dedicated_allocation extension is enabled.
     `vkGetBufferMemoryRequirements2KHR` function is used instead, while validation layer seems to be unaware of it.
-- *Mapping an image with layout VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL can result in undefined behavior if this memory is used by the device. Only GENERAL or PREINITIALIZED should be used.*
+- *Mapping an image with layout VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL can result in undefined behavior if this memory is used by the m_device. Only GENERAL or PREINITIALIZED should be used.*
   - It happens when you map a buffer or image, because the library maps entire
     `VkDeviceMemory` block, where different types of images and buffers may end
     up together, especially on GPUs with unified memory like Intel.

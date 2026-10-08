@@ -150,7 +150,7 @@ namespace cyb::editor
 
         while (!done())
         {
-            // pop triangle with highest error from priority queue
+            // pop triangle with highest error from priority m_queue
             const int t = QueuePop();
 
             SplitTriangle(t);
@@ -203,7 +203,7 @@ namespace cyb::editor
             m_candidates[t] = pair.first;
             m_errors[t] = pair.second;
 
-            // add triangle to priority queue
+            // add triangle to priority m_queue
             QueuePush(t);
         }
 
@@ -347,7 +347,7 @@ namespace cyb::editor
         if (ca >= 0)
             m_halfedges[ca] = e + 2;
 
-        // add triangle to pending queue for later rasterization
+        // add triangle to pending m_queue for later rasterization
         const int t = e / 3;
         m_pending.push_back(t);
 

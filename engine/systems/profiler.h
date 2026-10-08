@@ -51,12 +51,12 @@ namespace cyb::profiler
         float time = 0.0f;
         Timer cpuTimer;
 
-        rhi::CommandList cmd;
+        rhi::ICommandList* cmd = nullptr;
         std::array<int, rhi::GraphicsDevice::GetBufferCount() + 1> gpuBegin = {};
         std::array<int, rhi::GraphicsDevice::GetBufferCount() + 1> gpuEnd = {};
 
-        bool IsCPUEntry() const { return !cmd.IsValid(); }
-        bool IsGPUEntry() const { return cmd.IsValid(); }
+        bool IsCPUEntry() const { return cmd == nullptr; }
+        bool IsGPUEntry() const { return cmd != nullptr; }
     };
 
     struct Context
@@ -71,10 +71,10 @@ namespace cyb::profiler
     };
 
     void BeginFrame();
-    void EndFrame(rhi::CommandList cmd);
+    void EndFrame(rhi::ICommandList* cmd);
 
     [[nodiscard]] EntryId BeginCpuEntry(const std::string& name);
-    [[nodiscard]] EntryId BeginGpuEntry(const std::string& name, rhi::CommandList cmd);
+    [[nodiscard]] EntryId BeginGpuEntry(const std::string& name, rhi::ICommandList* cmd);
 
     void EndEntry(EntryId id);
 
@@ -91,7 +91,7 @@ namespace cyb::profiler
     class ScopedGpuEntry
     {
     public:
-        ScopedGpuEntry(const std::string& name, rhi::CommandList cmd);
+        ScopedGpuEntry(const std::string& name, rhi::ICommandList* cmd);
         ~ScopedGpuEntry();
 
     private:

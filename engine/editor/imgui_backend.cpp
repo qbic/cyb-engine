@@ -23,6 +23,8 @@ struct ImGui_Impl_Data
     VertexInputLayout inputLayout;
     PipelineStateHandle pso;
     IndexBufferFormat indexFormat = IndexBufferFormat::Uint16;
+    BufferHandle vertexBuffer;
+    BufferHandle indexBuffer;
 };
 
 struct ImGuiConstants
@@ -68,19 +70,21 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
 	// upload texture atlas to gpu
-    TextureDesc textureDesc{};
-    textureDesc.width       = width;
-    textureDesc.height      = height;
-    textureDesc.format      = Format::RGBA8_UNORM;
+    TextureDesc textureDesc{
+        .width  = uint32_t(width),
+        .height = uint32_t(height),
+        .format = Format::RGBA8_UNORM
+    };
 
     SubresourceData textureData = SubresourceData::FromDesc(pixels, textureDesc);
     bd->fontTexture = GetDevice()->CreateTexture(&textureDesc, &textureData);
 
-    SamplerDesc samplerDesc{};
-    samplerDesc.filter      = Filtering::None;
-    samplerDesc.addressU    = SamplerAddressMode::Wrap;
-    samplerDesc.addressV    = SamplerAddressMode::Wrap;
-    samplerDesc.addressW    = SamplerAddressMode::Wrap;
+    SamplerDesc samplerDesc{
+        .filter   = Filtering::None,
+        .addressU = SamplerAddressMode::Wrap,
+        .addressV = SamplerAddressMode::Wrap,
+        .addressW = SamplerAddressMode::Wrap
+    };
     bd->sampler = GetDevice()->CreateSampler(&samplerDesc);
 
 	// store our identifier for the font texture
@@ -145,13 +149,14 @@ static void LoadShaders()
         { "in_color",    0, Format::RGBA8_UNORM, (uint32_t)offsetof(ImDrawVert, col) }
     };
 
-    PipelineStateDesc desc{};
-    desc.vs = bd->vs;
-    desc.ps = bd->ps;
-    desc.il = &bd->inputLayout;
-    desc.dss = GetDepthStencilState(DSSTYPE_DEFAULT);
-    desc.rs = GetRasterizerState(RSTYPE_DOUBLESIDED);
-    desc.pt = PrimitiveTopology::TriangleList;
+    PipelineStateDesc desc{
+        .vs = bd->vs,
+        .ps = bd->ps,
+        .rs = GetRasterizerState(RSTYPE_DOUBLESIDED),
+        .dss = GetDepthStencilState(DSSTYPE_DEFAULT),
+        .il = &bd->inputLayout,
+        .pt = PrimitiveTopology::TriangleList
+    };
     bd->pso = GetDevice()->CreatePipelineState(&desc);
 }
 
@@ -205,7 +210,27 @@ void ImGui_Impl_CybEngine_Update()
     //ImGui::ShowDemoWindow();
 }
 
-void ImGui_Impl_CybEngine_Compose(CommandList cmd)
+static void ReallocateBuffer(BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, bool isIndexBuffer)
+{
+    if (buffer == nullptr || buffer->GetDesc().size < requiredSize)
+    {
+        BufferDesc desc = {
+            .size = reallocateSize,
+            .cpuAccess = CpuAccessMode::Write,
+            .usage = isIndexBuffer ? BufferUsage::IndexBufferBit : BufferUsage::VertexBufferBit,
+            .debugName = isIndexBuffer ? "ImGui index buffer" : "ImGui vertex buffer"
+        };
+
+        CYB_TRACE("{} {} {:.2f}kb",
+            buffer == nullptr ? "Allocating" : "Reallocating",
+            desc.debugName, (float)reallocateSize / 1024.0f);
+
+        auto device = GetDevice();
+        buffer = device->CreateBuffer(&desc, nullptr);
+    }
+}
+
+void ImGui_Impl_CybEngine_Compose(ICommandList* cmd)
 {
     ImGui::Render();
 
@@ -222,22 +247,27 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
     ImGui_Impl_Data* bd = ImGui_Impl_GetBackendData();
     GraphicsDevice* device = GetDevice();
 
-    // get memory for vertex and index buffers
-    const uint64_t vbSize = sizeof(ImDrawVert) * draw_data->TotalVtxCount;
-    const uint64_t ibSize = sizeof(ImDrawIdx) * draw_data->TotalIdxCount;
-    auto vertexBufferAllocation = device->AllocateGPU(vbSize, cmd);
-    auto indexBufferAllocation = device->AllocateGPU(ibSize, cmd);
+    // create / resize buffers if needed
+    constexpr uint64_t kReallocateHeadroom = 5000;
+    ReallocateBuffer(bd->vertexBuffer,
+        draw_data->TotalVtxCount * sizeof(ImDrawVert),
+        (draw_data->TotalVtxCount + kReallocateHeadroom) * sizeof(ImDrawVert),
+        false);
+    ReallocateBuffer(bd->indexBuffer,
+        draw_data->TotalIdxCount * sizeof(ImDrawIdx),
+        (draw_data->TotalIdxCount + kReallocateHeadroom) * sizeof(ImDrawIdx),
+        true);
 
     // copy and convert all vertices into a single contiguous buffer
-    ImDrawVert* vertexCPUMem = reinterpret_cast<ImDrawVert*>(vertexBufferAllocation.data);
-    ImDrawIdx* indexCPUMem = reinterpret_cast<ImDrawIdx*>(indexBufferAllocation.data);
-    for (int cmdListIdx = 0; cmdListIdx < draw_data->CmdListsCount; cmdListIdx++)
+    ImDrawVert* vtxDst = reinterpret_cast<ImDrawVert*>(bd->vertexBuffer->MappedMemory());
+    ImDrawIdx* idxDst = reinterpret_cast<ImDrawIdx*>(bd->indexBuffer->MappedMemory());
+    for (int i = 0; i < draw_data->CmdListsCount; i++)
     {
-        const ImDrawList* drawList = draw_data->CmdLists[cmdListIdx];
-        memcpy(vertexCPUMem, &drawList->VtxBuffer[0], drawList->VtxBuffer.Size * sizeof(ImDrawVert));
-        memcpy(indexCPUMem, &drawList->IdxBuffer[0], drawList->IdxBuffer.Size * sizeof(ImDrawIdx));
-        vertexCPUMem += drawList->VtxBuffer.Size;
-        indexCPUMem += drawList->IdxBuffer.Size;
+        const ImDrawList* drawList = draw_data->CmdLists[i];
+        memcpy(vtxDst, drawList->VtxBuffer.Data, drawList->VtxBuffer.Size * sizeof(ImDrawVert));
+        memcpy(idxDst, drawList->IdxBuffer.Data, drawList->IdxBuffer.Size * sizeof(ImDrawIdx));
+        vtxDst += drawList->VtxBuffer.Size;
+        idxDst += drawList->IdxBuffer.Size;
     }
 
     // setup orthographic projection matrix into our constant buffer
@@ -248,21 +278,22 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
 
     ImGuiConstants constants{};
     constants.mvp = XMMatrixOrthographicOffCenterRH(L, R, B, T, 1.0f, -1.0f);
-    device->BindDynamicConstantBuffer(constants, 0, cmd);
+    cmd->BindDynamicConstantBuffer(constants, 0);
 
-    const IBuffer* vbs[] = { vertexBufferAllocation.buffer };
+    const IBuffer* vbs[] = { bd->vertexBuffer };
     const uint32_t strides[] = { sizeof(ImDrawVert) };
-    const uint64_t offsets[] = { vertexBufferAllocation.offset };
+    const uint64_t offsets[] = { 0 };
 
-    device->BindVertexBuffers(vbs, 1, strides, offsets, cmd);
-    device->BindIndexBuffer(indexBufferAllocation.buffer, bd->indexFormat, indexBufferAllocation.offset, cmd);
+    cmd->BindVertexBuffers(vbs, 1, strides, offsets);
+    cmd->BindIndexBuffer(bd->indexBuffer, bd->indexFormat, 0);
 
-    Viewport viewport{};
-    viewport.width = (float)framebufferWidth;
-    viewport.height = (float)framebufferHeight;
-    device->BindViewports(&viewport, 1, cmd);
-    device->BindPipelineState(bd->pso, cmd);
-    device->BindSampler(bd->sampler, 1, cmd);
+    Viewport viewport{
+        .width = (float)framebufferWidth,
+        .height = (float)framebufferHeight
+    };
+    cmd->BindViewports(&viewport, 1);
+    cmd->BindPipelineState(bd->pso);
+    cmd->BindSampler(bd->sampler, 1);
 
     // project scissor/clipping rectangles into framebuffer space
     ImVec2 clip_off = draw_data->DisplayPos;         // (0,0) unless using multi-viewports
@@ -298,11 +329,11 @@ void ImGui_Impl_CybEngine_Compose(CommandList cmd)
                 scissor.top = (int32_t)clip_min.y;
                 scissor.right = (int32_t)clip_max.x;
                 scissor.bottom = (int32_t)clip_max.y;
-                device->BindScissorRects(&scissor, 1, cmd);
+                cmd->BindScissorRects(&scissor, 1);
 
                 const ITexture* texture = (const ITexture*)drawCmd->TextureId;
-                device->BindResource(texture, 1, cmd);
-                device->DrawIndexed(drawCmd->ElemCount, indexOffset, vertexOffset, cmd);
+                cmd->BindResource(texture, 1);
+                cmd->DrawIndexed(drawCmd->ElemCount, indexOffset, vertexOffset);
             }
             indexOffset += drawCmd->ElemCount;
         }

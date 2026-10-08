@@ -75,7 +75,7 @@ namespace cyb
 
         auto modes = EnumerateDisplayModes(device.DeviceName);
 
-        CYB_TRACE("Available video modes for display device {}: {}", WideToUtf8(device.DeviceName), WideToUtf8(device.DeviceString));
+        CYB_TRACE("Available video modes for display m_device {}: {}", WideToUtf8(device.DeviceName), WideToUtf8(device.DeviceString));
         for (const auto& mode : modes)
             CYB_TRACE("  {}", mode);
 

@@ -56,9 +56,9 @@ namespace cyb::profiler
         context.cpuFrame = BeginCpuEntry("CPU Frame");
 
         rhi::GraphicsDevice* device = rhi::GetDevice();
-        rhi::CommandList cmd = device->BeginCommandList();
+        rhi::ICommandList* cmd = device->BeginCommandList();
 
-        const double gpuFrequency = (double)device->GetTimestampFrequency() / 1000.0;
+        const double gpuFrequency = (double)device->GetTimestampFrequency();
         queryIndex = (queryIndex + 1) % queryResultBuffer.size();
         uint64_t* queryResults = (uint64_t*)queryResultBuffer[queryIndex]->MappedMemory();
 
@@ -101,7 +101,7 @@ namespace cyb::profiler
         context.gpuFrameGraph[FRAME_GRAPH_ENTRIES - 1] = context.entries[context.gpuFrame].time;
     }
 
-    void EndFrame(rhi::CommandList cmd)
+    void EndFrame(rhi::ICommandList* cmd)
     {
         assert(initialized);
 
@@ -130,7 +130,7 @@ namespace cyb::profiler
         return id;
     }
 
-    EntryId BeginGpuEntry(const std::string& name, rhi::CommandList cmd)
+    EntryId BeginGpuEntry(const std::string& name, rhi::ICommandList* cmd)
     {
         const EntryId id = context.GetUniqueId(name);
         Entry& entry = context.entries[id];
@@ -173,7 +173,7 @@ namespace cyb::profiler
         EndEntry(m_id);
     }
 
-    ScopedGpuEntry::ScopedGpuEntry(const std::string& name, rhi::CommandList cmd)
+    ScopedGpuEntry::ScopedGpuEntry(const std::string& name, rhi::ICommandList* cmd)
     {
         m_id = BeginGpuEntry(name, cmd);
     }

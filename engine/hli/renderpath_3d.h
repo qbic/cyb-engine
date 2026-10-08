@@ -11,7 +11,7 @@ namespace cyb::hli
         void ResizeBuffers() override;
         void Update(double dt) override;
         void Render() const override;
-        void Compose(rhi::CommandList cmd) const override;
+        void Compose(rhi::ICommandList* cmd) const override;
 
         rhi::Rect GetScissorInternalResolution() const
         {

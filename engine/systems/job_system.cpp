@@ -165,7 +165,7 @@ namespace cyb::jobsystem
 
         [[nodiscard]] bool ExecuteOneJobExhaustive() noexcept
         {
-            // Try to execute job on worker's own queue
+            // Try to execute job on worker's own m_queue
             Job job{};
             WorkerData& worker = CurrentWorker();
             if (worker.queue.Pop(job))

@@ -61,7 +61,6 @@ namespace cyb::renderer
         RSTYPE_DOUBLESIDED,
         RSTYPE_WIRE,
         RSTYPE_WIRE_DOUBLESIDED,
-        RSTYPE_SKY,
         RSTYPE_COUNT
     };
 
@@ -122,23 +121,23 @@ namespace cyb::renderer
     void UpdatePerFrameData(const SceneView& view, float time, FrameConstants& frameCB);
 
     // Updates the GPU state according to the previously called UpdatePerFrameData()
-    void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, rhi::CommandList cmd);
+    void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, rhi::ICommandList* cmd);
 
     // Updated the per camera constant buffer
-    void BindCameraCB(const scene::CameraComponent* camera, rhi::CommandList cmd);
+    void BindCameraCB(const scene::CameraComponent* camera, rhi::ICommandList* cmd);
 
     // Draw the scene from a RenderView
-    void DrawScene(const SceneView& view, rhi::CommandList cmd);
+    void DrawScene(const SceneView& view, rhi::ICommandList* cmd);
 
     // Draw skydome centered at the camera
-    void DrawSky(const scene::CameraComponent* scene, rhi::CommandList cmd);
+    void DrawSky(const scene::CameraComponent* scene, rhi::ICommandList* cmd);
 
     // Draw debug primitives according to the debug states
-    void DrawDebugScene(const SceneView& view, rhi::CommandList cmd);
+    void DrawDebugScene(const SceneView& view, rhi::ICommandList* cmd);
 
     void Postprocess_Outline(
         const rhi::ITexture* input,
-        rhi::CommandList cmd,
+        rhi::ICommandList* cmd,
         float thickness,
         float threshold,
         const XMFLOAT4& color);

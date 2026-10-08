@@ -313,36 +313,35 @@ namespace cyb::renderer
             depth_stencils[DSSTYPE_SKY] = dsd;
         }
         {
-            RasterizerState rs;
-            rs.polygonMode = PolygonMode::Fill;
-            rs.cullMode = CullMode::Back;
-            rs.frontFace = FrontFace::CCW;
-            rasterizers[RSTYPE_FRONT] = rs;
+            rasterizers[RSTYPE_FRONT] = {
+                .polygonMode = PolygonMode::Fill,
+                .cullMode    = CullMode::Back,
+                .frontFace   = FrontFace::CCW
+            };
 
-            rs.polygonMode = PolygonMode::Fill;
-            rs.cullMode = CullMode::Front;
-            rs.frontFace = FrontFace::CCW;
-            rasterizers[RSTYPE_BACK] = rs;
+            rasterizers[RSTYPE_BACK] = {
+                .polygonMode = PolygonMode::Fill,
+                .cullMode    = CullMode::Front,
+                .frontFace   = FrontFace::CCW
+            };
 
-            rs.polygonMode = PolygonMode::Fill;
-            rs.cullMode = CullMode::None;
-            rs.frontFace = FrontFace::CCW;
-            rasterizers[RSTYPE_DOUBLESIDED] = rs;
+            rasterizers[RSTYPE_DOUBLESIDED] = {
+                .polygonMode = PolygonMode::Fill,
+                .cullMode    = CullMode::None,
+                .frontFace   = FrontFace::CCW
+            };
 
-            rs.polygonMode = PolygonMode::Line;
-            rs.cullMode = CullMode::Back;
-            rs.frontFace = FrontFace::CCW;
-            rasterizers[RSTYPE_WIRE] = rs;
+            rasterizers[RSTYPE_WIRE] = {
+                .polygonMode = PolygonMode::Line,
+                .cullMode    = CullMode::Back,
+                .frontFace   = FrontFace::CCW
+            };
 
-            rs.polygonMode = PolygonMode::Line;
-            rs.cullMode = CullMode::None;
-            rs.frontFace = FrontFace::CCW;
-            rasterizers[RSTYPE_WIRE_DOUBLESIDED] = rs;
-
-            rs.polygonMode = PolygonMode::Fill;
-            rs.cullMode = CullMode::None;
-            rs.frontFace = FrontFace::CW;
-            rasterizers[RSTYPE_SKY] = rs;
+            rasterizers[RSTYPE_WIRE_DOUBLESIDED] = {
+                .polygonMode = PolygonMode::Line,
+                .cullMode    = CullMode::None,
+                .frontFace   = FrontFace::CCW
+            };
         }
 
         {
@@ -396,7 +395,7 @@ namespace cyb::renderer
             PipelineStateDesc desc{};
             desc.vs = GetShader(VSTYPE_SKY);
             desc.ps = GetShader(FSTYPE_SKY);
-            desc.rs = &rasterizers[RSTYPE_SKY];
+            desc.rs = &rasterizers[RSTYPE_BACK];
             desc.dss = &depth_stencils[DSSTYPE_SKY];
             desc.pt = PrimitiveTopology::TriangleStrip;
             psoSky = device->CreatePipelineState(&desc);
@@ -418,7 +417,7 @@ namespace cyb::renderer
 
     void ReloadShaders()
     {
-        device->ClearPipelineStateCache();
+        //m_device->ClearPipelineStateCache();
         eventsystem::FireEvent(eventsystem::Event_ReloadShaders, 0);
     }
 
@@ -544,14 +543,14 @@ namespace cyb::renderer
         frameCB.pointLightsOffset = static_cast<uint32_t>(pointLightBegin - first);
     }
 
-    void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, rhi::CommandList cmd)
+    void UpdateRenderData(const SceneView& view, const FrameConstants& frameCB, rhi::ICommandList* cmd)
     {
-        device->BeginEvent("UpdateRenderData", cmd);
-        device->UpdateBuffer(constantbuffers[CBTYPE_FRAME], &frameCB, cmd);
-        device->EndEvent(cmd);
+        cmd->BeginMarker("UpdateRenderData");
+        cmd->UpdateBuffer(constantbuffers[CBTYPE_FRAME], &frameCB);
+        cmd->EndMarker();
     }
 
-    void BindCameraCB(const scene::CameraComponent* camera, rhi::CommandList cmd)
+    void BindCameraCB(const scene::CameraComponent* camera, rhi::ICommandList* cmd)
     {
         assert(camera);
 
@@ -564,18 +563,18 @@ namespace cyb::renderer
         XMStoreFloat4x4(&cc.inv_vp, camera->invVP);
         cc.pos = XMFLOAT4(camera->pos.x, camera->pos.y, camera->pos.z, 1.0f);
 
-        device->UpdateBuffer(constantbuffers[CBTYPE_CAMERA], &cc, cmd);
+        cmd->UpdateBuffer(constantbuffers[CBTYPE_CAMERA], &cc);
     }
 
-    void DrawScene(const SceneView& view, CommandList cmd)
+    void DrawScene(const SceneView& view, ICommandList* cmd)
     {
-        device->BeginEvent("DrawScene", cmd);
+        cmd->BeginMarker("DrawScene");
 
-        device->BindConstantBuffer(constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME, cmd);
-        device->BindConstantBuffer(constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA, cmd);
+        cmd->BindConstantBuffer(constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME);
+        cmd->BindConstantBuffer(constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA);
 
         uint8_t prevUserStencilRef = 0;
-        device->BindStencilRef(0, cmd);
+        cmd->BindStencilRef(0);
 
         // Draw all visible objects
         for (uint32_t objectIndex : view.objectIndexes)
@@ -585,7 +584,7 @@ namespace cyb::renderer
             if (object.userStencilRef != prevUserStencilRef)
             {
                 prevUserStencilRef = object.userStencilRef;
-                device->BindStencilRef(object.userStencilRef, cmd);
+                cmd->BindStencilRef(object.userStencilRef);
             }
 
             const MeshComponent& mesh = view.scene->meshes[object.meshIndex];
@@ -601,12 +600,12 @@ namespace cyb::renderer
                     sizeof(scene::MeshComponent::Vertex_Col)
                 };
 
-                device->BindVertexBuffers(vertex_buffers.data(), vertex_buffers.size(), strides.data(), nullptr, cmd);
-                device->BindIndexBuffer(mesh.index_buffer, IndexBufferFormat::Uint32, 0, cmd);
+                cmd->BindVertexBuffers(vertex_buffers.data(), vertex_buffers.size(), strides.data(), nullptr);
+                cmd->BindIndexBuffer(mesh.index_buffer, IndexBufferFormat::Uint32, 0);
             }
             else
             {
-                //device->BindVertexBuffer(&mesh->vertex_buffer_pos);
+                //m_device->BindVertexBuffer(&mesh->vertex_buffer_pos);
             }
 
             const TransformComponent& transform = view.scene->transforms[object.transformIndex];
@@ -614,48 +613,47 @@ namespace cyb::renderer
             XMMATRIX W = transform.world;
             XMStoreFloat4x4(&cb.g_xModelMatrix, XMMatrixTranspose(W));
             XMStoreFloat4x4(&cb.g_xTransform, XMMatrixTranspose(W * view.camera->VP));
-            device->BindDynamicConstantBuffer(cb, CBSLOT_MISC, cmd);
+            cmd->BindDynamicConstantBuffer(cb, CBSLOT_MISC);
 
             for (const auto& subset : mesh.subsets)
             {
                 // Setup Object constant buffer
                 const MaterialComponent& material = view.scene->materials[subset.materialIndex];
-                MaterialCB material_cb;
+                MaterialCB material_cb{};
                 material_cb.baseColor = material.baseColor;
                 material_cb.roughness = material.roughness;
                 material_cb.metalness = material.metalness;
-                device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
-
-                const PipelineStateHandle pso = psoMaterial[material.shaderType];
-                device->BindPipelineState(pso, cmd);
-                device->DrawIndexed(subset.indexCount, subset.indexOffset, 0, cmd);
+                
+                cmd->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL);
+                cmd->BindPipelineState(psoMaterial[material.shaderType]);
+                cmd->DrawIndexed(subset.indexCount, subset.indexOffset, 0);
             }
         }
 
-        device->EndEvent(cmd);
+        cmd->EndMarker();
     }
 
-    void DrawSky(const scene::CameraComponent* camera, CommandList cmd)
+    void DrawSky(const scene::CameraComponent* camera, ICommandList* cmd)
     {
-        device->BeginEvent("DrawSky", cmd);
-        device->BindStencilRef(255, cmd);
-        device->BindPipelineState(psoSky, cmd);
+        cmd->BeginMarker("DrawSky");
 
-        device->BindConstantBuffer(constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME, cmd);
-        device->BindConstantBuffer(constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA, cmd);
+        cmd->BindStencilRef(255);
+        cmd->BindPipelineState(psoSky);
+        cmd->BindConstantBuffer(constantbuffers[CBTYPE_FRAME], CBSLOT_FRAME);
+        cmd->BindConstantBuffer(constantbuffers[CBTYPE_CAMERA], CBSLOT_CAMERA);
+        cmd->Draw(3, 0);
 
-        device->Draw(3, 0, cmd);
-        device->EndEvent(cmd);
+        cmd->EndMarker();
     }
 
-    void DrawDebugScene(const SceneView& view, CommandList cmd)
+    void DrawDebugScene(const SceneView& view, ICommandList* cmd)
     {
-        static BufferHandle wirecube_vb;
-        static BufferHandle wirecube_ib;
+        static BufferHandle vtxWirecube;
+        static BufferHandle idxWirecube;
 
-        device->BeginEvent("DrawDebugScene", cmd);
+        cmd->BeginMarker("DrawDebugScene");
 
-        if (!wirecube_vb)
+        if (!vtxWirecube)
         {
             const XMFLOAT4 min = XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f);
             const XMFLOAT4 max = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -671,58 +669,63 @@ namespace cyb::renderer
                 XMFLOAT4(max.x, min.y, max.z, 1.0f), XMFLOAT4(1, 1, 1, 1)
             };
 
-            BufferDesc vertexbuffer_desc{};
-            vertexbuffer_desc.cpuAccess = CpuAccessMode::None;
-            vertexbuffer_desc.size = sizeof(verts);
-            vertexbuffer_desc.usage = BufferUsage::VertexBufferBit;
-            wirecube_vb = device->CreateBuffer(&vertexbuffer_desc, &verts);
+            BufferDesc vertexBufferDesc{
+                .size = sizeof(verts),
+                .cpuAccess = CpuAccessMode::None,
+                .usage = BufferUsage::VertexBufferBit,
+                .debugName = "Debug wirecube vertex buffer"
+            };
+            vtxWirecube = device->CreateBuffer(&vertexBufferDesc, verts);
 
             const uint16_t indices[] = {
                 0,1,1,2,0,3,0,4,1,5,4,5,
                 5,6,4,7,2,6,3,7,2,3,6,7
             };
 
-            BufferDesc indexbuffer_desc{};
-            indexbuffer_desc.cpuAccess = CpuAccessMode::None;
-            indexbuffer_desc.size = sizeof(indices);
-            indexbuffer_desc.usage = BufferUsage::IndexBufferBit;
-            wirecube_ib = device->CreateBuffer(&indexbuffer_desc, &indices);
+            BufferDesc indexBufferDesc{
+                .size = sizeof(indices),
+                .cpuAccess = CpuAccessMode::None,
+                .usage = BufferUsage::IndexBufferBit,
+                .debugName = "Debug wirecube index buffer"
+            };
+            idxWirecube = device->CreateBuffer(&indexBufferDesc, indices);
         }
 
         // Draw bounding boxes for all visible objects
         if (r_debugObjectAABB.GetValue())
         {
-            device->BeginEvent("DebugObjectAABB", cmd);
-            device->BindPipelineState(pso_debug[DEBUGRENDERING_CUBE], cmd);
-
-            const std::array<const rhi::IBuffer*, 1> vbs {
-                wirecube_vb,
+            const std::array<const rhi::IBuffer*, 1> vbs{
+                vtxWirecube,
             };
-            const std::array<uint32_t, 1> strides {
+            const std::array<uint32_t, 1> strides{
                 sizeof(XMFLOAT4) + sizeof(XMFLOAT4),
             };
-            device->BindVertexBuffers(vbs.data(), vbs.size(), strides.data(), nullptr, cmd);
-            device->BindIndexBuffer(wirecube_ib, IndexBufferFormat::Uint16, 0, cmd);
 
-            MaterialCB material_cb;
-            material_cb.baseColor = XMFLOAT4(1.0f, 0.933f, 0.6f, 1.0f);
-            device->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL, cmd);
+            cmd->BeginMarker("DebugObjectAABB");
+            cmd->BindPipelineState(pso_debug[DEBUGRENDERING_CUBE]);
+            cmd->BindVertexBuffers(vbs.data(), vbs.size(), strides.data(), nullptr);
+            cmd->BindIndexBuffer(idxWirecube, IndexBufferFormat::Uint16, 0);
+
+            MaterialCB material_cb{
+                .baseColor = XMFLOAT4(1.0f, 0.933f, 0.6f, 1.0f)
+            };
+            cmd->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL);
 
             for (uint32_t objectIndex : view.objectIndexes)
             {
                 const AxisAlignedBox& aabb = view.scene->aabb_objects[objectIndex];
                 MiscCB misc_cb;
                 XMStoreFloat4x4(&misc_cb.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->VP));
-                device->BindDynamicConstantBuffer(misc_cb, CBSLOT_MISC, cmd);
+                cmd->BindDynamicConstantBuffer(misc_cb, CBSLOT_MISC);
 
-                device->DrawIndexed(24, 0, 0, cmd);
+                cmd->DrawIndexed(24, 0, 0);
             }
-            device->EndEvent(cmd);
+            cmd->EndMarker();
         }
 
         if (r_debugLightSources.GetValue())
         {
-            device->BeginEvent("DebugLightSources", cmd);
+            cmd->BeginMarker("DebugLightSources");
 
             // Draw icons over all the light sources
             for (uint32_t lightIndex : view.lightIndexes)
@@ -730,10 +733,10 @@ namespace cyb::renderer
                 const ecs::Entity lightID = view.scene->lights.GetEntity(lightIndex);
                 const scene::LightComponent& light = view.scene->lights[lightIndex];
                 const scene::TransformComponent* transform = view.scene->transforms.GetComponent(lightID);
-
                 float dist = Distance(transform->translation_local, view.camera->pos) * 0.05f;
-                renderer::ImageParams params;
-                params.EnableDepthTest();
+                
+                ImageParams params{};
+                params.flags = ImageFlags::DepthTestBit;
                 params.position = transform->translation_local;
                 params.size = XMFLOAT2(dist, dist);
 
@@ -742,15 +745,15 @@ namespace cyb::renderer
                 params.customRotation = &invR;
                 params.customProjection = &P;
 
-                device->BindSampler(GetSamplerState(renderer::SSLOT_BILINEAR_CLAMP), 0, cmd);
+                cmd->BindSampler(GetSamplerState(renderer::SSLOT_BILINEAR_CLAMP), 0);
 
                 switch (light.GetType())
                 {
                 case scene::LightType::Directional:
-                    renderer::DrawImage(builtin_textures[BUILTIN_TEXTURE_DIRLIGHT].GetTexture(), params, cmd);
+                    DrawImage(builtin_textures[BUILTIN_TEXTURE_DIRLIGHT].GetTexture(), params, cmd);
                     break;
                 case scene::LightType::Point:
-                    renderer::DrawImage(builtin_textures[BUILTIN_TEXTURE_POINTLIGHT].GetTexture(), params, cmd);
+                    DrawImage(builtin_textures[BUILTIN_TEXTURE_POINTLIGHT].GetTexture(), params, cmd);
                     break;
                 default:
                     break;
@@ -758,19 +761,21 @@ namespace cyb::renderer
             }
 
             // Draw all the aabb boxes for light sources
-            device->BindPipelineState(pso_debug[DEBUGRENDERING_CUBE], cmd);
-            const std::array<const rhi::IBuffer*, 1> vbs {
-                wirecube_vb,
+            const std::array<const rhi::IBuffer*, 1> vbs{
+                vtxWirecube,
             };
-            const std::array<uint32_t, 1> strides {
+            const std::array<uint32_t, 1> strides{
                 sizeof(XMFLOAT4) + sizeof(XMFLOAT4),
             };
-            device->BindVertexBuffers(vbs.data(), vbs.size(), strides.data(), nullptr, cmd);
-            device->BindIndexBuffer(wirecube_ib, IndexBufferFormat::Uint16, 0, cmd);
 
-            MaterialCB cbMaterial;
-            cbMaterial.baseColor = XMFLOAT4(0.666f, 0.874f, 0.933f, 1.0f);
-            device->BindDynamicConstantBuffer(cbMaterial, CBSLOT_MATERIAL, cmd);
+            cmd->BindPipelineState(pso_debug[DEBUGRENDERING_CUBE]);
+            cmd->BindVertexBuffers(vbs.data(), vbs.size(), strides.data(), nullptr);
+            cmd->BindIndexBuffer(idxWirecube, IndexBufferFormat::Uint16, 0);
+
+            MaterialCB cbMaterial{
+                .baseColor = XMFLOAT4(0.666f, 0.874f, 0.933f, 1.0f)
+            };
+            cmd->BindDynamicConstantBuffer(cbMaterial, CBSLOT_MATERIAL);
 
             for (uint32_t lightIndex : view.lightIndexes)
             {
@@ -779,43 +784,39 @@ namespace cyb::renderer
                 if (light.type == LightType::Point)
                 {
                     const AxisAlignedBox& aabb = view.scene->aabb_lights[lightIndex];
-                    MiscCB cbMisc;
+                    MiscCB cbMisc{};
                     XMStoreFloat4x4(&cbMisc.g_xTransform, XMMatrixTranspose(aabb.GetAsBoxMatrix() * view.camera->VP));
-                    device->BindDynamicConstantBuffer(cbMisc, CBSLOT_MISC, cmd);
-                    device->DrawIndexed(24, 0, 0, cmd);
+                    cmd->BindDynamicConstantBuffer(cbMisc, CBSLOT_MISC);
+                    cmd->DrawIndexed(24, 0, 0);
                 }
             }
 
-            device->EndEvent(cmd);
+            cmd->EndMarker();
         }
 
-        device->EndEvent(cmd);
+        cmd->EndMarker();
     }
 
     void Postprocess_Outline(
         const rhi::ITexture* input,
-        CommandList cmd,
+        ICommandList* cmd,
         float thickness,
         float threshold,
         const XMFLOAT4& color)
     {
-        device->BeginEvent("Postprocess_Outline", cmd);
+        cmd->BeginMarker("Postprocess_Outline");
+        cmd->BindPipelineState(psoOutline);
+        cmd->BindSampler(samplerStates[SSLOT_POINT_CLAMP], 0);
+        cmd->BindResource(input, 0);
 
-        device->BindPipelineState(psoOutline, cmd);
-        device->BindSampler(samplerStates[SSLOT_POINT_CLAMP], 0, cmd);
-        device->BindResource(input, 0, cmd);
-
-        PostProcess postprocess = {};
+        PostProcess postprocess{};
         postprocess.param0.x = thickness;
         postprocess.param0.y = threshold;
         postprocess.param0.z = std::chrono::duration<float>(std::chrono::steady_clock::now().time_since_epoch()).count();
-        postprocess.param1.x = color.x;
-        postprocess.param1.y = color.y;
-        postprocess.param1.z = color.z;
-        postprocess.param1.w = color.w;
+        postprocess.param1 = color;
         device->PushConstants(&postprocess, sizeof(postprocess), cmd);
-        device->Draw(3, 0, cmd);
+        cmd->Draw(3, 0);
 
-        device->EndEvent(cmd);
+        cmd->EndMarker();
     }
 }

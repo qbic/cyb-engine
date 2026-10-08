@@ -40,7 +40,7 @@ namespace cyb::hli
         jobsystem::Initialize();
         CYB_INFO("JobSystem Initialized with [{} worker threads]", jobsystem::WorkerCount());
 
-        // Initialize the client window, graphics device, and swapchain
+        // Initialize the client window, graphics m_device, and swapchain
         m_window = ClientWindow::Create({ });
         InitGraphicsDevice();
         RebuildSwapchain();
@@ -101,15 +101,14 @@ namespace cyb::hli
             Render();
 
             // Compose the final image and and pass it to the swapchain for display
-            CommandList cmd = m_graphicsDevice->BeginCommandList();
-            m_graphicsDevice->BeginRenderPass(m_swapchain, cmd);
-            Viewport viewport{};
-            viewport.width = (float)m_swapchain->GetDesc().width;
-            viewport.height = (float)m_swapchain->GetDesc().height;
-            m_graphicsDevice->BindViewports(&viewport, 1, cmd);
+            ICommandList* cmd = m_graphicsDevice->BeginCommandList();
+            Viewport viewport{ .width = (float)m_swapchain->GetDesc().width,
+                               .height = (float)m_swapchain->GetDesc().height };
 
+            cmd->BeginRenderPass(m_swapchain);
+            cmd->BindViewports(&viewport, 1);
             Compose(cmd);
-            m_graphicsDevice->EndRenderPass(cmd);
+            cmd->EndRenderPass();
 
             profiler::EndFrame(cmd);
             m_graphicsDevice->ExecuteCommandLists();
@@ -131,7 +130,7 @@ namespace cyb::hli
             m_activePath->Render();
     }
 
-    void Application::Compose(rhi::CommandList cmd)
+    void Application::Compose(rhi::ICommandList* cmd)
     {
         CYB_PROFILE_CPU_SCOPE("Compose");
         if (m_activePath != nullptr)
@@ -182,7 +181,7 @@ namespace cyb::hli
 
     void Application::InitGraphicsDevice()
     {
-        m_graphicsDevice = std::make_unique<rhi::GraphicsDevice_Vulkan>();
+        m_graphicsDevice = std::make_unique<rhi::vulkan::GraphicsDevice_Vulkan>();
         rhi::GetDevice() = m_graphicsDevice.get();
     }
 }

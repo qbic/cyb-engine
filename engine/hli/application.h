@@ -39,7 +39,7 @@ namespace cyb::hli
         void InitGraphicsDevice();
         virtual void Update(double dt);
         virtual void Render();
-        virtual void Compose(rhi::CommandList cmd);
+        virtual void Compose(rhi::ICommandList* cmd);
 
         ClientWindow m_window{};
         std::unique_ptr<rhi::GraphicsDevice> m_graphicsDevice{};

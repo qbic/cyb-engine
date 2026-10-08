@@ -73,17 +73,11 @@ namespace cyb::hli
     void RenderPath3D::Render() const
     {
         auto device = cyb::rhi::GetDevice();
-
-        // Prepare the frame:
-        auto cmd = device->BeginCommandList();
-        renderer::BindCameraCB(camera, cmd);
-        renderer::UpdateRenderData(sceneViewMain, frameCB, cmd);
-
-        device->BeginEvent("Opaque Scene", cmd);
-        Viewport viewport;
-        viewport.width = (float)rtMain->GetDesc().width;
-        viewport.height = (float)rtMain->GetDesc().height;
-        device->BindViewports(&viewport, 1, cmd);
+        const Viewport viewport = {
+            .width = float(rtMain->GetDesc().width),
+            .height = float(rtMain->GetDesc().height)
+        };
+        const Rect scissor = GetScissorInternalResolution();
 
         const std::array renderPassImages = std::to_array<RenderPassImage>({
             RenderPassImage::RenderTarget(
@@ -94,10 +88,15 @@ namespace cyb::hli
                 RenderPassImage::LoadOp::Clear,
                 RenderPassImage::StoreOp::Store)
         });
-        device->BeginRenderPass(renderPassImages.data(), renderPassImages.size(), cmd);
 
-        Rect scissor = GetScissorInternalResolution();
-        device->BindScissorRects(&scissor, 1, cmd);
+        auto cmd = device->BeginCommandList();
+        renderer::BindCameraCB(camera, cmd);
+        renderer::UpdateRenderData(sceneViewMain, frameCB, cmd);
+
+        cmd->BeginMarker("Opaque Scene");
+        cmd->BindViewports(&viewport, 1);
+        cmd->BeginRenderPass(renderPassImages.data(), renderPassImages.size());
+        cmd->BindScissorRects(&scissor, 1);
 
         {
             CYB_PROFILE_GPU_SCOPE("Opaque Scene", cmd);
@@ -110,13 +109,15 @@ namespace cyb::hli
             renderer::DrawDebugScene(sceneViewMain, cmd);
         }
 
-        device->EndEvent(cmd);
-        device->EndRenderPass(cmd);
+        cmd->EndMarker();
+        cmd->EndRenderPass();
 
 #if 1
-        device->BeginEvent("Selection Outline", cmd);
+        cmd->BeginMarker("Selection Outline");
         {
             CYB_PROFILE_GPU_SCOPE("Selection Outline", cmd);
+
+            // Stencil fill pass
             const std::array rpStencilFill = std::to_array<RenderPassImage>({
                 RenderPassImage::RenderTarget(
                     rtSelectionOutline,
@@ -125,43 +126,46 @@ namespace cyb::hli
                     rtMainDepth,
                     RenderPassImage::LoadOp::Load)
             });
-            device->BeginRenderPass(rpStencilFill.data(), rpStencilFill.size(), cmd);
 
-            renderer::ImageParams image{};
-            image.EnableFullscreen();
-            image.stencilRef = 8;
-            image.stencilComp = renderer::STENCILMODE_EQUAL;
-            device->BindSampler(GetSamplerState(renderer::SSLOT_POINT_CLAMP), 0, cmd);
+            renderer::ImageParams image{
+                .flags = renderer::ImageFlags::FullscreenBit,
+                .stencilRef = 8,
+                .stencilComp = renderer::STENCILMODE_EQUAL
+            };
+
+            cmd->BeginRenderPass(rpStencilFill.data(), rpStencilFill.size());
+            cmd->BindSampler(GetSamplerState(renderer::SSLOT_POINT_CLAMP), 0);
             renderer::DrawImage(nullptr, image, cmd);
+            cmd->EndRenderPass();
 
-            device->EndRenderPass(cmd);
-
+            // Stencil outline pass
             const std::array rpOutline = std::to_array<RenderPassImage>({
                 RenderPassImage::RenderTarget(
                     rtMain,
                     RenderPassImage::LoadOp::Load)
             });
-            device->BeginRenderPass(rpOutline.data(), rpOutline.size(), cmd);
+
+            cmd->BeginRenderPass(rpOutline.data(), rpOutline.size());
             XMFLOAT4 outlineColor = XMFLOAT4(1.0f, 0.62f, 0.17f, 1.0f);
             renderer::Postprocess_Outline(rtSelectionOutline, cmd, r_selectionOutlineThickness.GetValue(), 0.05f, outlineColor);
-            device->EndRenderPass(cmd);
+            cmd->EndRenderPass();
         }
-        device->EndEvent(cmd);
+        cmd->EndMarker();
 #endif
         RenderPath2D::Render();
     }
 
-    void RenderPath3D::Compose(CommandList cmd) const
+    void RenderPath3D::Compose(ICommandList* cmd) const
     {
-        renderer::ImageParams params{};
-        params.EnableFullscreen();
+        renderer::ImageParams params{ .flags = renderer::ImageFlags::FullscreenBit };
 
         GraphicsDevice* device = rhi::GetDevice();
-        device->BeginEvent("Composition", cmd);
         const rhi::ISampler* pointSampler = GetSamplerState(renderer::SSLOT_POINT_CLAMP);
-        device->BindSampler(pointSampler, 0, cmd);
+
+        cmd->BeginMarker("Composition");
+        cmd->BindSampler(pointSampler, 0);
         renderer::DrawImage(rtMain, params, cmd);
-        device->EndEvent(cmd);
+        cmd->EndMarker();
 
         RenderPath2D::Compose(cmd);
     }

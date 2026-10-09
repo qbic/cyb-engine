@@ -202,17 +202,11 @@ namespace cyb::rhi::vulkan
         uint32_t m_transferQueueFamily = VK_QUEUE_FAMILY_IGNORED;
 		uint32_t m_presentFamily = VK_QUEUE_FAMILY_IGNORED;
 
-        VkPhysicalDeviceProperties2 properties2{};
-        VkPhysicalDeviceVulkan11Properties properties_1_1{};
-        VkPhysicalDeviceVulkan12Properties properties_1_2{};
-        VkPhysicalDeviceVulkan13Properties properties_1_3{};
-        VkPhysicalDeviceMemoryProperties2 memory_properties_2{};
-
-        VkPhysicalDeviceFeatures2 features2{};
-        VkPhysicalDeviceVulkan11Features features_1_1{};
-        VkPhysicalDeviceVulkan12Features features_1_2{};
-        VkPhysicalDeviceVulkan13Features features_1_3{};
-
+        VkPhysicalDeviceProperties properties;
+        VkPhysicalDeviceMemoryProperties memoryProperties;
+        VkPhysicalDeviceFragmentShadingRatePropertiesKHR fragmentShadingRateProperties;
+        VkPhysicalDeviceFeatures features;
+        
         std::vector<VkDynamicState> pso_dynamic_states;
         VkPipelineDynamicStateCreateInfo dynamic_state_info{};
 

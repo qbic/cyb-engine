@@ -1030,25 +1030,6 @@ namespace cyb::rhi::vulkan
         VK_CHECK(vkResetDescriptorPool(device->device, descriptorPool, 0));
     }
 
-    [[nodiscard]] std::vector<const char*> StringSetToVector(const std::unordered_set<std::string>& set)
-    {
-        std::vector<const char*> vec;
-        vec.reserve(set.size());
-        for (const auto& s : set)
-            vec.push_back(s.c_str());
-        return vec;
-    }
-
-	template <typename T>
-	[[nodiscard]] std::vector<T> UnorderedSetToVector(const std::unordered_set<T>& set)
-	{
-		std::vector<T> vec;
-		vec.reserve(set.size());
-		for (const auto& s : set)
-			vec.push_back(s);
-		return vec;
-	}
-
     GPULinearAllocator* CommandList::GetFrameAllocator()
     {
         return m_frameAllocators[buffer_index].get();
@@ -1329,7 +1310,7 @@ namespace cyb::rhi::vulkan
 
         assert(rects != nullptr);
         assert(rectCount < scissors.size());
-        assert(rectCount < m_device->properties2.properties.limits.maxViewports);
+        assert(rectCount < m_device->properties.limits.maxViewports);
 
         for (uint32_t i = 0; i < rectCount; ++i)
         {
@@ -1349,7 +1330,7 @@ namespace cyb::rhi::vulkan
 
         assert(viewports != nullptr);
         assert(viewportCount < vp.size());
-        assert(viewportCount < m_device->properties2.properties.limits.maxViewports);
+        assert(viewportCount < m_device->properties.limits.maxViewports);
 
         for (uint32_t i = 0; i < viewportCount; ++i)
         {
@@ -1707,14 +1688,6 @@ namespace cyb::rhi::vulkan
     {
         VK_CHECK(volkInitialize());
 
-        // Fill out application info
-        VkApplicationInfo applicationInfo{};
-        applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        applicationInfo.pApplicationName = "CybEngine Application";
-        applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-        applicationInfo.pEngineName = "CybEngine";
-        applicationInfo.apiVersion = VK_API_VERSION_1_3;
-
         // Enumerate available layers and extensions:
         uint32_t instanceLayerCount;
         VK_CHECK(vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr));
@@ -1726,17 +1699,17 @@ namespace cyb::rhi::vulkan
         std::vector<VkExtensionProperties> availableInstanceExtensions(instanceExtensionCount);
         VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, availableInstanceExtensions.data()));
 
-        constexpr auto hasExtension = [](std::string_view required, const std::vector<VkExtensionProperties>& available) {
-            return std::ranges::any_of(available, [&](const VkExtensionProperties& avail) {
-                return required == avail.extensionName;
+        constexpr auto hasExtension = [] (std::string_view ext, const std::vector<VkExtensionProperties>& available) {
+            return std::ranges::any_of(available, [&ext] (const VkExtensionProperties& avail) {
+                return ext == avail.extensionName;
             });
         };
 
-        std::unordered_set<std::string> instanceLayers;
-        std::unordered_set<std::string> instanceExtensions;
+        std::vector<const char*> instanceLayers;
+        std::vector<const char*> instanceExtensions;
 
         // Validate and enable required layer extensions
-        const std::unordered_set<std::string> requiredInstanceExtensions = {
+        const std::vector<std::string_view> requiredInstanceExtensions = {
             VK_KHR_SURFACE_EXTENSION_NAME,
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
             VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
@@ -1745,40 +1718,41 @@ namespace cyb::rhi::vulkan
             VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME
         };
 
-        for (auto& required : requiredInstanceExtensions)
+        for (auto& extension : requiredInstanceExtensions)
         {
-            if (!hasExtension(required, availableInstanceExtensions))
-                Panicf("No support for required instance extension {}", required);
-            instanceExtensions.insert(required);
+            if (!hasExtension(extension, availableInstanceExtensions))
+                Panicf("No support for required instance extension {}", extension);
+            instanceExtensions.push_back(extension.data());
         }
 
-        // Validate and enable optional layer extensions
-        const std::unordered_map<std::string, bool*> optionalInstanceExtensionMap = {
+        // validate and enable optional layer extensions
+        const std::unordered_map<std::string_view, bool*> optionalInstanceExtensionMap = {
             { VK_EXT_DEBUG_UTILS_EXTENSION_NAME, &extensions.EXT_debug_utils },
             { VK_EXT_DEBUG_REPORT_EXTENSION_NAME, &extensions.EXT_debug_report }
         };
 
-        for (auto& optional : optionalInstanceExtensionMap)
+        for (auto& extension : optionalInstanceExtensionMap)
         {
-            if (hasExtension(optional.first, availableInstanceExtensions))
-            {
-                *(optional.second) = true;
-                instanceExtensions.insert(optional.first);
-            }
+            if (!hasExtension(extension.first, availableInstanceExtensions))
+                continue; // no support
+
+            assert(std::ranges::find(instanceExtensions, extension.first) == instanceExtensions.end());
+            *(extension.second) = true;
+            instanceExtensions.push_back(extension.first.data());
         }
 
-        constexpr auto validateLayers = [](const std::vector<std::string>& required, const std::vector<VkLayerProperties>& available) {
-            return std::ranges::all_of(required, [&](std::string_view layer) {
-                return std::ranges::any_of(available, [&](const VkLayerProperties& avail) {
+        constexpr auto validateLayers = [] (const std::vector<std::string_view>& required, const std::vector<VkLayerProperties>& available) {
+            return std::ranges::all_of(required, [&] (std::string_view layer) {
+                return std::ranges::any_of(available, [&] (const VkLayerProperties& avail) {
                     return layer == avail.layerName;
                 });
             });
         };
-        
+
         if (VALIDATION_MODE_ENABLED)
         {
             // Determine the optimal validation layers to enable that are necessary for useful debugging
-            const std::vector<std::string> validationLayerPriorityList[] = {
+            const std::vector<std::string_view> validationLayerPriorityList[] = {
                 // The preferred validation layer is "VK_LAYER_KHRONOS_validation"
                 { "VK_LAYER_KHRONOS_validation" },
 
@@ -1800,34 +1774,42 @@ namespace cyb::rhi::vulkan
 
             for (auto& validationLayers : validationLayerPriorityList)
             {
-                if (validateLayers(validationLayers, availableInstanceLayers))
-                {
-                    for (auto& x : validationLayers)
-                        instanceLayers.insert(x);
-                    break;  // only need one validation layer
-                }
+                if (!validateLayers(validationLayers, availableInstanceLayers))
+                    continue; // no support
+
+                for (auto& x : validationLayers)
+                    instanceLayers.push_back(x.data());
+                break;  // only need one validation layer
             }
         }
 
-        // Create instance
-        const auto instanceLayersVec = StringSetToVector(instanceLayers);
-        const auto instanceExtensionsVec = StringSetToVector(instanceExtensions);
+        // create instance
+        VkApplicationInfo applicationInfo{
+            .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+            .pApplicationName = "CybEngine Application",
+            .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+            .pEngineName = "CybEngine",
+            .apiVersion = VK_API_VERSION_1_3
+        };
 
-        VkInstanceCreateInfo instanceInfo{};
-        instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-        instanceInfo.pApplicationInfo = &applicationInfo;
-        instanceInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayersVec.size());
-        instanceInfo.ppEnabledLayerNames = instanceLayersVec.data();
-        instanceInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensionsVec.size());
-        instanceInfo.ppEnabledExtensionNames = instanceExtensionsVec.data();
+        VkInstanceCreateInfo instanceInfo{
+            .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+            .pApplicationInfo = &applicationInfo,
+            .enabledLayerCount = static_cast<uint32_t>(instanceLayers.size()),
+            .ppEnabledLayerNames = instanceLayers.data(),
+            .enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size()),
+            .ppEnabledExtensionNames = instanceExtensions.data()
+        };
 
-        VkDebugUtilsMessengerCreateInfoEXT debugUtilsCreateInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
+        VkDebugUtilsMessengerCreateInfoEXT debugUtilsCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+            .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT,
+            .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+            .pfnUserCallback = DebugUtilsMessengerCallback
+        };
 
         if (VALIDATION_MODE_ENABLED && extensions.EXT_debug_utils)
         {
-            debugUtilsCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
-            debugUtilsCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-            debugUtilsCreateInfo.pfnUserCallback = DebugUtilsMessengerCallback;
             instanceInfo.pNext = &debugUtilsCreateInfo;
             CYB_WARNING("Vulkan is running with validation layers enabled. This will heavily impact performace.");
         }
@@ -1838,7 +1820,7 @@ namespace cyb::rhi::vulkan
         if (VALIDATION_MODE_ENABLED && extensions.EXT_debug_utils)
             vkCreateDebugUtilsMessengerEXT(instance, &debugUtilsCreateInfo, nullptr, &debugUtilsMessenger);
 
-        // Enumerate and create m_device
+        // Enumerate and create device
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
         if (deviceCount == 0)
@@ -1847,18 +1829,44 @@ namespace cyb::rhi::vulkan
         std::vector<VkPhysicalDevice> devices(deviceCount);
         vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-        const std::unordered_set<std::string> requiredDeviceExtensions = {
+        const std::vector<const char*> requiredDeviceExtensions = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
             VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME
         };
-        std::unordered_set<std::string> enabledDeviceExtensions;
 
+        // find a suitable physical gpu
+        VkPhysicalDeviceVulkan12Properties vulkan12Properties{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES,
+        };
+        fragmentShadingRateProperties = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_PROPERTIES_KHR,
+            .pNext = &vulkan12Properties
+        };
+        VkPhysicalDeviceProperties2 properties2{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+            .pNext = &fragmentShadingRateProperties
+        };
+
+        VkPhysicalDeviceVulkan12Features vulkan12Features{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES
+        };
+        VkPhysicalDeviceVulkan12Features vulkan13Features{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+            .pNext = &vulkan12Features
+        };
+        VkPhysicalDeviceVulkan14Features asd;
+        VkPhysicalDeviceFeatures2 features2{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+            .pNext = &vulkan13Features
+        };
+
+        std::vector<const char*> enabledDeviceExtensions;
         for (const auto& dev : devices)
         {
             bool suitable = true;
 
-            uint32_t deviceExtensionCount;
+            uint32_t deviceExtensionCount = 0;
             vkEnumerateDeviceExtensionProperties(dev, nullptr, &deviceExtensionCount, nullptr);
             std::vector<VkExtensionProperties> availableDeviceExtensions(deviceExtensionCount);
             vkEnumerateDeviceExtensionProperties(dev, nullptr, &deviceExtensionCount, availableDeviceExtensions.data());
@@ -1873,22 +1881,7 @@ namespace cyb::rhi::vulkan
 
             enabledDeviceExtensions = requiredDeviceExtensions;
 
-            features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-            features_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-            features_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-            features_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-            features2.pNext = &features_1_1;
-            features_1_1.pNext = &features_1_2;
-            features_1_2.pNext = &features_1_3;
             vkGetPhysicalDeviceFeatures2(dev, &features2);
-
-            properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-            properties_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES;
-            properties_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES;
-            properties_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES;
-            properties2.pNext = &properties_1_1;
-            properties_1_1.pNext = &properties_1_2;
-            properties_1_2.pNext = &properties_1_3;
             vkGetPhysicalDeviceProperties2(dev, &properties2);
 
             bool discreteGPU = properties2.properties.deviceType == VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
@@ -1905,7 +1898,16 @@ namespace cyb::rhi::vulkan
         if (physicalDevice == VK_NULL_HANDLE)
             Panic("Failed to detect a suitable GPU!");
 
-        // Validate and enable optional m_device extensions
+        VkPhysicalDeviceMemoryProperties2 memoryProperties2{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2,
+        };
+        vkGetPhysicalDeviceMemoryProperties2(physicalDevice, &memoryProperties2);
+
+        properties = properties2.properties;
+        memoryProperties = memoryProperties2.memoryProperties;
+        features = features2.features;
+
+        // Validate and enable optional device extensions
         const std::unordered_map<std::string, bool*> optionalDeviceExtensionMap =  {
             { VK_EXT_DEPTH_CLIP_ENABLE_EXTENSION_NAME, &extensions.EXT_depth_clip_enable },
             { VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, &extensions.EXT_conservative_rasterization },
@@ -1921,16 +1923,17 @@ namespace cyb::rhi::vulkan
         std::vector<VkExtensionProperties> availableDeviceExtensions(deviceExtensionCount);
         vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, availableDeviceExtensions.data());
 
-        for (auto& optional : optionalDeviceExtensionMap)
+        for (auto& extension : optionalDeviceExtensionMap)
         {
-            if (hasExtension(optional.first, availableDeviceExtensions))
-            {
-                *(optional.second) = true;
-                enabledDeviceExtensions.insert(optional.first);
-            }
+            if (!hasExtension(extension.first, availableDeviceExtensions))
+                continue; // no support
+
+            assert(std::ranges::find(enabledDeviceExtensions, extension.first) == enabledDeviceExtensions.end());
+            *(extension.second) = true;
+            enabledDeviceExtensions.push_back(extension.first.c_str());
         }
 
-        // Find m_queue families
+        // find queue families
         uint32_t queueFamilyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
         std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
@@ -1958,49 +1961,47 @@ namespace cyb::rhi::vulkan
                 props.queueFlags & VK_QUEUE_COMPUTE_BIT)
                 m_computeQueueFamily = i;
 
-            // Prefer dedicated transfer m_queue (no graphics/compute)
-            if (props.queueCount > 0 &&
-                props.queueFlags & VK_QUEUE_TRANSFER_BIT &&
+            // prefer dedicated transfer queue (no graphics/compute)
+            if (props.queueCount > 0 && props.queueFlags & VK_QUEUE_TRANSFER_BIT &&
                 !(props.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
                 !(props.queueFlags & VK_QUEUE_COMPUTE_BIT))
                 m_transferQueueFamily = i;
 
-            // Prefer dedicated compute m_queue (no graphics)
-            if (props.queueCount > 0 &&
-                props.queueFlags & VK_QUEUE_COMPUTE_BIT &&
+            // prefer dedicated compute queue (no graphics)
+            if (props.queueCount > 0 && props.queueFlags & VK_QUEUE_COMPUTE_BIT &&
                 !(props.queueFlags & VK_QUEUE_GRAPHICS_BIT))
                 m_computeQueueFamily = i;
         }
 
 		if (m_graphicsQueueFamily == VK_QUEUE_FAMILY_IGNORED)
-			Panic("Failed to find a graphics m_queue family!");
+			Panic("Failed to find a graphics queue family!");
 
-        std::unordered_set<uint32_t> uniqueQueueFamilies = { m_graphicsQueueFamily, m_transferQueueFamily, m_computeQueueFamily };
-
-        const float queuePriority = 1.0f;
+        constexpr float queuePriority = 1.0f;
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        for (uint32_t familyIndex : uniqueQueueFamilies)
+        for (uint32_t familyIndex : {
+                m_graphicsQueueFamily,
+                m_transferQueueFamily,
+                m_computeQueueFamily })
         {
-            VkDeviceQueueCreateInfo queueCreateInfo{};
-            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfo.queueFamilyIndex = familyIndex;
-            queueCreateInfo.queueCount = 1;
-            queueCreateInfo.pQueuePriorities = &queuePriority;
-            queueCreateInfos.push_back(queueCreateInfo);
+            queueCreateInfos.push_back({
+                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                .queueFamilyIndex = familyIndex,
+                .queueCount = 1,
+                .pQueuePriorities = &queuePriority
+            });
         }
 
-        const auto deviceExtensionsVec = StringSetToVector(enabledDeviceExtensions);
+        VkDeviceCreateInfo deviceInfo{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .pNext = &features2,
+            .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
+            .pQueueCreateInfos = queueCreateInfos.data(),
+            .enabledExtensionCount = static_cast<uint32_t>(enabledDeviceExtensions.size()),
+            .ppEnabledExtensionNames = enabledDeviceExtensions.data(),
+            .pEnabledFeatures = nullptr
+        };
 
-        VkDeviceCreateInfo device_info{};
-        device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        device_info.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-        device_info.pQueueCreateInfos = queueCreateInfos.data();
-        device_info.pEnabledFeatures = nullptr;
-        device_info.pNext = &features2;
-        device_info.enabledExtensionCount = static_cast<uint32_t>(deviceExtensionsVec.size());
-        device_info.ppEnabledExtensionNames = deviceExtensionsVec.data();
-
-        VK_CHECK(vkCreateDevice(physicalDevice, &device_info, nullptr, &device));
+        VK_CHECK(vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device));
         volkLoadDevice(device);    
 
         // create hardware queue's
@@ -2019,32 +2020,34 @@ namespace cyb::rhi::vulkan
         if (transferQueue)
             queues[uint32_t(CommandQueue::Transfer)] = std::make_unique<Queue>(device, CommandQueue::Transfer, transferQueue, m_transferQueueFamily);
 
-        // load memory properties
-        memory_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
-        vkGetPhysicalDeviceMemoryProperties2(physicalDevice, &memory_properties_2);
-
         // create allocation handler
         m_allocationHandler = std::make_shared<AllocationHandler>();
         m_allocationHandler->device = device;
         m_allocationHandler->instance = instance;
 
-        // initialize vulkan memory allocator helper:
-        VmaAllocatorCreateInfo allocatorInfo{};
-        allocatorInfo.flags = VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT | VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
-        allocatorInfo.physicalDevice = physicalDevice;
-        allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
-        allocatorInfo.device = device;
-        allocatorInfo.instance = instance;
-
-        if (features_1_2.bufferDeviceAddress)
-            allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-
+        // initialize vulkan memory allocator helper
 #if VMA_DYNAMIC_VULKAN_FUNCTIONS
-        VmaVulkanFunctions vulkanFunctions{};
-        vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
-        vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
-        allocatorInfo.pVulkanFunctions = &vulkanFunctions;
+        VmaVulkanFunctions vulkanFunctions{
+            .vkGetInstanceProcAddr = vkGetInstanceProcAddr,
+            .vkGetDeviceProcAddr = vkGetDeviceProcAddr
+        };
+        VmaVulkanFunctions* pVulkanFunctions = &vulkanFunctions;
+#else
+        VmaVulkanFunctions* pVulkanFunctions = nullptr;
 #endif
+        VmaAllocatorCreateFlags bufferDeviceAddressFlag = 0;
+        if (vulkan12Features.bufferDeviceAddress)
+            bufferDeviceAddressFlag = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+
+        VmaAllocatorCreateInfo allocatorInfo{
+            .flags = VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT | VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT | bufferDeviceAddressFlag,
+            .physicalDevice = physicalDevice,
+            .device = device,
+            .pVulkanFunctions = pVulkanFunctions,
+            .instance = instance,
+            .vulkanApiVersion = VK_API_VERSION_1_3,
+        };
+
         VK_CHECK(vmaCreateAllocator(&allocatorInfo, &m_allocationHandler->allocator));
 
         m_copyAllocator.Init(this);
@@ -2067,10 +2070,10 @@ namespace cyb::rhi::vulkan
 
         CYB_INFO("Initialized Vulkan {}.{}", VK_API_VERSION_MAJOR(properties2.properties.apiVersion), VK_API_VERSION_MINOR(properties2.properties.apiVersion));
         CYB_INFO("  Device: {}", properties2.properties.deviceName);
-        CYB_INFO("  Driver: {} {}", properties_1_2.driverName, properties_1_2.driverInfo);
-        CYB_TRACE("VulkanDeviceExtension: {}", deviceExtensionsVec);
-        CYB_TRACE("VulkanInstanceExtensions: {}", instanceExtensionsVec);
-        CYB_TRACE("VulkanInstanceLayers: {}", instanceLayersVec);
+        CYB_INFO("  Driver: {} {}", vulkan12Properties.driverName, vulkan12Properties.driverInfo);
+        CYB_TRACE("VulkanDeviceExtension: {}", enabledDeviceExtensions);
+        CYB_TRACE("VulkanInstanceExtensions: {}", instanceExtensions);
+        CYB_TRACE("VulkanInstanceLayers: {}", instanceLayers);
     }
 
     GraphicsDevice_Vulkan::~GraphicsDevice_Vulkan()
@@ -2535,9 +2538,9 @@ namespace cyb::rhi::vulkan
         MemoryUsage result{};
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(m_allocationHandler->allocator, budgets);
-        for (uint32_t i = 0; i < memory_properties_2.memoryProperties.memoryHeapCount; ++i)
+        for (uint32_t i = 0; i < memoryProperties.memoryHeapCount; ++i)
         {
-            if (memory_properties_2.memoryProperties.memoryHeaps[i].flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+            if (memoryProperties.memoryHeaps[i].flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
             {
                 result.budget += budgets[i].budget;
                 result.usage += budgets[i].usage;
@@ -2550,9 +2553,9 @@ namespace cyb::rhi::vulkan
     {
         uint64_t alignment = 1u;
         if (HasFlag(desc->usage, BufferUsage::ConstantBufferBit))
-            alignment = std::max(alignment, properties2.properties.limits.minUniformBufferOffsetAlignment);
+            alignment = std::max(alignment, properties.limits.minUniformBufferOffsetAlignment);
         else
-            alignment = std::max(alignment, properties2.properties.limits.minTexelBufferOffsetAlignment);
+            alignment = std::max(alignment, properties.limits.minTexelBufferOffsetAlignment);
         return alignment;
     }
 
@@ -3075,7 +3078,7 @@ namespace cyb::rhi::vulkan
             scissor.extent.height = 65535;
             vkCmdSetScissorWithCount(commandlist->GetCommandBuffer(), 1, &scissor);
             
-            if (features2.features.depthBounds == VK_TRUE)
+            if (features.depthBounds == VK_TRUE)
                 vkCmdSetDepthBounds(commandlist->GetCommandBuffer(), 0.0f, 1.0f);
         }
         return commandlist;

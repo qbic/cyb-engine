@@ -600,7 +600,7 @@ namespace cyb::renderer
                     sizeof(scene::MeshComponent::Vertex_Col)
                 };
 
-                cmd->BindVertexBuffers(vertex_buffers.data(), vertex_buffers.size(), strides.data(), nullptr);
+                cmd->BindVertexBuffers(vertex_buffers.data(), 0, vertex_buffers.size(), strides.data(), nullptr);
                 cmd->BindIndexBuffer(mesh.index_buffer, IndexBufferFormat::Uint32, 0);
             }
             else
@@ -703,7 +703,7 @@ namespace cyb::renderer
 
             cmd->BeginMarker("DebugObjectAABB");
             cmd->BindPipelineState(pso_debug[DEBUGRENDERING_CUBE]);
-            cmd->BindVertexBuffers(vbs.data(), vbs.size(), strides.data(), nullptr);
+            cmd->BindVertexBuffers(vbs.data(), 0, vbs.size(), strides.data(), nullptr);
             cmd->BindIndexBuffer(idxWirecube, IndexBufferFormat::Uint16, 0);
 
             MaterialCB material_cb{
@@ -769,7 +769,7 @@ namespace cyb::renderer
             };
 
             cmd->BindPipelineState(pso_debug[DEBUGRENDERING_CUBE]);
-            cmd->BindVertexBuffers(vbs.data(), vbs.size(), strides.data(), nullptr);
+            cmd->BindVertexBuffers(vbs.data(), 0, vbs.size(), strides.data(), nullptr);
             cmd->BindIndexBuffer(idxWirecube, IndexBufferFormat::Uint16, 0);
 
             MaterialCB cbMaterial{

@@ -69,8 +69,6 @@ namespace cyb::rhi::vulkan
         std::vector<ISwapchain*> prevSwapchains;
 
         const IPipelineState* activePso = nullptr;
-        std::array<uint32_t, 8> vertexbuffer_strides{};
-        size_t vertexbuffer_hash = 0;
         bool dirtyPso = false;
         RenderPassInfo renderpassInfo{};
         std::vector<VkImageMemoryBarrier2> renderpassBarriersBegin;
@@ -101,8 +99,6 @@ namespace cyb::rhi::vulkan
             m_frameAllocators[buffer_index]->Reset();
             prevPipelineHash = 0;
             activePso = nullptr;
-            vertexbuffer_hash = 0;
-            vertexbuffer_strides.fill(0);
             dirtyPso = false;
             prevSwapchains.clear();
         }
@@ -115,8 +111,9 @@ namespace cyb::rhi::vulkan
 
         void BindScissorRects(const Rect* rects, uint32_t rectCount) override;
         void BindViewports(const Viewport* viewports, uint32_t viewportCount) override;
+        void BindShadingRate(ShadingRate rate) override;
         void BindPipelineState(const IPipelineState* pso) override;
-        void BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets) override;
+        void BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t slot, uint32_t count, const uint32_t* strides, const uint64_t* offsets) override;
         void BindIndexBuffer(const IBuffer* indexBuffer, const IndexBufferFormat format, uint64_t offset) override;
         void BindStencilRef(uint32_t value) override;
         void BindResource(const IResource* resource, int slot) override;
@@ -209,6 +206,8 @@ namespace cyb::rhi::vulkan
         
         std::vector<VkDynamicState> pso_dynamic_states;
         VkPipelineDynamicStateCreateInfo dynamic_state_info{};
+        VkBuffer nullBuffer = VK_NULL_HANDLE;
+        VmaAllocation	nullBufferAllocation = VK_NULL_HANDLE;
 
         struct CopyAllocator
         {

@@ -118,6 +118,17 @@ namespace cyb::rhi
         DSV                             //!< Depth stencil view
     };
 
+    enum class ShadingRate : uint8_t
+    {
+        Rate_1x1,
+        Rate_1x2,
+        Rate_2x1,
+        Rate_2x2,
+        Rate_2x4,
+        Rate_4x2,
+        Rate_4x4
+    };
+
     enum class PolygonMode : uint8_t
     {
         Fill,
@@ -640,8 +651,9 @@ namespace cyb::rhi
             
         virtual void BindScissorRects(const Rect* rects, uint32_t rectCount) = 0;
         virtual void BindViewports(const Viewport* viewports, uint32_t viewportCount) = 0;
+        virtual void BindShadingRate(ShadingRate rate) = 0;
         virtual void BindPipelineState(const IPipelineState* pso) = 0;
-        virtual void BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets) = 0;
+        virtual void BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t slot, uint32_t count, const uint32_t* strides, const uint64_t* offsets) = 0;
         virtual void BindIndexBuffer(const IBuffer* indexBuffer, const IndexBufferFormat format, uint64_t offset) = 0;
         virtual void BindStencilRef(uint32_t value) = 0;
         virtual void BindResource(const IResource* resource, int slot) = 0;
@@ -697,7 +709,7 @@ namespace cyb::rhi
     {
     protected:
         static constexpr uint32_t BUFFERCOUNT = 3;
-        static constexpr bool VALIDATION_MODE_ENABLED = true;
+        static constexpr bool VALIDATION_MODE_ENABLED = false;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 
@@ -831,7 +843,7 @@ namespace cyb::rhi
                 m_buffer = m_device->CreateBuffer(&desc, nullptr);
                 m_bufferOffset = 0;
 
-                //CYB_TRACE("Increasing GPU frame allocation for cmd(0x{:x}) bufferIndex {} to {:.1f}kb", (ptrdiff_t)cmd, GetBufferIndex(), desc.size / 1024.0f);
+                //CYB_TRACE("Increasing GPU frame allocation to {:.1f}kb", desc.size / 1024.0f);
             }
 
             buffer.buffer = m_buffer;

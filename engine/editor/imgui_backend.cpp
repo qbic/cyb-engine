@@ -284,7 +284,7 @@ void ImGui_Impl_CybEngine_Compose(ICommandList* cmd)
     const uint32_t strides[] = { sizeof(ImDrawVert) };
     const uint64_t offsets[] = { 0 };
 
-    cmd->BindVertexBuffers(vbs, 1, strides, offsets);
+    cmd->BindVertexBuffers(vbs, 0, 1, strides, offsets);
     cmd->BindIndexBuffer(bd->indexBuffer, bd->indexFormat, 0);
 
     Viewport viewport{

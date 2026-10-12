@@ -4,7 +4,7 @@
 #include "graphics/device_vulkan.h"
 #include "volk.h"
 #include "spirv_reflect.h"
-#include <unordered_set>
+#include <span>
 #ifdef _WIN32
 #include <dwmapi.h>
 #endif // _WIN32
@@ -1045,7 +1045,7 @@ namespace cyb::rhi::vulkan
 
         swapchain->locker.lock();
 
-        uint32_t maxAttempts = 3;
+        constexpr uint32_t maxAttempts = 3;
         for (uint32_t attempt = 0; attempt < maxAttempts; ++attempt)
         {
             VkResult res = vkAcquireNextImageKHR(
@@ -1342,7 +1342,54 @@ namespace cyb::rhi::vulkan
             vp[i].maxDepth = viewports[i].maxDepth;
         }
 
-        vkCmdSetViewport(cmdBuf, 0, viewportCount, vp.data());
+        vkCmdSetViewportWithCount(cmdBuf, viewportCount, vp.data());
+    }
+
+    void CommandList::BindShadingRate(ShadingRate rate)
+    {
+        if (!m_device->extensions.KHR_fragment_shading_rate)
+            return;
+
+        VkExtent2D fragmentSize{};
+        switch (rate)
+        {
+            case ShadingRate::Rate_1x1:
+                fragmentSize.width = 1;
+                fragmentSize.height = 1;
+                break;
+            case ShadingRate::Rate_1x2:
+                fragmentSize.width = 1;
+                fragmentSize.height = 2;
+                break;
+            case ShadingRate::Rate_2x1:
+                fragmentSize.width = 2;
+                fragmentSize.height = 1;
+                break;
+            case ShadingRate::Rate_2x2:
+                fragmentSize.width = 2;
+                fragmentSize.height = 2;
+                break;
+            case ShadingRate::Rate_2x4:
+                fragmentSize.width = 2;
+                fragmentSize.height = 4;
+                break;
+            case ShadingRate::Rate_4x2:
+                fragmentSize.width = 4;
+                fragmentSize.height = 2;
+                break;
+            case ShadingRate::Rate_4x4:
+                fragmentSize.width = 4;
+                fragmentSize.height = 4;
+                break;
+        }
+
+        VkFragmentShadingRateCombinerOpKHR combiner[] = {
+                VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR,
+                VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR
+        };
+
+        VkCommandBuffer cmdBuf = GetCommandBuffer();
+        vkCmdSetFragmentShadingRateKHR(cmdBuf, &fragmentSize, combiner);
     }
 
     void CommandList::BindPipelineState(const IPipelineState* _pso)
@@ -1372,11 +1419,12 @@ namespace cyb::rhi::vulkan
         activePso = pso;
     }
 
-    void CommandList::BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t count, const uint32_t* strides, const uint64_t* offsets)
+    void CommandList::BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t slot, uint32_t count, const uint32_t* strides, const uint64_t* offsets)
     {
         VkCommandBuffer cmdBuf = GetCommandBuffer();
-        VkDeviceSize vbOffsets[8]{};
-        VkBuffer buffers[8]{};
+        VkDeviceSize vtxOffsets[8]{};
+        VkDeviceSize vtxStrides[8]{};
+        VkBuffer vtxBuffers[8]{};
         uint64_t hash = 0;
 
         assert(vertexBuffers);
@@ -1385,23 +1433,17 @@ namespace cyb::rhi::vulkan
 
         for (uint32_t i = 0; i < count; i++)
         {
-            HashCombine(hash, strides[i]);
-            vertexbuffer_strides[i] = strides[i];
+            assert(vertexBuffers[i]);
 
             const Buffer_Vulkan* buffer = check_cast<const Buffer_Vulkan*>(vertexBuffers[i]);
-            buffers[i] = buffer->resource;
+            vtxBuffers[i] = buffer->resource;
             if (offsets != nullptr)
-                vbOffsets[i] = offsets[i];
+                vtxOffsets[i] = offsets[i];
+            if (strides != nullptr)
+                vtxStrides[i] = strides[i];
         }
 
-        std::fill(vertexbuffer_strides.begin() + count, vertexbuffer_strides.end(), 0);
-        vkCmdBindVertexBuffers(cmdBuf, 0, static_cast<uint32_t>(count), buffers, vbOffsets);
-
-        if (hash != vertexbuffer_hash)
-        {
-            vertexbuffer_hash = hash;
-            dirtyPso = true;
-        }
+        vkCmdBindVertexBuffers2(cmdBuf, slot, static_cast<uint32_t>(count), vtxBuffers, vtxOffsets, nullptr, vtxStrides);
     }
 
     void CommandList::BindIndexBuffer(const IBuffer* indexBuffer, const IndexBufferFormat format, uint64_t offset)
@@ -1423,24 +1465,24 @@ namespace cyb::rhi::vulkan
     void CommandList::BindResource(const IResource* resource, int slot)
     {
         assert(slot < binder.table.SRV.size());
-        if (binder.table.SRV[slot] != resource)
-        {
-            // FIXME: const_cast is not ideal, but we need to store the resource
-            //        pointer in the binder table. Consider redesigning the
-            //        binder table to hold const pointers if possible.
-            binder.table.SRV[slot] = const_cast<IResource*>(resource);
-            binder.dirtyFlags |= DescriptorBinder::DIRTY_DESCRIPTOR;
-        }
+        if (binder.table.SRV[slot] == resource)
+            return; // allready bound
+     
+        // FIXME: const_cast is not ideal, but we need to store the resource
+        //        pointer in the binder table. Consider redesigning the
+        //        binder table to hold const pointers if possible.
+        binder.table.SRV[slot] = const_cast<IResource*>(resource);
+        binder.dirtyFlags |= DescriptorBinder::DIRTY_DESCRIPTOR;
     }
 
     void CommandList::BindSampler(const ISampler* sampler, uint32_t slot)
     {
         assert(slot < DESCRIPTORBINDER_SAMPLER_COUNT);
-        if (binder.table.SAM[slot] != sampler)
-        {
-            binder.table.SAM[slot] = sampler;
-            binder.dirtyFlags |= DescriptorBinder::DIRTY_DESCRIPTOR;
-        }
+        if (binder.table.SAM[slot] == sampler)
+            return; // allready bound
+
+        binder.table.SAM[slot] = sampler;
+        binder.dirtyFlags |= DescriptorBinder::DIRTY_DESCRIPTOR;
     }
 
     void CommandList::BindConstantBuffer(const IBuffer* buffer, uint32_t slot, uint64_t offset)
@@ -1466,10 +1508,11 @@ namespace cyb::rhi::vulkan
         const Buffer_Vulkan* dst = check_cast<const Buffer_Vulkan*>(_dst);
         const Buffer_Vulkan* src = check_cast<const Buffer_Vulkan*>(_src);
 
-        VkBufferCopy copy{};
-        copy.srcOffset = srcOffset;
-        copy.dstOffset = dstOffset;
-        copy.size = size;
+        VkBufferCopy copy{
+            .srcOffset = srcOffset,
+            .dstOffset = dstOffset,
+            .size = size
+        };
 
         vkCmdCopyBuffer(cmdBuf, src->resource, dst->resource, 1, &copy);
     }
@@ -1496,7 +1539,6 @@ namespace cyb::rhi::vulkan
 
         const PipelineState_Vulkan* pso = check_cast<const PipelineState_Vulkan*>(activePso);
         size_t pipelineHash = prevPipelineHash;
-        HashCombine(pipelineHash, vertexbuffer_hash);
 
         VkPipeline pipeline = VK_NULL_HANDLE;
         auto it = m_device->pipelinesGlobal.find(pipelineHash);
@@ -1513,81 +1555,79 @@ namespace cyb::rhi::vulkan
 
             if (pipeline == VK_NULL_HANDLE)
             {
-                // Multisample:
-                VkPipelineMultisampleStateCreateInfo multisampling{};
-                multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-                multisampling.sampleShadingEnable = VK_FALSE;
-                multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+                VkPipelineMultisampleStateCreateInfo multisampling{
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+                    .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+                    .sampleShadingEnable = VK_FALSE
+                };
 
-                // Color blending:
-                VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-                colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-                colorBlendAttachment.blendEnable = VK_TRUE;
-                colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-                colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-                colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-                colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-                colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+                VkPipelineColorBlendAttachmentState colorBlendAttachment{
+                    .blendEnable = VK_TRUE,
+                    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                    .colorBlendOp = VK_BLEND_OP_ADD,
+                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                    .alphaBlendOp = VK_BLEND_OP_ADD,
+                    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+                };
 
-                VkPipelineColorBlendStateCreateInfo colorBlending{};
-                colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-                colorBlending.logicOpEnable = VK_FALSE;
-                colorBlending.logicOp = VK_LOGIC_OP_COPY;
-                colorBlending.attachmentCount = 1;
-                colorBlending.pAttachments = &colorBlendAttachment;
-                colorBlending.blendConstants[0] = 0.0f;
-                colorBlending.blendConstants[1] = 0.0f;
-                colorBlending.blendConstants[2] = 0.0f;
-                colorBlending.blendConstants[3] = 0.0f;
+                VkPipelineColorBlendStateCreateInfo colorBlending{
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+                    .logicOpEnable = VK_FALSE,
+                    .logicOp = VK_LOGIC_OP_COPY,
+                    .attachmentCount = 1,
+                    .pAttachments = &colorBlendAttachment,
+                    .blendConstants = { 0.0f, 0.0f, 0.0f, 0.0f }
+                };
 
                 // Vertex layout:
-                VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-                vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
+                VkPipelineVertexInputStateCreateInfo vertexInputInfo{
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+                };
                 std::vector<VkVertexInputBindingDescription> bindings;
                 std::vector<VkVertexInputAttributeDescription> attributes;
                 if (pso->desc.il != nullptr)
                 {
-                    uint32_t binding_prev = 0xFFFFFFFF;
+                    uint32_t bindingPrev = 0xFFFFFFFF;
                     for (auto& x : pso->desc.il->elements)
                     {
-                        if (x.inputSlot == binding_prev)
+                        if (x.inputSlot == bindingPrev)
                             continue;
 
-                        binding_prev = x.inputSlot;
-                        VkVertexInputBindingDescription& bind = bindings.emplace_back();
-                        bind.binding = x.inputSlot;
-                        bind.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-                        bind.stride = vertexbuffer_strides[x.inputSlot];
+                        bindingPrev = x.inputSlot;
+                        bindings.push_back({
+                            .binding = x.inputSlot,
+                            .stride = GetFormatInfo(x.format).bytesPerBlock,
+                            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+                        });
                     }
 
                     uint32_t offset = 0;
                     uint32_t i = 0;
-                    binding_prev = 0xFFFFFFFF;
+                    bindingPrev = 0xFFFFFFFF;
                     for (auto& x : pso->desc.il->elements)
                     {
-                        VkVertexInputAttributeDescription attr{};
-                        attr.binding = x.inputSlot;
-                        if (attr.binding != binding_prev)
+                        if (x.inputSlot != bindingPrev)
                         {
-                            binding_prev = attr.binding;
+                            bindingPrev = x.inputSlot;
                             offset = 0;
                         }
-                        attr.format = ConvertFormat(x.format);
-                        attr.location = i;
 
-                        attr.offset = x.alignedByteOffset;
-                        if (attr.offset == VertexInputLayout::APPEND_ALIGNMENT_ELEMENT)
+                        uint32_t attribOffset = x.alignedByteOffset;
+                        if (attribOffset == VertexInputLayout::APPEND_ALIGNMENT_ELEMENT)
                         {
-                            // need to manually resolve this from the format spec.
                             const FormatInfo& formatInfo = GetFormatInfo(x.format);
-                            attr.offset = offset;
+                            attribOffset = offset;
                             offset += formatInfo.bytesPerBlock;
                         }
 
-                        attributes.push_back(attr);
-                        i++;
+                        attributes.push_back({
+                            .location = i++,
+                            .binding = x.inputSlot,
+                            .format = ConvertFormat(x.format),
+                            .offset = attribOffset
+                        });
                     }
 
                     vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindings.size());
@@ -1596,7 +1636,25 @@ namespace cyb::rhi::vulkan
                     vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
                 }
 
-                // Create pipeline state
+                // create pipeline state
+                VkFormat formats[8]{};
+                for (uint32_t i = 0; i < renderpassInfo.rtCount; ++i)
+                    formats[i] = ConvertFormat(renderpassInfo.rtFormats[i]);
+
+                const FormatInfo& dsFormatInfo = GetFormatInfo(renderpassInfo.dsFormat);
+                const VkFormat depthFormat = ConvertFormat(renderpassInfo.dsFormat);
+                const VkFormat stencilFormat = dsFormatInfo.hasStencil ? depthFormat : VK_FORMAT_UNDEFINED;
+                
+                VkPipelineRenderingCreateInfo renderingInfo{
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+                    .pNext = nullptr,
+                    .viewMask = 0,
+                    .colorAttachmentCount = renderpassInfo.rtCount,
+                    .pColorAttachmentFormats = formats,
+                    .depthAttachmentFormat = depthFormat,
+                    .stencilAttachmentFormat = stencilFormat
+                };
+
                 VkGraphicsPipelineCreateInfo pipelineInfo = pso->pipelineInfo; // make a copy here
                 pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
                 pipelineInfo.renderPass = VK_NULL_HANDLE;       // we use VkPipelineRenderingCreateInfo instead
@@ -1604,21 +1662,6 @@ namespace cyb::rhi::vulkan
                 pipelineInfo.pMultisampleState = &multisampling;
                 pipelineInfo.pColorBlendState = &colorBlending;
                 pipelineInfo.pVertexInputState = &vertexInputInfo;
-
-                VkPipelineRenderingCreateInfo renderingInfo{};
-                renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-                renderingInfo.viewMask = 0;
-                renderingInfo.colorAttachmentCount = renderpassInfo.rtCount;
-                VkFormat formats[8]{};
-                for (uint32_t i = 0; i < renderpassInfo.rtCount; ++i)
-                {
-                    formats[i] = ConvertFormat(renderpassInfo.rtFormats[i]);
-                }
-                renderingInfo.pColorAttachmentFormats = formats;
-                renderingInfo.depthAttachmentFormat = ConvertFormat(renderpassInfo.dsFormat);
-                const FormatInfo& dsFormatInfo = GetFormatInfo(renderpassInfo.dsFormat);
-                if (dsFormatInfo.hasStencil)
-                    renderingInfo.stencilAttachmentFormat = renderingInfo.depthAttachmentFormat;
                 pipelineInfo.pNext = &renderingInfo;
 
                 VK_CHECK(vkCreateGraphicsPipelines(m_device->device, m_device->pipelineCache, 1, &pipelineInfo, nullptr, &pipeline));
@@ -1688,8 +1731,8 @@ namespace cyb::rhi::vulkan
     {
         VK_CHECK(volkInitialize());
 
-        // Enumerate available layers and extensions:
-        uint32_t instanceLayerCount;
+        // Enumerate available layers and extensions
+        uint32_t instanceLayerCount = 0;
         VK_CHECK(vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr));
         std::vector<VkLayerProperties> availableInstanceLayers(instanceLayerCount);
         VK_CHECK(vkEnumerateInstanceLayerProperties(&instanceLayerCount, availableInstanceLayers.data()));
@@ -1699,9 +1742,9 @@ namespace cyb::rhi::vulkan
         std::vector<VkExtensionProperties> availableInstanceExtensions(instanceExtensionCount);
         VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, availableInstanceExtensions.data()));
 
-        constexpr auto hasExtension = [] (std::string_view ext, const std::vector<VkExtensionProperties>& available) {
-            return std::ranges::any_of(available, [&ext] (const VkExtensionProperties& avail) {
-                return ext == avail.extensionName;
+        constexpr auto hasExtension = [] (std::string_view required, const std::vector<VkExtensionProperties>& available) {
+            return std::ranges::any_of(available, [&] (const VkExtensionProperties& avail) {
+                return required == avail.extensionName;
             });
         };
 
@@ -1741,9 +1784,9 @@ namespace cyb::rhi::vulkan
             instanceExtensions.push_back(extension.first.data());
         }
 
-        constexpr auto validateLayers = [] (const std::vector<std::string_view>& required, const std::vector<VkLayerProperties>& available) {
+        constexpr auto hasLayer = [] (const auto& required, const auto& available) {
             return std::ranges::all_of(required, [&] (std::string_view layer) {
-                return std::ranges::any_of(available, [&] (const VkLayerProperties& avail) {
+                return std::ranges::any_of(available, [&layer] (const VkLayerProperties& avail) {
                     return layer == avail.layerName;
                 });
             });
@@ -1751,33 +1794,30 @@ namespace cyb::rhi::vulkan
 
         if (VALIDATION_MODE_ENABLED)
         {
-            // Determine the optimal validation layers to enable that are necessary for useful debugging
-            const std::vector<std::string_view> validationLayerPriorityList[] = {
-                // The preferred validation layer is "VK_LAYER_KHRONOS_validation"
+            // determine the optimal validation layers to enable that are necessary for useful debugging
+            // 1. preferred validation layer is "VK_LAYER_KHRONOS_validation"
+            // 2. fallback to using the LunarG meta layer
+            // 3. attempt to enable the individual layers that compose the LunarG meta layer since it doesn't exist
+            // 4. as a last resort we fallback to attempting to enable the LunarG core layer
+            const std::initializer_list<std::string_view> validationLayerPriorityList[] = {
                 { "VK_LAYER_KHRONOS_validation" },
-
-                // Otherwise we fallback to using the LunarG meta layer
                 { "VK_LAYER_LUNARG_standard_validation" },
-
-                // Otherwise we attempt to enable the individual layers that compose the LunarG meta layer since it doesn't exist
                 {
                     "VK_LAYER_GOOGLE_threading",
                     "VK_LAYER_LUNARG_parameter_validation",
                     "VK_LAYER_LUNARG_object_tracker",
                     "VK_LAYER_LUNARG_core_validation",
-                    "VK_LAYER_GOOGLE_unique_objects",
+                    "VK_LAYER_GOOGLE_unique_objects"
                 },
-
-                // Otherwise as a last resort we fallback to attempting to enable the LunarG core layer
                 { "VK_LAYER_LUNARG_core_validation" }
             };
 
-            for (auto& validationLayers : validationLayerPriorityList)
+            for (auto& layer : validationLayerPriorityList)
             {
-                if (!validateLayers(validationLayers, availableInstanceLayers))
+                if (!hasLayer(layer, availableInstanceLayers))
                     continue; // no support
 
-                for (auto& x : validationLayers)
+                for (auto& x : layer)
                     instanceLayers.push_back(x.data());
                 break;  // only need one validation layer
             }
@@ -1855,10 +1895,13 @@ namespace cyb::rhi::vulkan
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
             .pNext = &vulkan12Features
         };
-        VkPhysicalDeviceVulkan14Features asd;
+        VkPhysicalDeviceFragmentShadingRateFeaturesKHR fragmentShadingRateFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR,
+            .pNext = &vulkan13Features
+        };
         VkPhysicalDeviceFeatures2 features2{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-            .pNext = &vulkan13Features
+            .pNext = &fragmentShadingRateFeatures
         };
 
         std::vector<const char*> enabledDeviceExtensions;
@@ -2054,19 +2097,43 @@ namespace cyb::rhi::vulkan
 
         gpuTimestampFrequency = uint64_t(1.0 / double(properties2.properties.limits.timestampPeriod)) * 1000 * 1000;
 
-        // Dynamic PSO states:
-        pso_dynamic_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
-        pso_dynamic_states.push_back(VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT);
-        pso_dynamic_states.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
-        pso_dynamic_states.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
-        dynamic_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-        dynamic_state_info.dynamicStateCount = (uint32_t)pso_dynamic_states.size();
-        dynamic_state_info.pDynamicStates = pso_dynamic_states.data();
+        // setup dynamic pipeline states
+        pso_dynamic_states.insert(pso_dynamic_states.end(), {
+            VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT,
+            VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT,
+            VK_DYNAMIC_STATE_STENCIL_REFERENCE,
+            VK_DYNAMIC_STATE_BLEND_CONSTANTS,
+            VK_DYNAMIC_STATE_VERTEX_INPUT_BINDING_STRIDE
+        });
 
-        // Create pipeline cache
+        if (features.depthBounds)
+            pso_dynamic_states.push_back(VK_DYNAMIC_STATE_DEPTH_BOUNDS);
+        if (features.sampleRateShading)
+            pso_dynamic_states.push_back(VK_DYNAMIC_STATE_FRAGMENT_SHADING_RATE_KHR);
+
+        dynamic_state_info = VkPipelineDynamicStateCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .dynamicStateCount = (uint32_t)pso_dynamic_states.size(),
+            .pDynamicStates = pso_dynamic_states.data()
+        };
+
+        // create pipeline cache
         VkPipelineCacheCreateInfo pipelineCacheCreateInfo{};
         pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
         VK_CHECK(vkCreatePipelineCache(device, &pipelineCacheCreateInfo, nullptr, &pipelineCache));
+
+        // create null descriptors for uninitialized bind slots and bindless safety fallback:
+        VkBufferCreateInfo bufferInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .flags = 0,
+            .size = 4,
+            .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        };
+
+        VmaAllocationCreateInfo allocInfo{
+            .preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        };
+        VK_CHECK(vmaCreateBuffer(m_allocationHandler->allocator, &bufferInfo, &allocInfo, &nullBuffer, &nullBufferAllocation, nullptr));
 
         CYB_INFO("Initialized Vulkan {}.{}", VK_API_VERSION_MAJOR(properties2.properties.apiVersion), VK_API_VERSION_MINOR(properties2.properties.apiVersion));
         CYB_INFO("  Device: {}", properties2.properties.deviceName);
@@ -2158,20 +2225,20 @@ namespace cyb::rhi::vulkan
         buffer->allocationhandler = m_allocationHandler;
         buffer->desc = *desc;
 
-        VkBufferCreateInfo bufferInfo{};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferInfo.size = buffer->desc.size;
-        bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
+        VkBufferCreateFlags bufferUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         if (HasFlag(buffer->desc.usage, BufferUsage::VertexBufferBit))
-            bufferInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            bufferUsage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
         if (HasFlag(buffer->desc.usage, BufferUsage::IndexBufferBit))
-            bufferInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+            bufferUsage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         if (HasFlag(buffer->desc.usage, BufferUsage::ConstantBufferBit))
-            bufferInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            bufferUsage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-        bufferInfo.flags = 0;
-        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        VkBufferCreateInfo bufferInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = buffer->desc.size,
+            .usage = bufferUsage,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+        };
 
         VmaAllocationCreateInfo allocInfo{};
         allocInfo.usage = (desc->cpuAccess != CpuAccessMode::None) ?
@@ -2205,10 +2272,11 @@ namespace cyb::rhi::vulkan
 			Buffer_Vulkan* uploadBuffer = check_cast<Buffer_Vulkan*>(cmd.uploadBuffer.Get());
             std::memcpy(uploadBuffer->mappedMemory, initData, buffer->desc.size);
 
-            VkBufferCopy copyRegion{};
-            copyRegion.size = buffer->desc.size;
-            copyRegion.srcOffset = 0;
-            copyRegion.dstOffset = 0;
+            VkBufferCopy copyRegion{
+                .srcOffset = 0,
+                .dstOffset = 0,
+                .size = buffer->desc.size
+            };
 
             vkCmdCopyBuffer(
                 cmd.transferCommandBuffer,
@@ -2223,11 +2291,12 @@ namespace cyb::rhi::vulkan
 
         if (extensions.EXT_debug_utils && !desc->debugName.empty())
         {
-            VkDebugUtilsObjectNameInfoEXT info{};
-            info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-            info.objectType = VK_OBJECT_TYPE_BUFFER;
-            info.objectHandle = (uint64_t)buffer->resource;
-            info.pObjectName = desc->debugName.data();
+            VkDebugUtilsObjectNameInfoEXT info{
+                .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                .objectType = VK_OBJECT_TYPE_BUFFER,
+                .objectHandle = (uint64_t)buffer->resource,
+                .pObjectName = desc->debugName.data()
+            };
             VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
         }
 
@@ -2856,19 +2925,10 @@ namespace cyb::rhi::vulkan
         }
         m_psoLayoutCacheMutex.unlock();
 
-        // set viewport & scissors
-        VkViewport& viewport = pso->viewport;
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = 65535;
-        viewport.height = 65535;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 0.1f;
-
         VkPipelineViewportStateCreateInfo& viewportState = pso->viewportState;
         viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-        viewportState.viewportCount = 1;
-        viewportState.pViewports = &viewport;
+        viewportState.viewportCount = 0;
+        viewportState.pViewports = nullptr;
         viewportState.scissorCount = 0;
         viewportState.pScissors = nullptr;
 
@@ -2928,13 +2988,11 @@ namespace cyb::rhi::vulkan
 		// set rasterizer state
         VkPipelineRasterizationStateCreateInfo& rasterizer = pso->rasterizer;
         rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterizer.depthClampEnable = VK_FALSE;
-        rasterizer.rasterizerDiscardEnable = VK_FALSE;
+        rasterizer.depthClampEnable = VK_TRUE;
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-        rasterizer.lineWidth = 5.0f;
-        rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+        rasterizer.lineWidth = 1.0f;
+        rasterizer.cullMode = VK_CULL_MODE_NONE;
         rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        rasterizer.depthBiasEnable = VK_FALSE;
 
         if (pso->desc.rs)
         {
@@ -3064,7 +3122,7 @@ namespace cyb::rhi::vulkan
         VK_CHECK(vkBeginCommandBuffer(commandlist->GetCommandBuffer(), &beginInfo));
 
         if (queue == CommandQueue::Graphics)
-        {
+        {            
             VkViewport vp{};
             vp.width = 1;
             vp.height = 1;
@@ -3080,6 +3138,26 @@ namespace cyb::rhi::vulkan
             
             if (features.depthBounds == VK_TRUE)
                 vkCmdSetDepthBounds(commandlist->GetCommandBuffer(), 0.0f, 1.0f);
+
+            const VkDeviceSize zero{};
+            vkCmdBindVertexBuffers2(commandlist->GetCommandBuffer(), 0, 1, &nullBuffer, &zero, &zero, &zero);
+
+            // set default shading rate to full fill
+            VkExtent2D fragmentSize{
+                .width = 1,
+                .height = 1
+            };
+
+            VkFragmentShadingRateCombinerOpKHR combiner[] = {
+                VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR,
+                VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR
+            };
+
+            vkCmdSetFragmentShadingRateKHR(
+                commandlist->GetCommandBuffer(),
+                &fragmentSize,
+                combiner
+            );
         }
         return commandlist;
     }

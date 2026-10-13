@@ -1425,7 +1425,6 @@ namespace cyb::rhi::vulkan
         VkDeviceSize vtxOffsets[8]{};
         VkDeviceSize vtxStrides[8]{};
         VkBuffer vtxBuffers[8]{};
-        uint64_t hash = 0;
 
         assert(vertexBuffers);
         assert(count <= 8);

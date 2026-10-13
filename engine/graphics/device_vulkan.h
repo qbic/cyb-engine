@@ -207,7 +207,7 @@ namespace cyb::rhi::vulkan
         std::vector<VkDynamicState> pso_dynamic_states;
         VkPipelineDynamicStateCreateInfo dynamic_state_info{};
         VkBuffer nullBuffer = VK_NULL_HANDLE;
-        VmaAllocation	nullBufferAllocation = VK_NULL_HANDLE;
+        VmaAllocation nullBufferAllocation = VK_NULL_HANDLE;
 
         struct CopyAllocator
         {

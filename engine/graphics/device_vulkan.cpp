@@ -1051,17 +1051,20 @@ namespace cyb::rhi::vulkan
             .memory = mem
         };
 
-        m_currentChunk->offset += AlignPow2(size, m_alignment);
+        assert(size == AlignPow2(size, m_alignment));
+        m_currentChunk->offset += size;
         m_currentChunk->version = currentVersion;
         return buffer;
     }
 
     ScratchBufferAllocation UploadAllocator::Allocate(uint64_t size, uint64_t currentVersion)
     {
+        uint64_t alignedSize = AlignPow2(size, m_alignment);
+
         if (m_currentChunk)
         {
-            if (size <= m_currentChunk->buffer->GetDesc().size - m_currentChunk->offset)
-                return AllocateOnCurrentChunk(size, currentVersion);
+            if (alignedSize + m_currentChunk->offset <= m_currentChunk->buffer->GetDesc().size)
+                return AllocateOnCurrentChunk(alignedSize, currentVersion);
 
             m_chunkPool.push_back(m_currentChunk);
             m_currentChunk.reset();
@@ -1078,7 +1081,7 @@ namespace cyb::rhi::vulkan
                 VersionGetInstance(chunk->version) <= lastFinishedID)
                 chunk->version = 0;
 
-            if (chunk->version == 0 && chunk->buffer->GetDesc().size >= size)
+            if (chunk->version == 0 && chunk->buffer->GetDesc().size >= alignedSize)
             {
                 m_chunkPool.erase(it);
                 m_currentChunk = chunk;
@@ -1101,7 +1104,7 @@ namespace cyb::rhi::vulkan
             m_allocatedMemory += desc.size;
         }
 
-        return AllocateOnCurrentChunk(size, currentVersion);
+        return AllocateOnCurrentChunk(alignedSize, currentVersion);
     }
 
     void UploadAllocator::SubmitChunks(uint64_t currentVersion, uint64_t submittedVersion)

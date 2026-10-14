@@ -108,7 +108,7 @@ namespace cyb::rhi::vulkan
             commandpools(bufferCount),
             commandbuffers(bufferCount),
             binder_pools(bufferCount),
-            allocator(std::make_unique<UploadAllocator>(device, 2048))
+            allocator(std::make_unique<UploadAllocator>(device, 64 * 1024))
         {
         }
 

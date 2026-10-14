@@ -53,6 +53,32 @@ namespace cyb::rhi::vulkan
         void Reset();
     };
 
+    class UploadAllocator
+    {
+    public:
+        UploadAllocator(const GraphicsDevice_Vulkan* device, uint64_t defaultChunkSize);
+        ScratchBufferAllocation Allocate(uint64_t size, uint64_t currentVersion);
+        void SubmitChunks(uint64_t currentVersion, uint64_t submittedVersion);
+
+    private:
+        struct Chunk
+        {
+            BufferHandle buffer;
+            uint64_t offset = 0;
+            uint64_t version = 0;
+            static constexpr uint64_t c_chunkSizeAlignment = 4096;  // gpu page size
+        };
+
+        ScratchBufferAllocation AllocateOnCurrentChunk(uint64_t size, uint64_t currentVersion);
+
+        const GraphicsDevice_Vulkan* m_device = nullptr;
+        uint64_t m_alignment = 0;
+        uint64_t m_defaultChunkSize = 0;
+        uint64_t m_allocatedMemory = 0;
+        std::list<std::shared_ptr<Chunk>> m_chunkPool;
+        std::shared_ptr<Chunk> m_currentChunk;
+    };
+
     struct CommandList : public RefCounter<ICommandList>
     {
         std::vector<std::array<VkCommandPool, uint32_t(CommandQueue::Count)>> commandpools{};
@@ -74,15 +100,21 @@ namespace cyb::rhi::vulkan
         std::vector<VkImageMemoryBarrier2> renderpassBarriersBegin;
         std::vector<VkImageMemoryBarrier2> renderpassBarriersEnd;
 
-        explicit CommandList(const GraphicsDevice_Vulkan* device, uint32_t bufferCount)
-            : m_device(device)
-            , commandpools(bufferCount)
-            , commandbuffers(bufferCount)
-            , binder_pools(bufferCount)
+        uint64_t recordingID = 0;
+        std::unique_ptr<UploadAllocator> allocator;
+
+        explicit CommandList(const GraphicsDevice_Vulkan* device, uint32_t bufferCount) :
+            m_device(device),
+            commandpools(bufferCount),
+            commandbuffers(bufferCount),
+            binder_pools(bufferCount),
+            allocator(std::make_unique<UploadAllocator>(device, 2048))
         {
-            m_frameAllocators.reserve(bufferCount);
-            for (uint32_t i = 0; i < bufferCount; i++)
-                m_frameAllocators.emplace_back(std::make_unique<GPULinearAllocator>(device));
+        }
+
+        ScratchBufferAllocation AllocateScratchBuffer(uint64_t size) override
+        {
+            return allocator->Allocate(size, MakeVersion(recordingID, queue, false));
         }
 
         inline VkCommandPool GetCommandPool() const {
@@ -96,14 +128,11 @@ namespace cyb::rhi::vulkan
             buffer_index = newBufferIndex;
             binder.Reset();
             binder_pools[buffer_index].Reset();
-            m_frameAllocators[buffer_index]->Reset();
             prevPipelineHash = 0;
             activePso = nullptr;
             dirtyPso = false;
             prevSwapchains.clear();
         }
-
-        GPULinearAllocator* GetFrameAllocator() override;
 
         void BeginRenderPass(ISwapchain* swapchain) override;
         void BeginRenderPass(const RenderPassImage* images, uint32_t imageCount) override;
@@ -134,13 +163,13 @@ namespace cyb::rhi::vulkan
         void PreDraw();
 
         const GraphicsDevice_Vulkan* m_device = nullptr;
-        std::vector<std::unique_ptr<GPULinearAllocator>> m_frameAllocators;
     };
 
     class Queue
     {
     public:
         VkSemaphore trackingSemaphore = VK_NULL_HANDLE;
+        uint64_t lastRecordingID = 0;
         std::vector<VkCommandBufferSubmitInfo> submit_cmds;
 
         Queue(VkDevice device, CommandQueue queueID, VkQueue queue, uint32_t queueFamilyIndex);
@@ -290,7 +319,7 @@ namespace cyb::rhi::vulkan
 
         void PushConstants(const void* data, uint32_t size, ICommandList* cmd, uint32_t offset) override;
 
-        uint64_t GetMinOffsetAlignment(const BufferDesc* desc) const override;
+        uint64_t GetMinOffsetAlignment(BufferUsage usage) const override;
 
         struct AllocationHandler
         {

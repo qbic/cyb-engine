@@ -1030,9 +1030,93 @@ namespace cyb::rhi::vulkan
         VK_CHECK(vkResetDescriptorPool(device->device, descriptorPool, 0));
     }
 
-    GPULinearAllocator* CommandList::GetFrameAllocator()
+    UploadAllocator::UploadAllocator(const GraphicsDevice_Vulkan* device, uint64_t defaultChunkSize) :
+        m_device(device),
+        m_defaultChunkSize(defaultChunkSize)
     {
-        return m_frameAllocators[buffer_index].get();
+        m_alignment = m_device->GetMinOffsetAlignment(
+            BufferUsage::ConstantBufferBit |
+            BufferUsage::VertexBufferBit   |
+            BufferUsage::IndexBufferBit);
+    }
+
+    ScratchBufferAllocation UploadAllocator::AllocateOnCurrentChunk(uint64_t size, uint64_t currentVersion)
+    {
+        void* mem = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(
+            m_currentChunk->buffer->MappedMemory()) + m_currentChunk->offset);
+
+        ScratchBufferAllocation buffer{
+            .buffer = m_currentChunk->buffer,
+            .offset = m_currentChunk->offset,
+            .memory = mem
+        };
+
+        m_currentChunk->offset += AlignPow2(size, m_alignment);
+        m_currentChunk->version = currentVersion;
+        return buffer;
+    }
+
+    ScratchBufferAllocation UploadAllocator::Allocate(uint64_t size, uint64_t currentVersion)
+    {
+        if (m_currentChunk)
+        {
+            if (size <= m_currentChunk->buffer->GetDesc().size - m_currentChunk->offset)
+                return AllocateOnCurrentChunk(size, currentVersion);
+
+            m_chunkPool.push_back(m_currentChunk);
+            m_currentChunk.reset();
+        }
+
+        CommandQueue queue = VersionGetQueue(currentVersion);
+        uint64_t lastFinishedID = m_device->GetQueue(queue)->UpdateLastFinishedID();
+        
+        for (auto it = m_chunkPool.begin(); it != m_chunkPool.end(); ++it)
+        {
+            auto chunk = *it;
+
+            if (VersionGetSubmitted(chunk->version) &&
+                VersionGetInstance(chunk->version) <= lastFinishedID)
+                chunk->version = 0;
+
+            if (chunk->version == 0 && chunk->buffer->GetDesc().size >= size)
+            {
+                m_chunkPool.erase(it);
+                m_currentChunk = chunk;
+                m_currentChunk->offset = 0;
+                break;
+            }
+        }
+
+        if (!m_currentChunk)
+        {
+            BufferDesc desc{
+                .size = AlignPow2(std::max(size, m_defaultChunkSize), Chunk::c_chunkSizeAlignment),
+                .cpuAccess = CpuAccessMode::Write,
+                .usage = desc.usage = BufferUsage::ConstantBufferBit | BufferUsage::VertexBufferBit | BufferUsage::IndexBufferBit,
+                .debugName = "UploadChunkData"
+            };
+
+            m_currentChunk = std::make_shared<Chunk>();
+            m_currentChunk->buffer = m_device->CreateBuffer(&desc, nullptr);
+            m_allocatedMemory += desc.size;
+        }
+
+        return AllocateOnCurrentChunk(size, currentVersion);
+    }
+
+    void UploadAllocator::SubmitChunks(uint64_t currentVersion, uint64_t submittedVersion)
+    {
+        if (m_currentChunk)
+        {
+            m_chunkPool.push_back(m_currentChunk);
+            m_currentChunk.reset();
+        }
+
+        for (const auto& chunk : m_chunkPool)
+        {
+            if (chunk->version == currentVersion)
+                chunk->version = submittedVersion;
+        }
     }
 
     void CommandList::BeginRenderPass(ISwapchain* _swapchain)
@@ -1526,8 +1610,8 @@ namespace cyb::rhi::vulkan
         if (size == 0)
             return;
 
-        ScratchBuffer allocation = GetFrameAllocator()->Alloc(size);
-        std::memcpy(allocation.mappedMemory, data, size);
+        ScratchBufferAllocation allocation = AllocateScratchBuffer(size);
+        std::memcpy(allocation.memory, data, size);
         CopyBuffer(buffer, offset, allocation.buffer, allocation.offset, size);
     }
 
@@ -2617,10 +2701,10 @@ namespace cyb::rhi::vulkan
         return result;
     }
 
-    uint64_t GraphicsDevice_Vulkan::GetMinOffsetAlignment(const BufferDesc* desc) const
+    uint64_t GraphicsDevice_Vulkan::GetMinOffsetAlignment(BufferUsage usage) const
     {
         uint64_t alignment = 1u;
-        if (HasFlag(desc->usage, BufferUsage::ConstantBufferBit))
+        if (HasFlag(usage, BufferUsage::ConstantBufferBit))
             alignment = std::max(alignment, properties.limits.minUniformBufferOffsetAlignment);
         else
             alignment = std::max(alignment, properties.limits.minTexelBufferOffsetAlignment);
@@ -3087,6 +3171,7 @@ namespace cyb::rhi::vulkan
         CommandList* commandlist = check_cast<CommandList*>(m_commandlists[cmd_current].Get());
         commandlist->Reset(GetBufferIndex());
         commandlist->queue = queue;
+        commandlist->recordingID = ++(GetQueue(queue)->lastRecordingID);
 
         if (commandlist->GetCommandBuffer() == VK_NULL_HANDLE)
         {
@@ -3330,8 +3415,19 @@ namespace cyb::rhi::vulkan
             commandlist->pipelinesWorker.clear();
         }
 
-        for (auto& queue : queues)
-            queue->Submit();
+        for (uint32_t i = 0; i < uint32_t(CommandQueue::Count); i++)
+        {
+            auto* queue = GetQueue(CommandQueue(i));
+            uint64_t submittedID = queue->Submit();
+
+            for (uint32_t j = 0; j < cmdCount; j++)
+            {
+                CommandList* commandlist = check_cast<CommandList*>(m_commandlists[j].Get());
+                commandlist->allocator->SubmitChunks(
+                    MakeVersion(commandlist->recordingID, CommandQueue(i), false),
+                    MakeVersion(submittedID, CommandQueue(i), true));
+            }
+        }
 
         frameCount++;
 

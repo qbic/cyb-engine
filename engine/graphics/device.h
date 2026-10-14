@@ -629,21 +629,50 @@ namespace cyb::rhi
     };
 
     //=============================================================
+    //  Versioning for lifetime tracking
+    //=============================================================
+
+    constexpr uint64_t c_VersionSubmittedFlag = 0x8000000000000000;
+    constexpr uint32_t c_VersionQueueShift = 60;
+    constexpr uint32_t c_VersionQueueMask = 0x7;
+    constexpr uint64_t c_VersionIDMask = 0x0FFFFFFFFFFFFFFF;
+
+    constexpr uint64_t MakeVersion(uint64_t id, CommandQueue queue, bool submitted)
+    {
+        uint64_t result = (id & c_VersionIDMask) | (uint64_t(queue) << c_VersionQueueShift);
+        if (submitted) result |= c_VersionSubmittedFlag;
+        return result;
+    }
+
+    constexpr uint64_t VersionGetInstance(uint64_t version)
+    {
+        return version & c_VersionIDMask;
+    }
+
+    constexpr CommandQueue VersionGetQueue(uint64_t version)
+    {
+        return CommandQueue((version >> c_VersionQueueShift) & c_VersionQueueMask);
+    }
+
+    constexpr bool VersionGetSubmitted(uint64_t version)
+    {
+        return (version & c_VersionSubmittedFlag) != 0;
+    }
+
+    //=============================================================
     //  Render Device Interface Class
     //=============================================================
 
-    struct ScratchBuffer
+    struct ScratchBufferAllocation
     {
-        void* mappedMemory = nullptr;	// CPU pointer (offset allready applied)
-        IBuffer* buffer = nullptr;      // handle for GPU binding
-        uint64_t offset = 0;	        // offset from buffer start (for GPU binding)
+        IBuffer* buffer = nullptr;      // offset from buffer start (for GPU binding)
+        uint64_t offset = 0;            // handle for GPU binding
+        void* memory = nullptr;         // CPU pointer (offset allready applied)
     };
-
-    struct GPULinearAllocator;
 
     struct ICommandList : public IResource
     {
-        virtual GPULinearAllocator* GetFrameAllocator() = 0;
+        virtual ScratchBufferAllocation AllocateScratchBuffer(uint64_t size) = 0;
 
         virtual void BeginRenderPass(ISwapchain* swapchain) = 0;
         virtual void BeginRenderPass(const RenderPassImage* images, uint32_t imageCount) = 0;
@@ -666,8 +695,8 @@ namespace cyb::rhi
         template<typename T>
         void BindDynamicConstantBuffer(const T& data, uint32_t slot)
         {
-            ScratchBuffer allocation = GetFrameAllocator()->Alloc(sizeof(T));
-            std::memcpy(allocation.mappedMemory, &data, sizeof(T));
+            ScratchBufferAllocation allocation = AllocateScratchBuffer(sizeof(T));
+            std::memcpy(allocation.memory, &data, sizeof(T));
             BindConstantBuffer(allocation.buffer, slot, allocation.offset);
         }
 
@@ -697,12 +726,6 @@ namespace cyb::rhi
         std::array<IResource*, DESCRIPTORBINDER_SRV_COUNT> SRV{};
         std::array<int, DESCRIPTORBINDER_SRV_COUNT> SRV_index{};
         std::array<const ISampler*, DESCRIPTORBINDER_SAMPLER_COUNT> SAM{};
-    };
-
-    struct GraphicsDeviceDesc
-    {
-        uint32_t backBufferCount = 2;
-        bool enableValidation = false;
     };
 
     class GraphicsDevice
@@ -741,8 +764,10 @@ namespace cyb::rhi
         constexpr uint32_t GetBufferIndex() const { return GetFrameCount() % BUFFERCOUNT; }
         constexpr uint64_t GetTimestampFrequency() const { return gpuTimestampFrequency; }
 
-        // Returns the minimum required alignment for buffer offsets when creating subresources
-        virtual uint64_t GetMinOffsetAlignment(const BufferDesc* desc) const = 0;
+        /**
+         * @return The minimum required offset alignment for the specified buffer usage.
+         */
+        virtual uint64_t GetMinOffsetAlignment(BufferUsage usage) const = 0;
 
         struct MemoryUsage
         {
@@ -750,7 +775,9 @@ namespace cyb::rhi
             uint64_t usage{ 0ull };     //!< Used video memory by the current application (in bytes).
         };
 
-        // Returns video memory statistics for the current application
+        /**
+         * @return Video memory statistics for the current application
+         */
         virtual MemoryUsage GetMemoryUsage() const = 0;
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -807,65 +834,4 @@ namespace cyb::rhi
         static GraphicsDevice* device = nullptr;
         return device;
     }
-
-    class GPULinearAllocator
-    {
-    public:
-        GPULinearAllocator(const GraphicsDevice* device)
-            : m_device(device)
-        {
-            // query alignment for scratch buffers
-            BufferDesc desc{};
-            desc.usage = BufferUsage::ConstantBufferBit | BufferUsage::VertexBufferBit | BufferUsage::IndexBufferBit;
-            m_alignment = device->GetMinOffsetAlignment(&desc);
-        }
-
-        // Allocates temporary memory that the CPU can write and GPU can read. 
-        // Allocation is only alive for one frame and automatically invalidated after that.
-        [[nodiscard]] ScratchBuffer Alloc(uint64_t dataSize)
-        {
-            ScratchBuffer buffer{};
-            if (dataSize == 0)
-                return buffer;
-
-            // query the size of the current buffer (if it exists)
-            const uint64_t currentBufferSize = m_buffer ? m_buffer->GetDesc().size : 0;
-            const uint64_t freeSpace = currentBufferSize - m_bufferOffset;
-
-            if (dataSize > freeSpace)
-            {
-                BufferDesc desc{};
-                desc.cpuAccess = CpuAccessMode::Write;
-                desc.usage = BufferUsage::ConstantBufferBit | BufferUsage::VertexBufferBit | BufferUsage::IndexBufferBit;
-                desc.size = AlignPow2((currentBufferSize + dataSize), c_poolAlignment);
-                desc.debugName = "GPULinearAllocator Pool";
-
-                m_buffer = m_device->CreateBuffer(&desc, nullptr);
-                m_bufferOffset = 0;
-
-                //CYB_TRACE("Increasing GPU frame allocation to {:.1f}kb", desc.size / 1024.0f);
-            }
-
-            buffer.buffer = m_buffer;
-            buffer.offset = m_bufferOffset;
-            buffer.mappedMemory = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer->MappedMemory()) + m_bufferOffset);
-
-            // align the offset for the next allocation
-            m_bufferOffset += AlignPow2(dataSize, m_alignment);
-
-            return buffer;
-        }
-
-        void Reset()
-        {
-            m_bufferOffset = 0;
-        }
-
-    private:
-        const GraphicsDevice* m_device = nullptr;
-        BufferHandle m_buffer;
-        uint64_t m_bufferOffset = 0;
-        uint64_t m_alignment = 0;
-        static constexpr uint64_t c_poolAlignment = 4096;   // GPU page size
-    };
 } // namespace cyb::rhi

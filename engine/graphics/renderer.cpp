@@ -623,7 +623,7 @@ namespace cyb::renderer
                 material_cb.baseColor = material.baseColor;
                 material_cb.roughness = material.roughness;
                 material_cb.metalness = material.metalness;
-                
+
                 cmd->BindDynamicConstantBuffer(material_cb, CBSLOT_MATERIAL);
                 cmd->BindPipelineState(psoMaterial[material.shaderType]);
                 cmd->DrawIndexed(subset.indexCount, subset.indexOffset, 0);

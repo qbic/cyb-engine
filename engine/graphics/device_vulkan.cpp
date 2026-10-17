@@ -285,7 +285,7 @@ namespace cyb::rhi::vulkan
         return stages;
     }
 
-	struct Buffer_Vulkan : public RefCounter<IBuffer>
+	struct Buffer : public RefCounter<IBuffer>
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
 		BufferDesc desc{};
@@ -294,7 +294,7 @@ namespace cyb::rhi::vulkan
 		void* mappedMemory = nullptr;
         VkDeviceSize mappedMemorySize = 0;
 
-        ~Buffer_Vulkan() override
+        ~Buffer() override
         {
             assert(allocationhandler != nullptr);
             allocationhandler->destroylocker.lock();
@@ -336,13 +336,13 @@ namespace cyb::rhi::vulkan
         }
     };
 
-    struct EventQuery_Vulkan : public RefCounter<IEventQuery>
+    struct EventQuery : public RefCounter<IEventQuery>
     {
         CommandQueue queue = CommandQueue::Graphics;
         uint64_t commandListID = 0;
     };
 
-    struct Texture_Vulkan : public RefCounter<ITexture>
+    struct Texture : public RefCounter<ITexture>
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationHandler;
         TextureDesc desc{};
@@ -364,7 +364,7 @@ namespace cyb::rhi::vulkan
         TextureSubresource rtv;
         TextureSubresource dsv;
 
-        ~Texture_Vulkan() override
+        ~Texture() override
         {
             assert(allocationHandler != nullptr);
             allocationHandler->destroylocker.lock();
@@ -382,7 +382,7 @@ namespace cyb::rhi::vulkan
         }
     };
 
-	struct Shader_Vulkan : public RefCounter<IShader>
+	struct Shader : public RefCounter<IShader>
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
         ShaderDesc desc{};
@@ -396,7 +396,7 @@ namespace cyb::rhi::vulkan
 
         VkPushConstantRange pushconstants{};
 
-        ~Shader_Vulkan() override
+        ~Shader() override
         {
             assert(allocationhandler != nullptr);
             allocationhandler->destroylocker.lock();
@@ -411,13 +411,13 @@ namespace cyb::rhi::vulkan
 		}
     };
 
-	struct Sampler_Vulkan : public RefCounter<ISampler>
+	struct Sampler : public RefCounter<ISampler>
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
 		SamplerDesc desc{};
         VkSampler resource = VK_NULL_HANDLE;
 
-        ~Sampler_Vulkan() override
+        ~Sampler() override
         {
             assert(allocationhandler != nullptr);
             allocationhandler->destroylocker.lock();
@@ -432,7 +432,7 @@ namespace cyb::rhi::vulkan
 		}
     };
 
-	struct PipelineState_Vulkan : public RefCounter<IPipelineState>
+	struct PipelineState : public RefCounter<IPipelineState>
     {
         VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;              // no lifetime management here
         VkDescriptorSetLayout descriptorset_layout = VK_NULL_HANDLE;   // no lifetime management here
@@ -465,7 +465,7 @@ namespace cyb::rhi::vulkan
 		}
     };
 
-	struct Swapchain_Vulkan : public RefCounter<ISwapchain>
+	struct Swapchain : public RefCounter<ISwapchain>
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -474,7 +474,7 @@ namespace cyb::rhi::vulkan
         VkSwapchainKHR resource = VK_NULL_HANDLE;
         VkFormat imageFormat = VK_FORMAT_UNDEFINED;
         VkExtent2D extent{};
-        std::vector<std::shared_ptr<Texture_Vulkan>> textures;
+        std::vector<std::shared_ptr<Texture>> textures;
         std::vector<EventQueryHandle> frameFences;  // frame sync
 
         VkSurfaceKHR surface = VK_NULL_HANDLE;
@@ -486,7 +486,7 @@ namespace cyb::rhi::vulkan
 
         std::mutex locker;
 
-        ~Swapchain_Vulkan() override
+        ~Swapchain() override
         {
             if (allocationhandler == nullptr)
                 return;
@@ -513,7 +513,7 @@ namespace cyb::rhi::vulkan
         SwapchainDesc m_desc{};
     };
 
-	bool Swapchain_Vulkan::ResizeBuffers(const SwapchainDesc& _desc)
+	bool Swapchain::ResizeBuffers(const SwapchainDesc& _desc)
 	{
         std::lock_guard lock{ locker };
 
@@ -641,7 +641,7 @@ namespace cyb::rhi::vulkan
             }
             else
             {
-                textures[i] = std::make_shared<Texture_Vulkan>();
+                textures[i] = std::make_shared<Texture>();
                 textures[i]->allocationHandler = allocationhandler;
             }
 
@@ -668,7 +668,7 @@ namespace cyb::rhi::vulkan
 		return true;
 	}
 
-	void Swapchain_Vulkan::Present()
+	void Swapchain::Present()
 	{
         context->SetEventQuery(frameFences[acquireSemaphoreIndex], CommandQueue::Graphics);
 
@@ -694,7 +694,7 @@ namespace cyb::rhi::vulkan
         acquireSemaphoreIndex = (acquireSemaphoreIndex + 1) % acquireSemaphores.size();
 	}
 
-    void Swapchain_Vulkan::WaitForAcquireFence()
+    void Swapchain::WaitForAcquireFence()
     {
         context->WaitEventQuery(frameFences[acquireSemaphoreIndex]);
         context->ResetEventQuery(frameFences[acquireSemaphoreIndex]);
@@ -850,7 +850,7 @@ namespace cyb::rhi::vulkan
             return;
 
         CommandList* commandlist = check_cast<CommandList*>(cmd);
-        const PipelineState_Vulkan* pso = check_cast<const PipelineState_Vulkan*>(commandlist->activePso);
+        const PipelineState* pso = check_cast<const PipelineState*>(commandlist->activePso);
         if (pso->layout_bindings.empty())
             return;
 
@@ -905,63 +905,69 @@ namespace cyb::rhi::vulkan
                 {
                     uint32_t unrolled_binding = x.binding + descriptor_index;
 
-                    auto& write = descriptorWrites.emplace_back(VkWriteDescriptorSet{});
-                    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    write.dstSet = descriptorset;
-                    write.dstArrayElement = descriptor_index;
-                    write.descriptorType = x.descriptorType;
-                    write.dstBinding = x.binding;
-                    write.descriptorCount = 1;
-
-                    switch (write.descriptorType)
+                    switch (x.descriptorType)
                     {
                     case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
-                        write.pImageInfo = &imageInfos.emplace_back(VkDescriptorImageInfo{});
-                        const Texture_Vulkan* texture = check_cast<const Texture_Vulkan*>(table.SRV[unrolled_binding]);
-                        const Sampler_Vulkan* sampler = check_cast<const Sampler_Vulkan*>(table.SAM[unrolled_binding]);
+                        const Texture* texture = check_cast<const Texture*>(table.SRV[unrolled_binding]);
+                        const Sampler* sampler = check_cast<const Sampler*>(table.SAM[unrolled_binding]);
 
-                        imageInfos.back().sampler = sampler->resource;
-                        imageInfos.back().imageView = texture->srv.imageView;
-                        imageInfos.back().imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+                        imageInfos.push_back({
+                            .sampler = sampler->resource,
+                            .imageView = texture->srv.imageView,
+                            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
+                        });
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: {
-                        imageInfos.emplace_back();
-                        write.pImageInfo = &imageInfos.back();
-                        imageInfos.back() = {};
-                        imageInfos.back().imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        const Texture* texture = check_cast<const Texture*>(table.SRV[unrolled_binding]);
 
-                        const Texture_Vulkan* texture = check_cast<const Texture_Vulkan*>(table.SRV[unrolled_binding]);
-                        imageInfos.back().imageView = texture->srv.imageView;
-                        imageInfos.back().imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+                        imageInfos.push_back({
+                            .imageView = texture->srv.imageView,
+                            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
+                        });
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-                        write.pBufferInfo = &bufferInfos.emplace_back(VkDescriptorBufferInfo{});
                         const uint32_t binding_location = unrolled_binding;
-                        const Buffer_Vulkan* buffer = check_cast<const Buffer_Vulkan*>(table.CBV[binding_location]);
+                        const Buffer* buffer = check_cast<const Buffer*>(table.CBV[binding_location]);
                         uint64_t offset = table.CBV_offset[binding_location];
+                        VkDeviceSize range = pso->uniform_buffer_sizes[binding_location];
+                        if (range == 0)
+                            range = VK_WHOLE_SIZE;
 
-                        bufferInfos.back().buffer = buffer->resource;
-                        bufferInfos.back().offset = offset;
-                        bufferInfos.back().range = pso->uniform_buffer_sizes[binding_location];
-                        if (bufferInfos.back().range == 0ull)
-                            bufferInfos.back().range = VK_WHOLE_SIZE;
+                        bufferInfos.push_back({
+                            .buffer = buffer->resource,
+                            .offset = offset,
+                            .range = range
+                        });
                     } break;
 
                     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: {
-                        write.pBufferInfo = &bufferInfos.emplace_back(VkDescriptorBufferInfo{});
                         const uint32_t binding_location = unrolled_binding;
-                        const Buffer_Vulkan* buffer = check_cast<const Buffer_Vulkan*>(table.CBV[binding_location]);
+                        const Buffer* buffer = check_cast<const Buffer*>(table.CBV[binding_location]);
+                        VkDeviceSize range = pso->uniform_buffer_sizes[binding_location];
+                        if (range == 0)
+                            range = VK_WHOLE_SIZE;
 
-                        bufferInfos.back().buffer = buffer->resource;
-                        bufferInfos.back().range = pso->uniform_buffer_sizes[binding_location];
-                        if (bufferInfos.back().range == 0ull)
-                            bufferInfos.back().range = VK_WHOLE_SIZE;
+                        bufferInfos.push_back({
+                            .buffer = buffer->resource,
+                            .range = range
+                        });
                     } break;
 
                     default: assert(0);
                     }
+
+                    descriptorWrites.push_back({
+                        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                        .dstSet = descriptorset,
+                        .dstBinding = x.binding,
+                        .dstArrayElement = descriptor_index,
+                        .descriptorCount = 1,
+                        .descriptorType = x.descriptorType,
+                        .pImageInfo = imageInfos.empty() ? nullptr : &imageInfos.back(),
+                        .pBufferInfo = bufferInfos.empty() ? nullptr : &bufferInfos.back(),
+                    });
                 }
             }
 
@@ -1124,7 +1130,7 @@ namespace cyb::rhi::vulkan
 
     void CommandList::BeginRenderPass(ISwapchain* _swapchain)
     {
-        Swapchain_Vulkan* swapchain = check_cast<Swapchain_Vulkan*>(_swapchain);
+        Swapchain* swapchain = check_cast<Swapchain*>(_swapchain);
         VkCommandBuffer cmdBuf = GetCommandBuffer();
 
         renderpassBarriersBegin.clear();
@@ -1236,7 +1242,7 @@ namespace cyb::rhi::vulkan
         for (uint32_t i = 0; i < imageCount; ++i)
         {
             const RenderPassImage& image = images[i];
-            const Texture_Vulkan* texture = check_cast<const Texture_Vulkan*>(image.texture);
+            const Texture* texture = check_cast<const Texture*>(image.texture);
 
             renderingInfo.renderArea.extent.width = std::max(renderingInfo.renderArea.extent.width, texture->desc.width);
             renderingInfo.renderArea.extent.height = std::max(renderingInfo.renderArea.extent.height, texture->desc.height);
@@ -1482,7 +1488,7 @@ namespace cyb::rhi::vulkan
     void CommandList::BindPipelineState(const IPipelineState* _pso)
     {
         VkCommandBuffer cmdBuf = GetCommandBuffer();
-        const PipelineState_Vulkan* pso = check_cast<const PipelineState_Vulkan*>(_pso);
+        const PipelineState* pso = check_cast<const PipelineState*>(_pso);
 
         size_t pipelineHash = 0;
         HashCombine(pipelineHash, pso->hash);
@@ -1499,7 +1505,7 @@ namespace cyb::rhi::vulkan
         }
         else
         {
-            if (pso->binding_hash != check_cast<const PipelineState_Vulkan*>(activePso)->binding_hash)
+            if (pso->binding_hash != check_cast<const PipelineState*>(activePso)->binding_hash)
                 binder.dirtyFlags |= DescriptorBinder::DIRTY_ALL;
         }
 
@@ -1521,7 +1527,7 @@ namespace cyb::rhi::vulkan
         {
             assert(vertexBuffers[i]);
 
-            const Buffer_Vulkan* buffer = check_cast<const Buffer_Vulkan*>(vertexBuffers[i]);
+            const Buffer* buffer = check_cast<const Buffer*>(vertexBuffers[i]);
             vtxBuffers[i] = buffer->resource;
             if (offsets != nullptr)
                 vtxOffsets[i] = offsets[i];
@@ -1538,7 +1544,7 @@ namespace cyb::rhi::vulkan
             return;
 
         VkCommandBuffer cmdBuf = GetCommandBuffer();
-        const Buffer_Vulkan* buffer = check_cast<const Buffer_Vulkan*>(indexBuffer);
+        const Buffer* buffer = check_cast<const Buffer*>(indexBuffer);
         vkCmdBindIndexBuffer(cmdBuf, buffer->resource, offset, format == IndexBufferFormat::Uint16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
     }
 
@@ -1591,8 +1597,8 @@ namespace cyb::rhi::vulkan
     void CommandList::CopyBuffer(const IBuffer* _dst, uint64_t dstOffset, const IBuffer* _src, uint64_t srcOffset, uint64_t size)
     {
         VkCommandBuffer cmdBuf = GetCommandBuffer();
-        const Buffer_Vulkan* dst = check_cast<const Buffer_Vulkan*>(_dst);
-        const Buffer_Vulkan* src = check_cast<const Buffer_Vulkan*>(_src);
+        const Buffer* dst = check_cast<const Buffer*>(_dst);
+        const Buffer* src = check_cast<const Buffer*>(_src);
 
         VkBufferCopy copy{
             .srcOffset = srcOffset,
@@ -1623,7 +1629,7 @@ namespace cyb::rhi::vulkan
         if (!dirtyPso)
             return;
 
-        const PipelineState_Vulkan* pso = check_cast<const PipelineState_Vulkan*>(activePso);
+        const PipelineState* pso = check_cast<const PipelineState*>(activePso);
         size_t pipelineHash = prevPipelineHash;
 
         VkPipeline pipeline = VK_NULL_HANDLE;
@@ -2275,7 +2281,7 @@ namespace cyb::rhi::vulkan
 
     SwapchainHandle GraphicsDevice_Vulkan::CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window) const
     {
-        Swapchain_Vulkan* swapchain = new Swapchain_Vulkan;
+        Swapchain* swapchain = new Swapchain;
         swapchain->allocationhandler = m_allocationHandler;
 		swapchain->physicalDevice = physicalDevice;
 		swapchain->device = device;
@@ -2307,7 +2313,7 @@ namespace cyb::rhi::vulkan
     {
 		assert(desc->size > 0);
 
-		Buffer_Vulkan* buffer = new Buffer_Vulkan;
+		Buffer* buffer = new Buffer;
         buffer->allocationhandler = m_allocationHandler;
         buffer->desc = *desc;
 
@@ -2355,7 +2361,7 @@ namespace cyb::rhi::vulkan
         if (initData != nullptr)
         {
             auto cmd = m_copyAllocator.Allocate(desc->size);
-			Buffer_Vulkan* uploadBuffer = check_cast<Buffer_Vulkan*>(cmd.uploadBuffer.Get());
+			Buffer* uploadBuffer = check_cast<Buffer*>(cmd.uploadBuffer.Get());
             std::memcpy(uploadBuffer->mappedMemory, initData, buffer->desc.size);
 
             VkBufferCopy copyRegion{
@@ -2417,15 +2423,15 @@ namespace cyb::rhi::vulkan
 
 	EventQueryHandle GraphicsDevice_Vulkan::CreateEventQuery() const
 	{
-		EventQuery_Vulkan* query = new EventQuery_Vulkan;
+		EventQuery* query = new EventQuery;
 		return EventQueryHandle::Create(query);
 	}
 
     void GraphicsDevice_Vulkan::CreateSubresource(ITexture* _texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const
     {
-        Texture_Vulkan* texture = check_cast<Texture_Vulkan*>(_texture);
+        Texture* texture = check_cast<Texture*>(_texture);
 
-        Texture_Vulkan::TextureSubresource subresource{};
+        Texture::TextureSubresource subresource{};
         subresource.firstMip = firstMip;
         subresource.mipCount = mipCount;
         subresource.firstSlice = firstSlice;
@@ -2483,7 +2489,7 @@ namespace cyb::rhi::vulkan
     {
         assert(desc->format != Format::Unknown);
 
-		Texture_Vulkan* texture = new Texture_Vulkan();
+		Texture* texture = new Texture();
         texture->allocationHandler = m_allocationHandler;
         texture->desc = *desc;
 
@@ -2518,7 +2524,7 @@ namespace cyb::rhi::vulkan
         if (initData != nullptr)
         {
             CopyAllocator::CopyCMD cmd = m_copyAllocator.Allocate(texture->allocation->GetSize());
-            Buffer_Vulkan* uploadBuffer = check_cast<Buffer_Vulkan*>(cmd.uploadBuffer.Get());
+            Buffer* uploadBuffer = check_cast<Buffer*>(cmd.uploadBuffer.Get());
 
             std::vector<VkBufferImageCopy> copyRegions;
 
@@ -2609,7 +2615,7 @@ namespace cyb::rhi::vulkan
 
                 vkCmdPipelineBarrier2(cmd.transferCommandBuffer, &dependencyInfo);
 
-				Buffer_Vulkan* uploadBuffer = check_cast<Buffer_Vulkan*>(cmd.uploadBuffer.Get());
+				Buffer* uploadBuffer = check_cast<Buffer*>(cmd.uploadBuffer.Get());
                 vkCmdCopyBufferToImage(
                     cmd.transferCommandBuffer,
                     uploadBuffer->resource,
@@ -2720,7 +2726,7 @@ namespace cyb::rhi::vulkan
         assert(desc->bytecode != nullptr);
         assert(desc->bytecodeLength > 0);
 
-        Shader_Vulkan* shader = new Shader_Vulkan();
+        Shader* shader = new Shader();
         shader->allocationhandler = m_allocationHandler;
         shader->desc = *desc;
 
@@ -2858,29 +2864,30 @@ namespace cyb::rhi::vulkan
 
     SamplerHandle GraphicsDevice_Vulkan::CreateSampler(const SamplerDesc* desc) const
     {
-		Sampler_Vulkan* sampler = new Sampler_Vulkan();
+		Sampler* sampler = new Sampler();
         sampler->allocationhandler = m_allocationHandler;
         sampler->desc = *desc;
 
         const bool anisotropyEnable = desc->maxAnisotropy > 1.0f;
 
-        VkSamplerCreateInfo samplerInfo{};
-        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerInfo.flags = 0;
-        samplerInfo.pNext = nullptr;
-        samplerInfo.minFilter = HasFlag(desc->filter, Filtering::Min) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
-        samplerInfo.magFilter = HasFlag(desc->filter, Filtering::Mag) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
-        samplerInfo.mipmapMode = HasFlag(desc->filter, Filtering::Mip) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        samplerInfo.anisotropyEnable = anisotropyEnable;
-        samplerInfo.maxAnisotropy = anisotropyEnable ? desc->maxAnisotropy : 1.0f;
-        samplerInfo.compareEnable = VK_FALSE;
-        samplerInfo.addressModeU = ConvertSamplerAddressMode(desc->addressU);
-        samplerInfo.addressModeV = ConvertSamplerAddressMode(desc->addressV);
-        samplerInfo.addressModeW = ConvertSamplerAddressMode(desc->addressW);
-        samplerInfo.mipLodBias = desc->lodBias;
-        samplerInfo.minLod = desc->minLOD;
-        samplerInfo.maxLod = desc->maxLOD;
-        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        VkSamplerCreateInfo samplerInfo{
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .magFilter = HasFlag(desc->filter, Filtering::Mag) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST,
+            .minFilter = HasFlag(desc->filter, Filtering::Min) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST,
+            .mipmapMode = HasFlag(desc->filter, Filtering::Mip) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST,
+            .addressModeU = ConvertSamplerAddressMode(desc->addressU),
+            .addressModeV = ConvertSamplerAddressMode(desc->addressV),
+            .addressModeW = ConvertSamplerAddressMode(desc->addressW),
+            .mipLodBias = desc->lodBias,
+            .anisotropyEnable = anisotropyEnable,
+            .maxAnisotropy = anisotropyEnable ? desc->maxAnisotropy : 1.0f,
+            .compareEnable = VK_FALSE,
+            .minLod = desc->minLOD,
+            .maxLod = desc->maxLOD,
+            .unnormalizedCoordinates = VK_FALSE
+        };
 
         VK_CHECK(vkCreateSampler(device, &samplerInfo, nullptr, &sampler->resource));
         return SamplerHandle::Create(sampler);
@@ -2888,7 +2895,7 @@ namespace cyb::rhi::vulkan
 
     PipelineStateHandle GraphicsDevice_Vulkan::CreatePipelineState(const PipelineStateDesc* desc) const
     {
-        PipelineState_Vulkan* pso = new PipelineState_Vulkan();
+        PipelineState* pso = new PipelineState();
         pso->desc = *desc;
 
         HashCombine(pso->hash, desc->vs);
@@ -2903,7 +2910,7 @@ namespace cyb::rhi::vulkan
         auto insert_shader = [&] (const IShader* _shader) {
             if (_shader == nullptr)
                 return;
-            const Shader_Vulkan* shader = check_cast<const Shader_Vulkan*>(_shader);
+            const Shader* shader = check_cast<const Shader*>(_shader);
 
             uint32_t i = 0;
             for (auto& shaderBinding : shader->layout_bindings)
@@ -3132,7 +3139,7 @@ namespace cyb::rhi::vulkan
             if (!_shader)
                 return;
 
-            const Shader_Vulkan* shader = check_cast<const Shader_Vulkan*>(_shader);
+            const Shader* shader = check_cast<const Shader*>(_shader);
             pso->shaderStages[shaderStageCount++] = shader->stageInfo;
         };
 
@@ -3178,20 +3185,22 @@ namespace cyb::rhi::vulkan
 
         if (commandlist->GetCommandBuffer() == VK_NULL_HANDLE)
         {
-            // Need to create one more command list:
+            // need to create one more command list
             for (uint32_t buffer_index = 0; buffer_index < BUFFERCOUNT; ++buffer_index)
             {
-                VkCommandPoolCreateInfo poolInfo{};
-                poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-                poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-                poolInfo.queueFamilyIndex = m_graphicsQueueFamily;
+                VkCommandPoolCreateInfo poolInfo{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                    .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+                    .queueFamilyIndex = m_graphicsQueueFamily
+                };
                 VK_CHECK(vkCreateCommandPool(device, &poolInfo, nullptr, &commandlist->commandpools[buffer_index][static_cast<uint32_t>(queue)]));
 
-                VkCommandBufferAllocateInfo allocInfo{};
-                allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-                allocInfo.commandPool = commandlist->commandpools[buffer_index][static_cast<uint32_t>(queue)];
-                allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-                allocInfo.commandBufferCount = 1;
+                VkCommandBufferAllocateInfo allocInfo{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                    .commandPool = commandlist->commandpools[buffer_index][static_cast<uint32_t>(queue)],
+                    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                    .commandBufferCount = 1
+                };
                 VK_CHECK(vkAllocateCommandBuffers(device, &allocInfo, &commandlist->commandbuffers[buffer_index][static_cast<uint32_t>(queue)]));
 
                 commandlist->binder_pools[buffer_index].Init(this);
@@ -3243,8 +3252,7 @@ namespace cyb::rhi::vulkan
             vkCmdSetFragmentShadingRateKHR(
                 commandlist->GetCommandBuffer(),
                 &fragmentSize,
-                combiner
-            );
+                combiner);
         }
         return commandlist;
     }
@@ -3254,10 +3262,12 @@ namespace cyb::rhi::vulkan
         if (!extensions.EXT_debug_utils || fence == VK_NULL_HANDLE)
             return;
 
-        VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-        info.pObjectName = name;
-        info.objectType = VK_OBJECT_TYPE_FENCE;
-        info.objectHandle = (uint64_t)fence;
+        VkDebugUtilsObjectNameInfoEXT info{
+            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+            .objectType = VK_OBJECT_TYPE_FENCE,
+            .objectHandle = (uint64_t)fence,
+            .pObjectName = name
+        };
 
         VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
     }
@@ -3267,53 +3277,58 @@ namespace cyb::rhi::vulkan
         if (!extensions.EXT_debug_utils)
             return;
 
-        VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-        info.pObjectName = name;
-        info.objectType = VK_OBJECT_TYPE_SEMAPHORE;
-        info.objectHandle = (uint64_t)semaphore;
+        VkDebugUtilsObjectNameInfoEXT info{
+            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+            .objectType = VK_OBJECT_TYPE_SEMAPHORE,
+            .objectHandle = (uint64_t)semaphore,
+            .pObjectName = name
+        };
 
         VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
     }
 
-    Queue::Queue(VkDevice device, CommandQueue queueID, VkQueue queue, uint32_t queueFamilyIndex)
-        : m_device(device)
-        , m_queue(queue)
-        , m_queueID(queueID)
-        , m_queueFamilyIndex(queueFamilyIndex)
+    Queue::Queue(VkDevice device, CommandQueue queueID, VkQueue queue, uint32_t queueFamilyIndex) :
+        m_device(device),
+        m_queue(queue),
+        m_queueID(queueID),
+        m_queueFamilyIndex(queueFamilyIndex)
     {
-        VkSemaphoreTypeCreateInfo timelineCreateInfo{};
-        timelineCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
-        timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
-        timelineCreateInfo.initialValue = 0;
+        VkSemaphoreTypeCreateInfo timelineCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+            .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+            .initialValue = 0
+        };
 
-        VkSemaphoreCreateInfo semaphoreInfo{};
-        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        semaphoreInfo.pNext = &timelineCreateInfo;
+        VkSemaphoreCreateInfo semaphoreInfo{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = &timelineCreateInfo
+        };
 
         vkCreateSemaphore(device, &semaphoreInfo, nullptr, &trackingSemaphore);
     }
 
     Queue::~Queue()
     {
-
     }
 
     void Queue::AddWaitSemaphore(VkSemaphore semaphore, uint64_t value)
     {
-        VkSemaphoreSubmitInfo& waitSemaphore = m_waitSemaphoreInfos.emplace_back();
-        waitSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        waitSemaphore.semaphore = semaphore;
-        waitSemaphore.value = value;
-        waitSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        m_waitSemaphoreInfos.push_back({
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .semaphore = semaphore,
+            .value = value,
+            .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT
+        });
     }
 
     void Queue::AddSignalSemaphore(VkSemaphore semaphore, uint64_t value)
     {
-        VkSemaphoreSubmitInfo& signalSemaphore = m_signalSemaphoreInfos.emplace_back();
-        signalSemaphore.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        signalSemaphore.semaphore = semaphore;
-        signalSemaphore.value = value;
-        signalSemaphore.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        m_signalSemaphoreInfos.push_back({
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .semaphore = semaphore,
+            .value = value,
+            .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT
+        });
     }
 
     uint64_t Queue::Submit()
@@ -3325,14 +3340,15 @@ namespace cyb::rhi::vulkan
         const uint64_t submissionID = ++m_lastSubmittedID;
         AddSignalSemaphore(trackingSemaphore, submissionID);
 
-        VkSubmitInfo2 submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
-        submitInfo.commandBufferInfoCount = (uint32_t)submit_cmds.size();
-        submitInfo.pCommandBufferInfos = submit_cmds.data();
-        submitInfo.waitSemaphoreInfoCount = static_cast<uint32_t>(m_waitSemaphoreInfos.size());
-        submitInfo.pWaitSemaphoreInfos = m_waitSemaphoreInfos.data();
-        submitInfo.signalSemaphoreInfoCount = static_cast<uint32_t>(m_signalSemaphoreInfos.size());
-        submitInfo.pSignalSemaphoreInfos = m_signalSemaphoreInfos.data();
+        VkSubmitInfo2 submitInfo{
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+            .waitSemaphoreInfoCount = static_cast<uint32_t>(m_waitSemaphoreInfos.size()),
+            .pWaitSemaphoreInfos = m_waitSemaphoreInfos.data(),
+            .commandBufferInfoCount = (uint32_t)submit_cmds.size(),
+            .pCommandBufferInfos = submit_cmds.data(),
+            .signalSemaphoreInfoCount = static_cast<uint32_t>(m_signalSemaphoreInfos.size()),
+            .pSignalSemaphoreInfos = m_signalSemaphoreInfos.data()
+        };
 
         VK_CHECK(vkQueueSubmit2(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
 
@@ -3369,11 +3385,13 @@ namespace cyb::rhi::vulkan
 		if (PollCommandList(commandListID))
 			return true;
 
-		VkSemaphoreWaitInfo waitInfo{};
-		waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
-		waitInfo.semaphoreCount = 1;
-		waitInfo.pSemaphores = &trackingSemaphore;
-		waitInfo.pValues = &commandListID;
+        VkSemaphoreWaitInfo waitInfo{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+            .semaphoreCount = 1,
+            .pSemaphores = &trackingSemaphore,
+            .pValues = &commandListID
+        };
+
         VkResult result = vkWaitSemaphores(m_device, &waitInfo, timeout);
 		return result == VK_SUCCESS;
 	}
@@ -3390,13 +3408,14 @@ namespace cyb::rhi::vulkan
 
             Queue* queue = GetQueue(commandlist->queue);
 
-            VkCommandBufferSubmitInfo& submitInfo = queue->submit_cmds.emplace_back();
-            submitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-            submitInfo.commandBuffer = commandlist->GetCommandBuffer();
+            queue->submit_cmds.push_back({
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                .commandBuffer = commandlist->GetCommandBuffer()
+            });
 
             for (auto& _swapchain : commandlist->prevSwapchains)
             {
-                Swapchain_Vulkan* swapchain = check_cast<Swapchain_Vulkan*>(_swapchain);
+                Swapchain* swapchain = check_cast<Swapchain*>(_swapchain);
 
                 queue->AddWaitSemaphore(swapchain->acquireSemaphores[swapchain->acquireSemaphoreIndex], 0);
                 queue->AddSignalSemaphore(swapchain->presentSemaphores[swapchain->imageIndex], 0);
@@ -3418,17 +3437,22 @@ namespace cyb::rhi::vulkan
             commandlist->pipelinesWorker.clear();
         }
 
-        for (uint32_t i = 0; i < uint32_t(CommandQueue::Count); i++)
+        for (uint32_t queueIndex = 0; queueIndex < uint32_t(CommandQueue::Count); queueIndex++)
         {
-            auto* queue = GetQueue(CommandQueue(i));
+            auto* queue = GetQueue(CommandQueue(queueIndex));
             uint64_t submittedID = queue->Submit();
 
             for (uint32_t j = 0; j < cmdCount; j++)
             {
                 CommandList* commandlist = check_cast<CommandList*>(m_commandlists[j].Get());
+                if (commandlist->queue != CommandQueue(queueIndex))
+                    continue; // slip if commandlist isn't in this queue
+
+                uint64_t recordingID = commandlist->recordingID;
+
                 commandlist->allocator->SubmitChunks(
-                    MakeVersion(commandlist->recordingID, CommandQueue(i), false),
-                    MakeVersion(submittedID, CommandQueue(i), true));
+                    MakeVersion(recordingID, CommandQueue(queueIndex), false),
+                    MakeVersion(submittedID, CommandQueue(queueIndex), true));
             }
         }
 
@@ -3440,7 +3464,7 @@ namespace cyb::rhi::vulkan
 
     void GraphicsDevice_Vulkan::Present(ISwapchain* _swapchain)
     {
-        Swapchain_Vulkan* swapchain = check_cast<Swapchain_Vulkan*>(_swapchain);
+        Swapchain* swapchain = check_cast<Swapchain*>(_swapchain);
         swapchain->Present();
         swapchain->WaitForAcquireFence();
     }
@@ -3532,7 +3556,7 @@ namespace cyb::rhi::vulkan
     {
         CommandList* commandlist = check_cast<CommandList*>(cmd);
         const Query_Vulkan* query = check_cast<const Query_Vulkan*>(_query);
-        Buffer_Vulkan* dest = check_cast<Buffer_Vulkan*>(_dest);
+        Buffer* dest = check_cast<Buffer*>(_dest);
 
         VkQueryResultFlags flags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT;
         if (query->desc.type == QueryType::OcclusionBinary)
@@ -3563,7 +3587,7 @@ namespace cyb::rhi::vulkan
 
     void GraphicsDevice_Vulkan::SetEventQuery(IEventQuery* _query, CommandQueue queue)
     {
-        EventQuery_Vulkan* query = check_cast<EventQuery_Vulkan*>(_query);
+        EventQuery* query = check_cast<EventQuery*>(_query);
 		assert(query->commandListID == 0);
 
 		query->queue = queue;
@@ -3572,14 +3596,14 @@ namespace cyb::rhi::vulkan
 
     bool GraphicsDevice_Vulkan::PollEventQuery(IEventQuery* _query)
     {
-        EventQuery_Vulkan* query = check_cast<EventQuery_Vulkan*>(_query);
+        EventQuery* query = check_cast<EventQuery*>(_query);
         auto& queue = *queues[uint32_t(query->queue)];
 		return queue.PollCommandList(query->commandListID);
     }
 
     void GraphicsDevice_Vulkan::WaitEventQuery(IEventQuery* _query)
     {
-        EventQuery_Vulkan* query = check_cast<EventQuery_Vulkan*>(_query);
+        EventQuery* query = check_cast<EventQuery*>(_query);
 
 		if (query->commandListID == 0)
 			return;
@@ -3591,32 +3615,24 @@ namespace cyb::rhi::vulkan
 
     void GraphicsDevice_Vulkan::ResetEventQuery(IEventQuery* _query)
     {
-        EventQuery_Vulkan* query = check_cast<EventQuery_Vulkan*>(_query);
+        EventQuery* query = check_cast<EventQuery*>(_query);
 		query->commandListID = 0;
     }
 
     void GraphicsDevice_Vulkan::PushConstants(const void* data, uint32_t size, ICommandList* cmd, uint32_t offset)
     {
         CommandList* commandlist = check_cast<CommandList*>(cmd);
+        assert(commandlist->activePso != nullptr);
+        
+        const PipelineState* pso = check_cast<const PipelineState*>(commandlist->activePso);
+        assert(pso->pushconstants.size > 0);
 
-        if (commandlist->activePso != nullptr)
-        {
-            const PipelineState_Vulkan* pso = check_cast<const PipelineState_Vulkan*>(commandlist->activePso);
-            if (pso->pushconstants.size > 0)
-            {
-                vkCmdPushConstants(
-                    commandlist->GetCommandBuffer(),
-                    pso->pipelineLayout,
-                    pso->pushconstants.stageFlags,
-                    offset,
-                    size,
-                    data
-                );
-                return;
-            }
-            assert(0);  // no push constant block!
-        }
-
-        assert(0);      // no active pipeline!
+        vkCmdPushConstants(
+            commandlist->GetCommandBuffer(),
+            pso->pipelineLayout,
+            pso->pushconstants.stageFlags,
+            offset,
+            size,
+            data);
     }
 } // namespace cyb::rhi::vulkan

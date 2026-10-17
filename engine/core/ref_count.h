@@ -44,20 +44,28 @@ namespace cyb
 	class RefCountPtr
 	{
 	public:
-        RefCountPtr() noexcept : m_ptr(nullptr)
-        {
-        }
+		RefCountPtr() noexcept : m_ptr(nullptr)
+		{
+		}
 
-        RefCountPtr(std::nullptr_t) noexcept
-            : m_ptr(nullptr)
-        {
-        }
+		RefCountPtr(std::nullptr_t) noexcept
+			: m_ptr(nullptr)
+		{
+		}
 
-        RefCountPtr(const RefCountPtr& other) noexcept
-            : m_ptr(other.m_ptr)
-        {
-            InternalAddRef();
-        }
+		template<class U>
+			requires std::is_convertible_v<U*, T*>
+		RefCountPtr(U* other) noexcept
+			: m_ptr(other)
+		{
+			InternalAddRef();
+		}
+
+		RefCountPtr(const RefCountPtr& other) noexcept
+			: m_ptr(other.m_ptr)
+		{
+			InternalAddRef();
+		}
 
         // Copy ctor that allows to instanatiate class when U* is convertible to T*
         template<class U> 

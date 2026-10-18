@@ -754,7 +754,7 @@ namespace cyb::rhi::vulkan
         {
             VkCommandPoolCreateInfo poolInfo{};
             poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-            poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+            poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
             poolInfo.queueFamilyIndex = device->m_transferQueueFamily;
             VK_CHECK(vkCreateCommandPool(device->device, &poolInfo, nullptr, &cmd.transferCommandPool));
             poolInfo.queueFamilyIndex = device->m_graphicsQueueFamily;
@@ -776,10 +776,6 @@ namespace cyb::rhi::vulkan
 			cmd.uploadBuffer = device->CreateBuffer(&uploaddesc, nullptr);
 			assert(cmd.uploadBuffer);
 		}
-
-		// begin command list in valid state
-		VK_CHECK(vkResetCommandPool(device->device, cmd.transferCommandPool, 0));
-		VK_CHECK(vkResetCommandPool(device->device, cmd.transitionCommandPool, 0));
 
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -1108,6 +1104,9 @@ namespace cyb::rhi::vulkan
             m_currentChunk = std::make_shared<Chunk>();
             m_currentChunk->buffer = m_device->CreateBuffer(&desc, nullptr);
             m_allocatedMemory += desc.size;
+
+            CYB_TRACE("UploadAllocator: Created new {}kB chunk (total memory {}kB, {} chunks)",
+                desc.size / 1024, m_allocatedMemory / 1024, m_chunkPool.size() + 1);
         }
 
         return AllocateOnCurrentChunk(alignedSize, currentVersion);
@@ -1126,6 +1125,25 @@ namespace cyb::rhi::vulkan
             if (chunk->version == currentVersion)
                 chunk->version = submittedVersion;
         }
+    }
+
+    CommandList::CommandList(GraphicsDevice_Vulkan* device, uint32_t bufferCount) :
+        m_device(device),
+        commandpools(bufferCount),
+        commandbuffers(bufferCount),
+        binder_pools(bufferCount)
+    {
+    }
+
+    CommandList::~CommandList()
+    {
+        for (auto& commandpool : commandpools)
+            vkDestroyCommandPool(m_device->device, commandpool, nullptr);
+    }
+
+    ScratchBufferAllocation CommandList::AllocateScratchBuffer(uint64_t size)
+    {
+        return m_device->uploadManager->Allocate(size, MakeVersion(recordingID, queue, false));
     }
 
     void CommandList::BeginRenderPass(ISwapchain* _swapchain)
@@ -2143,17 +2161,17 @@ namespace cyb::rhi::vulkan
         VkQueue graphicsQueue = VK_NULL_HANDLE;
         vkGetDeviceQueue(device, m_graphicsQueueFamily, 0, &graphicsQueue);
         if (graphicsQueue)
-            queues[uint32_t(CommandQueue::Graphics)] = std::make_unique<Queue>(device, CommandQueue::Graphics, graphicsQueue, m_graphicsQueueFamily);
+            queues[uint32_t(CommandQueue::Graphics)] = std::make_unique<Queue>(this, CommandQueue::Graphics, graphicsQueue, m_graphicsQueueFamily);
         
         VkQueue computeQueue = VK_NULL_HANDLE;
         vkGetDeviceQueue(device, m_computeQueueFamily, 0, &computeQueue);
         if (computeQueue)
-            queues[uint32_t(CommandQueue::Compute)] = std::make_unique<Queue>(device, CommandQueue::Compute, computeQueue, m_computeQueueFamily);
+            queues[uint32_t(CommandQueue::Compute)] = std::make_unique<Queue>(this, CommandQueue::Compute, computeQueue, m_computeQueueFamily);
 
         VkQueue transferQueue = VK_NULL_HANDLE;
         vkGetDeviceQueue(device, m_transferQueueFamily, 0, &transferQueue);
         if (transferQueue)
-            queues[uint32_t(CommandQueue::Transfer)] = std::make_unique<Queue>(device, CommandQueue::Transfer, transferQueue, m_transferQueueFamily);
+            queues[uint32_t(CommandQueue::Transfer)] = std::make_unique<Queue>(this, CommandQueue::Transfer, transferQueue, m_transferQueueFamily);
 
         // create allocation handler
         m_allocationHandler = std::make_shared<AllocationHandler>();
@@ -2214,7 +2232,7 @@ namespace cyb::rhi::vulkan
         pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
         VK_CHECK(vkCreatePipelineCache(device, &pipelineCacheCreateInfo, nullptr, &pipelineCache));
 
-        // create null descriptors for uninitialized bind slots and bindless safety fallback:
+        // create null descriptors for uninitialized bind slots and bindless safety fallback
         VkBufferCreateInfo bufferInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .flags = 0,
@@ -2226,6 +2244,9 @@ namespace cyb::rhi::vulkan
             .preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         };
         VK_CHECK(vmaCreateBuffer(m_allocationHandler->allocator, &bufferInfo, &allocInfo, &nullBuffer, &nullBufferAllocation, nullptr));
+
+        // create upload manager
+        uploadManager = std::make_unique<UploadAllocator>(this, 64 * 1024);
 
         CYB_INFO("Initialized Vulkan {}.{}", VK_API_VERSION_MAJOR(properties2.properties.apiVersion), VK_API_VERSION_MINOR(properties2.properties.apiVersion));
         CYB_INFO("  Device: {}", properties2.properties.deviceName);
@@ -2255,24 +2276,8 @@ namespace cyb::rhi::vulkan
 
         if (pipelineCache != VK_NULL_HANDLE)
         {
-            // TODO: Save pipeline cache to disk
             vkDestroyPipelineCache(device, pipelineCache, nullptr);
             pipelineCache = VK_NULL_HANDLE;
-        }
-
-        for (auto& cmds : m_commandlists)
-        {
-            CommandList* commandList = check_cast<CommandList*>(cmds.Get());
-            for (uint32_t buffer_index = 0; buffer_index < BUFFERCOUNT; ++buffer_index)
-            {
-                for (uint32_t q = 0; q < static_cast<uint32_t>(CommandQueue::Count); ++q)
-                {
-                    vkDestroyCommandPool(device, commandList->commandpools[buffer_index][q], nullptr);
-                }
-            }
-
-            for (auto& x : commandList->binder_pools)
-                x.Destroy();
         }
 
         for (auto& queue : queues)
@@ -2851,11 +2856,12 @@ namespace cyb::rhi::vulkan
 
         if (extensions.EXT_debug_utils && !desc->debugName.empty())
         {
-            VkDebugUtilsObjectNameInfoEXT info{};
-            info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-            info.objectType = VK_OBJECT_TYPE_SHADER_MODULE;
-            info.objectHandle = (uint64_t)shader->shadermodule;
-            info.pObjectName = desc->debugName.data();
+            VkDebugUtilsObjectNameInfoEXT info{
+                .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                .objectType = VK_OBJECT_TYPE_SHADER_MODULE,
+                .objectHandle = (uint64_t)shader->shadermodule,
+                .pObjectName = desc->debugName.data()
+            };
             VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
         }
 
@@ -3167,64 +3173,45 @@ namespace cyb::rhi::vulkan
 		return PipelineStateHandle::Create(pso);
     }
 
-    ICommandList* GraphicsDevice_Vulkan::BeginCommandList(CommandQueue queue)
+    uint32_t GraphicsDevice_Vulkan::GetQueueFamily(CommandQueue queueID)
     {
-        m_cmdLocker.lock();
-        const uint32_t cmd_current = m_cmdCount++;
-        if (cmd_current >= m_commandlists.size())
+        switch (queueID)
         {
-            CommandList* commandList = new CommandList(this, BUFFERCOUNT);
-            m_commandlists.push_back(CommandListHandle::Create(commandList));
+            case CommandQueue::Graphics:
+                return m_graphicsQueueFamily;
+            case CommandQueue::Compute:
+                return m_computeQueueFamily;
+            case CommandQueue::Transfer:
+                return m_transferQueueFamily;
         }
-        m_cmdLocker.unlock();
+        assert(0);
+        return m_graphicsQueueFamily;
+    }
 
-        CommandList* commandlist = check_cast<CommandList*>(m_commandlists[cmd_current].Get());
+    ICommandList* GraphicsDevice_Vulkan::BeginCommandList(CommandQueue queueID)
+    {
+        Queue* queue = GetQueue(queueID);
+
+        CommandList* commandlist = queue->GetOrCreateCommandList(BUFFERCOUNT);
         commandlist->Reset(GetBufferIndex());
-        commandlist->queue = queue;
-        commandlist->recordingID = ++(GetQueue(queue)->lastRecordingID);
 
-        if (commandlist->GetCommandBuffer() == VK_NULL_HANDLE)
-        {
-            // need to create one more command list
-            for (uint32_t buffer_index = 0; buffer_index < BUFFERCOUNT; ++buffer_index)
-            {
-                VkCommandPoolCreateInfo poolInfo{
-                    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-                    .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-                    .queueFamilyIndex = m_graphicsQueueFamily
-                };
-                VK_CHECK(vkCreateCommandPool(device, &poolInfo, nullptr, &commandlist->commandpools[buffer_index][static_cast<uint32_t>(queue)]));
-
-                VkCommandBufferAllocateInfo allocInfo{
-                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-                    .commandPool = commandlist->commandpools[buffer_index][static_cast<uint32_t>(queue)],
-                    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                    .commandBufferCount = 1
-                };
-                VK_CHECK(vkAllocateCommandBuffers(device, &allocInfo, &commandlist->commandbuffers[buffer_index][static_cast<uint32_t>(queue)]));
-
-                commandlist->binder_pools[buffer_index].Init(this);
-            }
-
-            commandlist->binder.Init(this);
-        }
-
-        VK_CHECK(vkResetCommandPool(device, commandlist->GetCommandPool(), 0));
-
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = 0;
-        beginInfo.pInheritanceInfo = nullptr;
+        VkCommandBufferBeginInfo beginInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = 0,
+            .pInheritanceInfo = nullptr
+        };
         VK_CHECK(vkBeginCommandBuffer(commandlist->GetCommandBuffer(), &beginInfo));
 
-        if (queue == CommandQueue::Graphics)
+        if (queueID == CommandQueue::Graphics)
         {            
+            // default viewport
             VkViewport vp{};
             vp.width = 1;
             vp.height = 1;
             vp.maxDepth = 1;
             vkCmdSetViewportWithCount(commandlist->GetCommandBuffer(), 1, &vp);
 
+            // default scissor
             VkRect2D scissor{};
             scissor.offset.x = 0;
             scissor.offset.y = 0;
@@ -3232,13 +3219,14 @@ namespace cyb::rhi::vulkan
             scissor.extent.height = 65535;
             vkCmdSetScissorWithCount(commandlist->GetCommandBuffer(), 1, &scissor);
             
-            if (features.depthBounds == VK_TRUE)
+            // default depth bounds 
+            if (features.depthBounds)
                 vkCmdSetDepthBounds(commandlist->GetCommandBuffer(), 0.0f, 1.0f);
 
             const VkDeviceSize zero{};
             vkCmdBindVertexBuffers2(commandlist->GetCommandBuffer(), 0, 1, &nullBuffer, &zero, &zero, &zero);
 
-            // set default shading rate to full fill
+            // default shading rate
             VkExtent2D fragmentSize{
                 .width = 1,
                 .height = 1
@@ -3254,6 +3242,7 @@ namespace cyb::rhi::vulkan
                 &fragmentSize,
                 combiner);
         }
+
         return commandlist;
     }
 
@@ -3287,7 +3276,7 @@ namespace cyb::rhi::vulkan
         VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
     }
 
-    Queue::Queue(VkDevice device, CommandQueue queueID, VkQueue queue, uint32_t queueFamilyIndex) :
+    Queue::Queue(GraphicsDevice_Vulkan* device, CommandQueue queueID, VkQueue queue, uint32_t queueFamilyIndex) :
         m_device(device),
         m_queue(queue),
         m_queueID(queueID),
@@ -3304,11 +3293,62 @@ namespace cyb::rhi::vulkan
             .pNext = &timelineCreateInfo
         };
 
-        vkCreateSemaphore(device, &semaphoreInfo, nullptr, &trackingSemaphore);
+        vkCreateSemaphore(m_device->device, &semaphoreInfo, nullptr, &trackingSemaphore);
     }
 
     Queue::~Queue()
     {
+    }
+
+    CommandList* Queue::GetOrCreateCommandList(uint32_t bufferCount)
+    {
+        std::scoped_lock lock{ m_mutex };
+
+        if (m_commandListPool.empty())
+        {
+            CommandList* commandlist = new CommandList(m_device, bufferCount);
+            commandlist->queue = m_queueID;
+
+            for (uint32_t i = 0; i < bufferCount; i++)
+            {
+                VkCommandPoolCreateInfo poolInfo{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                    .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+                    .queueFamilyIndex = m_queueFamilyIndex
+                };
+                VK_CHECK(vkCreateCommandPool(m_device->device, &poolInfo, nullptr, &commandlist->commandpools[i]));
+
+                VkCommandBufferAllocateInfo allocInfo{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                    .commandPool = commandlist->commandpools[i],
+                    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                    .commandBufferCount = 1
+                };
+                VK_CHECK(vkAllocateCommandBuffers(m_device->device, &allocInfo, &commandlist->commandbuffers[i]));
+
+                commandlist->binder_pools[i].Init(m_device);
+            }
+
+            commandlist->binder.Init(m_device);
+
+            m_commandListPool.push_back(CommandListHandle::Create(commandlist));
+        }
+
+        CommandListHandle commandlistHandle = m_commandListPool.front();
+        m_commandListPool.pop_front();
+        m_commandListsInUse.push_back(commandlistHandle);
+
+        CommandList* commandlist = check_cast<CommandList*>(commandlistHandle.Get());
+        commandlist->recordingID = ++m_lastRecordingID;
+        return commandlist;
+    }
+
+    void Queue::ReturnUsedCommandListsToPool()
+    {
+        std::scoped_lock lock{ m_mutex };
+
+        m_commandListPool.insert(m_commandListPool.begin(), m_commandListsInUse.begin(), m_commandListsInUse.end());
+        m_commandListsInUse.clear();
     }
 
     void Queue::AddWaitSemaphore(VkSemaphore semaphore, uint64_t value)
@@ -3335,8 +3375,8 @@ namespace cyb::rhi::vulkan
     {
         std::lock_guard lock{ m_mutex };
 
-        // signal the tracking semaphore with the last submitted ID to mark 
-        // the end of the frame
+        // signal the tracking semaphore with the last
+        // submitted ID to mark the end of the frame
         const uint64_t submissionID = ++m_lastSubmittedID;
         AddSignalSemaphore(trackingSemaphore, submissionID);
 
@@ -3361,7 +3401,7 @@ namespace cyb::rhi::vulkan
 
     uint64_t Queue::UpdateLastFinishedID()
     {
-		VK_CHECK(vkGetSemaphoreCounterValue(m_device, trackingSemaphore, &m_lastFinishedID));
+		VK_CHECK(vkGetSemaphoreCounterValue(m_device->device, trackingSemaphore, &m_lastFinishedID));
         return m_lastFinishedID;
     }
 
@@ -3392,80 +3432,75 @@ namespace cyb::rhi::vulkan
             .pValues = &commandListID
         };
 
-        VkResult result = vkWaitSemaphores(m_device, &waitInfo, timeout);
+        VkResult result = vkWaitSemaphores(m_device->device, &waitInfo, timeout);
 		return result == VK_SUCCESS;
 	}
 
     void GraphicsDevice_Vulkan::ExecuteCommandLists()
     {
-        const uint32_t cmdCount = m_cmdCount;
-        m_cmdCount = 0;
-
-        for (uint32_t i = 0; i < cmdCount; i++)
-        {
-            CommandList* commandlist = check_cast<CommandList*>(m_commandlists[i].Get());
-            VK_CHECK(vkEndCommandBuffer(commandlist->GetCommandBuffer()));
-
-            Queue* queue = GetQueue(commandlist->queue);
-
-            queue->submit_cmds.push_back({
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-                .commandBuffer = commandlist->GetCommandBuffer()
-            });
-
-            for (auto& _swapchain : commandlist->prevSwapchains)
-            {
-                Swapchain* swapchain = check_cast<Swapchain*>(_swapchain);
-
-                queue->AddWaitSemaphore(swapchain->acquireSemaphores[swapchain->acquireSemaphoreIndex], 0);
-                queue->AddSignalSemaphore(swapchain->presentSemaphores[swapchain->imageIndex], 0);
-            }
-
-            for (auto& x : commandlist->pipelinesWorker)
-            {
-                if (pipelinesGlobal.count(x.first) == 0)
-                {
-                    pipelinesGlobal[x.first] = x.second;
-                }
-                else
-                {
-                    m_allocationHandler->destroylocker.lock();
-                    m_allocationHandler->destroyer_pipelines.push_back(std::make_pair(x.second, frameCount));
-                    m_allocationHandler->destroylocker.unlock();
-                }
-            }
-            commandlist->pipelinesWorker.clear();
-        }
-
         for (uint32_t queueIndex = 0; queueIndex < uint32_t(CommandQueue::Count); queueIndex++)
         {
             auto* queue = GetQueue(CommandQueue(queueIndex));
+
+            for (auto& _commandlist : queue->GetCommandListsInUse())
+            {
+                CommandList* commandlist = check_cast<CommandList*>(_commandlist.Get());
+                VK_CHECK(vkEndCommandBuffer(commandlist->GetCommandBuffer()));
+
+                queue->submit_cmds.push_back({
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                    .commandBuffer = commandlist->GetCommandBuffer()
+                });
+
+                for (auto& _swapchain : commandlist->prevSwapchains)
+                {
+                    Swapchain* swapchain = check_cast<Swapchain*>(_swapchain);
+
+                    queue->AddWaitSemaphore(swapchain->acquireSemaphores[swapchain->acquireSemaphoreIndex], 0);
+                    queue->AddSignalSemaphore(swapchain->presentSemaphores[swapchain->imageIndex], 0);
+                }
+
+                for (auto& x : commandlist->pipelinesWorker)
+                {
+                    if (pipelinesGlobal.count(x.first) == 0)
+                    {
+                        pipelinesGlobal[x.first] = x.second;
+                    }
+                    else
+                    {
+                        m_allocationHandler->destroylocker.lock();
+                        m_allocationHandler->destroyer_pipelines.push_back(std::make_pair(x.second, frameCount));
+                        m_allocationHandler->destroylocker.unlock();
+                    }
+                }
+                commandlist->pipelinesWorker.clear();
+            }
+
             uint64_t submittedID = queue->Submit();
 
-            for (uint32_t j = 0; j < cmdCount; j++)
+            for (auto& _commandlist : queue->GetCommandListsInUse())
             {
-                CommandList* commandlist = check_cast<CommandList*>(m_commandlists[j].Get());
-                if (commandlist->queue != CommandQueue(queueIndex))
-                    continue; // slip if commandlist isn't in this queue
+                CommandList* commandlist = check_cast<CommandList*>(_commandlist.Get());
 
                 uint64_t recordingID = commandlist->recordingID;
 
-                commandlist->allocator->SubmitChunks(
+                uploadManager->SubmitChunks(
                     MakeVersion(recordingID, CommandQueue(queueIndex), false),
                     MakeVersion(submittedID, CommandQueue(queueIndex), true));
             }
+
+            queue->ReturnUsedCommandListsToPool();
         }
-
-        frameCount++;
-
-        // run garbage collection
-        m_allocationHandler->Update(frameCount, BUFFERCOUNT);
     }
 
     void GraphicsDevice_Vulkan::Present(ISwapchain* _swapchain)
     {
         Swapchain* swapchain = check_cast<Swapchain*>(_swapchain);
         swapchain->Present();
+
+        frameCount++;
+        m_allocationHandler->Update(frameCount, BUFFERCOUNT);
+
         swapchain->WaitForAcquireFence();
     }
 
@@ -3485,7 +3520,6 @@ namespace cyb::rhi::vulkan
                 m_allocationHandler->destroyer_pipelineLayouts.push_back(std::make_pair(it.second.pipeline_layout, frameCount));
             if (it.second.descriptorset_layout)
                 m_allocationHandler->destroyer_descriptorSetLayouts.push_back(std::make_pair(it.second.descriptorset_layout, frameCount));
-
         }
         m_psoLayoutCache.clear();
         m_psoLayoutCacheMutex.unlock();
@@ -3496,13 +3530,13 @@ namespace cyb::rhi::vulkan
         }
         pipelinesGlobal.clear();
 
-        for (auto& x : m_commandlists)
-        {
-            CommandList* commandList = check_cast<CommandList*>(x.Get());
-            for (auto& y : commandList->pipelinesWorker)
-                m_allocationHandler->destroyer_pipelines.push_back(std::make_pair(y.second, frameCount));
-            commandList->pipelinesWorker.clear();
-        }
+        //for (auto& x : m_commandlists)
+        //{
+        //    CommandList* commandList = check_cast<CommandList*>(x.Get());
+        //    for (auto& y : commandList->pipelinesWorker)
+        //        m_allocationHandler->destroyer_pipelines.push_back(std::make_pair(y.second, frameCount));
+        //    commandList->pipelinesWorker.clear();
+        //}
         m_allocationHandler->destroylocker.unlock();
 
         // Destroy vulkan pipeline cache

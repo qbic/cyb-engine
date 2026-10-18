@@ -3,6 +3,7 @@
 #include <deque>
 #include <mutex>
 #include <unordered_map>
+#include <span>
 #include "core/spinlock.h"
 #include "graphics/device.h"
 #define VK_NO_PROTOTYPES
@@ -71,7 +72,7 @@ namespace cyb::rhi::vulkan
 
         ScratchBufferAllocation AllocateOnCurrentChunk(uint64_t size, uint64_t currentVersion);
 
-        const GraphicsDevice_Vulkan* m_device = nullptr;
+        const GraphicsDevice_Vulkan* m_device;
         uint64_t m_alignment = 0;
         uint64_t m_defaultChunkSize = 0;
         uint64_t m_allocatedMemory = 0;
@@ -81,8 +82,8 @@ namespace cyb::rhi::vulkan
 
     struct CommandList : public RefCounter<ICommandList>
     {
-        std::vector<std::array<VkCommandPool, uint32_t(CommandQueue::Count)>> commandpools{};
-        std::vector<std::array<VkCommandBuffer, uint32_t(CommandQueue::Count)>> commandbuffers{};
+        std::vector<VkCommandPool> commandpools{};
+        std::vector<VkCommandBuffer> commandbuffers{};
         uint32_t buffer_index = 0;
 
         CommandQueue queue = CommandQueue::Count;
@@ -101,27 +102,20 @@ namespace cyb::rhi::vulkan
         std::vector<VkImageMemoryBarrier2> renderpassBarriersEnd;
 
         uint64_t recordingID = 0;
-        std::unique_ptr<UploadAllocator> allocator;
 
-        explicit CommandList(const GraphicsDevice_Vulkan* device, uint32_t bufferCount) :
-            m_device(device),
-            commandpools(bufferCount),
-            commandbuffers(bufferCount),
-            binder_pools(bufferCount),
-            allocator(std::make_unique<UploadAllocator>(device, 64 * 1024))
+        explicit CommandList(GraphicsDevice_Vulkan* device, uint32_t bufferCount);
+        virtual ~CommandList();
+
+        ScratchBufferAllocation AllocateScratchBuffer(uint64_t size) override;
+
+        inline VkCommandPool GetCommandPool() const
         {
+            return commandpools[buffer_index];
         }
-
-        ScratchBufferAllocation AllocateScratchBuffer(uint64_t size) override
+        
+        inline VkCommandBuffer GetCommandBuffer() const
         {
-            return allocator->Allocate(size, MakeVersion(recordingID, queue, false));
-        }
-
-        inline VkCommandPool GetCommandPool() const {
-            return commandpools[buffer_index][uint32_t(queue)];
-        }
-        inline VkCommandBuffer GetCommandBuffer() const {
-            return commandbuffers[buffer_index][uint32_t(queue)];
+            return commandbuffers[buffer_index];
         }
 
         void Reset(uint32_t newBufferIndex) {
@@ -162,18 +156,21 @@ namespace cyb::rhi::vulkan
         void ValidatePSO();
         void PreDraw();
 
-        const GraphicsDevice_Vulkan* m_device = nullptr;
+        GraphicsDevice_Vulkan* m_device = nullptr;
     };
 
     class Queue
     {
     public:
         VkSemaphore trackingSemaphore = VK_NULL_HANDLE;
-        uint64_t lastRecordingID = 0;
         std::vector<VkCommandBufferSubmitInfo> submit_cmds;
 
-        Queue(VkDevice device, CommandQueue queueID, VkQueue queue, uint32_t queueFamilyIndex);
+        Queue(GraphicsDevice_Vulkan* device, CommandQueue queueID, VkQueue queue, uint32_t queueFamilyIndex);
         ~Queue();
+
+        CommandList* GetOrCreateCommandList(uint32_t bufferCount);
+        const std::list<CommandListHandle>& GetCommandListsInUse() const { return m_commandListsInUse; }
+        void ReturnUsedCommandListsToPool();
 
         void AddWaitSemaphore(VkSemaphore semaphore, uint64_t value);
         void AddSignalSemaphore(VkSemaphore semaphore, uint64_t value);
@@ -189,7 +186,7 @@ namespace cyb::rhi::vulkan
         VkQueue GetVkQueue() const { return m_queue; }
 
     private:
-        VkDevice m_device;
+        GraphicsDevice_Vulkan* m_device;
         VkQueue m_queue;
         CommandQueue m_queueID;
         uint32_t m_queueFamilyIndex;
@@ -200,6 +197,10 @@ namespace cyb::rhi::vulkan
         
         uint64_t m_lastSubmittedID = 0;
         uint64_t m_lastFinishedID = 0;
+        uint64_t m_lastRecordingID = 0;
+
+        std::list<CommandListHandle> m_commandListPool;
+        std::list<CommandListHandle> m_commandListsInUse;
     };
 
     class GraphicsDevice_Vulkan final : public GraphicsDevice
@@ -226,7 +227,6 @@ namespace cyb::rhi::vulkan
         uint32_t m_graphicsQueueFamily = VK_QUEUE_FAMILY_IGNORED;
         uint32_t m_computeQueueFamily = VK_QUEUE_FAMILY_IGNORED;
         uint32_t m_transferQueueFamily = VK_QUEUE_FAMILY_IGNORED;
-		uint32_t m_presentFamily = VK_QUEUE_FAMILY_IGNORED;
 
         VkPhysicalDeviceProperties properties;
         VkPhysicalDeviceMemoryProperties memoryProperties;
@@ -237,6 +237,8 @@ namespace cyb::rhi::vulkan
         VkPipelineDynamicStateCreateInfo dynamic_state_info{};
         VkBuffer nullBuffer = VK_NULL_HANDLE;
         VmaAllocation nullBufferAllocation = VK_NULL_HANDLE;
+
+        std::unique_ptr<UploadAllocator> uploadManager;
 
         struct CopyAllocator
         {
@@ -262,10 +264,6 @@ namespace cyb::rhi::vulkan
             void Submit(CopyCMD cmd);
         };
         mutable CopyAllocator m_copyAllocator;
-
-        std::vector<CommandListHandle> m_commandlists;
-        uint32_t m_cmdCount = 0;
-        SpinLock m_cmdLocker;
 
         struct PSOLayout
         {
@@ -297,6 +295,7 @@ namespace cyb::rhi::vulkan
         PipelineStateHandle CreatePipelineState(const PipelineStateDesc* desc) const override;
         void CreateSubresource(ITexture* texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const;
 
+        uint32_t GetQueueFamily(CommandQueue queueID);
         ICommandList* BeginCommandList(CommandQueue queue) override;
         void ExecuteCommandLists() override;
         void Present(ISwapchain* swapchain) override;

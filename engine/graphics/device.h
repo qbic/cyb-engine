@@ -1,11 +1,13 @@
 #pragma once
 #include "core/enum_flags.h"
+#include "core/hash.h"
 #include "core/mathlib.h"
 #include "core/ref_count.h"
 #include "core/sys.h"
 #include "core/logger.h"
 #include "graphics/display.h"
 #include <array>
+#include <functional>
 
 template <typename To, typename From>
     requires std::is_pointer_v<To>
@@ -65,12 +67,12 @@ namespace cyb::rhi
 
     enum class ComponentSwizzle : uint8_t
     {
-        Zero,
-        One,
         R,
         G,
         B,
-        A
+        A,
+        Zero,
+        One
     };
 
     enum class Format : uint8_t
@@ -211,6 +213,15 @@ namespace cyb::rhi
         Count
     };
 
+    enum class TextureUsage : uint8_t
+    {
+        None                = 0,
+        ShaderResourceBit   = BIT(0),
+        UnorderedAccessBit  = BIT(1),
+        RenderTargetBit     = BIT(2)
+    };
+    CYB_ENABLE_BITMASK_OPERATORS(TextureUsage);
+
     enum class ResourceStates : uint32_t
     {
         // Common resource states
@@ -306,7 +317,7 @@ namespace cyb::rhi
         float maxLOD = FLT_MAX;
     };
 
-    struct Swizzle
+    struct ComponentMapping
     {
         ComponentSwizzle r = ComponentSwizzle::R;
         ComponentSwizzle g = ComponentSwizzle::G;
@@ -337,14 +348,16 @@ namespace cyb::rhi
     struct TextureDesc
     {
         TextureType type = TextureType::Texture2D;
+        TextureUsage usage = TextureUsage::None;
         uint32_t width = 1;
         uint32_t height = 1;
+        uint32_t depth = 1;
         uint32_t arraySize = 1;
         Format format = Format::Unknown;
-        Swizzle swizzle;
+        ComponentMapping swizzle;
         uint32_t mipLevels = 1;
         ClearValue clear;
-        ResourceStates initialState = ResourceStates::ShaderResourceBit;
+        ResourceStates initialState = ResourceStates::Unknown;
         std::string debugName{};
     };
 
@@ -526,7 +539,7 @@ namespace cyb::rhi
             const ITexture* resource,
             LoadOp loadOp = LoadOp::Load,
             StoreOp storeOp = StoreOp::Store,
-            ResourceStates prePassLayout = ResourceStates::Unknown,
+            ResourceStates prePassLayout = ResourceStates::ShaderResourceBit,
             ResourceStates postPassLayout = ResourceStates::ShaderResourceBit)
         {
             RenderPassImage image;
@@ -565,39 +578,6 @@ namespace cyb::rhi
         std::array<Format, 8> rtFormats{};  // render target formats
         uint32_t rtCount = 0;               // number of render targets
         Format dsFormat = Format::Unknown;  // depth stencil format
-
-        constexpr uint64_t GetHash() const
-        {
-            union Hasher
-            {
-                struct
-                {
-                    uint64_t rtFormat_0 : 6;
-                    uint64_t rtFormat_1 : 6;
-                    uint64_t rtFormat_2 : 6;
-                    uint64_t rtFormat_3 : 6;
-                    uint64_t rtFormat_4 : 6;
-                    uint64_t rtFormat_5 : 6;
-                    uint64_t rtFormat_6 : 6;
-                    uint64_t rtFormat_7 : 6;
-                    uint64_t dsFormat : 6;
-                } bits;
-                uint64_t value;
-            };
-
-            Hasher hasher{};
-            static_assert(sizeof(Hasher) == sizeof(uint64_t));
-            hasher.bits.rtFormat_0 = (uint64_t)rtFormats[0];
-            hasher.bits.rtFormat_1 = (uint64_t)rtFormats[1];
-            hasher.bits.rtFormat_2 = (uint64_t)rtFormats[2];
-            hasher.bits.rtFormat_3 = (uint64_t)rtFormats[3];
-            hasher.bits.rtFormat_4 = (uint64_t)rtFormats[4];
-            hasher.bits.rtFormat_5 = (uint64_t)rtFormats[5];
-            hasher.bits.rtFormat_6 = (uint64_t)rtFormats[6];
-            hasher.bits.rtFormat_7 = (uint64_t)rtFormats[7];
-            hasher.bits.dsFormat = (uint64_t)dsFormat;
-            return hasher.value;
-        }
 
         static RenderPassInfo GetFrom(const RenderPassImage* images, uint32_t imageCount)
         {
@@ -732,7 +712,7 @@ namespace cyb::rhi
     {
     protected:
         static constexpr uint32_t BUFFERCOUNT = 3;
-        static constexpr bool VALIDATION_MODE_ENABLED = true;
+        static constexpr bool VALIDATION_MODE_ENABLED = false;
         uint64_t frameCount = 0;
         uint64_t gpuTimestampFrequency = 0;
 
@@ -791,7 +771,7 @@ namespace cyb::rhi
         virtual void ResolveQuery(const IQuery* query, uint32_t index, uint32_t count, IBuffer* dest, uint64_t destOffset, ICommandList* cmd) = 0;
         virtual void ResetQuery(IQuery* query, uint32_t index, uint32_t count, ICommandList* cmd) = 0;
 
-        virtual void SetEventQuery(IEventQuery* query, CommandQueue queue) = 0;
+        virtual void SetEventQuery(IEventQuery* query, CommandQueue queue) const = 0;
 		virtual bool PollEventQuery(IEventQuery* query) = 0;
 		virtual void WaitEventQuery(IEventQuery* query) = 0;
 		virtual void ResetEventQuery(IEventQuery* query) = 0;
@@ -835,3 +815,18 @@ namespace cyb::rhi
         return device;
     }
 } // namespace cyb::rhi
+
+namespace std
+{
+    template <> struct hash<cyb::rhi::RenderPassInfo>
+    {
+        std::size_t operator()(cyb::rhi::RenderPassInfo const& s) const noexcept
+        {
+            size_t hash = 0;
+            for (const auto& format : s.rtFormats)
+                cyb::CombineHash(hash, format);
+            cyb::CombineHash(hash, s.dsFormat);
+            return hash;
+        }
+    };
+}

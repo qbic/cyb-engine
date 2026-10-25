@@ -24,7 +24,7 @@ namespace cyb::profiler
         size_t differentiator = 0;
         std::scoped_lock lck{ lock };
         while (context.entries[id].inUse)
-            HashCombine(id, differentiator++);
+            CombineHash(id, differentiator++);
 
         return id;
     }

@@ -1591,8 +1591,8 @@ void NG_Canvas::SerializeToJson(json_type& json) const
     {
         json_type json_node{};
         size_t node_hash = Factory->GetHash();
-        HashCombine(node_hash, node->GetLabel());
-        HashCombine(node_hash, i++);
+        CombineHash(node_hash, node->GetLabel());
+        CombineHash(node_hash, i++);
         json_node["type"] = node->GetLabel();
         json_node["pos_x"] = node->Pos.x;
         json_node["pos_y"] = node->Pos.y;
@@ -1602,7 +1602,7 @@ void NG_Canvas::SerializeToJson(json_type& json) const
         for (auto& pin : node->Outputs)
         {
             size_t pin_hash{ node_hash };
-            HashCombine(pin_hash, pin->Label);
+            CombineHash(pin_hash, pin->Label);
             assert(pin_lookup.find(uintptr_t(pin.get())) == pin_lookup.end() && "Non unique pin");
             pin_lookup[uintptr_t(pin.get())] = pin_hash;
             json_node["output_pins"].push_back(pin_hash);
@@ -1612,7 +1612,7 @@ void NG_Canvas::SerializeToJson(json_type& json) const
         for (auto& pin : node->Inputs)
         {
             size_t pin_hash{ node_hash };
-            HashCombine(pin_hash, pin->Label);
+            CombineHash(pin_hash, pin->Label);
             assert(pin_lookup.find(uintptr_t(pin.get())) == pin_lookup.end() && "Non unique pin");
             pin_lookup[uintptr_t(pin.get())] = pin_hash;
             json_node["input_pins"].push_back(pin_hash);

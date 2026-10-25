@@ -19,34 +19,37 @@ namespace cyb::hli
 
         // Render targets:
         {
-            TextureDesc desc{};
-            desc.width = internalResolution.x;
-            desc.height = internalResolution.y;
-            desc.format = Format::RGBA8_UNORM;
-            desc.initialState = ResourceStates::ShaderResourceBit | ResourceStates::RenderTargetBit;
-			desc.debugName = "rtMain";
+            TextureDesc desc{
+                .usage = TextureUsage::RenderTargetBit | TextureUsage::ShaderResourceBit,
+                .width = internalResolution.x,
+                .height = internalResolution.y,
+                .format = Format::RGBA8_UNORM,
+                .debugName = "rtMain"
+            };
             rtMain = device->CreateTexture(&desc, nullptr);
         }
 
         // Depth stencil buffer:
         {
-            TextureDesc desc{};
-            desc.width = internalResolution.x;
-            desc.height = internalResolution.y;
-            desc.format = Format::D24S8;
-            desc.initialState = ResourceStates::DepthWriteBit;
-            desc.debugName = "rtMainDepth";
+            TextureDesc desc{
+                .usage = TextureUsage::RenderTargetBit,
+                .width = internalResolution.x,
+                .height = internalResolution.y,
+                .format = Format::D24S8,
+                .debugName = "rtMainDepth",
+            };
             rtMainDepth = device->CreateTexture(&desc, nullptr);
         }
 
         // Selection outline
         {
-            TextureDesc desc{};
-            desc.width = internalResolution.x;
-            desc.height = internalResolution.y;
-            desc.format = Format::R8_UNORM;
-            desc.initialState = ResourceStates::ShaderResourceBit | ResourceStates::RenderTargetBit;
-            desc.debugName = "rtSelectionOutline";
+            TextureDesc desc{
+                .usage = TextureUsage::RenderTargetBit | TextureUsage::ShaderResourceBit,
+                .width = internalResolution.x,
+                .height = internalResolution.y,
+                .format = Format::R8_UNORM,
+                .debugName = "rtSelectionOutline"
+            };
             rtSelectionOutline = device->CreateTexture(&desc, nullptr);
         }
 
@@ -144,7 +147,7 @@ namespace cyb::hli
                     rtMain,
                     RenderPassImage::LoadOp::Load)
             });
-
+            
             cmd->BeginRenderPass(rpOutline.data(), rpOutline.size());
             XMFLOAT4 outlineColor = XMFLOAT4(1.0f, 0.62f, 0.17f, 1.0f);
             renderer::Postprocess_Outline(rtSelectionOutline, cmd, r_selectionOutlineThickness.GetValue(), 0.05f, outlineColor);
@@ -162,10 +165,8 @@ namespace cyb::hli
         GraphicsDevice* device = rhi::GetDevice();
         const rhi::ISampler* pointSampler = GetSamplerState(renderer::SSLOT_POINT_CLAMP);
 
-        cmd->BeginMarker("Composition");
         cmd->BindSampler(pointSampler, 0);
         renderer::DrawImage(rtMain, params, cmd);
-        cmd->EndMarker();
 
         RenderPath2D::Compose(cmd);
     }

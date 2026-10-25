@@ -18,18 +18,23 @@ namespace cyb::input::rawinput
 {
     LRESULT CALLBACK InputWindowProc(HWND, UINT, WPARAM, LPARAM);
 
+    [[nodiscard]] RAWINPUTDEVICE PickInputDevice(NativeWindowHandle window, USHORT usage) noexcept
+    {
+        return RAWINPUTDEVICE{
+            .usUsagePage = HID_USAGE_PAGE_GENERIC,
+            .usUsage = usage,
+            .dwFlags = RIDEV_INPUTSINK,
+            .hwndTarget = window
+        };
+    }
+
     void Init(NativeWindowHandle window) noexcept
     {
         // register mouse (0) and keyboard (1)
-        std::array<RAWINPUTDEVICE, 2> rid{};
-        rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
-        rid[0].usUsage = HID_USAGE_GENERIC_MOUSE;
-        rid[0].dwFlags = RIDEV_INPUTSINK;
-        rid[0].hwndTarget = window;
-        rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
-        rid[1].usUsage = HID_USAGE_GENERIC_KEYBOARD;
-        rid[1].dwFlags = RIDEV_INPUTSINK;
-        rid[1].hwndTarget = window;
+        std::array rid = std::to_array<RAWINPUTDEVICE>({
+            PickInputDevice(window, HID_USAGE_GENERIC_MOUSE),
+            PickInputDevice(window, HID_USAGE_GENERIC_KEYBOARD)
+        });
 
         if (RegisterRawInputDevices(rid.data(), (UINT)rid.size(), sizeof(rid[0])) == FALSE)
             Panicf("RegisterRawInputDevices failed: {}", GetLastError());
@@ -167,19 +172,19 @@ namespace cyb::input::rawinput
             UINT dwSize = 0;
             GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
             
-            std::byte* lpb = (std::byte*)_malloca(dwSize);
-            if (lpb == nullptr)
+            std::byte* lpData = (std::byte*)_malloca(dwSize);
+            if (lpData == nullptr)
             {
-                CYB_WARNING("InputWindowProc: Failed to allocate {} bytes on the stack! Dropping input event.", dwSize);
+                CYB_WARNING("InputWindowProc: Failed to allocate {} bytes! Dropping input event.", dwSize);
                 return 0;
             }
 
-            const UINT result = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
-            assert(result == dwSize);
+            [[maybe_unused]] UINT dwBytesCopied = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpData, &dwSize, sizeof(RAWINPUTHEADER));
+            assert(dwBytesCopied == dwSize);
                 
-            const RAWINPUT* raw = (const RAWINPUT*)lpb;
-            ParseRawInputBlock(g_keyboard, g_mouse, *raw);
-            _freea(lpb);
+            const RAWINPUT* lpRawInput = (const RAWINPUT*)lpData;
+            ParseRawInputBlock(g_keyboard, g_mouse, *lpRawInput);
+            _freea(lpData);
         } break;
         }
         

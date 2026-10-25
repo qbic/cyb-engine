@@ -29,23 +29,25 @@ namespace cyb::hli
 
     void Application::Init()
     {
-        Timer timer{};
 #ifdef CYB_DEBUG_BUILD
         CYB_INFO("Running debug build, performance will be slow!");
 #endif
         CYB_INFO_HR();
         CYB_INFO("Initializing cyb-engine v{} (asynchronous), please wait...", CYB_VERSION_STRING);
+        Timer timer{};
 
         RegisterStaticCVars();
         jobsystem::Initialize();
         CYB_INFO("JobSystem Initialized with [{} worker threads]", jobsystem::WorkerCount());
 
-        // Initialize the client window, graphics m_device, and swapchain
+        // Initialize the client window & graphics device
         m_window = ClientWindow::Create({ });
+        double preInitGraphicsTime = timer.ElapsedMilliseconds();
         InitGraphicsDevice();
-        RebuildSwapchain();
+        CYB_INFO("Graphics device initialized in {:.2f}ms", timer.ElapsedMilliseconds() - preInitGraphicsTime);
 
         jobsystem::JobCounter ctx{};
+        jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) { RebuildSwapchain(); });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { resourcemanager::Initialize(); });
         jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) { input::Initialize(m_window.GetNativeHandle()); });
         jobsystem::Execute(ctx, [] (jobsystem::JobArgs) { renderer::Initialize(); });
@@ -53,7 +55,6 @@ namespace cyb::hli
         jobsystem::Execute(ctx, [&] (jobsystem::JobArgs) {
             RenderPath* renderPath = GetRenderPath();
             renderPath->Load();
-
             ActivePath(renderPath);
         });
 
@@ -104,11 +105,13 @@ namespace cyb::hli
             ICommandList* cmd = m_graphicsDevice->BeginCommandList();
             Viewport viewport{ .width = (float)m_swapchain->GetDesc().width,
                                .height = (float)m_swapchain->GetDesc().height };
-
+            
+            cmd->BeginMarker("Composition");
             cmd->BeginRenderPass(m_swapchain);
             cmd->BindViewports(&viewport, 1);
             Compose(cmd);
             cmd->EndRenderPass();
+            cmd->EndMarker();
 
             profiler::EndFrame(cmd);
             m_graphicsDevice->ExecuteCommandLists();

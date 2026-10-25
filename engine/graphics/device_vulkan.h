@@ -3,8 +3,6 @@
 #include <deque>
 #include <mutex>
 #include <unordered_map>
-#include <span>
-#include "core/spinlock.h"
 #include "graphics/device.h"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
@@ -97,9 +95,6 @@ namespace cyb::rhi::vulkan
 
         const IPipelineState* activePso = nullptr;
         bool dirtyPso = false;
-        RenderPassInfo renderpassInfo{};
-        std::vector<VkImageMemoryBarrier2> renderpassBarriersBegin;
-        std::vector<VkImageMemoryBarrier2> renderpassBarriersEnd;
 
         uint64_t recordingID = 0;
 
@@ -118,7 +113,8 @@ namespace cyb::rhi::vulkan
             return commandbuffers[buffer_index];
         }
 
-        void Reset(uint32_t newBufferIndex) {
+        void Reset(uint32_t newBufferIndex)
+        {
             buffer_index = newBufferIndex;
             binder.Reset();
             binder_pools[buffer_index].Reset();
@@ -157,6 +153,9 @@ namespace cyb::rhi::vulkan
         void PreDraw();
 
         GraphicsDevice_Vulkan* m_device = nullptr;
+        RenderPassInfo m_renderpassInfo{};
+        std::vector<VkImageMemoryBarrier2> m_renderpassBarriersBegin;
+        std::vector<VkImageMemoryBarrier2> m_renderpassBarriersEnd;
     };
 
     class Queue
@@ -165,7 +164,7 @@ namespace cyb::rhi::vulkan
         VkSemaphore trackingSemaphore = VK_NULL_HANDLE;
         std::vector<VkCommandBufferSubmitInfo> submit_cmds;
 
-        Queue(GraphicsDevice_Vulkan* device, CommandQueue queueID, VkQueue queue, uint32_t queueFamilyIndex);
+        Queue(GraphicsDevice_Vulkan* device, CommandQueue queueID, uint32_t queueFamilyIndex);
         ~Queue();
 
         CommandList* GetOrCreateCommandList(uint32_t bufferCount);
@@ -276,8 +275,7 @@ namespace cyb::rhi::vulkan
         VkPipelineCache pipelineCache = VK_NULL_HANDLE;
         std::unordered_map<size_t, VkPipeline> pipelinesGlobal;
 
-        void SetFenceName(VkFence fence, const char* name);
-        void SetSemaphoreName(VkSemaphore semaphore, const char* name);
+        void SetObjectName(const void* handle, VkObjectType type, const char* name) const;
 
     public:
         GraphicsDevice_Vulkan();
@@ -293,7 +291,6 @@ namespace cyb::rhi::vulkan
         ShaderHandle CreateShader(const ShaderDesc* desc) const override;
         SamplerHandle CreateSampler(const SamplerDesc* desc) const override;
         PipelineStateHandle CreatePipelineState(const PipelineStateDesc* desc) const override;
-        void CreateSubresource(ITexture* texture, SubresourceType type, uint32_t firstSlice, uint32_t sliceCount, uint32_t firstMip, uint32_t mipCount) const;
 
         uint32_t GetQueueFamily(CommandQueue queueID);
         ICommandList* BeginCommandList(CommandQueue queue) override;
@@ -304,6 +301,7 @@ namespace cyb::rhi::vulkan
         void ClearPipelineStateCache() override;
         MemoryUsage GetMemoryUsage() const override;
 
+
         /////////////// Thread-sensitive ////////////////////////
 
         void BeginQuery(IQuery* query, uint32_t index, ICommandList* cmd) override;
@@ -311,7 +309,7 @@ namespace cyb::rhi::vulkan
         void ResolveQuery(const IQuery* query, uint32_t index, uint32_t count, IBuffer* dest, uint64_t destOffset, ICommandList* cmd) override;
         void ResetQuery(IQuery* query, uint32_t index, uint32_t count, ICommandList* cmd) override;
         
-        void SetEventQuery(IEventQuery* query, CommandQueue queue) override;
+        void SetEventQuery(IEventQuery* query, CommandQueue queue) const override;
         bool PollEventQuery(IEventQuery* query) override;
         void WaitEventQuery(IEventQuery* query) override;
         void ResetEventQuery(IEventQuery* query) override;

@@ -71,6 +71,7 @@ void ImGui_Impl_CybEngine_CreateDeviceObject()
 
 	// upload texture atlas to gpu
     TextureDesc textureDesc{
+        .usage = TextureUsage::ShaderResourceBit,
         .width  = uint32_t(width),
         .height = uint32_t(height),
         .format = Format::RGBA8_UNORM
@@ -282,9 +283,8 @@ void ImGui_Impl_CybEngine_Compose(ICommandList* cmd)
 
     const IBuffer* vbs[] = { bd->vertexBuffer };
     const uint32_t strides[] = { sizeof(ImDrawVert) };
-    const uint64_t offsets[] = { 0 };
 
-    cmd->BindVertexBuffers(vbs, 0, 1, strides, offsets);
+    cmd->BindVertexBuffers(vbs, 0, 1, strides, nullptr);
     cmd->BindIndexBuffer(bd->indexBuffer, bd->indexFormat, 0);
 
     Viewport viewport{

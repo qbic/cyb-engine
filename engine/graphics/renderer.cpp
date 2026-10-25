@@ -411,8 +411,6 @@ namespace cyb::renderer
             desc.pt = PrimitiveTopology::LineList;
             pso_debug[DEBUGRENDERING_CUBE] = device->CreatePipelineState(&desc);
         }
-
-        jobsystem::Wait(jobCount);
     }
 
     void ReloadShaders()

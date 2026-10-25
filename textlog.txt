@@ -1,55 +1,58 @@
-2026-10-12 07:31:45 [TRACE] DirectoryWatcher adding relative path "assets/"
-2026-10-12 07:31:45 [WARNING] DirectoryWatcher: Failed to open directory (code 2): ../assets/ 
-2026-10-12 07:31:45 [INFO] =======================================================================
-2026-10-12 07:31:45 [INFO] Initializing cyb-engine v0.1 (build 2026.08./) (asynchronous), please wait...
-2026-10-12 07:31:45 [TRACE] Registered CVar 'logHistorySize' [Type: unsigned int] with value '40'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'logSeverityThreshold' [Type: unsigned int] with value '0'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'cl_archiveCompressionLevel' [Type: unsigned int] with value '9'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'cl_assetReloadOnChange' [Type: bool] with value 'true'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'cl_assetChangeStableDelay' [Type: unsigned int] with value '200'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'r_sceneSubtaskGroupsize' [Type: unsigned int] with value '64'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'e_autoremoveLinkedEntities' [Type: bool] with value 'true'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'e_recursiveDelete' [Type: bool] with value 'true'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'r_renderScale' [Type: float] with value '0.50'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'r_selectionOutlineThickness' [Type: float] with value '1.50'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'r_vsync' [Type: bool] with value 'true'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'r_maxBackgroundFps' [Type: unsigned int] with value '30'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'r_debugObjectAABB' [Type: bool] with value 'false'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'r_debugLightSources' [Type: bool] with value 'false'
-2026-10-12 07:31:45 [TRACE] Registered CVar 'r_gamma' [Type: float] with value '2.20'
-2026-10-12 07:31:45 [INFO] JobSystem Initialized with [15 worker threads]
-2026-10-12 07:31:45 [INFO] Initialized Vulkan 1.4
-2026-10-12 07:31:45 [INFO]   Device: NVIDIA GeForce RTX 3060 Laptop GPU
-2026-10-12 07:31:45 [INFO]   Driver: NVIDIA 610.88
-2026-10-12 07:31:45 [TRACE] VulkanDeviceExtension: ["VK_KHR_swapchain", "VK_KHR_dynamic_rendering", "VK_KHR_synchronization2", "VK_EXT_depth_clip_enable", "VK_EXT_conditional_rendering", "VK_EXT_conservative_rasterization", "VK_KHR_fragment_shading_rate"]
-2026-10-12 07:31:45 [TRACE] VulkanInstanceExtensions: ["VK_KHR_surface", "VK_KHR_win32_surface", "VK_KHR_get_physical_device_properties2", "VK_EXT_swapchain_colorspace", "VK_EXT_debug_utils", "VK_EXT_debug_report"]
-2026-10-12 07:31:45 [TRACE] VulkanInstanceLayers: []
-2026-10-12 07:31:46 [INFO] Input system initialized in 0.11ms
-2026-10-12 07:31:46 [TRACE] Loaded Image asset name=textures/light_directional.png hash=0x2f2987af7f2ff9d8 in 7.26ms
-2026-10-12 07:31:46 [TRACE] Loaded Image asset name=textures/light_point.png hash=0xa0abfecb83afca46 in 7.77ms
-2026-10-12 07:31:46 [INFO] Imported scene from file assets/scenes/terrain_01.csd in 22.35ms
-2026-10-12 07:31:46 [TRACE] Available video modes for display m_device \\.\DISPLAY1: NVIDIA GeForce RTX 3060 Laptop GPU
-2026-10-12 07:31:46 [TRACE]   2560x1600 @ 165Hz
-2026-10-12 07:31:46 [TRACE]   1920x1200 @ 165Hz
-2026-10-12 07:31:46 [TRACE]   1680x1050 @ 165Hz
-2026-10-12 07:31:46 [TRACE]   1280x800 @ 165Hz
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/debug_line.frag) in 94.13ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/debug_line.vert) in 94.59ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/imgui.vert) in 94.80ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/postprocess.vert) in 95.11ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/sky.vert) in 96.49ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader.vert) in 97.63ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/outline.frag) in 98.07ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/imgui.frag) in 3.01ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader_unlit.geom) in 100.49ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader.frag) in 101.16ms
-2026-10-12 07:31:46 [INFO] Initialized ImGui v1.90.0
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/sky.frag) in 104.41ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader_disney.geom) in 109.95ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader.geom) in 112.57ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/image.vert) in 93.03ms
-2026-10-12 07:31:46 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/image.frag) in 91.88ms
-2026-10-12 07:31:46 [INFO] Renderer initialized in 315.42ms
-2026-10-12 07:31:46 [INFO] cyb-engine initialized in 829.98ms 
-2026-10-12 07:31:46 [INFO] =======================================================================
-2026-10-12 07:31:46 [TRACE] Resizing buffers (width=960, height=540)
+2026-10-23 14:42:57 [TRACE] DirectoryWatcher adding relative path "assets/"
+2026-10-23 14:42:57 [WARNING] DirectoryWatcher: Failed to open directory (code 2): ../assets/ 
+2026-10-23 14:42:57 [INFO] =======================================================================
+2026-10-23 14:42:57 [INFO] Initializing cyb-engine v0.1 (build 2026.08./) (asynchronous), please wait...
+2026-10-23 14:42:57 [TRACE] Registered CVar 'logHistorySize' [Type: unsigned int] with value '40'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'logSeverityThreshold' [Type: unsigned int] with value '0'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'cl_archiveCompressionLevel' [Type: unsigned int] with value '9'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'cl_assetReloadOnChange' [Type: bool] with value 'true'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'cl_assetChangeStableDelay' [Type: unsigned int] with value '200'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'r_sceneSubtaskGroupsize' [Type: unsigned int] with value '64'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'e_autoremoveLinkedEntities' [Type: bool] with value 'true'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'e_recursiveDelete' [Type: bool] with value 'true'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'r_renderScale' [Type: float] with value '0.50'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'r_selectionOutlineThickness' [Type: float] with value '1.50'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'r_vsync' [Type: bool] with value 'true'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'r_maxBackgroundFps' [Type: unsigned int] with value '30'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'r_debugObjectAABB' [Type: bool] with value 'false'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'r_debugLightSources' [Type: bool] with value 'false'
+2026-10-23 14:42:57 [TRACE] Registered CVar 'r_gamma' [Type: float] with value '2.20'
+2026-10-23 14:42:57 [INFO] JobSystem Initialized with [15 worker threads]
+2026-10-23 14:42:57 [WARNING] Vulkan is running with validation layers enabled. This will heavily impact performace.
+2026-10-23 14:42:57 [INFO] Initialized Vulkan 1.4
+2026-10-23 14:42:57 [INFO]   Device: NVIDIA GeForce RTX 3060 Laptop GPU
+2026-10-23 14:42:57 [INFO]   Driver: NVIDIA 610.88
+2026-10-23 14:42:57 [TRACE] VulkanDeviceExtension: ["VK_KHR_swapchain", "VK_KHR_dynamic_rendering", "VK_KHR_synchronization2", "VK_EXT_depth_clip_enable", "VK_EXT_conditional_rendering", "VK_EXT_conservative_rasterization", "VK_KHR_fragment_shading_rate"]
+2026-10-23 14:42:57 [TRACE] VulkanInstanceExtensions: ["VK_KHR_surface", "VK_KHR_win32_surface", "VK_KHR_get_physical_device_properties2", "VK_EXT_swapchain_colorspace", "VK_EXT_debug_utils", "VK_EXT_debug_report"]
+2026-10-23 14:42:57 [TRACE] VulkanInstanceLayers: ["VK_LAYER_KHRONOS_validation"]
+2026-10-23 14:42:57 [INFO] Graphics device initialized in 353.70ms
+2026-10-23 14:42:57 [INFO] Input system initialized in 0.16ms
+2026-10-23 14:42:57 [TRACE] Loaded Image asset name=textures/light_directional.png hash=0x2f2987af7f2ff9d8 in 7.10ms
+2026-10-23 14:42:57 [TRACE] Loaded Image asset name=textures/light_point.png hash=0xa0abfecb83afca46 in 7.91ms
+2026-10-23 14:42:57 [INFO] Imported scene from file assets/scenes/terrain_01.csd in 51.43ms
+2026-10-23 14:42:57 [TRACE] Available video modes for display m_device \\.\DISPLAY1: NVIDIA GeForce RTX 3060 Laptop GPU
+2026-10-23 14:42:57 [TRACE]   2560x1600 @ 165Hz
+2026-10-23 14:42:57 [TRACE]   1920x1200 @ 165Hz
+2026-10-23 14:42:57 [TRACE]   1680x1050 @ 165Hz
+2026-10-23 14:42:57 [TRACE]   1280x800 @ 165Hz
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/imgui.vert) in 127.36ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/sky.vert) in 127.76ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/debug_line.vert) in 128.03ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/postprocess.vert) in 128.47ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader.vert) in 129.72ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/debug_line.frag) in 129.77ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/imgui.frag) in 3.13ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/outline.frag) in 131.94ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader_unlit.geom) in 135.02ms
+2026-10-23 14:42:57 [INFO] Initialized ImGui v1.90.0
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader.frag) in 136.71ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/sky.frag) in 138.98ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader_disney.geom) in 143.33ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/flat_shader.geom) in 147.42ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/image.vert) in 107.61ms
+2026-10-23 14:42:57 [TRACE] Compiled GLSL -> SPIR-V (filename=engine/shaders/image.frag) in 99.25ms
+2026-10-23 14:42:57 [INFO] Renderer initialized in 379.82ms
+2026-10-23 14:42:57 [INFO] cyb-engine initialized in 757.67ms 
+2026-10-23 14:42:57 [INFO] =======================================================================
+2026-10-23 14:42:57 [TRACE] Resizing buffers (width=960, height=540)
+2026-10-23 14:42:57 [TRACE] UploadAllocator: Created new 64kB chunk (total memory 64kB, 1 chunks)

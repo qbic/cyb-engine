@@ -168,10 +168,13 @@ namespace cyb::resourcemanager
             return false;
         }
 
-        rhi::TextureDesc desc{};
-        desc.width = width;
-        desc.height = height;
-        desc.format = rhi::Format::RGBA8_UNORM;
+        rhi::TextureDesc desc{
+            .usage = rhi::TextureUsage::ShaderResourceBit,
+            .width = uint32_t(width),
+            .height = uint32_t(height),
+            .format = rhi::Format::RGBA8_UNORM,
+            .debugName = resource->name
+        };
 
         rhi::SubresourceData data = rhi::SubresourceData::FromDesc(rawImage, desc);
         resource->texture = rhi::GetDevice()->CreateTexture(&desc, &data);

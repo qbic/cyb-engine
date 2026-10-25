@@ -10,8 +10,8 @@ namespace cyb
     // This registry is for pre RegisterStaticCVars() only.
     static std::vector<CVarBase*>& StaticRegistry()
     {
-        static std::vector<CVarBase*> registry;
-        return registry;
+        static std::vector<CVarBase*> s_registry;
+        return s_registry;
     }
 
     static bool& IsStaticCVarsRegistered()

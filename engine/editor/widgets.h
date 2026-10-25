@@ -500,7 +500,7 @@ namespace cyb::ui
         {
             auto lambda = [] () { return std::make_unique<T>(); };
             m_factoryLookup[type_string] = std::move(lambda);
-            HashCombine(m_hash, type_string);
+            CombineHash(m_hash, type_string);
         }
 
         /**

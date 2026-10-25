@@ -89,10 +89,12 @@ namespace cyb::renderer
         GraphicsDevice* device = rhi::GetDevice();
 
         {
-            TextureDesc desc;
-            desc.width = 4;
-            desc.height = 4;
-            desc.format = rhi::Format::RGBA8_UNORM;
+            TextureDesc desc{
+                .usage = TextureUsage::ShaderResourceBit,
+                .width = 4,
+                .height = 4,
+                .format = rhi::Format::RGBA8_UNORM
+            };
 
             uint32_t textureData[4 * 4]{};
             for (int i = 0; i < (4 * 4); ++i)

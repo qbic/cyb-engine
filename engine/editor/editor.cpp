@@ -1420,7 +1420,7 @@ namespace cyb::editor
         }
     }
 
-    // windowID is only used for recording undo commands
+    // @param windowID Used for recording undo commands
     static void DrawGizmo(const ImGuiID windowID)
     {
         static bool isUsingGizmo = false;
@@ -1431,6 +1431,12 @@ namespace cyb::editor
         const ecs::Entity entity = scenegraphView.GetSelectedEntity();
         scene::TransformComponent* transform = scene.transforms.GetComponent(entity);
         if (!transform)
+            return;
+
+        // clip space clipping so that gizmo doesen't shows up in mirrored position
+        const XMVECTOR origin = XMVectorSetW(transform->world.r[3], 1.0f);
+        const XMVECTOR clip = XMVector4Transform(origin, camera.VP);
+        if (XMVectorGetW(clip) <= 0.0f)
             return;
 
         XMFLOAT4X4 world{};

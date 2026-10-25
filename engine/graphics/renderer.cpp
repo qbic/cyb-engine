@@ -395,7 +395,7 @@ namespace cyb::renderer
             PipelineStateDesc desc{};
             desc.vs = GetShader(VSTYPE_SKY);
             desc.ps = GetShader(FSTYPE_SKY);
-            desc.rs = &rasterizers[RSTYPE_BACK];
+            desc.rs = &rasterizers[RSTYPE_FRONT];
             desc.dss = &depth_stencils[DSSTYPE_SKY];
             desc.pt = PrimitiveTopology::TriangleStrip;
             psoSky = device->CreatePipelineState(&desc);

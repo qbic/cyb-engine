@@ -323,14 +323,17 @@ namespace cyb::editor
         noise2::RenderNoiseImageRows(image, imageDesc, 0, imageDesc.size.height);
 #endif
 
-        rhi::TextureDesc desc{};
-        desc.width = image.GetWidth();
-        desc.height = image.GetHeight();
-        desc.format = rhi::Format::RGBA8_UNORM;
+        rhi::TextureDesc desc{
+            .usage = rhi::TextureUsage::ShaderResourceBit,
+            .width = image.GetWidth(),
+            .height = image.GetHeight(),
+            .format = rhi::Format::RGBA8_UNORM,
+        };
 
-        rhi::SubresourceData subresourceData{};
-        subresourceData.mem = image.GetConstPtr(0);
-        subresourceData.rowPitch = image.GetStride();
+        rhi::SubresourceData subresourceData{
+            .mem = image.GetConstPtr(0),
+            .rowPitch = image.GetStride()
+        };
 
 #if MULTITHREADED_PREVIEW
         jobsystem::Wait(counter);

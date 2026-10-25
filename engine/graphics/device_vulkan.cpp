@@ -2519,6 +2519,7 @@ namespace cyb::rhi::vulkan
     TextureHandle GraphicsDevice_Vulkan::CreateTexture(const TextureDesc* desc, const SubresourceData* initData) const
     {
         assert(desc->format != Format::Unknown);
+        assert(desc->usage != TextureUsage::None);
 
 		Texture* texture = new Texture(this);
         texture->desc = *desc;

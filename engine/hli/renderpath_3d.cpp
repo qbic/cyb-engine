@@ -17,41 +17,35 @@ namespace cyb::hli
         GraphicsDevice* device = cyb::rhi::GetDevice();
         UVec2 internalResolution = GetInternalResolution();
 
-        // Render targets:
-        {
-            TextureDesc desc{
-                .usage = TextureUsage::RenderTargetBit | TextureUsage::ShaderResourceBit,
-                .width = internalResolution.x,
-                .height = internalResolution.y,
-                .format = Format::RGBA8_UNORM,
-                .debugName = "rtMain"
-            };
-            rtMain = device->CreateTexture(&desc, nullptr);
-        }
+        // main rendertarget color texture
+        TextureDesc rtMainDesc{
+            .usage = TextureUsage::RenderTargetBit | TextureUsage::ShaderResourceBit,
+            .width = internalResolution.x,
+            .height = internalResolution.y,
+            .format = Format::RGBA8_UNORM,
+            .debugName = "rtMain"
+        };
+        rtMain = device->CreateTexture(&rtMainDesc, nullptr);
 
-        // Depth stencil buffer:
-        {
-            TextureDesc desc{
-                .usage = TextureUsage::RenderTargetBit,
-                .width = internalResolution.x,
-                .height = internalResolution.y,
-                .format = Format::D24S8,
-                .debugName = "rtMainDepth",
-            };
-            rtMainDepth = device->CreateTexture(&desc, nullptr);
-        }
+        // main rendertarget depth texture
+        TextureDesc rtMainDepthDesc{
+            .usage = TextureUsage::RenderTargetBit,
+            .width = internalResolution.x,
+            .height = internalResolution.y,
+            .format = Format::D24S8,
+            .debugName = "rtMainDepth",
+        };
+        rtMainDepth = device->CreateTexture(&rtMainDepthDesc, nullptr);
 
-        // Selection outline
-        {
-            TextureDesc desc{
-                .usage = TextureUsage::RenderTargetBit | TextureUsage::ShaderResourceBit,
-                .width = internalResolution.x,
-                .height = internalResolution.y,
-                .format = Format::R8_UNORM,
-                .debugName = "rtSelectionOutline"
-            };
-            rtSelectionOutline = device->CreateTexture(&desc, nullptr);
-        }
+        // selection outline texture
+        TextureDesc rtSelectionOutlineDesc{
+            .usage = TextureUsage::RenderTargetBit | TextureUsage::ShaderResourceBit,
+            .width = internalResolution.x,
+            .height = internalResolution.y,
+            .format = Format::R8_UNORM,
+            .debugName = "rtSelectionOutline"
+        };
+        rtSelectionOutline = device->CreateTexture(&rtSelectionOutlineDesc, nullptr);
 
         RenderPath2D::ResizeBuffers();
     }

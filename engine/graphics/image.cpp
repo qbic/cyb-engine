@@ -14,7 +14,6 @@ namespace cyb::renderer
 
     static ShaderHandle vertShader;
     static ShaderHandle fragShader;
-    static RasterizerState rasterizerState;
     static DepthStencilState depthStencilState[STENCILMODE_COUNT][DEPTH_TEST_MODE_COUNT];
     static PipelineStateHandle psoImage[STENCILMODE_COUNT][DEPTH_TEST_MODE_COUNT];
     static TextureHandle whiteTexture;
@@ -68,18 +67,19 @@ namespace cyb::renderer
         vertShader = renderer::LoadShader(ShaderType::Vertex, "image.vert");
         fragShader = renderer::LoadShader(ShaderType::Pixel, "image.frag");
 
-        PipelineStateDesc desc{};
-        desc.vs = vertShader;
-        desc.ps = fragShader;
-        desc.rs = &rasterizerState;
-        desc.pt = PrimitiveTopology::TriangleStrip;
+        PipelineStateDesc pipelineDesc{
+            .vs = vertShader,
+            .ps = fragShader,
+            .rs = GetRasterizerState(RSTYPE_FRONT),
+            .pt = PrimitiveTopology::TriangleStrip
+        };
 
         for (int i = 0; i < STENCILMODE_COUNT; ++i)
         {
             for (int d = 0; d < DEPTH_TEST_MODE_COUNT; ++d)
             {
-                desc.dss = &depthStencilState[i][d];
-                psoImage[i][d] = device->CreatePipelineState(&desc);
+                pipelineDesc.dss = &depthStencilState[i][d];
+                psoImage[i][d] = device->CreatePipelineState(&pipelineDesc);
             }
         }
     }
@@ -88,29 +88,21 @@ namespace cyb::renderer
     {
         GraphicsDevice* device = rhi::GetDevice();
 
-        {
-            TextureDesc desc{
-                .usage = TextureUsage::ShaderResourceBit,
-                .width = 4,
-                .height = 4,
-                .format = rhi::Format::RGBA8_UNORM
-            };
+        TextureDesc desc{
+            .usage = TextureUsage::ShaderResourceBit,
+            .width = 4,
+            .height = 4,
+            .format = rhi::Format::RGBA8_UNORM
+        };
 
-            uint32_t textureData[4 * 4]{};
-            for (int i = 0; i < (4 * 4); ++i)
-                textureData[i] = 0xffffffff;
+        uint32_t textureData[4 * 4]{};
+        for (int i = 0; i < (4 * 4); ++i)
+            textureData[i] = 0xffffffff;
 
-            rhi::SubresourceData subresourceData{};
-            subresourceData.mem = textureData;
-            subresourceData.rowPitch = 4 * 4;
-            whiteTexture = device->CreateTexture(&desc, &subresourceData);
-        }
-
-        RasterizerState rs;
-        rs.polygonMode = PolygonMode::Fill;
-        rs.cullMode = CullMode::None;
-        rs.frontFace = FrontFace::CW;
-        rasterizerState = rs;
+        rhi::SubresourceData subresourceData{};
+        subresourceData.mem = textureData;
+        subresourceData.rowPitch = 4 * 4;
+        whiteTexture = device->CreateTexture(&desc, &subresourceData);
 
         for (int d = 0; d < DEPTH_TEST_MODE_COUNT; ++d)
         {

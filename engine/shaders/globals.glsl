@@ -9,33 +9,33 @@
 #define DEGAMMA(x)      (RemoveSRGBCurve_Fast(x))
 
 /**
- * @brief Clamps the value to a [0..1] range.
+ * Clamps the value to a [0..1] range.
  */
 #define saturate(x)     (clamp(x, 0.0, 1.0))
 
 /**
- * @brief Get vertex position for a full screen triangle from 3 indices.
+ * Get vertex position for a full screen triangle from 3 indices.
  * @param vertexIndex Vertex index (gl_VertexIndex).
  * @return Vertex position in screenspace.
  */
 vec4 GetFullscreenTriangle(const uint vertexIndex)
 {
-    return vec4((vertexIndex / 2) * 4.0 - 1.0,
-                (vertexIndex % 2) * 4.0 - 1.0, 0.0, 1.0);
+    return vec4((vertexIndex % 2) * 4.0 - 1.0,
+                (vertexIndex / 2) * 4.0 - 1.0, 0.0, 1.0);
 }
 
 /**
- * @brief Get uv for a full screen triangle from 3 indices.
+ * Get uv for a full screen triangle from 3 indices.
  * @param vertexIndex Vertex index (gl_VertexIndex).
  * @return Texture coord for the triangle.
  */
 vec2 GetFullscreenTriangleUV(const uint vertexIndex)
 {
-    return vec2((vertexIndex / 2) * 2.0, 1 - (vertexIndex % 2) * 2.0);
+    return vec2((vertexIndex % 2) * 2.0, 1 - (vertexIndex / 2) * 2.0);
 }
 
 /**
- * @brief Decode a float packed normal into a normalized vec3.
+ * Decode a float packed normal into a normalized vec3.
  */
 vec3 DecodePackedNormal(const float bits)
 {
@@ -48,7 +48,7 @@ vec3 DecodePackedNormal(const float bits)
 }
 
 /**
- * @brief Compact, self-contained version of IQ's 3D value noise function.
+ * Compact, self-contained version of IQ's 3D value noise function.
  */
 float Noise_3D(vec3 p)
 {
@@ -63,7 +63,7 @@ float Noise_3D(vec3 p)
 }
 
 /**
- * @brief Get the sky color (with sun) at vertex position.
+ * Get the sky color (with sun) at vertex position.
  * 
  * The sun will be drawn at the location of the scene's most
  * dominant directional lightsource.
@@ -107,7 +107,7 @@ float GetFogAmount(float dist)
 }
 
 /**
- * @brief Calculate the normal of 3 vectors.
+ * Calculate the normal of 3 vectors.
  * @return The normalized cross product of a, b & c.
  */
 vec3 CalcNormal(const vec3 a, const vec3 b, const vec3 c)
@@ -116,7 +116,7 @@ vec3 CalcNormal(const vec3 a, const vec3 b, const vec3 c)
 }
 
 /**
- * @brief Calculate the average value of 3 float.
+ * Calculate the average value of 3 float.
  */
 float CalcAverage(const float a, const float b, const float c)
 {
@@ -124,7 +124,7 @@ float CalcAverage(const float a, const float b, const float c)
 }
 
 /**
- * @brief Calculate the average value of 3 vec3.
+ * Calculate the average value of 3 vec3.
  */
 vec3 CalcAverage(const vec3 a, const vec3 b, const vec3 c)
 {
@@ -132,7 +132,7 @@ vec3 CalcAverage(const vec3 a, const vec3 b, const vec3 c)
 }
 
 /**
- * @brief Calculate the average value of 3 vec3 in an array.
+ * Calculate the average value of 3 vec3 in an array.
  */
 vec3 CalcAverage(const vec3 v[3])
 {

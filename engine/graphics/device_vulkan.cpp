@@ -212,25 +212,6 @@ namespace cyb::rhi::vulkan
         return VK_IMAGE_ASPECT_COLOR_BIT;
     }
 
-    [[nodiscard]] VkImageAspectFlags GuessSubresourceImageAspectFlags(const TextureDesc& desc, SubresourceType viewType)
-    {
-        VkImageAspectFlags flags = PickImageAspectFlags(desc);
-
-        //constexpr VkImageAspectFlags depthStencilMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-        //if ((flags & depthStencilMask) == depthStencilMask)
-        //{
-        //    if (viewType == Texture::TextureSubresourceViewType::DepthOnly)
-        //    {
-        //        flags = flags & (~vk::ImageAspectFlagBits::eStencil);
-        //    }
-        //    else if (viewType == Texture::TextureSubresourceViewType::StencilOnly)
-        //    {
-        //        flags = flags & (~vk::ImageAspectFlagBits::eDepth);
-        //    }
-        //}
-        return flags;
-    }
-
     [[nodiscard]] ResourceStates PickImageResourceStates(const TextureDesc& desc)
     {
         ResourceStates flags = ResourceStates::Unknown;

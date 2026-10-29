@@ -265,7 +265,7 @@ namespace cyb::rhi
 		std::string debugName{};
     };
 
-    struct QueryDesc
+    struct QueryHeapDesc
     {
         QueryType type = QueryType::Timestamp;
         uint32_t queryCount = 0;
@@ -459,9 +459,14 @@ namespace cyb::rhi
 
     struct IQuery : public IResource
     {
-        [[nodiscard]] virtual const QueryDesc& GetDesc() const = 0;
+        [[nodiscard]] virtual const QueryHeapDesc& GetDesc() const = 0;
     };
     using QueryHandle = RefCountPtr<IQuery>;
+
+    struct ITimerQuery : public IResource
+    {
+    };
+    using TimerQueryHandle = RefCountPtr<ITimerQuery>;
 
 	struct IEventQuery : public IResource
 	{
@@ -680,6 +685,8 @@ namespace cyb::rhi
             BindConstantBuffer(allocation.buffer, slot, allocation.offset);
         }
 
+        virtual void SetPushConstants(const void* data, uint32_t size, uint32_t offset = 0) = 0;
+
         virtual void CopyBuffer(const IBuffer* dst, uint64_t dstOffset, const IBuffer* src, uint64_t srcOffset, uint64_t size) = 0;
         
         // Update a gpu buffer data
@@ -689,6 +696,11 @@ namespace cyb::rhi
 
         virtual void Draw(uint32_t vertexCount, uint32_t startVertexLocation) = 0;
         virtual void DrawIndexed(uint32_t indexCount, uint32_t startIndexLocation, int32_t baseVertexLocation) = 0;
+
+        virtual void BeginQuery(IQuery* query, uint32_t index) = 0;
+        virtual void EndQuery(IQuery* query, uint32_t index) = 0;
+        virtual void ResolveQuery(const IQuery* query, uint32_t index, uint32_t count, IBuffer* dest, uint64_t destOffset) = 0;
+        virtual void ResetQuery(IQuery* query, uint32_t index, uint32_t count) = 0;
 
         virtual void BeginMarker(std::string_view name) const = 0;
         virtual void EndMarker() const = 0;
@@ -721,7 +733,7 @@ namespace cyb::rhi
 
         virtual SwapchainHandle CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window) const = 0;
         virtual BufferHandle CreateBuffer(const BufferDesc* desc, const void* initData) const = 0;
-        virtual QueryHandle CreateQuery(const QueryDesc* desc) const = 0;
+        virtual QueryHandle CreateQueryHeap(const QueryHeapDesc* desc) const = 0;
 		virtual EventQueryHandle CreateEventQuery() const = 0;
         virtual TextureHandle CreateTexture(const TextureDesc* desc, const SubresourceData* init_data) const = 0;
         virtual ShaderHandle CreateShader(const ShaderDesc* desc) const = 0;
@@ -760,23 +772,10 @@ namespace cyb::rhi
          */
         virtual MemoryUsage GetMemoryUsage() const = 0;
 
-        //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        // Command List functions are below:
-        //	- These are used to record rendering commands to a ICommandList
-        //	- To get a ICommandList that can be recorded into, call BeginCommandList()
-        //	- These are not thread safe, only a single thread should use a single ICommandList at one time
-
-        virtual void BeginQuery(IQuery* query, uint32_t index, ICommandList* cmd) = 0;
-        virtual void EndQuery(IQuery* query, uint32_t index, ICommandList* cmd) = 0;
-        virtual void ResolveQuery(const IQuery* query, uint32_t index, uint32_t count, IBuffer* dest, uint64_t destOffset, ICommandList* cmd) = 0;
-        virtual void ResetQuery(IQuery* query, uint32_t index, uint32_t count, ICommandList* cmd) = 0;
-
         virtual void SetEventQuery(IEventQuery* query, CommandQueue queue) const = 0;
 		virtual bool PollEventQuery(IEventQuery* query) = 0;
 		virtual void WaitEventQuery(IEventQuery* query) = 0;
 		virtual void ResetEventQuery(IEventQuery* query) = 0;
-
-        virtual void PushConstants(const void* data, uint32_t size, ICommandList* cmd, uint32_t offset = 0) = 0;
     };
 
     inline const FormatInfo& GetFormatInfo(Format format)

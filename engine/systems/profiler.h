@@ -46,17 +46,16 @@ namespace cyb::profiler
     {
         bool inUse = false;
         std::string name;
-        std::array<float, AVERAGE_COUNTER_SAMPLES> times = {};
-        int avgCounter = 0;
+        std::array<float, AVERAGE_COUNTER_SAMPLES> times{};
+        uint64_t avgCounter = 0;
         float time = 0.0f;
         Timer cpuTimer;
 
         rhi::ICommandList* cmd = nullptr;
-        std::array<int, rhi::GraphicsDevice::GetBufferCount() + 1> gpuBegin = {};
-        std::array<int, rhi::GraphicsDevice::GetBufferCount() + 1> gpuEnd = {};
+        std::array<int, rhi::GraphicsDevice::GetBufferCount()> gpuBegin{};
+        std::array<int, rhi::GraphicsDevice::GetBufferCount()> gpuEnd{};
 
         bool IsCPUEntry() const { return cmd == nullptr; }
-        bool IsGPUEntry() const { return cmd != nullptr; }
     };
 
     struct Context
@@ -64,8 +63,8 @@ namespace cyb::profiler
         std::unordered_map<EntryId, Entry> entries;
         EntryId cpuFrame = 0;
         EntryId gpuFrame = 0;
-        std::array<float, FRAME_GRAPH_ENTRIES> cpuFrameGraph = {};
-        std::array<float, FRAME_GRAPH_ENTRIES> gpuFrameGraph = {};
+        std::array<float, FRAME_GRAPH_ENTRIES> cpuFrameGraph{};
+        std::array<float, FRAME_GRAPH_ENTRIES> gpuFrameGraph{};
 
         [[nodiscard]] EntryId GetUniqueId(const std::string& name) const;
     };

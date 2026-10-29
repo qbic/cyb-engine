@@ -82,7 +82,6 @@ namespace cyb::rhi::vulkan
     {
         std::vector<VkCommandPool> commandpools{};
         std::vector<VkCommandBuffer> commandbuffers{};
-        uint32_t buffer_index = 0;
 
         CommandQueue queue = CommandQueue::Count;
 
@@ -105,19 +104,19 @@ namespace cyb::rhi::vulkan
 
         inline VkCommandPool GetCommandPool() const
         {
-            return commandpools[buffer_index];
+            return commandpools[m_bufferIndex];
         }
         
         inline VkCommandBuffer GetCommandBuffer() const
         {
-            return commandbuffers[buffer_index];
+            return commandbuffers[m_bufferIndex];
         }
 
         void Reset(uint32_t newBufferIndex)
         {
-            buffer_index = newBufferIndex;
+            m_bufferIndex = newBufferIndex;
             binder.Reset();
-            binder_pools[buffer_index].Reset();
+            binder_pools[m_bufferIndex].Reset();
             prevPipelineHash = 0;
             activePso = nullptr;
             dirtyPso = false;
@@ -138,12 +137,18 @@ namespace cyb::rhi::vulkan
         void BindResource(const IResource* resource, int slot) override;
         void BindSampler(const ISampler* sampler, uint32_t slot) override;
         void BindConstantBuffer(const IBuffer* buffer, uint32_t slot, uint64_t offset) override;
+        void SetPushConstants(const void* data, uint32_t size, uint32_t offset) override;
 
         void CopyBuffer(const IBuffer* dst, uint64_t dstOffset, const IBuffer* src, uint64_t srcOffset, uint64_t size) override;
         void UpdateBuffer(IBuffer* buffer, const void* data, uint64_t size, uint64_t offset) override;
 
         void Draw(uint32_t vertexCount, uint32_t startVertexLocation) override;
         void DrawIndexed(uint32_t indexCount, uint32_t startIndexLocation, int32_t baseVertexLocation) override;
+
+        void BeginQuery(IQuery* query, uint32_t index) override;
+        void EndQuery(IQuery* query, uint32_t index) override;
+        void ResolveQuery(const IQuery* query, uint32_t index, uint32_t count, IBuffer* dest, uint64_t destOffset) override;
+        void ResetQuery(IQuery* query, uint32_t index, uint32_t count) override;
 
         void BeginMarker(std::string_view name) const override;
         void EndMarker() const override;
@@ -153,6 +158,7 @@ namespace cyb::rhi::vulkan
         void PreDraw();
 
         GraphicsDevice_Vulkan* m_device = nullptr;
+        uint32_t m_bufferIndex = 0;
         RenderPassInfo m_renderpassInfo{};
         std::vector<VkImageMemoryBarrier2> m_renderpassBarriersBegin;
         std::vector<VkImageMemoryBarrier2> m_renderpassBarriersEnd;
@@ -285,7 +291,7 @@ namespace cyb::rhi::vulkan
 
         SwapchainHandle CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window) const override;
         BufferHandle CreateBuffer(const BufferDesc* desc, const void* initData) const override;
-        QueryHandle CreateQuery(const QueryDesc* desc) const override;
+        QueryHandle CreateQueryHeap(const QueryHeapDesc* desc) const override;
         EventQueryHandle CreateEventQuery() const override;
         TextureHandle CreateTexture(const TextureDesc* desc, const SubresourceData* init_data) const override;
         ShaderHandle CreateShader(const ShaderDesc* desc) const override;
@@ -300,21 +306,11 @@ namespace cyb::rhi::vulkan
 
         void ClearPipelineStateCache() override;
         MemoryUsage GetMemoryUsage() const override;
-
-
-        /////////////// Thread-sensitive ////////////////////////
-
-        void BeginQuery(IQuery* query, uint32_t index, ICommandList* cmd) override;
-        void EndQuery(IQuery* query, uint32_t index, ICommandList* cmd) override;
-        void ResolveQuery(const IQuery* query, uint32_t index, uint32_t count, IBuffer* dest, uint64_t destOffset, ICommandList* cmd) override;
-        void ResetQuery(IQuery* query, uint32_t index, uint32_t count, ICommandList* cmd) override;
         
         void SetEventQuery(IEventQuery* query, CommandQueue queue) const override;
         bool PollEventQuery(IEventQuery* query) override;
         void WaitEventQuery(IEventQuery* query) override;
         void ResetEventQuery(IEventQuery* query) override;
-
-        void PushConstants(const void* data, uint32_t size, ICommandList* cmd, uint32_t offset) override;
 
         uint64_t GetMinOffsetAlignment(BufferUsage usage) const override;
 

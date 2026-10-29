@@ -804,7 +804,7 @@ namespace cyb::renderer
     {
         cmd->BeginMarker("Postprocess_Outline");
         cmd->BindPipelineState(psoOutline);
-        cmd->BindSampler(samplerStates[SSLOT_POINT_CLAMP], 0);
+        cmd->BindSampler(samplerStates[SSLOT_BILINEAR_CLAMP], 0);
         cmd->BindResource(input, 0);
 
         PostProcess postprocess{};
@@ -812,7 +812,8 @@ namespace cyb::renderer
         postprocess.param0.y = threshold;
         postprocess.param0.z = std::chrono::duration<float>(std::chrono::steady_clock::now().time_since_epoch()).count();
         postprocess.param1 = color;
-        device->PushConstants(&postprocess, sizeof(postprocess), cmd);
+
+        cmd->SetPushConstants(&postprocess, sizeof(postprocess));
         cmd->Draw(3, 0);
 
         cmd->EndMarker();

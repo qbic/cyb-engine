@@ -31,31 +31,34 @@ namespace cyb::profiler
 
     void BeginFrame()
     {
+        rhi::GraphicsDevice* device = rhi::GetDevice();
+
         if (!initialized)
         {
-            initialized = true;
-            rhi::GraphicsDevice* device = rhi::GetDevice();
+            rhi::QueryHeapDesc queryDesc{
+                .type = rhi::QueryType::Timestamp,
+                .queryCount = 1024
+            };
 
-            rhi::QueryDesc queryDesc;
-            queryDesc.type = rhi::QueryType::Timestamp;
-            queryDesc.queryCount = 1024;
-            query = device->CreateQuery(&queryDesc);
+            query = device->CreateQueryHeap(&queryDesc);
             assert(query);
 
-            rhi::BufferDesc bufferDesc{};
-            bufferDesc.cpuAccess = rhi::CpuAccessMode::Read;
-            bufferDesc.size = queryDesc.queryCount * sizeof(uint64_t);
+            rhi::BufferDesc bufferDesc{
+                .size = queryDesc.queryCount * sizeof(uint64_t),
+                .cpuAccess = rhi::CpuAccessMode::Read
+            };
 
             for (auto& buffer : queryResultBuffer)
             {
                 buffer = device->CreateBuffer(&bufferDesc, nullptr);
                 assert(buffer);
             }
+
+            initialized = true;
         }
 
         context.cpuFrame = BeginCpuEntry("CPU Frame");
 
-        rhi::GraphicsDevice* device = rhi::GetDevice();
         rhi::ICommandList* cmd = device->BeginCommandList();
 
         const double gpuFrequency = (double)device->GetTimestampFrequency();
@@ -64,7 +67,7 @@ namespace cyb::profiler
 
         for (auto& [entryID, entry] : context.entries)
         {
-            if (entry.IsGPUEntry())
+            if (!entry.IsCPUEntry())
             {
                 int beginQuery = entry.gpuBegin[queryIndex];
                 int endQuery = entry.gpuEnd[queryIndex];
@@ -88,7 +91,7 @@ namespace cyb::profiler
             entry.inUse = false;
         }
 
-        device->ResetQuery(query, 0, query->GetDesc().queryCount, cmd);
+        cmd->ResetQuery(query, 0, query->GetDesc().queryCount);
         context.gpuFrame = BeginGpuEntry("GPU Frame", cmd);
 
         // update the frametime graph arrays used by profiler gui
@@ -105,16 +108,14 @@ namespace cyb::profiler
     {
         assert(initialized);
 
-        rhi::GraphicsDevice* device = rhi::GetDevice();
-
         // read the GPU Frame end range manually because it will be on a separate 
         // command list than start point
         Entry& gpuEntry = context.entries[context.gpuFrame];
         gpuEntry.gpuEnd[queryIndex] = queryCount.fetch_add(1);
-        device->EndQuery(query, gpuEntry.gpuEnd[queryIndex], cmd);
+        cmd->EndQuery(query, gpuEntry.gpuEnd[queryIndex]);
 
         EndEntry(context.cpuFrame);
-        device->ResolveQuery(query, 0, queryCount.load(), queryResultBuffer[queryIndex], 0ull, cmd);
+        cmd->ResolveQuery(query, 0, queryCount.load(), queryResultBuffer[queryIndex], 0ull);
         queryCount.store(0);
     }
 
@@ -140,7 +141,7 @@ namespace cyb::profiler
         entry.cmd = cmd;
         entry.gpuBegin[queryIndex] = queryCount.fetch_add(1);
 
-        rhi::GetDevice()->EndQuery(query, entry.gpuBegin[queryIndex], cmd);
+        cmd->EndQuery(query, entry.gpuBegin[queryIndex]);
         return id;
     }
 
@@ -159,7 +160,7 @@ namespace cyb::profiler
         else
         {
             entry.gpuEnd[queryIndex] = queryCount.fetch_add(1);
-            rhi::GetDevice()->EndQuery(query, entry.gpuEnd[queryIndex], entry.cmd);
+            entry.cmd->EndQuery(query, entry.gpuEnd[queryIndex]);
         }
     }
 

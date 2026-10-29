@@ -1,6 +1,8 @@
 #version 450
 #include "globals.glsl"
 
+#define SOFT_EDGE
+
 layout(binding = 0) uniform sampler2D sampler0;
 layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 color;
@@ -26,7 +28,12 @@ void main()
     const float Gy = -tl - 2.0 * tc - tr + bl + 2.0 * bc + br;
     float edge = length(vec2(Gx, Gy));
 
+#ifdef SOFT_EDGE
+    float w = fwidth(edge);
+    edge = smoothstep(outlineThreshold - w, outlineThreshold + w, edge);
+#else
     edge = edge > outlineThreshold ? 1 : 0;
+#endif
 
 	color = vec4(outlineColor.rgb, outlineColor.a * edge);
 }

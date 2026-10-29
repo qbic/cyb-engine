@@ -372,7 +372,7 @@ namespace cyb::rhi::vulkan
     {
         std::shared_ptr<GraphicsDevice_Vulkan::AllocationHandler> allocationhandler;
         VkQueryPool pool = VK_NULL_HANDLE;
-        QueryDesc desc{};
+        QueryHeapDesc desc{};
 
         ~Query_Vulkan() override
         {
@@ -384,7 +384,7 @@ namespace cyb::rhi::vulkan
             allocationhandler->destroylocker.unlock();
         }
 
-        const QueryDesc& GetDesc() const override
+        const QueryHeapDesc& GetDesc() const override
         {
             return desc;
         }
@@ -1651,6 +1651,23 @@ namespace cyb::rhi::vulkan
         }
     }
 
+    void CommandList::SetPushConstants(const void* data, uint32_t size, uint32_t offset)
+    {
+        assert(activePso != nullptr);
+        assert(size <= m_device->properties.limits.maxPushConstantsSize);
+
+        const PipelineState* pso = check_cast<const PipelineState*>(activePso);
+        assert(pso->pushconstants.size > 0);
+
+        vkCmdPushConstants(
+            GetCommandBuffer(),
+            pso->pipelineLayout,
+            pso->pushconstants.stageFlags,
+            offset,
+            size,
+            data);
+    }
+
     void CommandList::CopyBuffer(const IBuffer* _dst, uint64_t dstOffset, const IBuffer* _src, uint64_t srcOffset, uint64_t size)
     {
         VkCommandBuffer cmdBuf = GetCommandBuffer();
@@ -2423,38 +2440,6 @@ namespace cyb::rhi::vulkan
 
         return BufferHandle::Create(buffer);
     }
-
-    QueryHandle GraphicsDevice_Vulkan::CreateQuery(const QueryDesc* desc) const
-    {
-        Query_Vulkan* query = new Query_Vulkan;
-        query->allocationhandler = m_allocationHandler;
-        query->desc = *desc;
-
-        VkQueryPoolCreateInfo poolInfo{};
-        poolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-        poolInfo.queryCount = desc->queryCount;
-
-        switch (desc->type)
-        {
-        case QueryType::Timestamp:
-            poolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
-            break;
-		case QueryType::Occlusion: 
-            [[fallthrough]];
-        case QueryType::OcclusionBinary:
-            poolInfo.queryType = VK_QUERY_TYPE_OCCLUSION;
-            break;
-        }
-
-        VK_CHECK(vkCreateQueryPool(device, &poolInfo, nullptr, &query->pool));
-        return QueryHandle::Create(query);
-    }
-
-	EventQueryHandle GraphicsDevice_Vulkan::CreateEventQuery() const
-	{
-		EventQuery* query = new EventQuery;
-		return EventQueryHandle::Create(query);
-	}
 
     [[nodiscard]] Texture::SubresourceView CreateSubresource(const GraphicsDevice_Vulkan* device, ITexture* _texture,
         uint32_t firstSlice = 0, uint32_t sliceCount = Texture::SubresourceView::AllArraySlices,
@@ -3536,44 +3521,68 @@ namespace cyb::rhi::vulkan
         VK_CHECK(vkCreatePipelineCache(device, &createInfo, nullptr, &pipelineCache));
     }
 
-    void GraphicsDevice_Vulkan::BeginQuery(IQuery* _query, uint32_t index, ICommandList* cmd)
+    QueryHandle GraphicsDevice_Vulkan::CreateQueryHeap(const QueryHeapDesc* desc) const
     {
-        CommandList* commandlist = check_cast<CommandList*>(cmd);
+        Query_Vulkan* query = new Query_Vulkan;
+        query->allocationhandler = m_allocationHandler;
+        query->desc = *desc;
+
+        VkQueryPoolCreateInfo poolInfo{
+            .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+            .queryCount = desc->queryCount
+        };
+
+        switch (desc->type)
+        {
+        case QueryType::Timestamp:
+            poolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+            break;
+        case QueryType::Occlusion:
+            [[fallthrough]];
+        case QueryType::OcclusionBinary:
+            poolInfo.queryType = VK_QUERY_TYPE_OCCLUSION;
+            break;
+        }
+
+        VK_CHECK(vkCreateQueryPool(device, &poolInfo, nullptr, &query->pool));
+        return QueryHandle::Create(query);
+    }
+
+    void CommandList::BeginQuery(IQuery* _query, uint32_t index)
+    {
         Query_Vulkan* query = check_cast<Query_Vulkan*>(_query);
 
         switch (query->desc.type)
         {
         case QueryType::OcclusionBinary:
-            vkCmdBeginQuery(commandlist->GetCommandBuffer(), query->pool, index, 0);
+            vkCmdBeginQuery(GetCommandBuffer(), query->pool, index, 0);
             break;
         case QueryType::Occlusion:
-            vkCmdBeginQuery(commandlist->GetCommandBuffer(), query->pool, index, VK_QUERY_CONTROL_PRECISE_BIT);
+            vkCmdBeginQuery(GetCommandBuffer(), query->pool, index, VK_QUERY_CONTROL_PRECISE_BIT);
             break;
         case QueryType::Timestamp:
             break;
         }
     }
 
-    void GraphicsDevice_Vulkan::EndQuery(IQuery* _query, uint32_t index, ICommandList* cmd)
+    void CommandList::EndQuery(IQuery* _query, uint32_t index)
     {
-        CommandList* commandlist = check_cast<CommandList*>(cmd);
         Query_Vulkan* query = check_cast<Query_Vulkan*>(_query);
 
         switch (query->desc.type)
         {
         case QueryType::OcclusionBinary:
         case QueryType::Occlusion:
-            vkCmdEndQuery(commandlist->GetCommandBuffer(), query->pool, index);
+            vkCmdEndQuery(GetCommandBuffer(), query->pool, index);
             break;
         case QueryType::Timestamp:
-            vkCmdWriteTimestamp2(commandlist->GetCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, query->pool, index);
+            vkCmdWriteTimestamp2(GetCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, query->pool, index);
             break;
         }
     }
 
-    void GraphicsDevice_Vulkan::ResolveQuery(const IQuery* _query, uint32_t index, uint32_t count, IBuffer* _dest, uint64_t destOffset, ICommandList* cmd)
+    void CommandList::ResolveQuery(const IQuery* _query, uint32_t index, uint32_t count, IBuffer* _dest, uint64_t destOffset)
     {
-        CommandList* commandlist = check_cast<CommandList*>(cmd);
         const Query_Vulkan* query = check_cast<const Query_Vulkan*>(_query);
         Buffer* dest = check_cast<Buffer*>(_dest);
 
@@ -3582,7 +3591,7 @@ namespace cyb::rhi::vulkan
             flags |= VK_QUERY_RESULT_PARTIAL_BIT;
 
         vkCmdCopyQueryPoolResults(
-            commandlist->GetCommandBuffer(),
+            GetCommandBuffer(),
             query->pool,
             index,
             count,
@@ -3592,16 +3601,21 @@ namespace cyb::rhi::vulkan
             flags);
     }
 
-    void GraphicsDevice_Vulkan::ResetQuery(IQuery* _query, uint32_t index, uint32_t count, ICommandList* cmd)
+    void CommandList::ResetQuery(IQuery* _query, uint32_t index, uint32_t count)
     {
-        CommandList* commandlist = check_cast<CommandList*>(cmd);
         Query_Vulkan* query = check_cast<Query_Vulkan*>(_query);
 
         vkCmdResetQueryPool(
-            commandlist->GetCommandBuffer(),
+            GetCommandBuffer(),
             query->pool,
             index,
             count);
+    }
+
+    EventQueryHandle GraphicsDevice_Vulkan::CreateEventQuery() const
+    {
+        EventQuery* query = new EventQuery;
+        return EventQueryHandle::Create(query);
     }
 
     void GraphicsDevice_Vulkan::SetEventQuery(IEventQuery* _query, CommandQueue queue) const
@@ -3638,20 +3652,4 @@ namespace cyb::rhi::vulkan
 		query->commandListID = 0;
     }
 
-    void GraphicsDevice_Vulkan::PushConstants(const void* data, uint32_t size, ICommandList* cmd, uint32_t offset)
-    {
-        CommandList* commandlist = check_cast<CommandList*>(cmd);
-        assert(commandlist->activePso != nullptr);
-        
-        const PipelineState* pso = check_cast<const PipelineState*>(commandlist->activePso);
-        assert(pso->pushconstants.size > 0);
-
-        vkCmdPushConstants(
-            commandlist->GetCommandBuffer(),
-            pso->pipelineLayout,
-            pso->pushconstants.stageFlags,
-            offset,
-            size,
-            data);
-    }
 } // namespace cyb::rhi::vulkan

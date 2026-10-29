@@ -171,7 +171,7 @@ namespace cyb::rhi::vulkan
         std::vector<VkCommandBufferSubmitInfo> submit_cmds;
 
         Queue(GraphicsDevice_Vulkan* device, CommandQueue queueID, uint32_t queueFamilyIndex);
-        ~Queue();
+        ~Queue() = default;
 
         CommandList* GetOrCreateCommandList(uint32_t bufferCount);
         const std::list<CommandListHandle>& GetCommandListsInUse() const { return m_commandListsInUse; }

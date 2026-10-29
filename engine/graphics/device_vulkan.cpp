@@ -572,6 +572,44 @@ namespace cyb::rhi::vulkan
         std::mutex m_mutex;
     };
 
+    SwapchainHandle GraphicsDevice_Vulkan::CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window) const
+    {
+        Swapchain* swapchain = new Swapchain(this);
+
+#ifdef _WIN32
+        VkWin32SurfaceCreateInfoKHR info{};
+        info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+        info.hwnd = window;
+        info.hinstance = GetModuleHandle(nullptr);
+        vkCreateWin32SurfaceKHR(instance, &info, nullptr, &swapchain->surface);
+#else
+#error VULKAN DEVICE ERROR: PLATFORM NOT SUPPORTED
+#endif // _WIN32
+
+        swapchain->frameFences.resize(desc->bufferCount);
+        for (uint32_t i = 0; i < desc->bufferCount; ++i)
+        {
+            swapchain->frameFences[i] = CreateEventQuery();
+        }
+
+        [[maybe_unused]] bool result = swapchain->ResizeBuffers(*desc);
+        assert(result);
+
+        return SwapchainHandle::Create(swapchain);
+    }
+
+    void GraphicsDevice_Vulkan::Present(ISwapchain* _swapchain)
+    {
+        Swapchain* swapchain = check_cast<Swapchain*>(_swapchain);
+        swapchain->Present();
+
+        frameCount++;
+        m_allocationHandler->Update(frameCount, BUFFERCOUNT);
+
+        WaitEventQuery(swapchain->frameFences[swapchain->acquireSemaphoreIndex]);
+        ResetEventQuery(swapchain->frameFences[swapchain->acquireSemaphoreIndex]);
+    }
+
 	bool Swapchain::ResizeBuffers(const SwapchainDesc& _desc)
 	{
         std::scoped_lock lock{ m_mutex };
@@ -1569,42 +1607,6 @@ namespace cyb::rhi::vulkan
         activePso = pso;
     }
 
-    void CommandList::BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t slot, uint32_t count, const uint32_t* strides, const uint64_t* offsets)
-    {
-        VkCommandBuffer cmdBuf = GetCommandBuffer();
-        VkDeviceSize vtxOffsets[8]{};
-        VkDeviceSize vtxStrides[8]{};
-        VkBuffer vtxBuffers[8]{};
-
-        assert(vertexBuffers);
-        assert(count <= 8);
-        assert(strides);
-
-        for (uint32_t i = 0; i < count; i++)
-        {
-            assert(vertexBuffers[i]);
-
-            const Buffer* buffer = check_cast<const Buffer*>(vertexBuffers[i]);
-            vtxBuffers[i] = buffer->resource;
-            if (offsets != nullptr)
-                vtxOffsets[i] = offsets[i];
-            if (strides != nullptr)
-                vtxStrides[i] = strides[i];
-        }
-
-        vkCmdBindVertexBuffers2(cmdBuf, slot, static_cast<uint32_t>(count), vtxBuffers, vtxOffsets, nullptr, vtxStrides);
-    }
-
-    void CommandList::BindIndexBuffer(const IBuffer* indexBuffer, const IndexBufferFormat format, uint64_t offset)
-    {
-        if (indexBuffer == nullptr)
-            return;
-
-        VkCommandBuffer cmdBuf = GetCommandBuffer();
-        const Buffer* buffer = check_cast<const Buffer*>(indexBuffer);
-        vkCmdBindIndexBuffer(cmdBuf, buffer->resource, offset, format == IndexBufferFormat::Uint16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
-    }
-
     void CommandList::BindStencilRef(uint32_t value)
     {
         VkCommandBuffer cmdBuf = GetCommandBuffer();
@@ -1666,36 +1668,6 @@ namespace cyb::rhi::vulkan
             offset,
             size,
             data);
-    }
-
-    void CommandList::CopyBuffer(const IBuffer* _dst, uint64_t dstOffset, const IBuffer* _src, uint64_t srcOffset, uint64_t size)
-    {
-        VkCommandBuffer cmdBuf = GetCommandBuffer();
-        const Buffer* dst = check_cast<const Buffer*>(_dst);
-        const Buffer* src = check_cast<const Buffer*>(_src);
-
-        VkBufferCopy copy{
-            .srcOffset = srcOffset,
-            .dstOffset = dstOffset,
-            .size = size
-        };
-
-        vkCmdCopyBuffer(cmdBuf, src->resource, dst->resource, 1, &copy);
-    }
-
-    void CommandList::UpdateBuffer(IBuffer* buffer, const void* data, uint64_t size, uint64_t offset)
-    {
-        assert(buffer->GetDesc().cpuAccess != CpuAccessMode::Write);
-        if (buffer == nullptr || data == nullptr)
-            return;
-
-        size = std::min(buffer->GetDesc().size, size);
-        if (size == 0)
-            return;
-
-        ScratchBufferAllocation allocation = AllocateScratchBuffer(size);
-        std::memcpy(allocation.memory, data, size);
-        CopyBuffer(buffer, offset, allocation.buffer, allocation.offset, size);
     }
 
     void CommandList::ValidatePSO()
@@ -2329,32 +2301,6 @@ namespace cyb::rhi::vulkan
             vkDestroySemaphore(device, queue->trackingSemaphore, nullptr);
     }
 
-    SwapchainHandle GraphicsDevice_Vulkan::CreateSwapchain(const SwapchainDesc* desc, NativeWindowHandle window) const
-    {
-        Swapchain* swapchain = new Swapchain(this);
-
-#ifdef _WIN32
-        VkWin32SurfaceCreateInfoKHR info{};
-        info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-        info.hwnd = window;
-        info.hinstance = GetModuleHandle(nullptr);
-        vkCreateWin32SurfaceKHR(instance, &info, nullptr, &swapchain->surface);
-#else
-#error VULKAN DEVICE ERROR: PLATFORM NOT SUPPORTED
-#endif // _WIN32
-
-        swapchain->frameFences.resize(desc->bufferCount);
-		for (uint32_t i = 0; i < desc->bufferCount; ++i)
-		{
-            swapchain->frameFences[i] = CreateEventQuery();
-		}
-
-        [[maybe_unused]] bool result = swapchain->ResizeBuffers(*desc);
-		assert(result);
-
-        return SwapchainHandle::Create(swapchain);
-    }
-
     BufferHandle GraphicsDevice_Vulkan::CreateBuffer(const BufferDesc* desc, const void* initData) const
     {
 		assert(desc->size > 0);
@@ -2439,6 +2385,72 @@ namespace cyb::rhi::vulkan
         }
 
         return BufferHandle::Create(buffer);
+    }
+
+    void CommandList::BindVertexBuffers(const IBuffer* const* vertexBuffers, uint32_t slot, uint32_t count, const uint32_t* strides, const uint64_t* offsets)
+    {
+        VkCommandBuffer cmdBuf = GetCommandBuffer();
+        VkDeviceSize vtxOffsets[8]{};
+        VkDeviceSize vtxStrides[8]{};
+        VkBuffer vtxBuffers[8]{};
+
+        assert(vertexBuffers);
+        assert(count <= 8);
+        assert(strides);
+
+        for (uint32_t i = 0; i < count; i++)
+        {
+            assert(vertexBuffers[i]);
+
+            const Buffer* buffer = check_cast<const Buffer*>(vertexBuffers[i]);
+            vtxBuffers[i] = buffer->resource;
+            if (offsets != nullptr)
+                vtxOffsets[i] = offsets[i];
+            if (strides != nullptr)
+                vtxStrides[i] = strides[i];
+        }
+
+        vkCmdBindVertexBuffers2(cmdBuf, slot, static_cast<uint32_t>(count), vtxBuffers, vtxOffsets, nullptr, vtxStrides);
+    }
+
+    void CommandList::BindIndexBuffer(const IBuffer* indexBuffer, const IndexBufferFormat format, uint64_t offset)
+    {
+        if (indexBuffer == nullptr)
+            return;
+
+        VkCommandBuffer cmdBuf = GetCommandBuffer();
+        const Buffer* buffer = check_cast<const Buffer*>(indexBuffer);
+        vkCmdBindIndexBuffer(cmdBuf, buffer->resource, offset, format == IndexBufferFormat::Uint16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+    }
+
+    void CommandList::CopyBuffer(const IBuffer* _dst, uint64_t dstOffset, const IBuffer* _src, uint64_t srcOffset, uint64_t size)
+    {
+        VkCommandBuffer cmdBuf = GetCommandBuffer();
+        const Buffer* dst = check_cast<const Buffer*>(_dst);
+        const Buffer* src = check_cast<const Buffer*>(_src);
+
+        VkBufferCopy copy{
+            .srcOffset = srcOffset,
+            .dstOffset = dstOffset,
+            .size = size
+        };
+
+        vkCmdCopyBuffer(cmdBuf, src->resource, dst->resource, 1, &copy);
+    }
+
+    void CommandList::UpdateBuffer(IBuffer* buffer, const void* data, uint64_t size, uint64_t offset)
+    {
+        assert(buffer->GetDesc().cpuAccess != CpuAccessMode::Write);
+        if (buffer == nullptr || data == nullptr)
+            return;
+
+        size = std::min(buffer->GetDesc().size, size);
+        if (size == 0)
+            return;
+
+        ScratchBufferAllocation allocation = AllocateScratchBuffer(size);
+        std::memcpy(allocation.memory, data, size);
+        CopyBuffer(buffer, offset, allocation.buffer, allocation.offset, size);
     }
 
     [[nodiscard]] Texture::SubresourceView CreateSubresource(const GraphicsDevice_Vulkan* device, ITexture* _texture,
@@ -3265,10 +3277,6 @@ namespace cyb::rhi::vulkan
         vkCreateSemaphore(m_device->device, &semaphoreInfo, nullptr, &trackingSemaphore);
     }
 
-    Queue::~Queue()
-    {
-    }
-
     CommandList* Queue::GetOrCreateCommandList(uint32_t bufferCount)
     {
         std::scoped_lock lock{ m_mutex };
@@ -3460,18 +3468,6 @@ namespace cyb::rhi::vulkan
 
             queue->ReturnUsedCommandListsToPool();
         }
-    }
-
-    void GraphicsDevice_Vulkan::Present(ISwapchain* _swapchain)
-    {
-        Swapchain* swapchain = check_cast<Swapchain*>(_swapchain);
-        swapchain->Present();
-
-        frameCount++;
-        m_allocationHandler->Update(frameCount, BUFFERCOUNT);
-
-        WaitEventQuery(swapchain->frameFences[swapchain->acquireSemaphoreIndex]);
-        ResetEventQuery(swapchain->frameFences[swapchain->acquireSemaphoreIndex]);
     }
 
     void GraphicsDevice_Vulkan::WaitForGPU() const

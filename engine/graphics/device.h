@@ -447,7 +447,7 @@ namespace cyb::rhi
     };
 
     //=============================================================
-    //  Render Device Children
+    //  Render Device Resource Interfaces
     //=============================================================
 
 	struct IBuffer : public IResource
@@ -617,31 +617,31 @@ namespace cyb::rhi
     //  Versioning for lifetime tracking
     //=============================================================
 
-    constexpr uint64_t c_VersionSubmittedFlag = 0x8000000000000000;
-    constexpr uint32_t c_VersionQueueShift = 60;
-    constexpr uint32_t c_VersionQueueMask = 0x7;
-    constexpr uint64_t c_VersionIDMask = 0x0FFFFFFFFFFFFFFF;
+    constexpr uint64_t c_versionSubmittedFlag = 0x8000000000000000;
+    constexpr uint32_t c_versionQueueShift = 60;
+    constexpr uint32_t c_versionQueueMask = 0x7;
+    constexpr uint64_t c_versionIDMask = 0x0FFFFFFFFFFFFFFF;
 
     constexpr uint64_t MakeVersion(uint64_t id, CommandQueue queue, bool submitted)
     {
-        uint64_t result = (id & c_VersionIDMask) | (uint64_t(queue) << c_VersionQueueShift);
-        if (submitted) result |= c_VersionSubmittedFlag;
+        uint64_t result = (id & c_versionIDMask) | (uint64_t(queue) << c_versionQueueShift);
+        if (submitted) result |= c_versionSubmittedFlag;
         return result;
     }
 
     constexpr uint64_t VersionGetInstance(uint64_t version)
     {
-        return version & c_VersionIDMask;
+        return version & c_versionIDMask;
     }
 
     constexpr CommandQueue VersionGetQueue(uint64_t version)
     {
-        return CommandQueue((version >> c_VersionQueueShift) & c_VersionQueueMask);
+        return CommandQueue((version >> c_versionQueueShift) & c_versionQueueMask);
     }
 
     constexpr bool VersionGetSubmitted(uint64_t version)
     {
-        return (version & c_VersionSubmittedFlag) != 0;
+        return (version & c_versionSubmittedFlag) != 0;
     }
 
     //=============================================================
